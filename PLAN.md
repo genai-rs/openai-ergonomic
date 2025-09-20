@@ -11,7 +11,7 @@
 - Inspect `openai-client-base` capabilities (auth, streaming, feature flags) to understand integration touchpoints.
 - Inventory licensing, release tooling, and process assets we can reuse.
 - Catalogue existing builder implementations (e.g., responses/chat/assistants modules) and note outstanding TODOs/workarounds in `openai-builders`.
-- Review `openai-experiment/examples/*` to understand coverage expectations (responses, streaming, assistants, audio, etc.) and plan equivalent ergonomic examples.
+- ✅ Review `openai-experiment/examples/*` to understand coverage expectations (responses, streaming, assistants, audio, etc.) and plan equivalent ergonomic examples. **COMPLETED 2025-09-20** - See PR #1 with comprehensive analysis in `docs/research/`: mapped 49 examples to ~25 consolidated examples across 3 implementation phases.
 
 ## Phase 1 – Repository Bootstrap
 - Initialize standalone crate structure (licenses, README, CONTRIBUTING, SECURITY, CHANGELOG templates).
@@ -69,6 +69,7 @@
 
 ## Immediate Next Steps
 - Confirm stakeholder expectations around agent workflow and deliverables.
-- Begin Phase 0 research sessions; capture findings in `docs/research/`.
-- Draft initial TODO items aligned to early-phase tasks (see `TODO.md`).
-- Monitor GitHub PR backlog; 2025-09-20 review flagged PR #1 and PR #2 for missing plan/TODO updates.
+- Continue Phase 0 research sessions; capture findings in `docs/research/`.
+- Implement Phase 1 core examples based on PR #1 analysis.
+- Fix API generation issues in `openai-client-base` blocking some examples.
+- Monitor GitHub PR backlog; PR #1 reviewed 2025-09-20, examples analysis completed.
