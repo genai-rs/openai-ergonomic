@@ -71,3 +71,4 @@
 - Confirm stakeholder expectations around agent workflow and deliverables.
 - Begin Phase 0 research sessions; capture findings in `docs/research/`.
 - Draft initial TODO items aligned to early-phase tasks (see `TODO.md`).
+- Monitor GitHub PR backlog; 2025-09-20 review flagged PR #1 and PR #2 for missing plan/TODO updates.
