@@ -22,6 +22,8 @@
 ## Key References
 - `PLAN.md` – Long-form roadmap across phases.
 - `TODO.md` – Current actionable checklist tracked alongside Claude sessions.
+- `docs/research/repo_scaffolding.md` – Findings on existing automation/tooling patterns.
+- `docs/research/openai_builders.md` – Audit of builders modules, known TODOs, and example coverage.
 - `openai-experiment/crates/openai-builders` – API ergonomics reference.
 - `langfuse-ergonomic` – Repo scaffolding, CI, CONTRIBUTING patterns.
 
