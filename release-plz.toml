@@ -1,0 +1,52 @@
+[workspace]
+# Enable changelog generation
+changelog_update = true
+
+# Create git tags for releases
+git_tag_enable = true
+
+# Create GitHub releases
+git_release_enable = true
+
+# PR settings
+pr_name = "chore: release"
+pr_labels = ["release"]
+
+# Changelog settings
+changelog_include = ["feat", "fix", "perf", "refactor", "docs", "test", "build", "ci", "chore"]
+
+# Template for release body
+release_body = """
+## What's Changed
+
+{{ changelog }}
+
+**Full Changelog**: https://github.com/timvw/openai-ergonomic/compare/{{ previous_tag }}...{{ tag }}
+"""
+
+# Template for PR body
+pr_body = """
+## Release Summary
+
+This PR was created by [release-plz](https://github.com/MarcoIeni/release-plz).
+
+{{ changelog }}
+
+---
+
+To trigger the release:
+1. Review the changes
+2. Merge this PR
+3. The release will be automatically published to crates.io
+"""
+
+# Commit settings
+git_tag_name = "v{{ version }}"
+
+# Package-specific configuration
+[[package]]
+name = "openai-ergonomic"
+# Publish to crates.io
+publish = true
+# Allow release-plz to update version
+release = true
