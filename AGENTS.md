@@ -66,7 +66,7 @@
 4. **Execute Incrementally** – Apply modifications in small chunks, run checks (`cargo fmt`, `cargo clippy`, `cargo test`) where applicable.
 5. **Update Artefacts** – Mark TODOs, adjust docs/tests, summarise changes for PR preparation.
 6. **Document Decisions** – Record notable choices under `docs/` (design notes, research findings) to keep context persistent.
-7. **End-of-Session Review** – Before closing a session, ask***REMOVED*** for a summary plus workflow improvement suggestions; capture outcomes in `TODO.md` or doc updates (including refinements to `claude.md`/`agents.md`).
+7. **End-of-Session Review** – Before closing a session, ask***REMOVED*** for a summary plus workflow improvement suggestions; capture outcomes in `TODO.md` or doc updates (including refinements to `CLAUDE.md`/`AGENTS.md`).
 
 ## Parallel Session Management
 - Spin up separate***REMOVED*** instances per long-running task (or per repository clone/worktree) to preserve context between sessions.
