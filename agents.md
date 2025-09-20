@@ -17,6 +17,7 @@
 3. **Truthful State** – Only describe features that exist. Keep docs/tests aligned with code.
 4. **Parity with OpenAI** – Prioritise coverage of current OpenAI endpoints, Responses-first ergonomics, and helper consistency.
 5. **Publishing Ready** – Every change nudges crate toward crates.io readiness (docs, tests, CI, release automation).
+6. **Parallel-Friendly** – When running multiple efforts concurrently, isolate work per git tree/branch so each Claude Code instance retains context without collisions.
 
 ## Key References
 - `PLAN.md` – Long-form roadmap across phases.
@@ -63,6 +64,14 @@
 4. **Execute Incrementally** – Apply modifications in small chunks, run checks (`cargo fmt`, `cargo clippy`, `cargo test`) where applicable.
 5. **Update Artefacts** – Mark TODOs, adjust docs/tests, summarise changes for PR preparation.
 6. **Document Decisions** – Record notable choices under `docs/` (design notes, research findings) to keep context persistent.
+7. **End-of-Session Review** – Before closing a session, ask Claude Code for a summary plus workflow improvement suggestions; capture outcomes in `TODO.md` or doc updates (including refinements to `claude.md`/`agents.md`).
+
+## Parallel Session Management
+- Spin up separate Claude Code instances per long-running task (or per repository clone/worktree) to preserve context between sessions.
+- Use dedicated git trees (e.g., `git worktree add ../openai-ergonomic-taskA ...`) or distinct clones so concurrent agents can commit independently.
+- Synchronise frequently: merge or rebase when switching contexts to avoid drift across parallel branches.
+- Note active sessions and their locations in `TODO.md` to make handoffs explicit.
+- When re-opening a parked instance, skim the last end-of-session summary to restore momentum instantly.
 
 ## Quick Commands
 ```bash
