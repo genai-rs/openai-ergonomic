@@ -12,7 +12,7 @@
   - `langfuse-ergonomic` (scaffolding + workflow inspiration)
 
 ## Guiding Principles
-1. **Plan First** – Brainstorm in***REMOVED***.ai, capture actionable steps in `PLAN.md`/`TODO.md` before touching code.
+1. **Plan First** – Brainstorm with any***REMOVED*** agent (Claude.ai,***REMOVED***, etc.), capture actionable steps in `PLAN.md`/`TODO.md` before touching code.
 2. **Small Diffs** – Execute in***REMOVED*** using tight loops: plan → apply → review → update TODO.
 3. **Truthful State** – Only describe features that exist. Keep docs/tests aligned with code.
 4. **Parity with OpenAI** – Prioritise coverage of current OpenAI endpoints, Responses-first ergonomics, and helper consistency.
@@ -61,8 +61,8 @@
 
 ## Operating Procedure
 1. **Review Context** – Read `PLAN.md`, `TODO.md`, relevant files from reference projects before editing.
-2. **Draft Plan in***REMOVED***.ai** – Outline steps, risks, questions. Paste distilled plan into TODO entry if new.
-3. **Seek Plan Approval** – In***REMOVED***, request a step-by-step approach; confirm before changes.
+2. **Draft Plan** – Using any***REMOVED*** agent, outline steps, risks, questions. Capture distilled plan in TODO entry if new.
+3. **Seek Plan Approval** – When working in***REMOVED***, present a step-by-step approach; confirm before changes.
 4. **Execute Incrementally** – Apply modifications in small chunks, run checks (`cargo fmt`, `cargo clippy`, `cargo test`) where applicable.
 5. **Update Artefacts** – Mark TODOs, adjust docs/tests, summarise changes for PR preparation.
 6. **Document Decisions** – Record notable choices under `docs/` (design notes, research findings) to keep context persistent.

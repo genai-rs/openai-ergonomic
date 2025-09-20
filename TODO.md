@@ -1,6 +1,6 @@
 # OpenAI Ergonomic – TODO List
 
-> Maintain using***REMOVED***’s plan-first workflow: brainstorm in***REMOVED***.ai, convert action items here before coding, check off via PRs.
+> Maintain using***REMOVED***'s plan-first workflow: brainstorm with any***REMOVED*** agent, convert action items here before coding, check off via PRs.
 
 - [ ] Phase 0: Capture audit notes for `openai-builders`, `langfuse-ergonomic`, and `openai-client-base` in `docs/research/` (include module inventory & known TODOs).
 - [ ] Phase 0: Document takeaway from `openai-experiment/examples/*` to shape ergonomic crate examples.
