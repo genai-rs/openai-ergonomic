@@ -59,6 +59,16 @@
 - **Inputs**: Incoming issues/PRs, roadmap drafts, contributor feedback.
 - **Outputs**: Updated `docs/roadmap.md`, clarified `CONTRIBUTING.md`, curated TODO backlog.
 
+### 7. Reviewer/Driver Agent
+- **Scope**: Monitor PR backlog, perform reviews/merges, keep planning artefacts honest.
+- **Inputs**: `gh pr list/view` output, latest `PLAN.md`/`TODO.md`, active worktree summary from teammates.
+- **Outputs**: PR reviews/approvals, follow-up TODO items, plan updates noting review checkpoints, nudges when agents forget isolated worktrees.
+- **Workflow Notes**:
+  - Always confirm you are on a dedicated worktree/branch before committing review artifacts; never reuse the implementation branch under review.
+  - Leave review comments when planning hygiene (TODO/PLAN updates) is missing; request artefact updates before approving.
+  - When a PR is merge-ready, ensure `PLAN.md`/`TODO.md` reflect the new state before you hit merge.
+  - Record review dates in `PLAN.md` or `TODO.md` so future reviewers know the backlog status.
+
 ## Operating Procedure
 1. **Review Context** – Read `PLAN.md`, `TODO.md`, relevant files from reference projects before editing.
 2. **Draft Plan** – Using any***REMOVED*** agent, outline steps, risks, questions. Capture distilled plan in TODO entry if new.
