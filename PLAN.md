@@ -16,6 +16,7 @@
 - Configure `Cargo.toml` with metadata, dependencies, feature flags, and lint settings.
 - Port shared tooling (`rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`, GitHub workflows).
 - Add `CLAUDE.md` explaining project context and workflow expectations.
+- Use `langfuse-ergonomic` and `openai-client-base` as templates for `.github/settings.yml`, CODEOWNERS, CI/security/release/dependency workflows, release-plz, renovate, and dual MIT/Apache licensing.
 
 ## Phase 2 – Claude & Agent Workflow Enablement
 - Define specialized Claude agents (Scaffolder, Docs, QA, Release) with scoped prompts and responsibilities.
