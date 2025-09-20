@@ -2,7 +2,8 @@
 
 > Maintain using***REMOVED***’s plan-first workflow: brainstorm in***REMOVED***.ai, convert action items here before coding, check off via PRs.
 
-- [ ] Phase 0: Capture audit notes for `openai-builders`, `langfuse-ergonomic`, and `openai-client-base` in `docs/research/`.
+- [ ] Phase 0: Capture audit notes for `openai-builders`, `langfuse-ergonomic`, and `openai-client-base` in `docs/research/` (include module inventory & known TODOs).
+- [ ] Phase 0: Document takeaway from `openai-experiment/examples/*` to shape ergonomic crate examples.
 - [ ] Phase 1: Scaffold repository (licenses, README stub, CONTRIBUTING, SECURITY, CHANGELOG templates) using `langfuse-ergonomic` / `openai-client-base` patterns.
 - [ ] Phase 1: Port shared tooling (`rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`, `.github/settings.yml`, CODEOWNERS, CI/security/release/dependency workflows).
 - [ ] Phase 1: Author initial `CLAUDE.md` describing agent expectations and workflow rituals.
