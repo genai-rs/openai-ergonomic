@@ -2,9 +2,10 @@
 
 > Maintain using Claude's plan-first workflow: brainstorm with any Claude agent, convert action items here before coding, check off via PRs.
 
-- [ ] Maintenance: Monitor GitHub PR backlog (last checked 2025-09-20; PR #1 and PR #2 waiting on TODO/PLAN updates before approval).
+- [ ] Maintenance: Monitor GitHub PR backlog (last checked 2025-09-20; PR #2 merged with openai-client-base analysis).
 
-- [ ] Phase 0: Capture audit notes for `openai-builders`, `langfuse-ergonomic`, and `openai-client-base` in `docs/research/` (include module inventory & known TODOs).
+- [x] Phase 0: Capture audit notes for `openai-client-base` in `docs/research/` (PR #2 merged 2025-09-20).
+- [ ] Phase 0: Capture audit notes for `openai-builders` and `langfuse-ergonomic` in `docs/research/` (include module inventory & known TODOs).
 - [ ] Phase 0: Document takeaway from `openai-experiment/examples/*` to shape ergonomic crate examples.
 - [ ] Phase 1: Scaffold repository (licenses, README stub, CONTRIBUTING, SECURITY, CHANGELOG templates) using `langfuse-ergonomic` / `openai-client-base` patterns.
 - [ ] Phase 1: Port shared tooling (`rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`, `.github/settings.yml`, CODEOWNERS, CI/security/release/dependency workflows).
