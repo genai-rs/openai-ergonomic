@@ -1,3 +1,3 @@
-//! fine_tuning API builders.
+//! `fine_tuning` API builders.
 
 // TODO: Implement fine_tuning API builders

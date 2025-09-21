@@ -1,3 +1,3 @@
-//! fine_tuning response types.
+//! `fine_tuning` response types.
 
 // TODO: Implement fine_tuning response types

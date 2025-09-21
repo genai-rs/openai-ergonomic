@@ -1,18 +1,22 @@
 #![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
+#![allow(clippy::missing_const_for_fn)]
+#![allow(clippy::use_self)]
+#![allow(clippy::io_other_error)]
+#![allow(async_fn_in_trait)]
 
 //! # openai-ergonomic
 //!
-//! An ergonomic Rust wrapper for the OpenAI API, providing type-safe builder patterns
-//! and async/await support for all OpenAI endpoints.
+//! An ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder patterns
+//! and async/await support for all `OpenAI` endpoints.
 //!
 //! ## Features
 //!
 //! - **Type-safe builders** - Use builder patterns with compile-time validation
 //! - **Async/await support** - Built on tokio and reqwest for modern async Rust
 //! - **Streaming responses** - First-class support for real-time streaming
-//! - **Comprehensive coverage** - Support for all OpenAI API endpoints
+//! - **Comprehensive coverage** - Support for all `OpenAI` API endpoints
 //! - **Error handling** - Structured error types for robust applications
 //! - **Testing support** - Mock-friendly design for unit testing
 //!
@@ -141,11 +145,15 @@ pub use client::Client;
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, Result};
 
-// Re-export builder types for convenience
-pub use builders::*;
-
-// Re-export response types for convenience
-pub use responses::*;
+// Re-export specific builder and response types for convenience
+// NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
+pub use builders::chat::{system_user, user_message};
+pub use builders::{Builder, ChatCompletionBuilder, Sendable};
+pub use responses::chat::{
+    ChatChoice, ChatCompletionResponse, ChatMessage as ResponseChatMessage, FunctionCall, ToolCall,
+};
+pub use responses::{tool_function, tool_web_search};
+pub use responses::{Response, ResponseBuilder, Tool, ToolChoice, ToolFunction, Usage};
 
 // Test utilities (feature-gated)
 #[cfg(feature = "test-utils")]

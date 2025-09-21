@@ -5,41 +5,56 @@ use serde::{Deserialize, Serialize};
 /// Placeholder for chat completion response until openai-client-base is integrated
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionResponse {
+    /// Unique identifier for the completion
     pub id: String,
+    /// Model used for the completion
     pub model: String,
+    /// Array of completion choices
     pub choices: Vec<ChatChoice>,
+    /// Token usage information
     pub usage: Option<super::Usage>,
 }
 
 /// Placeholder for chat choice until openai-client-base is integrated
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatChoice {
+    /// Index of this choice in the array
     pub index: u32,
+    /// Message content for this choice
     pub message: ChatMessage,
+    /// Reason the model stopped generating
     pub finish_reason: Option<String>,
 }
 
 /// Placeholder for chat message until openai-client-base is integrated
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
+    /// Role of the message sender (system, user, assistant, etc.)
     pub role: String,
+    /// Text content of the message
     pub content: Option<String>,
+    /// Tool calls made by the assistant
     pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 /// Placeholder for tool call until openai-client-base is integrated
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
+    /// Unique identifier for the tool call
     pub id: String,
+    /// Type of tool (usually "function")
     #[serde(rename = "type")]
     pub tool_type: String,
+    /// Function call details
     pub function: FunctionCall,
 }
 
 /// Placeholder for function call until openai-client-base is integrated
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionCall {
+    /// Name of the function to call
     pub name: String,
+    /// JSON-encoded arguments for the function
     pub arguments: String,
 }
 
