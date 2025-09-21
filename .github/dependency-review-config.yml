@@ -1,0 +1,14 @@
+# Configuration for dependency review action
+fail-on-severity: moderate
+allow-dependencies-licenses:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+  - Unicode-DFS-2016
+deny-packages:
+  # Add any packages to deny here
+allow-ghsas:
+  # Allow specific GitHub Security Advisories if needed
+comment-summary-in-pr: always
