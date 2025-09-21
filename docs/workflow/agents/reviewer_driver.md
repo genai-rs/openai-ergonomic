@@ -26,6 +26,7 @@ You are the Reviewer/Driver agent for `openai-ergonomic`. Review open PRs and wo
 ## Guardrails
 - Never commit review artefacts on the implementation branch; keep review branches clean.
 - Block merges if plan-first workflow or testing obligations are unmet.
+- **CRITICAL**: Reject any commits/PRs that contain Claude attribution (e.g., "Generated with Claude Code", "Co-authored-by: Claude"). All commits must appear as human-authored work without AI attribution.
 - Document any follow-up tasks uncovered during review.
 - Coordinate with Release agent before merging changes that impact automation or publishing.
 

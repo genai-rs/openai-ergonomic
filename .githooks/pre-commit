@@ -5,6 +5,16 @@ set -e
 
 echo "🔍 Running pre-commit checks..."
 
+# Check for AI attribution FIRST
+echo "🚫 Checking for AI attribution..."
+if [ -f scripts/check-attribution.sh ]; then
+    scripts/check-attribution.sh || {
+        echo "❌ AI attribution detected. Remove all Claude/AI references before committing."
+        echo "This is a hard requirement - no AI attribution is allowed in commits or code."
+        exit 1
+    }
+fi
+
 # Run cargo fmt
 echo "📝 Checking code formatting..."
 cargo fmt --all -- --check || {

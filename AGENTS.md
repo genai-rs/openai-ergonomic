@@ -84,8 +84,18 @@
 2. **Lint check**: `cargo clippy --all-targets --all-features -- -D warnings` - Fix all clippy warnings
 3. **Test check**: `cargo test --all` - Ensure all tests pass
 4. **Build check**: `cargo build` - Verify the project compiles
+5. **Attribution check**: Ensure NO Claude/AI attribution in commit messages or code
 
 Never assume code is "done" without running these checks. CI will fail if these checks don't pass.
+
+## Critical Policy: No AI Attribution
+**ABSOLUTELY NO AI ATTRIBUTION**: Never include any of the following in commits, PRs, or code:
+- "Generated with Claude Code" or similar
+- "Co-authored-by: Claude" or any AI co-authorship
+- References to AI/LLM assistance in comments or documentation
+- Any indication that code was AI-generated
+
+All code must appear as human-authored work. This is a hard requirement - violations will result in PR rejection.
 
 ## Parallel Session Management
 - Spin up separate Claude Code instances per long-running task (or per repository clone/worktree) to preserve context between sessions.
