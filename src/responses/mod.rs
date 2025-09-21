@@ -6,7 +6,7 @@
 //!
 //! # Example
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use openai_ergonomic::responses::*;
 //! // TODO: Add example once responses are implemented
 //! ```
