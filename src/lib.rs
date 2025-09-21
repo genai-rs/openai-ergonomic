@@ -10,6 +10,9 @@
 
 pub use bon;
 
+/// Test utilities module (available for both unit and integration tests)
+pub mod test_utils;
+
 #[cfg(test)]
 mod tests {
     #[test]
