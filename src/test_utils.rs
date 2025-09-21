@@ -39,7 +39,10 @@ impl MockOpenAIServer {
     pub async fn mock_chat_completions_success(&self) -> &Self {
         Mock::given(method("POST"))
             .and(path("/v1/chat/completions"))
-            .and(header("authorization", format!("Bearer {}", self.api_key).as_str()))
+            .and(header(
+                "authorization",
+                format!("Bearer {}", self.api_key).as_str(),
+            ))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "id": "chatcmpl-test123",
                 "object": "chat.completion",
@@ -71,7 +74,10 @@ impl MockOpenAIServer {
 
         Mock::given(method("POST"))
             .and(path("/v1/chat/completions"))
-            .and(header("authorization", format!("Bearer {}", self.api_key).as_str()))
+            .and(header(
+                "authorization",
+                format!("Bearer {}", self.api_key).as_str(),
+            ))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_string(streaming_response)
@@ -94,7 +100,10 @@ impl MockOpenAIServer {
     ) -> &Self {
         Mock::given(method("POST"))
             .and(path("/v1/chat/completions"))
-            .and(header("authorization", format!("Bearer {}", self.api_key).as_str()))
+            .and(header(
+                "authorization",
+                format!("Bearer {}", self.api_key).as_str(),
+            ))
             .respond_with(ResponseTemplate::new(status_code).set_body_json(json!({
                 "error": {
                     "type": error_type,
@@ -112,7 +121,10 @@ impl MockOpenAIServer {
     pub async fn mock_embeddings_success(&self) -> &Self {
         Mock::given(method("POST"))
             .and(path("/v1/embeddings"))
-            .and(header("authorization", format!("Bearer {}", self.api_key).as_str()))
+            .and(header(
+                "authorization",
+                format!("Bearer {}", self.api_key).as_str(),
+            ))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "object": "list",
                 "data": [{
@@ -136,7 +148,10 @@ impl MockOpenAIServer {
     pub async fn mock_models_list(&self) -> &Self {
         Mock::given(method("GET"))
             .and(path("/v1/models"))
-            .and(header("authorization", format!("Bearer {}", self.api_key).as_str()))
+            .and(header(
+                "authorization",
+                format!("Bearer {}", self.api_key).as_str(),
+            ))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "object": "list",
                 "data": [
