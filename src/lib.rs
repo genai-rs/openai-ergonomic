@@ -5,7 +5,7 @@
 //! Ergonomic Rust wrapper for the OpenAI API.
 //!
 //! This crate provides a type-safe, builder-pattern interface to interact with
-//! OpenAI's API endpoints, making it easy to integrate AI capabilities into
+//! `OpenAI` API endpoints, making it easy to integrate AI capabilities into
 //! your Rust applications.
 
 pub use bon;
