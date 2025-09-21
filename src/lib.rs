@@ -2,24 +2,120 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-//! Ergonomic Rust wrapper for the OpenAI API.
+//! # openai-ergonomic
 //!
-//! This crate provides a type-safe, builder-pattern interface to interact with
-//! OpenAI API endpoints, making it easy to integrate AI capabilities into
-//! your Rust applications.
+//! An ergonomic Rust wrapper for the OpenAI API, providing type-safe builder patterns
+//! and async/await support for all OpenAI endpoints.
 //!
-//! # Quick Start
+//! ## Features
 //!
-//! ```rust
-//! # use openai_ergonomic::{Client, Config};
-//! # #[tokio::main]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create a client from environment variables
-//! let client = Client::from_env()?;
+//! - **Type-safe builders** - Use builder patterns with compile-time validation
+//! - **Async/await support** - Built on tokio and reqwest for modern async Rust
+//! - **Streaming responses** - First-class support for real-time streaming
+//! - **Comprehensive coverage** - Support for all OpenAI API endpoints
+//! - **Error handling** - Structured error types for robust applications
+//! - **Testing support** - Mock-friendly design for unit testing
 //!
-//! // TODO: Add usage examples once implementations are complete
-//! # Ok(())
-//! # }
+//! ## Quick Start
+//!
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Config};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create a client from environment variables
+//!     let client = Client::from_env()?;
+//!
+//!     // Simple chat completion
+//!     let response = client
+//!         .chat_simple("Hello, how are you?")
+//!         .await?;
+//!
+//!     println!("{}", response);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Streaming Example
+//!
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Config};
+//! use futures::StreamExt;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = Client::from_env()?;
+//!
+//!     // Stream chat completions
+//!     let mut stream = client
+//!         .chat()
+//!         .user("Tell me a story")
+//!         .stream()
+//!         .await?;
+//!
+//!     while let Some(chunk) = stream.next().await {
+//!         print!("{}", chunk?.content());
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Error Handling
+//!
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Error};
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let client = Client::from_env().expect("API key required");
+//!
+//!     match client.chat_simple("Hello").await {
+//!         Ok(response) => println!("{}", response),
+//!         Err(Error::RateLimit { .. }) => {
+//!             println!("Rate limited, please retry later");
+//!         }
+//!         Err(e) => eprintln!("Error: {}", e),
+//!     }
+//! }
+//! ```
+//!
+//! ## Custom Configuration
+//!
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Config};
+//! use std::time::Duration;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = Config::builder()
+//!         .api_key("your-api-key")
+//!         .organization_id("org-123")
+//!         .timeout(Duration::from_secs(30))
+//!         .max_retries(5)
+//!         .build();
+//!
+//!     let client = Client::new(config)?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Testing with Mocks
+//!
+//! ```rust,no_run
+//! #[cfg(test)]
+//! mod tests {
+//!     use openai_ergonomic::test_utils::MockOpenAIServer;
+//!
+//!     #[tokio::test]
+//!     async fn test_chat_completion() {
+//!         let mock = MockOpenAIServer::new();
+//!         mock.mock_chat_completion("Hello!", "Hi there!");
+//!
+//!         let client = mock.client();
+//!         let response = client.chat_simple("Hello!").await.unwrap();
+//!         assert_eq!(response, "Hi there!");
+//!     }
+//! }
 //! ```
 //!
 //! # Modules
