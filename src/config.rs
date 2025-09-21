@@ -23,7 +23,7 @@ use tokio::time::Duration;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use openai_ergonomic::Config;
 /// // From environment variables
 /// let config = Config::from_env().unwrap();

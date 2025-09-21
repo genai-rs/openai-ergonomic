@@ -33,12 +33,12 @@ tokio = { version = "1.0", features = ["full"] }
 
 ### Basic Usage
 
-```rust
-use openai_ergonomic::OpenAIClient;
+```rust,ignore
+use openai_ergonomic::{Client, Config};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = OpenAIClient::new()
+    let client = Client::from_env()?
         .api_key("your-api-key-here")
         .build();
 
@@ -56,13 +56,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Streaming Example
 
-```rust
-use openai_ergonomic::OpenAIClient;
+```rust,ignore
+use openai_ergonomic::{Client, Config};
 use futures::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = OpenAIClient::new()
+    let client = Client::from_env()?
         .api_key("your-api-key-here")
         .build();
 
