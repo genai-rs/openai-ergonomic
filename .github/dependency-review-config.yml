@@ -7,6 +7,7 @@ allow-dependencies-licenses:
   - BSD-3-Clause
   - ISC
   - Unicode-DFS-2016
+  - MPL-2.0
 # Add any packages to deny here
 deny-packages: []
 # Allow specific GitHub Security Advisories if needed
