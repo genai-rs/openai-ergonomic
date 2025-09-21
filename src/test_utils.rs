@@ -1,27 +1,27 @@
-//! Test utilities for mocking OpenAI API responses.
+//! Test utilities for mocking `OpenAI` API responses.
 //!
 //! This module provides testing utilities that are only available
 //! with the `test-utils` feature flag enabled.
 
-use mockito::{Mock, Server};
+use mockito::{Mock, ServerGuard};
 use serde_json::json;
 
-/// Mock OpenAI server for testing.
+/// Mock `OpenAI` server for testing.
 pub struct MockOpenAIServer {
-    server: Server,
+    server: ServerGuard,
     api_key: String,
 }
 
 impl MockOpenAIServer {
     /// Create a new mock server with a test API key.
-    pub fn new() -> Self {
-        Self::with_api_key("test-api-key")
+    pub async fn new() -> Self {
+        Self::with_api_key("test-api-key").await
     }
 
     /// Create a new mock server with a custom API key.
-    pub fn with_api_key(api_key: impl Into<String>) -> Self {
+    pub async fn with_api_key(api_key: impl Into<String>) -> Self {
         Self {
-            server: Server::new(),
+            server: mockito::Server::new_async().await,
             api_key: api_key.into(),
         }
     }
@@ -32,36 +32,40 @@ impl MockOpenAIServer {
     }
 
     /// Mock a successful chat completions response.
-    pub fn mock_chat_completions_success(&mut self) -> Mock {
+    pub async fn mock_chat_completions_success(&mut self) -> Mock {
         self.server
             .mock("POST", "/v1/chat/completions")
             .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(json!({
-                "id": "chatcmpl-test123",
-                "object": "chat.completion",
-                "created": 1_677_652_288,
-                "model": "gpt-4",
-                "choices": [{
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": "Hello! How can I help you today?"
-                    },
-                    "finish_reason": "stop"
-                }],
-                "usage": {
-                    "prompt_tokens": 10,
-                    "completion_tokens": 20,
-                    "total_tokens": 30
-                }
-            }).to_string())
-            .create()
+            .with_body(
+                json!({
+                    "id": "chatcmpl-test123",
+                    "object": "chat.completion",
+                    "created": 1_677_652_288,
+                    "model": "gpt-4",
+                    "choices": [{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "Hello! How can I help you today?"
+                        },
+                        "finish_reason": "stop"
+                    }],
+                    "usage": {
+                        "prompt_tokens": 10,
+                        "completion_tokens": 20,
+                        "total_tokens": 30
+                    }
+                })
+                .to_string(),
+            )
+            .create_async()
+            .await
     }
 
     /// Mock a streaming chat completions response.
-    pub fn mock_chat_completions_streaming(&mut self) -> Mock {
+    pub async fn mock_chat_completions_streaming(&mut self) -> Mock {
         let streaming_response = "data: {\"id\":\"chatcmpl-test123\",\"object\":\"chat.completion.chunk\",\"created\":1677652288,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-test123\",\"object\":\"chat.completion.chunk\",\"created\":1677652288,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" world!\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
 
         self.server
@@ -72,11 +76,12 @@ impl MockOpenAIServer {
             .with_header("cache-control", "no-cache")
             .with_header("connection", "keep-alive")
             .with_body(streaming_response)
-            .create()
+            .create_async()
+            .await
     }
 
     /// Mock an error response.
-    pub fn mock_error_response(
+    pub async fn mock_error_response(
         &mut self,
         status_code: u16,
         error_type: &str,
@@ -87,74 +92,80 @@ impl MockOpenAIServer {
             .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
             .with_status(status_code as usize)
             .with_header("content-type", "application/json")
-            .with_body(json!({
-                "error": {
-                    "type": error_type,
-                    "message": message,
-                    "code": null
-                }
-            }).to_string())
-            .create()
+            .with_body(
+                json!({
+                    "error": {
+                        "type": error_type,
+                        "message": message,
+                        "code": null
+                    }
+                })
+                .to_string(),
+            )
+            .create_async()
+            .await
     }
 
     /// Mock embeddings endpoint.
-    pub fn mock_embeddings_success(&mut self) -> Mock {
+    pub async fn mock_embeddings_success(&mut self) -> Mock {
         self.server
             .mock("POST", "/v1/embeddings")
             .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(json!({
-                "object": "list",
-                "data": [{
-                    "object": "embedding",
-                    "index": 0,
-                    "embedding": [0.1, 0.2, 0.3, -0.1, -0.2]
-                }],
-                "model": "text-embedding-ada-002",
-                "usage": {
-                    "prompt_tokens": 5,
-                    "total_tokens": 5
-                }
-            }).to_string())
-            .create()
+            .with_body(
+                json!({
+                    "object": "list",
+                    "data": [{
+                        "object": "embedding",
+                        "index": 0,
+                        "embedding": [0.1, 0.2, 0.3, -0.1, -0.2]
+                    }],
+                    "model": "text-embedding-ada-002",
+                    "usage": {
+                        "prompt_tokens": 5,
+                        "total_tokens": 5
+                    }
+                })
+                .to_string(),
+            )
+            .create_async()
+            .await
     }
 
     /// Mock models list endpoint.
-    pub fn mock_models_list(&mut self) -> Mock {
+    pub async fn mock_models_list(&mut self) -> Mock {
         self.server
             .mock("GET", "/v1/models")
             .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
             .with_status(200)
             .with_header("content-type", "application/json")
-            .with_body(json!({
-                "object": "list",
-                "data": [
-                    {
-                        "id": "gpt-4",
-                        "object": "model",
-                        "created": 1_677_610_602,
-                        "owned_by": "openai"
-                    },
-                    {
-                        "id": "gpt-3.5-turbo",
-                        "object": "model",
-                        "created": 1_677_610_602,
-                        "owned_by": "openai"
-                    }
-                ]
-            }).to_string())
-            .create()
+            .with_body(
+                json!({
+                    "object": "list",
+                    "data": [
+                        {
+                            "id": "gpt-4",
+                            "object": "model",
+                            "created": 1_677_610_602,
+                            "owned_by": "openai"
+                        },
+                        {
+                            "id": "gpt-3.5-turbo",
+                            "object": "model",
+                            "created": 1_677_610_602,
+                            "owned_by": "openai"
+                        }
+                    ]
+                })
+                .to_string(),
+            )
+            .create_async()
+            .await
     }
 }
 
-impl Default for MockOpenAIServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Test fixtures for common OpenAI API payloads.
+/// Test fixtures for common `OpenAI` API payloads.
 pub mod fixtures {
     use serde_json::{json, Value};
 
@@ -209,8 +220,7 @@ pub mod assertions {
     pub fn assert_has_field(value: &Value, field: &str) {
         assert!(
             value.get(field).is_some(),
-            "Expected field '{}' not found in response",
-            field
+            "Expected field '{field}' not found in response"
         );
     }
 
@@ -218,12 +228,8 @@ pub mod assertions {
     pub fn assert_field_equals(value: &Value, field: &str, expected: &Value) {
         let actual = value
             .get(field)
-            .unwrap_or_else(|| panic!("Field '{}' not found", field));
-        assert_eq!(
-            actual, expected,
-            "Field '{}' has unexpected value",
-            field
-        );
+            .unwrap_or_else(|| panic!("Field '{field}' not found"));
+        assert_eq!(actual, expected, "Field '{field}' has unexpected value");
     }
 
     /// Assert that a response has a successful status.
@@ -240,9 +246,10 @@ pub mod assertions {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_mock_server_creation() {
-        let server = MockOpenAIServer::new();
+    #[tokio::test]
+    #[allow(clippy::significant_drop_tightening)]
+    async fn test_mock_server_creation() {
+        let server = MockOpenAIServer::new().await;
         assert!(!server.base_url().is_empty());
     }
 
