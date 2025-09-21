@@ -1,3 +1,3 @@
-//! vector_stores response types.
+//! `vector_stores` response types.
 
 // TODO: Implement vector_stores response types

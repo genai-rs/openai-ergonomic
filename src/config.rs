@@ -1,20 +1,20 @@
-//! Configuration for the OpenAI ergonomic client.
+//! Configuration for the `OpenAI` ergonomic client.
 //!
-//! This module provides configuration options for the OpenAI client,
+//! This module provides configuration options for the `OpenAI` client,
 //! including API key management, base URLs, timeouts, and retry settings.
 
 use crate::{errors::Result, Error};
 use std::env;
 use tokio::time::Duration;
 
-/// Configuration for the OpenAI client.
+/// Configuration for the `OpenAI` client.
 ///
 /// The configuration can be created from environment variables or
 /// manually constructed with the builder pattern.
 ///
 /// # Environment Variables
 ///
-/// - `OPENAI_API_KEY`: The OpenAI API key (required)
+/// - `OPENAI_API_KEY`: The `OpenAI` API key (required)
 /// - `OPENAI_API_BASE`: Custom base URL for the API (optional)
 /// - `OPENAI_ORGANIZATION`: Organization ID (optional)
 /// - `OPENAI_PROJECT`: Project ID (optional)
@@ -48,6 +48,7 @@ pub struct Config {
 
 impl Config {
     /// Create a new configuration builder.
+    #[must_use]
     pub fn builder() -> ConfigBuilder {
         ConfigBuilder::default()
     }
@@ -148,7 +149,7 @@ impl Default for Config {
     }
 }
 
-/// Builder for creating OpenAI client configuration.
+/// Builder for creating `OpenAI` client configuration.
 #[derive(Debug, Clone, Default)]
 pub struct ConfigBuilder {
     api_key: Option<String>,
@@ -162,48 +163,56 @@ pub struct ConfigBuilder {
 
 impl ConfigBuilder {
     /// Set the API key.
+    #[must_use]
     pub fn api_key(mut self, api_key: impl Into<String>) -> Self {
         self.api_key = Some(api_key.into());
         self
     }
 
     /// Set the API base URL.
+    #[must_use]
     pub fn api_base(mut self, api_base: impl Into<String>) -> Self {
         self.api_base = Some(api_base.into());
         self
     }
 
     /// Set the organization ID.
+    #[must_use]
     pub fn organization(mut self, organization: impl Into<String>) -> Self {
         self.organization = Some(organization.into());
         self
     }
 
     /// Set the project ID.
+    #[must_use]
     pub fn project(mut self, project: impl Into<String>) -> Self {
         self.project = Some(project.into());
         self
     }
 
     /// Set the request timeout in seconds.
+    #[must_use]
     pub fn timeout_seconds(mut self, timeout_seconds: u64) -> Self {
         self.timeout_seconds = Some(timeout_seconds);
         self
     }
 
     /// Set the maximum number of retries.
+    #[must_use]
     pub fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
         self
     }
 
     /// Set the default model to use.
+    #[must_use]
     pub fn default_model(mut self, default_model: impl Into<String>) -> Self {
         self.default_model = Some(default_model.into());
         self
     }
 
     /// Build the configuration.
+    #[must_use]
     pub fn build(self) -> Config {
         Config {
             api_key: self.api_key.unwrap_or_default(),
