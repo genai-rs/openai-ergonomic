@@ -1,49 +1,44 @@
-//! Test utilities and mock helpers for openai-ergonomic
+//! Test utilities for mocking OpenAI API responses.
 //!
-//! This module provides utilities for testing, including mock server setup,
-//! test fixtures, and common test helpers.
+//! This module provides testing utilities that are only available
+//! with the `test-utils` feature flag enabled.
 
+use mockito::{Mock, Server};
 use serde_json::json;
 
-#[cfg(feature = "test-utils")]
-use wiremock::{
-    matchers::{header, method, path},
-    Mock, MockServer, ResponseTemplate,
-};
-
-#[cfg(feature = "test-utils")]
-/// Mock `OpenAI` API server for testing
+/// Mock OpenAI server for testing.
 pub struct MockOpenAIServer {
-    /// The underlying mock server instance
-    pub server: MockServer,
-    /// API key used for authentication in tests
-    pub api_key: String,
+    server: Server,
+    api_key: String,
 }
 
-#[cfg(feature = "test-utils")]
 impl MockOpenAIServer {
-    /// Create a new mock `OpenAI` server
-    pub async fn new() -> Self {
-        let server = MockServer::start().await;
-        let api_key = "test-api-key".to_string();
-
-        Self { server, api_key }
+    /// Create a new mock server with a test API key.
+    pub fn new() -> Self {
+        Self::with_api_key("test-api-key")
     }
 
-    /// Get the base URL for the mock server
+    /// Create a new mock server with a custom API key.
+    pub fn with_api_key(api_key: impl Into<String>) -> Self {
+        Self {
+            server: Server::new(),
+            api_key: api_key.into(),
+        }
+    }
+
+    /// Get the base URL for the mock server.
     pub fn base_url(&self) -> String {
-        self.server.uri()
+        self.server.url()
     }
 
-    /// Mock a successful chat completions response
-    pub async fn mock_chat_completions_success(&self) -> &Self {
-        Mock::given(method("POST"))
-            .and(path("/v1/chat/completions"))
-            .and(header(
-                "authorization",
-                format!("Bearer {}", self.api_key).as_str(),
-            ))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+    /// Mock a successful chat completions response.
+    pub fn mock_chat_completions_success(&mut self) -> Mock {
+        self.server
+            .mock("POST", "/v1/chat/completions")
+            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(json!({
                 "id": "chatcmpl-test123",
                 "object": "chat.completion",
                 "created": 1_677_652_288,
@@ -52,80 +47,64 @@ impl MockOpenAIServer {
                     "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": "Hello! I'm a test response from the mock server."
+                        "content": "Hello! How can I help you today?"
                     },
                     "finish_reason": "stop"
                 }],
                 "usage": {
-                    "prompt_tokens": 9,
-                    "completion_tokens": 12,
-                    "total_tokens": 21
+                    "prompt_tokens": 10,
+                    "completion_tokens": 20,
+                    "total_tokens": 30
                 }
-            })))
-            .mount(&self.server)
-            .await;
-
-        self
+            }).to_string())
+            .create()
     }
 
-    /// Mock a streaming chat completions response
-    pub async fn mock_chat_completions_streaming(&self) -> &Self {
+    /// Mock a streaming chat completions response.
+    pub fn mock_chat_completions_streaming(&mut self) -> Mock {
         let streaming_response = "data: {\"id\":\"chatcmpl-test123\",\"object\":\"chat.completion.chunk\",\"created\":1677652288,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-test123\",\"object\":\"chat.completion.chunk\",\"created\":1677652288,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" world!\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
 
-        Mock::given(method("POST"))
-            .and(path("/v1/chat/completions"))
-            .and(header(
-                "authorization",
-                format!("Bearer {}", self.api_key).as_str(),
-            ))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_string(streaming_response)
-                    .insert_header("content-type", "text/event-stream")
-                    .insert_header("cache-control", "no-cache")
-                    .insert_header("connection", "keep-alive"),
-            )
-            .mount(&self.server)
-            .await;
-
-        self
+        self.server
+            .mock("POST", "/v1/chat/completions")
+            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
+            .with_status(200)
+            .with_header("content-type", "text/event-stream")
+            .with_header("cache-control", "no-cache")
+            .with_header("connection", "keep-alive")
+            .with_body(streaming_response)
+            .create()
     }
 
-    /// Mock an error response
-    pub async fn mock_error_response(
-        &self,
+    /// Mock an error response.
+    pub fn mock_error_response(
+        &mut self,
         status_code: u16,
         error_type: &str,
         message: &str,
-    ) -> &Self {
-        Mock::given(method("POST"))
-            .and(path("/v1/chat/completions"))
-            .and(header(
-                "authorization",
-                format!("Bearer {}", self.api_key).as_str(),
-            ))
-            .respond_with(ResponseTemplate::new(status_code).set_body_json(json!({
+    ) -> Mock {
+        self.server
+            .mock("POST", "/v1/chat/completions")
+            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
+            .with_status(status_code as usize)
+            .with_header("content-type", "application/json")
+            .with_body(json!({
                 "error": {
                     "type": error_type,
                     "message": message,
                     "code": null
                 }
-            })))
-            .mount(&self.server)
-            .await;
-
-        self
+            }).to_string())
+            .create()
     }
 
-    /// Mock embeddings endpoint
-    pub async fn mock_embeddings_success(&self) -> &Self {
-        Mock::given(method("POST"))
-            .and(path("/v1/embeddings"))
-            .and(header(
-                "authorization",
-                format!("Bearer {}", self.api_key).as_str(),
-            ))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+    /// Mock embeddings endpoint.
+    pub fn mock_embeddings_success(&mut self) -> Mock {
+        self.server
+            .mock("POST", "/v1/embeddings")
+            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(json!({
                 "object": "list",
                 "data": [{
                     "object": "embedding",
@@ -137,22 +116,18 @@ impl MockOpenAIServer {
                     "prompt_tokens": 5,
                     "total_tokens": 5
                 }
-            })))
-            .mount(&self.server)
-            .await;
-
-        self
+            }).to_string())
+            .create()
     }
 
-    /// Mock models list endpoint
-    pub async fn mock_models_list(&self) -> &Self {
-        Mock::given(method("GET"))
-            .and(path("/v1/models"))
-            .and(header(
-                "authorization",
-                format!("Bearer {}", self.api_key).as_str(),
-            ))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+    /// Mock models list endpoint.
+    pub fn mock_models_list(&mut self) -> Mock {
+        self.server
+            .mock("GET", "/v1/models")
+            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(json!({
                 "object": "list",
                 "data": [
                     {
@@ -168,161 +143,120 @@ impl MockOpenAIServer {
                         "owned_by": "openai"
                     }
                 ]
-            })))
-            .mount(&self.server)
-            .await;
-
-        self
+            }).to_string())
+            .create()
     }
 }
 
-/// Common test fixtures and utilities
+impl Default for MockOpenAIServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Test fixtures for common OpenAI API payloads.
 pub mod fixtures {
     use serde_json::{json, Value};
 
-    /// Sample chat message for testing
-    pub fn sample_chat_message() -> Value {
-        json!({
-            "role": "user",
-            "content": "Hello, how are you?"
-        })
-    }
-
-    /// Sample chat completion request
-    pub fn sample_chat_completion_request() -> Value {
+    /// Get a sample chat completion request payload.
+    pub fn chat_completion_request() -> Value {
         json!({
             "model": "gpt-4",
-            "messages": [sample_chat_message()],
-            "max_tokens": 100,
-            "temperature": 0.7
+            "messages": [
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": "Hello!"}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 150
         })
     }
 
-    /// Sample embedding request
-    pub fn sample_embedding_request() -> Value {
+    /// Get a sample embeddings request payload.
+    pub fn embeddings_request() -> Value {
         json!({
             "model": "text-embedding-ada-002",
-            "input": "Sample text for embedding"
+            "input": "Hello, world!"
         })
     }
 
-    /// Sample function definition for tool calling
-    pub fn sample_function_definition() -> Value {
+    /// Get a sample tool/function definition.
+    pub fn tool_definition() -> Value {
         json!({
-            "name": "get_weather",
-            "description": "Get the current weather for a location",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "The city and state, e.g. San Francisco, CA"
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get the current weather",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state"
+                        }
                     },
-                    "unit": {
-                        "type": "string",
-                        "enum": ["celsius", "fahrenheit"],
-                        "description": "The temperature unit"
-                    }
-                },
-                "required": ["location"]
+                    "required": ["location"]
+                }
             }
         })
     }
 }
 
-/// Test assertion helpers
+/// Assertion helpers for testing API responses.
 pub mod assertions {
     use serde_json::Value;
 
-    /// Assert that a response contains expected fields
-    pub fn assert_has_required_fields(response: &Value, fields: &[&str]) {
-        for field in fields {
-            assert!(
-                response.get(field).is_some(),
-                "Response missing required field: {field}"
-            );
-        }
+    /// Assert that a value has a specific field.
+    pub fn assert_has_field(value: &Value, field: &str) {
+        assert!(
+            value.get(field).is_some(),
+            "Expected field '{}' not found in response",
+            field
+        );
     }
 
-    /// Assert that a chat completion response is valid
-    pub fn assert_valid_chat_completion(response: &Value) {
-        assert_has_required_fields(response, &["id", "object", "created", "model", "choices"]);
-
-        let choices = response["choices"]
-            .as_array()
-            .expect("choices should be an array");
-        assert!(
-            !choices.is_empty(),
-            "Response should have at least one choice"
+    /// Assert that a value has a specific field with a specific value.
+    pub fn assert_field_equals(value: &Value, field: &str, expected: &Value) {
+        let actual = value
+            .get(field)
+            .unwrap_or_else(|| panic!("Field '{}' not found", field));
+        assert_eq!(
+            actual, expected,
+            "Field '{}' has unexpected value",
+            field
         );
-
-        let first_choice = &choices[0];
-        assert_has_required_fields(first_choice, &["index", "message"]);
-
-        let message = &first_choice["message"];
-        assert_has_required_fields(message, &["role", "content"]);
     }
 
-    /// Assert that an embedding response is valid
-    pub fn assert_valid_embedding_response(response: &Value) {
-        assert_has_required_fields(response, &["object", "data", "model", "usage"]);
-
-        let data = response["data"]
-            .as_array()
-            .expect("data should be an array");
+    /// Assert that a response has a successful status.
+    pub fn assert_success_response(value: &Value) {
         assert!(
-            !data.is_empty(),
-            "Response should have at least one embedding"
+            value.get("error").is_none(),
+            "Expected success but got error: {:?}",
+            value.get("error")
         );
-
-        let first_embedding = &data[0];
-        assert_has_required_fields(first_embedding, &["object", "index", "embedding"]);
-
-        let embedding = first_embedding["embedding"]
-            .as_array()
-            .expect("embedding should be an array");
-        assert!(!embedding.is_empty(), "Embedding should not be empty");
     }
 }
 
-#[cfg(all(test, feature = "test-utils"))]
+#[cfg(test)]
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_mock_server_creation() {
-        let mock_server = MockOpenAIServer::new().await;
-        assert!(!mock_server.base_url().is_empty());
-        assert_eq!(mock_server.api_key, "test-api-key");
+    #[test]
+    fn test_mock_server_creation() {
+        let server = MockOpenAIServer::new();
+        assert!(!server.base_url().is_empty());
     }
 
     #[test]
     fn test_fixtures() {
-        let message = fixtures::sample_chat_message();
-        assert_eq!(message["role"], "user");
-        assert!(message["content"].is_string());
-
-        let request = fixtures::sample_chat_completion_request();
-        assert_eq!(request["model"], "gpt-4");
-        assert!(request["messages"].is_array());
+        let request = fixtures::chat_completion_request();
+        assert!(request.get("model").is_some());
+        assert!(request.get("messages").is_some());
     }
 
     #[test]
     fn test_assertions() {
-        let valid_response = json!({
-            "id": "test",
-            "object": "chat.completion",
-            "created": 123_456,
-            "model": "gpt-4",
-            "choices": [{
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": "Hello"
-                }
-            }]
-        });
-
-        assertions::assert_valid_chat_completion(&valid_response);
+        let response = json!({"id": "test", "model": "gpt-4"});
+        assertions::assert_has_field(&response, "id");
+        assertions::assert_field_equals(&response, "model", &json!("gpt-4"));
     }
 }
