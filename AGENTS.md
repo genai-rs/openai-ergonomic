@@ -78,6 +78,15 @@
 6. **Document Decisions** – Record notable choices under `docs/` (design notes, research findings) to keep context persistent.
 7. **End-of-Session Review** – Before closing a session, ask***REMOVED*** for a summary plus workflow improvement suggestions; capture outcomes in `TODO.md` or doc updates (including refinements to `CLAUDE.md`/`AGENTS.md`).
 
+## Pre-Commit Checklist
+**IMPORTANT**: Always run these checks before committing any code changes:
+1. **Format check**: `cargo fmt --all` - Fix any formatting issues
+2. **Lint check**: `cargo clippy --all-targets --all-features -- -D warnings` - Fix all clippy warnings
+3. **Test check**: `cargo test --all` - Ensure all tests pass
+4. **Build check**: `cargo build` - Verify the project compiles
+
+Never assume code is "done" without running these checks. CI will fail if these checks don't pass.
+
 ## Parallel Session Management
 - Spin up separate***REMOVED*** instances per long-running task (or per repository clone/worktree) to preserve context between sessions.
 - Use dedicated git trees (e.g., `git worktree add ../openai-ergonomic-taskA ...`) or distinct clones so concurrent agents can commit independently.
