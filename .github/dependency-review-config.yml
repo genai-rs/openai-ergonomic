@@ -7,8 +7,8 @@ allow-dependencies-licenses:
   - BSD-3-Clause
   - ISC
   - Unicode-DFS-2016
+# Add any packages to deny here
 deny-packages: []
-  # Add any packages to deny here
+# Allow specific GitHub Security Advisories if needed
 allow-ghsas: []
-  # Allow specific GitHub Security Advisories if needed
 comment-summary-in-pr: always
