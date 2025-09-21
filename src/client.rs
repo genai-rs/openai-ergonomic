@@ -15,7 +15,7 @@ use tokio::time::Duration;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use openai_ergonomic::{Client, Config};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {

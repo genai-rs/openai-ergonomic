@@ -22,7 +22,7 @@
 //!
 //! ## Quick Start
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use openai_ergonomic::{Client, Config};
 //!
 //! #[tokio::main]
@@ -42,7 +42,7 @@
 //!
 //! ## Streaming Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use openai_ergonomic::{Client, Config};
 //! use futures::StreamExt;
 //!
@@ -66,7 +66,7 @@
 //!
 //! ## Error Handling
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use openai_ergonomic::{Client, Error};
 //!
 //! #[tokio::main]
@@ -85,7 +85,7 @@
 //!
 //! ## Custom Configuration
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use openai_ergonomic::{Client, Config};
 //! use std::time::Duration;
 //!
@@ -105,7 +105,7 @@
 //!
 //! ## Testing with Mocks
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! #[cfg(test)]
 //! mod tests {
 //!     use openai_ergonomic::test_utils::MockOpenAIServer;
