@@ -10,8 +10,11 @@
 - Review `langfuse-ergonomic` for repository scaffolding (tooling, docs, CI, CLAUDE workflow).
 - Inspect `openai-client-base` capabilities (auth, streaming, feature flags) to understand integration touchpoints.
 - Inventory licensing, release tooling, and process assets we can reuse.
-- Catalogue existing builder implementations (e.g., responses/chat/assistants modules) and note outstanding TODOs/workarounds in `openai-builders`.
-- ✅ Review `openai-experiment/examples/*` to understand coverage expectations (responses, streaming, assistants, audio, etc.) and plan equivalent ergonomic examples. **COMPLETED 2025-09-20** - See PR #1 with comprehensive analysis in `docs/research/`: mapped 49 examples to ~25 consolidated examples across 3 implementation phases.
+- ✅ **COMPLETE**: Catalogue existing builder implementations (e.g., responses/chat/assistants modules) and note outstanding TODOs/workarounds in `openai-builders`.
+  - See `docs/research/openai_builders_todo_sweep.md` for comprehensive findings (27 issues catalogued)
+  - See `docs/research/openai_builders_tasks.md` for actionable task breakdown
+  - Critical blockers identified: empty streaming enums, Response field type mismatches
+- ✅ Review `openai-experiment/examples/*` to understand coverage expectations (responses, streaming, assistants, audio, etc.) and plan equivalent ergonomic examples. **COMPLETED 2025-09-20** – See PR #1 with comprehensive analysis in `docs/research/`: mapped 49 examples to ~25 consolidated examples across 3 implementation phases.
 
 ## Phase 1 – Repository Bootstrap
 - Initialize standalone crate structure (licenses, README, CONTRIBUTING, SECURITY, CHANGELOG templates).
