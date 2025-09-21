@@ -1,0 +1,53 @@
+# Gitleaks configuration for openai-ergonomic
+# Secret scanning configuration to prevent accidental credential commits
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlisted patterns"
+paths = [
+    '''Cargo\.lock''',
+    '''target/''',
+    '''\.git/''',
+    '''docs/'''
+]
+
+# Allow example/test keys that are clearly marked as such
+regexes = [
+    '''your-api-key''',
+    '''your-organization-id''',
+    '''your-project-id''',
+    '''test-key''',
+    '''example-key''',
+    '''dummy-key''',
+    '''fake-key''',
+    '''OPENAI_API_KEY''',
+    '''OPENAI_ORG_ID''',
+    '''OPENAI_PROJECT_ID'''
+]
+
+# Custom rules for OpenAI-specific patterns
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key"
+regex = '''(?i)(sk-[a-zA-Z0-9]{48,})'''
+tags = ["key", "openai"]
+
+[[rules]]
+id = "openai-org-id"
+description = "OpenAI Organization ID"
+regex = '''(?i)(org-[a-zA-Z0-9]{24,})'''
+tags = ["key", "openai", "org"]
+
+[[rules]]
+id = "openai-project-id"
+description = "OpenAI Project ID"
+regex = '''(?i)(proj-[a-zA-Z0-9]{24,})'''
+tags = ["key", "openai", "project"]
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)((api[_\-\s]?key|api[_\-\s]?secret|api[_\-\s]?token)[\[\]]*[\s]*[=:][\s]*['"]?[a-zA-Z0-9\-_]{32,}['"]?)'''
+tags = ["key", "api"]
