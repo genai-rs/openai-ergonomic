@@ -1,0 +1,27 @@
+# CODEOWNERS for openai-ergonomic
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @timvw
+
+# Documentation
+*.md @timvw
+/docs/ @timvw
+
+# CI/CD and GitHub configuration
+/.github/ @timvw
+/release-plz.toml @timvw
+/renovate.json5 @timvw
+
+# Core library code
+/src/ @timvw
+/Cargo.toml @timvw
+/Cargo.lock @timvw
+
+# Examples and tests
+/examples/ @timvw
+/tests/ @timvw
+
+# Security-sensitive files
+/SECURITY.md @timvw
+/deny.toml @timvw
