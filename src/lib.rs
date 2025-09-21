@@ -147,6 +147,10 @@ pub use builders::*;
 // Re-export response types for convenience
 pub use responses::*;
 
+// Test utilities (feature-gated)
+#[cfg(feature = "test-utils")]
+pub mod test_utils;
+
 #[cfg(test)]
 mod tests {
     use super::*;
