@@ -1,0 +1,137 @@
+{
+  "success_response": {
+    "id": "chatcmpl-7QyqpwdfhqwajicIEznoc6Q47XAyW",
+    "object": "chat.completion",
+    "created": 1677652288,
+    "model": "gpt-4",
+    "system_fingerprint": "fp_44709d6fcb",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Hello! How can I assist you today?"
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 9,
+      "completion_tokens": 9,
+      "total_tokens": 18
+    }
+  },
+  "function_calling_response": {
+    "id": "chatcmpl-abc123",
+    "object": "chat.completion",
+    "created": 1699896916,
+    "model": "gpt-4",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": null,
+          "tool_calls": [
+            {
+              "id": "call_abc123",
+              "type": "function",
+              "function": {
+                "name": "get_current_weather",
+                "arguments": "{\"location\": \"Boston, MA\"}"
+              }
+            }
+          ]
+        },
+        "logprobs": null,
+        "finish_reason": "tool_calls"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 82,
+      "completion_tokens": 17,
+      "total_tokens": 99
+    }
+  },
+  "streaming_chunks": [
+    {
+      "id": "chatcmpl-123",
+      "object": "chat.completion.chunk",
+      "created": 1677652288,
+      "model": "gpt-4",
+      "system_fingerprint": "fp_44709d6fcb",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "role": "assistant",
+            "content": ""
+          },
+          "logprobs": null,
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-123",
+      "object": "chat.completion.chunk",
+      "created": 1677652288,
+      "model": "gpt-4",
+      "system_fingerprint": "fp_44709d6fcb",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "Hello"
+          },
+          "logprobs": null,
+          "finish_reason": null
+        }
+      ]
+    },
+    {
+      "id": "chatcmpl-123",
+      "object": "chat.completion.chunk",
+      "created": 1677652288,
+      "model": "gpt-4",
+      "system_fingerprint": "fp_44709d6fcb",
+      "choices": [
+        {
+          "index": 0,
+          "delta": {
+            "content": "!"
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      ]
+    }
+  ],
+  "error_responses": {
+    "invalid_api_key": {
+      "error": {
+        "message": "Incorrect API key provided: sk-test***key. You can find your API key at https://platform.openai.com/account/api-keys.",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": "invalid_api_key"
+      }
+    },
+    "rate_limit": {
+      "error": {
+        "message": "Rate limit reached for requests",
+        "type": "requests",
+        "param": null,
+        "code": "rate_limit_exceeded"
+      }
+    },
+    "insufficient_quota": {
+      "error": {
+        "message": "You exceeded your current quota, please check your plan and billing details.",
+        "type": "insufficient_quota",
+        "param": null,
+        "code": "insufficient_quota"
+      }
+    }
+  }
+}
