@@ -1,0 +1,75 @@
+{
+  "success_response": {
+    "object": "list",
+    "data": [
+      {
+        "object": "embedding",
+        "index": 0,
+        "embedding": [
+          -0.006929283495992422,
+          -0.005336422007530928,
+          0.014404741115868092,
+          -0.01981502026319504,
+          0.009327292442321777,
+          -0.0123456789012345,
+          0.987654321098765,
+          -0.1111111111111111,
+          0.2222222222222222,
+          -0.3333333333333333
+        ]
+      }
+    ],
+    "model": "text-embedding-ada-002",
+    "usage": {
+      "prompt_tokens": 8,
+      "total_tokens": 8
+    }
+  },
+  "batch_response": {
+    "object": "list",
+    "data": [
+      {
+        "object": "embedding",
+        "index": 0,
+        "embedding": [
+          -0.006929283495992422,
+          -0.005336422007530928,
+          0.014404741115868092
+        ]
+      },
+      {
+        "object": "embedding",
+        "index": 1,
+        "embedding": [
+          0.021234567890123456,
+          -0.012345678901234567,
+          0.034567890123456789
+        ]
+      }
+    ],
+    "model": "text-embedding-ada-002",
+    "usage": {
+      "prompt_tokens": 16,
+      "total_tokens": 16
+    }
+  },
+  "sample_requests": {
+    "single_text": {
+      "model": "text-embedding-ada-002",
+      "input": "The food was delicious and the waiter..."
+    },
+    "multiple_texts": {
+      "model": "text-embedding-ada-002",
+      "input": [
+        "The food was delicious and the waiter...",
+        "The weather is nice today",
+        "I love programming in Rust"
+      ]
+    },
+    "with_user": {
+      "model": "text-embedding-ada-002",
+      "input": "Sample document text",
+      "user": "user-123"
+    }
+  }
+}
