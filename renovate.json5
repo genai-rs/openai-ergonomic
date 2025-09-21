@@ -1,0 +1,86 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "schedule": ["after 2am and before 6am on monday"],
+  "timezone": "UTC",
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Automerge patch updates for dev dependencies",
+      "matchUpdateTypes": ["patch"],
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true
+    },
+    {
+      "description": "Automerge minor updates for dev dependencies",
+      "matchUpdateTypes": ["minor"],
+      "matchDepTypes": ["devDependencies"],
+      "automerge": true
+    },
+    {
+      "description": "Group non-major updates",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "non-major dependencies",
+      "groupSlug": "non-major"
+    },
+    {
+      "description": "Group major updates",
+      "matchUpdateTypes": ["major"],
+      "groupName": "major dependencies",
+      "groupSlug": "major"
+    },
+    {
+      "description": "Security updates get immediate attention",
+      "matchDatasources": ["crate"],
+      "matchUpdateTypes": ["patch"],
+      "matchFiles": ["**/Cargo.toml"],
+      "labels": ["security"],
+      "schedule": ["at any time"],
+      "prPriority": 10,
+      "rangeStrategy": "bump",
+      "enabled": true,
+      "matchPackageNames": [],
+      "matchPackagePatterns": [],
+      "vulnerabilityAlerts": {
+        "labels": ["security"],
+        "enabled": true
+      }
+    },
+    {
+      "description": "Core dependencies require manual review",
+      "matchPackageNames": [
+        "openai-client-base",
+        "reqwest",
+        "tokio",
+        "serde",
+        "serde_json"
+      ],
+      "automerge": false,
+      "labels": ["core-dependency"]
+    },
+    {
+      "description": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true,
+      "matchUpdateTypes": ["minor", "patch"]
+    }
+  ],
+  "rust": {
+    "enabled": true
+  },
+  "cargo": {
+    "enabled": true,
+    "registryUrls": ["https://crates.io"]
+  },
+  "postUpdateOptions": ["cargoUpdateLockFile"],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "rebaseWhen": "behind-base-branch",
+  "semanticCommits": "enabled",
+  "commitMessagePrefix": "chore(deps):"
+}
