@@ -2,21 +2,165 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-//! Ergonomic Rust wrapper for the OpenAI API.
+//! # openai-ergonomic
 //!
-//! This crate provides a type-safe, builder-pattern interface to interact with
-//! `OpenAI` API endpoints, making it easy to integrate AI capabilities into
-//! your Rust applications.
+//! An ergonomic Rust wrapper for the OpenAI API, providing type-safe builder patterns
+//! and async/await support for all OpenAI endpoints.
+//!
+//! ## Features
+//!
+//! - **Type-safe builders** - Use builder patterns with compile-time validation
+//! - **Async/await support** - Built on tokio and reqwest for modern async Rust
+//! - **Streaming responses** - First-class support for real-time streaming
+//! - **Comprehensive coverage** - Support for all OpenAI API endpoints
+//! - **Error handling** - Structured error types for robust applications
+//! - **Testing support** - Mock-friendly design for unit testing
+//!
+//! ## Quick Start
+//!
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Config};
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create a client from environment variables
+//!     let client = Client::from_env()?;
+//!
+//!     // Simple chat completion
+//!     let response = client
+//!         .chat_simple("Hello, how are you?")
+//!         .await?;
+//!
+//!     println!("{}", response);
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Streaming Example
+//!
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Config};
+//! use futures::StreamExt;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let client = Client::from_env()?;
+//!
+//!     // Stream chat completions
+//!     let mut stream = client
+//!         .chat()
+//!         .user("Tell me a story")
+//!         .stream()
+//!         .await?;
+//!
+//!     while let Some(chunk) = stream.next().await {
+//!         print!("{}", chunk?.content());
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Error Handling
+//!
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Error};
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let client = Client::from_env().expect("API key required");
+//!
+//!     match client.chat_simple("Hello").await {
+//!         Ok(response) => println!("{}", response),
+//!         Err(Error::RateLimit { .. }) => {
+//!             println!("Rate limited, please retry later");
+//!         }
+//!         Err(e) => eprintln!("Error: {}", e),
+//!     }
+//! }
+//! ```
+//!
+//! ## Custom Configuration
+//!
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Config};
+//! use std::time::Duration;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = Config::builder()
+//!         .api_key("your-api-key")
+//!         .organization_id("org-123")
+//!         .timeout(Duration::from_secs(30))
+//!         .max_retries(5)
+//!         .build();
+//!
+//!     let client = Client::new(config)?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Testing with Mocks
+//!
+//! ```rust,no_run
+//! #[cfg(test)]
+//! mod tests {
+//!     use openai_ergonomic::test_utils::MockOpenAIServer;
+//!
+//!     #[tokio::test]
+//!     async fn test_chat_completion() {
+//!         let mock = MockOpenAIServer::new();
+//!         mock.mock_chat_completion("Hello!", "Hi there!");
+//!
+//!         let client = mock.client();
+//!         let response = client.chat_simple("Hello!").await.unwrap();
+//!         assert_eq!(response, "Hi there!");
+//!     }
+//! }
+//! ```
+//!
+//! # Modules
+//!
+//! - [`builders`] - Builder pattern implementations for API requests
+//! - [`responses`] - Response type wrappers with ergonomic helpers
+//! - [`client`] - Main client for API interactions
+//! - [`config`] - Configuration management
+//! - [`errors`] - Error types and handling
 
+// Re-export bon for builder macros
 pub use bon;
 
-/// Test utilities module (available for both unit and integration tests)
-pub mod test_utils;
+// Core modules
+pub mod builders;
+pub mod client;
+pub mod config;
+pub mod errors;
+pub mod responses;
+
+// Re-export commonly used types
+pub use client::Client;
+pub use config::{Config, ConfigBuilder};
+pub use errors::{Error, Result};
+
+// Re-export builder types for convenience
+pub use builders::*;
+
+// Re-export response types for convenience
+pub use responses::*;
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_config_creation() {
+        let config = Config::builder().api_key("test-key").build();
+        assert_eq!(config.api_key(), "test-key");
+    }
+
+    #[test]
+    fn test_client_creation_with_config() {
+        let config = Config::builder().api_key("test-key").build();
+        let client = Client::new(config);
+        assert!(client.is_ok());
     }
 }
