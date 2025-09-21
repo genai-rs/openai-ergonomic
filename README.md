@@ -6,14 +6,14 @@
 [![MSRV](https://img.shields.io/badge/MSRV-1.82-blue)](https://blog.rust-lang.org/2024/10/17/Rust-1.82.0.html)
 [![License](https://img.shields.io/crates/l/openai-ergonomic.svg)](https://github.com/genai-rs/openai-ergonomic#license)
 
-Ergonomic Rust wrapper for the OpenAI API, providing type-safe builder patterns and async/await support.
+Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder patterns and async/await support.
 
 ## Features
 
 - 🛡️ **Type-safe** - Full type safety with builder patterns using `bon`
 - ⚡ **Async/await** - Built on `tokio` and `reqwest` for modern async Rust
 - 🔄 **Streaming** - First-class support for streaming responses
-- 📝 **Comprehensive** - Covers all OpenAI API endpoints
+- 📝 **Comprehensive** - Covers all `OpenAI` API endpoints
 - 🧪 **Well-tested** - Extensive test coverage with mock support
 - 📚 **Well-documented** - Rich documentation with examples
 
@@ -92,7 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Examples
 
-The `examples/` directory contains comprehensive examples for all major OpenAI API features:
+The `examples/` directory contains comprehensive examples for all major `OpenAI` API features:
 
 - **Basic Usage**: Simple chat completions and responses
 - **Streaming**: Real-time response streaming

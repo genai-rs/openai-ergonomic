@@ -1,4 +1,4 @@
-//! Error types for the OpenAI ergonomic wrapper.
+//! Error types for the `OpenAI` ergonomic wrapper.
 //!
 //! This module provides comprehensive error handling with detailed error
 //! information and proper error chaining.
@@ -8,7 +8,7 @@ use thiserror::Error;
 /// Result type used throughout the crate.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Main error type for the OpenAI ergonomic wrapper.
+/// Main error type for the `OpenAI` ergonomic wrapper.
 #[derive(Error, Debug)]
 pub enum Error {
     /// Invalid request parameters or configuration.
@@ -31,12 +31,16 @@ pub enum Error {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// OpenAI API errors with status code and message.
-    #[error("OpenAI API error (status {status}): {message}")]
+    /// `OpenAI` API errors with status code and message.
+    #[error("`OpenAI` API error (status {status}): {message}")]
     Api {
+        /// HTTP status code returned by the API
         status: u16,
+        /// Error message from the API
         message: String,
+        /// Type of error (if provided by API)
         error_type: Option<String>,
+        /// Error code (if provided by API)
         error_code: Option<String>,
     },
 

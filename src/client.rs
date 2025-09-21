@@ -1,6 +1,6 @@
-//! Client wrapper for ergonomic OpenAI API access.
+//! Client wrapper for ergonomic `OpenAI` API access.
 //!
-//! This module provides a high-level client that wraps the base OpenAI client
+//! This module provides a high-level client that wraps the base `OpenAI` client
 //! with ergonomic builders and response handling.
 
 use crate::{config::Config, errors::Result, Error};
@@ -8,9 +8,9 @@ use reqwest::Client as HttpClient;
 use std::sync::Arc;
 use tokio::time::Duration;
 
-/// Main client for interacting with the OpenAI API.
+/// Main client for interacting with the `OpenAI` API.
 ///
-/// The client provides ergonomic methods for all OpenAI API endpoints,
+/// The client provides ergonomic methods for all `OpenAI` API endpoints,
 /// with built-in retry logic, rate limiting, and error handling.
 ///
 /// # Example
@@ -101,57 +101,68 @@ impl Client {
 // TODO: Add methods for other API endpoints
 impl Client {
     /// Get assistants client (placeholder).
-    pub fn assistants(&self) -> AssistantsClient {
+    #[must_use]
+    pub fn assistants(&self) -> AssistantsClient<'_> {
         AssistantsClient { client: self }
     }
 
     /// Get audio client (placeholder).
-    pub fn audio(&self) -> AudioClient {
+    #[must_use]
+    pub fn audio(&self) -> AudioClient<'_> {
         AudioClient { client: self }
     }
 
     /// Get embeddings client (placeholder).
-    pub fn embeddings(&self) -> EmbeddingsClient {
+    #[must_use]
+    pub fn embeddings(&self) -> EmbeddingsClient<'_> {
         EmbeddingsClient { client: self }
     }
 
     /// Get images client (placeholder).
-    pub fn images(&self) -> ImagesClient {
+    #[must_use]
+    pub fn images(&self) -> ImagesClient<'_> {
         ImagesClient { client: self }
     }
 
     /// Get files client (placeholder).
-    pub fn files(&self) -> FilesClient {
+    #[must_use]
+    pub fn files(&self) -> FilesClient<'_> {
         FilesClient { client: self }
     }
 
     /// Get fine-tuning client (placeholder).
-    pub fn fine_tuning(&self) -> FineTuningClient {
+    #[must_use]
+    pub fn fine_tuning(&self) -> FineTuningClient<'_> {
         FineTuningClient { client: self }
     }
 
     /// Get batch client (placeholder).
-    pub fn batch(&self) -> BatchClient {
+    #[must_use]
+    pub fn batch(&self) -> BatchClient<'_> {
         BatchClient { client: self }
     }
 
     /// Get vector stores client (placeholder).
-    pub fn vector_stores(&self) -> VectorStoresClient {
+    #[must_use]
+    pub fn vector_stores(&self) -> VectorStoresClient<'_> {
         VectorStoresClient { client: self }
     }
 
     /// Get moderations client (placeholder).
-    pub fn moderations(&self) -> ModerationsClient {
+    #[must_use]
+    pub fn moderations(&self) -> ModerationsClient<'_> {
         ModerationsClient { client: self }
     }
 
     /// Get threads client (placeholder).
-    pub fn threads(&self) -> ThreadsClient {
+    #[must_use]
+    pub fn threads(&self) -> ThreadsClient<'_> {
         ThreadsClient { client: self }
     }
 
     /// Get uploads client (placeholder).
-    pub fn uploads(&self) -> UploadsClient {
+    #[must_use]
+    pub fn uploads(&self) -> UploadsClient<'_> {
         UploadsClient { client: self }
     }
 }
@@ -161,66 +172,77 @@ impl Client {
 
 /// Client for assistants API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct AssistantsClient<'a> {
     client: &'a Client,
 }
 
 /// Client for audio API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct AudioClient<'a> {
     client: &'a Client,
 }
 
 /// Client for embeddings API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct EmbeddingsClient<'a> {
     client: &'a Client,
 }
 
 /// Client for images API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct ImagesClient<'a> {
     client: &'a Client,
 }
 
 /// Client for files API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct FilesClient<'a> {
     client: &'a Client,
 }
 
 /// Client for fine-tuning API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct FineTuningClient<'a> {
     client: &'a Client,
 }
 
 /// Client for batch API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct BatchClient<'a> {
     client: &'a Client,
 }
 
 /// Client for vector stores API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct VectorStoresClient<'a> {
     client: &'a Client,
 }
 
 /// Client for moderations API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct ModerationsClient<'a> {
     client: &'a Client,
 }
 
 /// Client for threads API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct ThreadsClient<'a> {
     client: &'a Client,
 }
 
 /// Client for uploads API.
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 pub struct UploadsClient<'a> {
     client: &'a Client,
 }
