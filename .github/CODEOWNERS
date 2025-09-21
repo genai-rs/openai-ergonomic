@@ -1,0 +1,21 @@
+# Global ownership - Tim Van Wassenhove is the primary maintainer
+* @timvw
+
+# Core crate files
+/src/ @timvw
+/Cargo.toml @timvw
+
+# Documentation and guides
+/docs/ @timvw
+/README.md @timvw
+/CONTRIBUTING.md @timvw
+
+# Configuration and workflows
+/.github/ @timvw
+/release-plz.toml @timvw
+/deny.toml @timvw
+
+# Security and compliance
+/.gitleaks.toml @timvw
+/.githooks/ @timvw
+/SECURITY.md @timvw
