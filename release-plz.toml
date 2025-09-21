@@ -1,0 +1,95 @@
+# Configuration for release-plz
+# See: https://release-plz.ieni.dev/docs/config
+
+[workspace]
+# Enable pre-release versions for development
+allow_dirty = false
+changelog_update = true
+git_tag_enable = true
+git_release_enable = true
+
+# Changelog configuration
+changelog_path = "./CHANGELOG.md"
+changelog_header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+"""
+
+# Git configuration
+git_tag_name = "v{{version}}"
+git_release_name = "v{{version}}"
+
+# Package-specific configuration
+[[package]]
+name = "openai-ergonomic"
+changelog_update = true
+git_tag_enable = true
+git_release_enable = true
+
+# Release notes configuration
+release_name = "openai-ergonomic v{{version}}"
+changelog_include = [
+    "feat",
+    "fix",
+    "docs",
+    "perf",
+    "refactor"
+]
+
+# Dependency update strategy
+dependencies_update = true
+publish = true
+
+# Semver check
+semver_check = true
+
+# Custom release notes
+[changelog]
+header = "# Changelog\n"
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}**{{commit.scope}}:** {% endif %}{{ commit.message | upper_first }}{% if commit.breaking %} [**BREAKING**]{% endif %}
+    {% endfor %}
+{% endfor %}\n
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+commit_parsers = [
+    { message = "^feat", group = "<!-- 0 -->🚀 Features" },
+    { message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
+    { message = "^doc", group = "<!-- 3 -->📚 Documentation" },
+    { message = "^perf", group = "<!-- 4 -->⚡ Performance" },
+    { message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
+    { message = "^style", group = "<!-- 5 -->🎨 Styling" },
+    { message = "^test", group = "<!-- 6 -->🧪 Testing" },
+    { message = "^chore\\(release\\): prepare for", skip = true },
+    { message = "^chore\\(deps.*\\)", skip = true },
+    { message = "^chore\\(pr\\)", skip = true },
+    { message = "^chore\\(pull\\)", skip = true },
+    { message = "^chore|^ci", group = "<!-- 7 -->⚙️ Miscellaneous Tasks" },
+    { body = ".*security", group = "<!-- 8 -->🛡️ Security" },
+    { message = "^revert", group = "<!-- 9 -->◀️ Revert" },
+]
+protect_breaking_commits = false
+filter_commits = false
+tag_pattern = "v[0-9].*"
+skip_tags = "v0.1.0-beta.1"
+ignore_tags = ""
+topo_order = false
+sort_commits = "oldest"
