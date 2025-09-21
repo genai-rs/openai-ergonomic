@@ -69,6 +69,18 @@
   - When a PR is merge-ready, ensure `PLAN.md`/`TODO.md` reflect the new state before you hit merge.
   - Record review dates in `PLAN.md` or `TODO.md` so future reviewers know the backlog status.
 
+### 8. Agile Coach Agent
+- **Scope**: Post-task retrospectives, workflow optimization, agent instruction refinement.
+- **Inputs**: Completed task logs, agent execution histories, workflow friction points, recurring issues.
+- **Outputs**: Updated agent instructions, refined workflows, process improvements documented in `AGENTS.md`, retrospective notes in `docs/retrospectives/`.
+- **Workflow Notes**:
+  - Run after significant tasks or sprint-like cycles to assess what worked and what didn't.
+  - Analyze patterns in agent failures or inefficiencies (e.g., missed edge cases, unclear instructions).
+  - Update agent instructions based on lessons learned to prevent recurring issues.
+  - Track improvement metrics: task completion time, rework frequency, instruction clarity scores.
+  - Maintain a retrospective log with actionable improvements and their implementation status.
+  - Focus on continuous improvement: each review should yield at least one actionable refinement.
+
 ## Operating Procedure
 1. **Review Context** – Read `PLAN.md`, `TODO.md`, relevant files from reference projects before editing.
 2. **Draft Plan** – Using any***REMOVED*** agent, outline steps, risks, questions. Capture distilled plan in TODO entry if new.
