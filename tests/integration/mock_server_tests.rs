@@ -3,6 +3,8 @@
 //! These tests validate the testing infrastructure by using the mock `OpenAI` server
 //! to simulate API interactions without hitting the real `OpenAI` endpoints.
 
+#![allow(clippy::significant_drop_tightening)]
+
 use openai_ergonomic::test_utils::{assertions, fixtures, MockOpenAIServer};
 use reqwest::Client;
 use serde_json::{json, Value};
@@ -10,7 +12,7 @@ use serde_json::{json, Value};
 /// Test that the mock server can be created and responds correctly
 #[tokio::test]
 async fn test_mock_server_creation() {
-    let mock_server = MockOpenAIServer::new();
+    let mock_server = MockOpenAIServer::new().await;
 
     // Verify the server is running
     assert!(!mock_server.base_url().is_empty());
@@ -20,8 +22,8 @@ async fn test_mock_server_creation() {
 /// Test mock chat completions endpoint
 #[tokio::test]
 async fn test_mock_chat_completions_success() {
-    let mock_server = MockOpenAIServer::new();
-    let _mock = mock_server.mock_chat_completions_success();
+    let mut mock_server = MockOpenAIServer::new().await;
+    let _mock = mock_server.mock_chat_completions_success().await;
 
     let client = Client::new();
     let request_body = fixtures::chat_completion_request();
@@ -46,8 +48,8 @@ async fn test_mock_chat_completions_success() {
 /// Test mock streaming chat completions
 #[tokio::test]
 async fn test_mock_chat_completions_streaming() {
-    let mock_server = MockOpenAIServer::new();
-    let _mock = mock_server.mock_chat_completions_streaming();
+    let mut mock_server = MockOpenAIServer::new().await;
+    let _mock = mock_server.mock_chat_completions_streaming().await;
 
     let client = Client::new();
     let mut request_body = fixtures::chat_completion_request();
@@ -76,8 +78,10 @@ async fn test_mock_chat_completions_streaming() {
 /// Test mock error responses
 #[tokio::test]
 async fn test_mock_error_responses() {
-    let mock_server = MockOpenAIServer::new();
-    let _mock = mock_server.mock_error_response(429, "rate_limit_exceeded", "Too many requests");
+    let mut mock_server = MockOpenAIServer::new().await;
+    let _mock = mock_server
+        .mock_error_response(429, "rate_limit_exceeded", "Too many requests")
+        .await;
 
     let client = Client::new();
     let request_body = fixtures::chat_completion_request();
@@ -103,8 +107,8 @@ async fn test_mock_error_responses() {
 /// Test mock embeddings endpoint
 #[tokio::test]
 async fn test_mock_embeddings_success() {
-    let mock_server = MockOpenAIServer::new();
-    let _mock = mock_server.mock_embeddings_success();
+    let mut mock_server = MockOpenAIServer::new().await;
+    let _mock = mock_server.mock_embeddings_success().await;
 
     let client = Client::new();
     let request_body = fixtures::embeddings_request();
@@ -129,8 +133,8 @@ async fn test_mock_embeddings_success() {
 /// Test mock models list endpoint
 #[tokio::test]
 async fn test_mock_models_list() {
-    let mock_server = MockOpenAIServer::new();
-    let _mock = mock_server.mock_models_list();
+    let mut mock_server = MockOpenAIServer::new().await;
+    let _mock = mock_server.mock_models_list().await;
 
     let client = Client::new();
 
@@ -173,8 +177,8 @@ fn test_fixture_validation() {
 async fn test_concurrent_requests() {
     use futures::future::join_all;
 
-    let mock_server = MockOpenAIServer::new();
-    let _mock = mock_server.mock_chat_completions_success();
+    let mut mock_server = MockOpenAIServer::new().await;
+    let _mock = mock_server.mock_chat_completions_success().await;
 
     let client = Client::new();
     let request_body = fixtures::chat_completion_request();
@@ -207,16 +211,16 @@ async fn test_concurrent_requests() {
 /// Test realistic API flow
 #[tokio::test]
 async fn test_realistic_api_flow() {
-    let mock_server = MockOpenAIServer::new();
+    let mut mock_server = MockOpenAIServer::new().await;
 
     // Step 1: List available models
-    let _models_mock = mock_server.mock_models_list();
+    let _models_mock = mock_server.mock_models_list().await;
 
     // Step 2: Create chat completion
-    let _chat_mock = mock_server.mock_chat_completions_success();
+    let _chat_mock = mock_server.mock_chat_completions_success().await;
 
     // Step 3: Generate embeddings
-    let _embeddings_mock = mock_server.mock_embeddings_success();
+    let _embeddings_mock = mock_server.mock_embeddings_success().await;
 
     let client = Client::new();
 
