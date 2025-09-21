@@ -27,11 +27,11 @@ tracing = "0.1"
 async-trait = "0.1"
 bytes = "1.5"
 tokio-stream = "0.1"
+wiremock = { version = "0.6", optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
 mockito = "1.2"
-wiremock = "0.6"
 pretty_assertions = "1.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
@@ -39,6 +39,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 default = ["rustls-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
 native-tls = ["reqwest/native-tls-vendored"]
+test-utils = ["wiremock"]
 
 [profile.dev]
 opt-level = 0

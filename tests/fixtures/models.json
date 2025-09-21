@@ -1,0 +1,73 @@
+{
+  "list_response": {
+    "object": "list",
+    "data": [
+      {
+        "id": "gpt-4",
+        "object": "model",
+        "created": 1687882411,
+        "owned_by": "openai"
+      },
+      {
+        "id": "gpt-4-0314",
+        "object": "model",
+        "created": 1687882411,
+        "owned_by": "openai"
+      },
+      {
+        "id": "gpt-4-0613",
+        "object": "model",
+        "created": 1686588896,
+        "owned_by": "openai"
+      },
+      {
+        "id": "gpt-3.5-turbo",
+        "object": "model",
+        "created": 1677610602,
+        "owned_by": "openai"
+      },
+      {
+        "id": "gpt-3.5-turbo-0301",
+        "object": "model",
+        "created": 1677649963,
+        "owned_by": "openai"
+      },
+      {
+        "id": "gpt-3.5-turbo-0613",
+        "object": "model",
+        "created": 1686587434,
+        "owned_by": "openai"
+      },
+      {
+        "id": "text-embedding-ada-002",
+        "object": "model",
+        "created": 1671217299,
+        "owned_by": "openai-internal"
+      },
+      {
+        "id": "text-davinci-003",
+        "object": "model",
+        "created": 1669599635,
+        "owned_by": "openai-internal"
+      },
+      {
+        "id": "dall-e-3",
+        "object": "model",
+        "created": 1698785189,
+        "owned_by": "system"
+      },
+      {
+        "id": "dall-e-2",
+        "object": "model",
+        "created": 1698785189,
+        "owned_by": "system"
+      }
+    ]
+  },
+  "single_model": {
+    "id": "gpt-4",
+    "object": "model",
+    "created": 1687882411,
+    "owned_by": "openai"
+  }
+}
