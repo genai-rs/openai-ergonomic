@@ -13,16 +13,16 @@
 ### Phase 1: Core Examples (P1 - v0.1.0)
 - [x] Create `examples/` directory structure (completed 2025-09-21)
 - [x] Implement `quickstart.rs` - Basic getting started guide (completed 2025-09-21)
-- [ ] Implement `responses_comprehensive.rs` - Primary modern API with basic, function calling, web search
+- [x] Implement `responses_comprehensive.rs` - Primary modern API with basic, function calling, web search (PR #23 completed 2025-09-22)
 - [x] Implement `responses_streaming.rs` - Dedicated streaming patterns (PR #24 completed 2025-09-22)
-- [ ] Implement `chat_comprehensive.rs` - Chat completions with history and streaming
-- [ ] Implement `assistants_basic.rs` - Assistant API introduction
-- [ ] Implement `audio_speech.rs` - Text-to-speech with streaming
-- [ ] Implement `audio_transcription.rs` - Speech-to-text and translation
-- [ ] Implement `images_comprehensive.rs` - All image operations
-- [ ] Implement `embeddings.rs` - Vector embeddings with testing patterns
-- [ ] Implement `structured_outputs.rs` - JSON mode and schemas
-- [ ] Implement `vision_chat.rs` - Image understanding
+- [x] Implement `chat_comprehensive.rs` - Chat completions with history and streaming (completed 2025-09-22)
+- [x] Implement `assistants_basic.rs` - Assistant API introduction (completed 2025-09-22)
+- [x] Implement `audio_speech.rs` - Text-to-speech with streaming (completed 2025-09-22)
+- [x] Implement `audio_transcription.rs` - Speech-to-text and translation (completed 2025-09-22)
+- [x] Implement `images_comprehensive.rs` - All image operations (completed 2025-09-22)
+- [x] Implement `embeddings.rs` - Vector embeddings with testing patterns (completed 2025-09-22)
+- [x] Implement `structured_outputs.rs` - JSON mode and schemas (completed 2025-09-22)
+- [x] Implement `vision_chat.rs` - Image understanding (completed 2025-09-22)
 - [ ] Implement `quickstart.rs` - 5-minute getting started guide
 
 ### Phase 2: Extended Examples (P2)
