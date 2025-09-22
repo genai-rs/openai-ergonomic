@@ -1,6 +1,7 @@
 # GitHub repository settings
-# These settings document the repository configuration
-# To apply automatically, install the GitHub Settings app: https://github.com/apps/settings
+# These settings are automatically synced by the GitHub Settings app
+# App: https://github.com/apps/settings
+# Last updated: 2025-09-22 (branch protection recreated)
 
 repository:
   # Basic settings
@@ -40,56 +41,15 @@ repository:
 # Branch protection rules
 branches:
   - name: main
-    # https://docs.github.com/en/rest/branches/branch-protection
     protection:
-      # Require PR reviews
-      required_pull_request_reviews: null  # No required reviews for now
-
-      # Require status checks
       required_status_checks:
-        strict: true  # Require branches to be up to date before merging
+        strict: true
         contexts:
-          # Core CI checks from ci.yml workflow
-          - "Format"                             # rustfmt check
-          - "Clippy"                             # clippy linting
-          - "Test (ubuntu-latest, stable)"      # Ubuntu stable tests
-          - "Test (ubuntu-latest, beta)"        # Ubuntu beta tests
-          - "Test (macos-latest, stable)"       # macOS tests
-          - "Test (windows-latest, stable)"     # Windows tests
-          - "Documentation"                      # cargo doc check
-          - "MSRV"                              # Minimum supported Rust version
-
-          # Build checks for different platforms
-          - "Build (x86_64-unknown-linux-gnu)"
-          - "Build (x86_64-apple-darwin)"
-          - "Build (x86_64-pc-windows-msvc)"
-          - "Build (aarch64-apple-darwin)"
-
-          # Security checks from security.yml workflow
-          - "Security Audit"                    # cargo audit
-          - "Cargo Deny (advisories)"          # Advisory database check
-          - "Cargo Deny (bans sources)"        # Banned dependencies check
-          - "Cargo Deny (licenses)"            # License compliance check
-          - "Dependency Review"                # GitHub dependency review
-          - "Supply Chain Security"            # Supply chain checks
-          - "License Compliance"               # License validation
-
-          # Note: Code Coverage is informational only, not required
-
-      # Enforce for admins
+          - Format
+          - Clippy
+          - Documentation
+          - MSRV
       enforce_admins: false
-
-      # Restrict who can push
-      restrictions: null
-
-      # Other settings
-      required_linear_history: true
-      allow_force_pushes: false
-      allow_deletions: false
-      block_creations: false
-      required_conversation_resolution: false
-      lock_branch: false
-      allow_fork_syncing: false
 
 # Labels for issues and PRs
 labels:
