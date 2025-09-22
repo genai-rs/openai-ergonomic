@@ -209,3 +209,323 @@ pub mod streaming {
         Error::Stream(format!("Stream parsing failed: {}", msg.into()))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    #[test]
+    fn test_error_display() {
+        let error = Error::InvalidRequest("test message".to_string());
+        assert_eq!(error.to_string(), "Invalid request: test message");
+
+        let error = Error::Authentication("invalid API key".to_string());
+        assert_eq!(error.to_string(), "Authentication failed: invalid API key");
+
+        let error = Error::RateLimit("rate limit exceeded".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Rate limit exceeded: rate limit exceeded"
+        );
+    }
+
+    #[test]
+    fn test_api_error_constructors() {
+        let error = Error::api(400, "Bad request");
+        match error {
+            Error::Api {
+                status,
+                message,
+                error_type,
+                error_code,
+            } => {
+                assert_eq!(status, 400);
+                assert_eq!(message, "Bad request");
+                assert!(error_type.is_none());
+                assert!(error_code.is_none());
+            }
+            _ => panic!("Expected API error"),
+        }
+
+        let error = Error::api_detailed(
+            429,
+            "Rate limit exceeded",
+            Some("rate_limit_exceeded".to_string()),
+            Some("RL001".to_string()),
+        );
+        match error {
+            Error::Api {
+                status,
+                message,
+                error_type,
+                error_code,
+            } => {
+                assert_eq!(status, 429);
+                assert_eq!(message, "Rate limit exceeded");
+                assert_eq!(error_type, Some("rate_limit_exceeded".to_string()));
+                assert_eq!(error_code, Some("RL001".to_string()));
+            }
+            _ => panic!("Expected API error"),
+        }
+    }
+
+    #[test]
+    fn test_is_rate_limit() {
+        let error = Error::RateLimit("exceeded".to_string());
+        assert!(error.is_rate_limit());
+
+        let error = Error::api(429, "Too Many Requests");
+        assert!(error.is_rate_limit());
+
+        let error = Error::api(400, "Bad Request");
+        assert!(!error.is_rate_limit());
+
+        let error = Error::InvalidRequest("invalid".to_string());
+        assert!(!error.is_rate_limit());
+    }
+
+    #[test]
+    fn test_is_auth_error() {
+        let error = Error::Authentication("invalid key".to_string());
+        assert!(error.is_auth_error());
+
+        let error = Error::api(401, "Unauthorized");
+        assert!(error.is_auth_error());
+
+        let error = Error::api(403, "Forbidden");
+        assert!(!error.is_auth_error());
+
+        let error = Error::InvalidRequest("invalid".to_string());
+        assert!(!error.is_auth_error());
+    }
+
+    #[test]
+    fn test_is_client_error() {
+        let error = Error::api(400, "Bad Request");
+        assert!(error.is_client_error());
+
+        let error = Error::api(404, "Not Found");
+        assert!(error.is_client_error());
+
+        let error = Error::api(499, "Client Error");
+        assert!(error.is_client_error());
+
+        let error = Error::Authentication("invalid".to_string());
+        assert!(error.is_client_error());
+
+        let error = Error::RateLimit("exceeded".to_string());
+        assert!(error.is_client_error());
+
+        let error = Error::InvalidRequest("invalid".to_string());
+        assert!(error.is_client_error());
+
+        let error = Error::api(500, "Server Error");
+        assert!(!error.is_client_error());
+
+        let error = Error::Internal("internal".to_string());
+        assert!(!error.is_client_error());
+    }
+
+    #[test]
+    fn test_is_server_error() {
+        let error = Error::api(500, "Internal Server Error");
+        assert!(error.is_server_error());
+
+        let error = Error::api(502, "Bad Gateway");
+        assert!(error.is_server_error());
+
+        let error = Error::api(599, "Server Error");
+        assert!(error.is_server_error());
+
+        let error = Error::api(400, "Client Error");
+        assert!(!error.is_server_error());
+
+        let error = Error::Internal("internal".to_string());
+        assert!(!error.is_server_error());
+    }
+
+    #[test]
+    fn test_is_retryable() {
+        // Rate limit errors are retryable
+        let error = Error::RateLimit("exceeded".to_string());
+        assert!(error.is_retryable());
+
+        let error = Error::api(429, "Too Many Requests");
+        assert!(error.is_retryable());
+
+        // Server errors are retryable
+        let error = Error::api(500, "Internal Server Error");
+        assert!(error.is_retryable());
+
+        let error = Error::api(502, "Bad Gateway");
+        assert!(error.is_retryable());
+
+        // Client errors are not retryable
+        let error = Error::api(400, "Bad Request");
+        assert!(!error.is_retryable());
+
+        let error = Error::Authentication("invalid".to_string());
+        assert!(!error.is_retryable());
+
+        let error = Error::InvalidRequest("invalid".to_string());
+        assert!(!error.is_retryable());
+    }
+
+    #[test]
+    fn test_from_reqwest_error() {
+        // Test that the conversion trait exists by creating a function that uses it
+        #[allow(clippy::items_after_statements)]
+        fn _test_reqwest_error_conversion(reqwest_error: reqwest::Error) -> Error {
+            reqwest_error.into()
+        }
+
+        // The test passes if this compiles - we verify the trait implementation exists
+    }
+
+    #[test]
+    fn test_from_serde_json_error() {
+        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let error: Error = json_error.into();
+        assert!(matches!(error, Error::Json(_)));
+    }
+
+    #[test]
+    fn test_from_io_error() {
+        let io_error = io::Error::new(io::ErrorKind::NotFound, "file not found");
+        let error: Error = io_error.into();
+        assert!(matches!(error, Error::File(_)));
+    }
+
+    #[test]
+    fn test_stream_errors() {
+        let error = Error::StreamConnection {
+            message: "connection lost".to_string(),
+        };
+        assert_eq!(
+            error.to_string(),
+            "Stream connection error: connection lost"
+        );
+
+        let error = Error::StreamParsing {
+            message: "invalid data".to_string(),
+            chunk: "bad chunk".to_string(),
+        };
+        assert_eq!(
+            error.to_string(),
+            "Stream parsing error: invalid data, chunk: bad chunk"
+        );
+
+        let error = Error::StreamBuffer {
+            message: "buffer overflow".to_string(),
+        };
+        assert_eq!(error.to_string(), "Stream buffer error: buffer overflow");
+
+        let error = Error::Stream("generic stream error".to_string());
+        assert_eq!(error.to_string(), "Stream error: generic stream error");
+    }
+
+    #[test]
+    fn test_specialized_error_modules() {
+        // Test chat module errors
+        let error = chat::invalid_messages("empty messages");
+        assert!(matches!(error, Error::InvalidRequest(_)));
+        assert!(error.to_string().contains("Invalid chat messages"));
+
+        let error = chat::unsupported_model("gpt-5");
+        assert!(matches!(error, Error::InvalidRequest(_)));
+        assert!(error.to_string().contains("Unsupported model"));
+
+        // Test responses module errors
+        let error = responses::invalid_tool("missing name");
+        assert!(matches!(error, Error::InvalidRequest(_)));
+        assert!(error.to_string().contains("Invalid tool definition"));
+
+        let error = responses::missing_response_format();
+        assert!(matches!(error, Error::InvalidRequest(_)));
+        assert!(error.to_string().contains("Response format is required"));
+
+        // Test files module errors
+        let error = files::upload_failed("network error");
+        assert!(matches!(error, Error::File(_)));
+
+        let error = files::unsupported_type("txt");
+        assert!(matches!(error, Error::InvalidRequest(_)));
+        assert!(error.to_string().contains("Unsupported file type"));
+
+        // Test streaming module errors
+        let error = streaming::connection_failed("timeout");
+        assert!(matches!(error, Error::Stream(_)));
+        assert!(error.to_string().contains("Stream connection failed"));
+
+        let error = streaming::parse_failed("invalid JSON");
+        assert!(matches!(error, Error::Stream(_)));
+        assert!(error.to_string().contains("Stream parsing failed"));
+    }
+
+    #[test]
+    fn test_error_debug_format() {
+        let error = Error::InvalidRequest("test".to_string());
+        let debug_str = format!("{error:?}");
+        assert!(debug_str.contains("InvalidRequest"));
+        assert!(debug_str.contains("test"));
+    }
+
+    #[test]
+    fn test_error_chains() {
+        // Test that errors properly chain when using From traits
+        let io_error = io::Error::new(io::ErrorKind::PermissionDenied, "access denied");
+        let wrapped_error: Error = io_error.into();
+
+        match wrapped_error {
+            Error::File(ref err) => {
+                assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
+            }
+            _ => panic!("Expected File error"),
+        }
+    }
+
+    #[test]
+    fn test_config_error() {
+        let error = Error::Config("missing API key".to_string());
+        assert_eq!(error.to_string(), "Configuration error: missing API key");
+    }
+
+    #[test]
+    fn test_builder_error() {
+        let error = Error::Builder("validation failed".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Builder validation error: validation failed"
+        );
+    }
+
+    #[test]
+    fn test_internal_error() {
+        let error = Error::Internal("unexpected state".to_string());
+        assert_eq!(error.to_string(), "Internal error: unexpected state");
+    }
+
+    #[test]
+    fn test_error_status_boundaries() {
+        // Test edge cases for status code ranges
+        let error = Error::api(399, "Client Error");
+        assert!(!error.is_client_error());
+
+        let error = Error::api(400, "Client Error");
+        assert!(error.is_client_error());
+
+        let error = Error::api(499, "Client Error");
+        assert!(error.is_client_error());
+
+        let error = Error::api(500, "Server Error");
+        assert!(!error.is_client_error());
+        assert!(error.is_server_error());
+
+        let error = Error::api(599, "Server Error");
+        assert!(error.is_server_error());
+
+        let error = Error::api(600, "Unknown");
+        assert!(!error.is_server_error());
+    }
+}

@@ -464,3 +464,385 @@ pub fn image_base64_part_with_detail(
     let data_url = format!("data:{};base64,{}", media_type.into(), base64_data.into());
     image_url_part_with_detail(data_url, detail)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::builders::Builder;
+    use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOption;
+
+    #[test]
+    fn test_chat_completion_builder_new() {
+        let builder = ChatCompletionBuilder::new("gpt-4");
+        assert_eq!(builder.model, "gpt-4");
+        assert!(builder.messages.is_empty());
+        assert!(builder.temperature.is_none());
+    }
+
+    #[test]
+    fn test_chat_completion_builder_system_message() {
+        let builder = ChatCompletionBuilder::new("gpt-4").system("You are a helpful assistant");
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
+                match msg.content.as_ref() {
+                    ChatCompletionRequestSystemMessageContent::TextContent(content) => {
+                        assert_eq!(content, "You are a helpful assistant");
+                    }
+                    ChatCompletionRequestSystemMessageContent::ArrayOfContentParts(_) => panic!("Expected text content"),
+                }
+            }
+            _ => panic!("Expected system message"),
+        }
+    }
+
+    #[test]
+    fn test_chat_completion_builder_user_message() {
+        let builder = ChatCompletionBuilder::new("gpt-4").user("Hello, world!");
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
+                match msg.content.as_ref() {
+                    ChatCompletionRequestUserMessageContent::TextContent(content) => {
+                        assert_eq!(content, "Hello, world!");
+                    }
+                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(_) => panic!("Expected text content"),
+                }
+            }
+            _ => panic!("Expected user message"),
+        }
+    }
+
+    #[test]
+    fn test_chat_completion_builder_assistant_message() {
+        let builder = ChatCompletionBuilder::new("gpt-4").assistant("Hello! How can I help you?");
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(msg) => {
+                if let Some(Some(content)) = &msg.content {
+                    match content.as_ref() {
+                        ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
+                            assert_eq!(text, "Hello! How can I help you?");
+                        }
+                        _ => panic!("Expected text content"),
+                    }
+                } else {
+                    panic!("Expected content");
+                }
+            }
+            _ => panic!("Expected assistant message"),
+        }
+    }
+
+    #[test]
+    fn test_chat_completion_builder_user_with_image_url() {
+        let builder = ChatCompletionBuilder::new("gpt-4")
+            .user_with_image_url("Describe this image", "https://example.com/image.jpg");
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
+                match msg.content.as_ref() {
+                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
+                        assert_eq!(parts.len(), 2);
+
+                        // Check text part
+                        match &parts[0] {
+                            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(text_part) => {
+                                assert_eq!(text_part.text, "Describe this image");
+                            }
+                            _ => panic!("Expected text part"),
+                        }
+
+                        // Check image part
+                        match &parts[1] {
+                            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
+                                assert_eq!(image_part.image_url.url, "https://example.com/image.jpg");
+                                assert_eq!(image_part.image_url.detail, Some(Detail::Auto));
+                            }
+                            _ => panic!("Expected image part"),
+                        }
+                    }
+                    ChatCompletionRequestUserMessageContent::TextContent(_) => panic!("Expected array of content parts"),
+                }
+            }
+            _ => panic!("Expected user message"),
+        }
+    }
+
+    #[test]
+    fn test_chat_completion_builder_user_with_image_url_and_detail() {
+        let builder = ChatCompletionBuilder::new("gpt-4").user_with_image_url_and_detail(
+            "Describe this image",
+            "https://example.com/image.jpg",
+            Detail::High,
+        );
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
+                match msg.content.as_ref() {
+                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
+                        assert_eq!(parts.len(), 2);
+
+                        // Check image part detail
+                        match &parts[1] {
+                            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
+                                assert_eq!(image_part.image_url.detail, Some(Detail::High));
+                            }
+                            _ => panic!("Expected image part"),
+                        }
+                    }
+                    ChatCompletionRequestUserMessageContent::TextContent(_) => panic!("Expected array of content parts"),
+                }
+            }
+            _ => panic!("Expected user message"),
+        }
+    }
+
+    #[test]
+    fn test_chat_completion_builder_user_with_parts() {
+        let text_part = text_part("Hello");
+        let image_part = image_url_part("https://example.com/image.jpg");
+        let parts = vec![text_part, image_part];
+
+        let builder = ChatCompletionBuilder::new("gpt-4").user_with_parts(parts);
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
+                match msg.content.as_ref() {
+                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
+                        assert_eq!(parts.len(), 2);
+                    }
+                    ChatCompletionRequestUserMessageContent::TextContent(_) => panic!("Expected array of content parts"),
+                }
+            }
+            _ => panic!("Expected user message"),
+        }
+    }
+
+    #[test]
+    fn test_chat_completion_builder_chaining() {
+        let builder = ChatCompletionBuilder::new("gpt-4")
+            .system("You are a helpful assistant")
+            .user("What's the weather?")
+            .temperature(0.7)
+            .max_tokens(100);
+
+        assert_eq!(builder.messages.len(), 2);
+        assert_eq!(builder.temperature, Some(0.7));
+        assert_eq!(builder.max_tokens, Some(100));
+    }
+
+    #[test]
+    fn test_chat_completion_builder_parameters() {
+        let builder = ChatCompletionBuilder::new("gpt-4")
+            .temperature(0.5)
+            .max_tokens(150)
+            .max_completion_tokens(200)
+            .stream(true)
+            .n(2)
+            .stop(vec!["STOP".to_string()])
+            .presence_penalty(0.1)
+            .frequency_penalty(0.2)
+            .top_p(0.9)
+            .user_id("user123");
+
+        assert_eq!(builder.temperature, Some(0.5));
+        assert_eq!(builder.max_tokens, Some(150));
+        assert_eq!(builder.max_completion_tokens, Some(200));
+        assert_eq!(builder.stream, Some(true));
+        assert_eq!(builder.n, Some(2));
+        assert_eq!(builder.stop, Some(vec!["STOP".to_string()]));
+        assert_eq!(builder.presence_penalty, Some(0.1));
+        assert_eq!(builder.frequency_penalty, Some(0.2));
+        assert_eq!(builder.top_p, Some(0.9));
+        assert_eq!(builder.user, Some("user123".to_string()));
+    }
+
+    #[test]
+    fn test_chat_completion_builder_tools() {
+        let tool = tool_function(
+            "test_function",
+            "A test function",
+            serde_json::json!({"type": "object", "properties": {}}),
+        );
+
+        let builder = ChatCompletionBuilder::new("gpt-4")
+            .tools(vec![tool])
+            .tool_choice(ChatCompletionToolChoiceOption::Auto(
+                openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum::Auto
+            ));
+
+        assert_eq!(builder.tools.as_ref().unwrap().len(), 1);
+        assert!(builder.tool_choice.is_some());
+    }
+
+    #[test]
+    fn test_chat_completion_builder_build_success() {
+        let builder = ChatCompletionBuilder::new("gpt-4").user("Hello");
+        let request = builder.build().unwrap();
+
+        assert_eq!(request.model, "gpt-4");
+        assert_eq!(request.messages.len(), 1);
+    }
+
+    #[test]
+    fn test_chat_completion_builder_build_empty_messages_error() {
+        let builder = ChatCompletionBuilder::new("gpt-4");
+        let result = builder.build();
+
+        assert!(result.is_err());
+        if let Err(error) = result {
+            assert!(matches!(error, crate::Error::InvalidRequest(_)));
+        }
+    }
+
+    #[test]
+    fn test_user_message_helper() {
+        let builder = user_message("gpt-4", "Hello, world!");
+        assert_eq!(builder.model, "gpt-4");
+        assert_eq!(builder.messages.len(), 1);
+    }
+
+    #[test]
+    fn test_system_user_helper() {
+        let builder = system_user(
+            "gpt-4",
+            "You are a helpful assistant",
+            "What's the weather?",
+        );
+        assert_eq!(builder.model, "gpt-4");
+        assert_eq!(builder.messages.len(), 2);
+    }
+
+    #[test]
+    fn test_tool_function() {
+        let tool = tool_function(
+            "get_weather",
+            "Get current weather",
+            serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string"}
+                }
+            }),
+        );
+
+        assert_eq!(tool.function.name, "get_weather");
+        assert_eq!(
+            tool.function.description.as_ref().unwrap(),
+            "Get current weather"
+        );
+        assert!(tool.function.parameters.is_some());
+    }
+
+    #[test]
+    fn test_tool_web_search() {
+        let tool = tool_web_search();
+        assert_eq!(tool.function.name, "web_search");
+        assert!(tool.function.description.is_some());
+        assert!(tool.function.parameters.is_some());
+    }
+
+    #[test]
+    fn test_text_part() {
+        let part = text_part("Hello, world!");
+        match part {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(text_part) => {
+                assert_eq!(text_part.text, "Hello, world!");
+                assert_eq!(text_part.r#type, TextType::Text);
+            }
+            _ => panic!("Expected text part"),
+        }
+    }
+
+    #[test]
+    fn test_image_url_part() {
+        let part = image_url_part("https://example.com/image.jpg");
+        match part {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
+                assert_eq!(image_part.image_url.url, "https://example.com/image.jpg");
+                assert_eq!(image_part.image_url.detail, Some(Detail::Auto));
+                assert_eq!(image_part.r#type, ImageType::ImageUrl);
+            }
+            _ => panic!("Expected image part"),
+        }
+    }
+
+    #[test]
+    fn test_image_url_part_with_detail() {
+        let part = image_url_part_with_detail("https://example.com/image.jpg", Detail::Low);
+        match part {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
+                assert_eq!(image_part.image_url.url, "https://example.com/image.jpg");
+                assert_eq!(image_part.image_url.detail, Some(Detail::Low));
+                assert_eq!(image_part.r#type, ImageType::ImageUrl);
+            }
+            _ => panic!("Expected image part"),
+        }
+    }
+
+    #[test]
+    fn test_image_base64_part() {
+        let part = image_base64_part("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==", "image/png");
+        match part {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
+                assert!(image_part.image_url.url.starts_with("data:image/png;base64,"));
+                assert_eq!(image_part.image_url.detail, Some(Detail::Auto));
+                assert_eq!(image_part.r#type, ImageType::ImageUrl);
+            }
+            _ => panic!("Expected image part"),
+        }
+    }
+
+    #[test]
+    fn test_image_base64_part_with_detail() {
+        let part = image_base64_part_with_detail("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==", "image/jpeg", Detail::High);
+        match part {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
+                assert!(image_part.image_url.url.starts_with("data:image/jpeg;base64,"));
+                assert_eq!(image_part.image_url.detail, Some(Detail::High));
+                assert_eq!(image_part.r#type, ImageType::ImageUrl);
+            }
+            _ => panic!("Expected image part"),
+        }
+    }
+
+    #[test]
+    fn test_tool_function_with_empty_parameters() {
+        let tool = tool_function(
+            "simple_function",
+            "A simple function",
+            serde_json::json!({}),
+        );
+
+        assert_eq!(tool.function.name, "simple_function");
+        assert!(tool.function.parameters.is_some());
+        assert!(tool.function.parameters.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_tool_function_with_invalid_parameters() {
+        let tool = tool_function(
+            "function_with_string_params",
+            "A function with string parameters",
+            serde_json::json!("not an object"),
+        );
+
+        assert_eq!(tool.function.name, "function_with_string_params");
+        assert!(tool.function.parameters.is_some());
+        // Should result in empty map when parameters is not an object
+        assert!(tool.function.parameters.as_ref().unwrap().is_empty());
+    }
+}
