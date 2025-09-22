@@ -14,7 +14,7 @@ use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_stream::wrappers::LinesStream;
 
-/// Represents a chunk of streaming data from OpenAI
+/// Represents a chunk of streaming data from `OpenAI`
 #[derive(Debug, Clone)]
 pub struct StreamChunk {
     /// The raw event data
@@ -28,7 +28,7 @@ pub struct StreamChunk {
 }
 
 impl StreamChunk {
-    /// Parse a raw SSE data line into a StreamChunk
+    /// Parse a raw SSE data line into a `StreamChunk`
     pub fn parse(line: &str) -> Result<Option<Self>> {
         // Handle SSE format: "data: {json}"
         if !line.starts_with("data: ") {
@@ -49,7 +49,7 @@ impl StreamChunk {
 
         // Parse JSON data
         let json: Value = serde_json::from_str(data).map_err(|e| Error::StreamParsing {
-            message: format!("Failed to parse chunk JSON: {}", e),
+            message: format!("Failed to parse chunk JSON: {e}"),
             chunk: data.to_string(),
         })?;
 
@@ -78,7 +78,7 @@ impl StreamChunk {
     }
 
     /// Check if this chunk has tool call data
-    pub fn has_tool_call(&self) -> bool {
+    pub const fn has_tool_call(&self) -> bool {
         self.tool_call_delta.is_some()
     }
 }
@@ -109,7 +109,7 @@ impl ResponseStream {
 
         while let Some(line_result) = self.lines_stream.next().await {
             let line = line_result.map_err(|e| Error::StreamConnection {
-                message: format!("Stream read error: {}", e),
+                message: format!("Stream read error: {e}"),
             })?;
 
             // Skip empty lines
@@ -145,7 +145,7 @@ impl ResponseStream {
     }
 
     /// Check if the stream has finished
-    pub fn is_finished(&self) -> bool {
+    pub const fn is_finished(&self) -> bool {
         self.finished
     }
 }
@@ -202,7 +202,10 @@ impl StreamBuffer {
 
     /// Get buffer utilization as a percentage
     pub fn utilization(&self) -> f64 {
-        (self.content.len() as f64 / self.capacity as f64) * 100.0
+        #[allow(clippy::cast_precision_loss)]
+        {
+            (self.content.len() as f64 / self.capacity as f64) * 100.0
+        }
     }
 
     /// Compact the buffer by removing processed content
@@ -247,7 +250,7 @@ async fn example_basic_streaming() -> Result<()> {
     println!("\nSimulated streaming output:");
     print!("> ");
     for chunk in sample_chunks {
-        print!("{}", chunk);
+        print!("{chunk}");
         std::io::Write::flush(&mut std::io::stdout()).unwrap();
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
@@ -263,7 +266,7 @@ async fn example_buffered_streaming() -> Result<()> {
     let mut buffer = StreamBuffer::new(1024); // 1KB buffer
 
     // Simulate incoming chunks
-    let chunks = vec![
+    let chunks = [
         "The robot's optical sensors",
         " detected the vibrant colors",
         " of the sunset painting",
@@ -315,7 +318,7 @@ async fn example_buffered_streaming() -> Result<()> {
 }
 
 /// Demonstrates error handling patterns for streaming
-async fn example_streaming_error_handling() -> Result<()> {
+fn example_streaming_error_handling() {
     println!("=== Streaming Error Handling Example ===");
 
     // Simulate various error conditions that can occur during streaming
@@ -329,7 +332,7 @@ async fn example_streaming_error_handling() -> Result<()> {
 
     match connection_result {
         Err(Error::StreamConnection { message }) => {
-            println!("   ❌ Connection error handled: {}", message);
+            println!("   ❌ Connection error handled: {message}");
             println!("   🔄 Would implement retry logic here");
         }
         _ => unreachable!(),
@@ -340,8 +343,8 @@ async fn example_streaming_error_handling() -> Result<()> {
     let malformed_chunk = "data: {invalid json}";
     match StreamChunk::parse(malformed_chunk) {
         Err(Error::StreamParsing { message, chunk }) => {
-            println!("   ❌ Parse error handled: {}", message);
-            println!("   📄 Problematic chunk: {}", chunk);
+            println!("   ❌ Parse error handled: {message}");
+            println!("   📄 Problematic chunk: {chunk}");
             println!("   🔄 Would skip chunk and continue");
         }
         _ => println!("   ✅ Chunk parsed successfully"),
@@ -354,19 +357,17 @@ async fn example_streaming_error_handling() -> Result<()> {
 
     match small_buffer.append(large_chunk) {
         Err(Error::StreamBuffer { message }) => {
-            println!("   ❌ Buffer error handled: {}", message);
+            println!("   ❌ Buffer error handled: {message}");
             println!("   🔄 Would implement buffer resizing or chunking");
         }
         Ok(()) => println!("   ✅ Content added to buffer"),
-        Err(e) => println!("   ❌ Unexpected error: {}", e),
+        Err(e) => println!("   ❌ Unexpected error: {e}"),
     }
 
     // 4. Timeout handling
     println!("\n4. Timeout Handling:");
     println!("   ⏱️  Would implement timeout for stream chunks");
     println!("   🔄 Would retry or fail gracefully on timeout");
-
-    Ok(())
 }
 
 /// Demonstrates tool calling in streaming responses
@@ -405,7 +406,7 @@ async fn example_streaming_tool_calls() -> Result<()> {
     // Simulate streaming tool call chunks
     println!("\nSimulated streaming tool call:");
 
-    let tool_chunks = vec![
+    let tool_chunks = [
         r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_123","type":"function","function":{"name":"get_weather"}}]}}]}"#,
         r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{"}}]}}]}"#,
         r#"{"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"location\""}}]}}]}"#,
@@ -417,7 +418,7 @@ async fn example_streaming_tool_calls() -> Result<()> {
     let mut tool_call_buffer = String::new();
 
     for (i, chunk_data) in tool_chunks.iter().enumerate() {
-        let chunk_line = format!("data: {}", chunk_data);
+        let chunk_line = format!("data: {chunk_data}");
 
         if let Some(chunk) = StreamChunk::parse(&chunk_line)? {
             if chunk.has_tool_call() {
@@ -427,7 +428,7 @@ async fn example_streaming_tool_calls() -> Result<()> {
                 if let Some(tool_data) = &chunk.tool_call_delta {
                     if let Some(args) = tool_data["function"]["arguments"].as_str() {
                         tool_call_buffer.push_str(args);
-                        println!("  Arguments so far: {}", tool_call_buffer);
+                        println!("  Arguments so far: {tool_call_buffer}");
                     }
                 }
             }
@@ -436,16 +437,18 @@ async fn example_streaming_tool_calls() -> Result<()> {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
-    println!("\n✅ Complete tool call arguments: {}", tool_call_buffer);
+    println!("\n✅ Complete tool call arguments: {tool_call_buffer}");
     println!("🔧 Would now execute get_weather(location='San Francisco')");
 
     Ok(())
 }
 
 /// Demonstrates chunk processing patterns and metrics
+#[allow(clippy::cast_precision_loss)]
 async fn example_chunk_processing_patterns() -> Result<()> {
     println!("=== Chunk Processing Patterns ===");
 
+    #[allow(clippy::items_after_statements)]
     #[derive(Debug, Default)]
     struct StreamMetrics {
         total_chunks: usize,
@@ -459,7 +462,7 @@ async fn example_chunk_processing_patterns() -> Result<()> {
     let start_time = std::time::Instant::now();
 
     // Simulate various types of chunks
-    let sample_chunks = vec![
+    let sample_chunks = [
         "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}",
         "data: {\"choices\":[{\"delta\":{\"content\":\" world!\"}}]}",
         "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"function\":{\"name\":\"test\"}}]}}]}",
@@ -523,31 +526,29 @@ async fn main() -> Result<()> {
 
     // Run all examples
     if let Err(e) = example_basic_streaming().await {
-        eprintln!("Basic streaming example failed: {}", e);
+        eprintln!("Basic streaming example failed: {e}");
     }
 
     println!();
 
     if let Err(e) = example_buffered_streaming().await {
-        eprintln!("Buffered streaming example failed: {}", e);
+        eprintln!("Buffered streaming example failed: {e}");
     }
 
     println!();
 
-    if let Err(e) = example_streaming_error_handling().await {
-        eprintln!("Error handling example failed: {}", e);
-    }
+    example_streaming_error_handling();
 
     println!();
 
     if let Err(e) = example_streaming_tool_calls().await {
-        eprintln!("Tool calls example failed: {}", e);
+        eprintln!("Tool calls example failed: {e}");
     }
 
     println!();
 
     if let Err(e) = example_chunk_processing_patterns().await {
-        eprintln!("Chunk processing example failed: {}", e);
+        eprintln!("Chunk processing example failed: {e}");
     }
 
     println!("\n✅ All streaming examples completed!");
