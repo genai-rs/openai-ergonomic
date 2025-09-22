@@ -319,7 +319,10 @@ pub mod helpers {
     }
 
     /// Test that a builder produces an error when built.
-    pub fn assert_builder_error<T: std::fmt::Debug, B: Builder<T>>(builder: B, expected_error_contains: &str) {
+    pub fn assert_builder_error<T: std::fmt::Debug, B: Builder<T>>(
+        builder: B,
+        expected_error_contains: &str,
+    ) {
         let result = builder.build();
         assert!(result.is_err(), "Expected builder to produce an error");
 
