@@ -3,6 +3,7 @@
 //! These tests validate the end-to-end functionality of the crate,
 //! including builder patterns, serialization, and API integration.
 
+use openai_client_base::models::ChatCompletionRequestUserMessageContentPart;
 use openai_ergonomic::{
     builders::{
         chat::{image_url_part, system_user, text_part, tool_function},
@@ -12,7 +13,6 @@ use openai_ergonomic::{
     errors::Error,
     Detail,
 };
-use openai_client_base::models::ChatCompletionRequestUserMessageContentPart;
 use serde_json::json;
 
 /// Test basic responses builder functionality
@@ -237,7 +237,7 @@ fn test_image_detail_levels() {
     for detail in details {
         let image_part = openai_ergonomic::builders::chat::image_url_part_with_detail(
             "https://example.com/image.jpg",
-            detail.clone(),
+            detail,
         );
 
         match image_part {
@@ -317,7 +317,7 @@ fn test_stream_parameter() {
 fn test_stop_sequences() {
     let stop_sequences = vec!["STOP".to_string(), "END".to_string()];
 
-    let builder = responses_simple("gpt-4", "Count to 10").stop(stop_sequences.clone());
+    let builder = responses_simple("gpt-4", "Count to 10").stop(stop_sequences);
 
     let request = builder.build().unwrap();
 
