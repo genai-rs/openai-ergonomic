@@ -29,7 +29,7 @@ pub trait ChatCompletionResponseExt {
     fn refusal(&self) -> Option<&str>;
 
     /// Get the finish reason for the first choice.
-    fn finish_reason(&self) -> Option<&str>;
+    fn finish_reason(&self) -> Option<String>;
 }
 
 impl ChatCompletionResponseExt for CreateChatCompletionResponse {
@@ -56,7 +56,7 @@ impl ChatCompletionResponseExt for CreateChatCompletionResponse {
     }
 
     fn first_message(&self) -> Option<&ChatCompletionResponseMessage> {
-        self.first_choice().map(|choice| &choice.message)
+        self.first_choice().map(|choice| choice.message.as_ref())
     }
 
     fn is_refusal(&self) -> bool {
@@ -68,8 +68,7 @@ impl ChatCompletionResponseExt for CreateChatCompletionResponse {
     fn refusal(&self) -> Option<&str> {
         self.first_message()
             .and_then(|msg| msg.refusal.as_ref())
-            .and_then(|r| r.as_ref())
-            .map(|s| s.as_str())
+            .map(std::string::String::as_str)
     }
 
     fn finish_reason(&self) -> Option<String> {
@@ -99,15 +98,31 @@ pub trait ToolCallExt {
 
 impl ToolCallExt for ChatCompletionMessageToolCallsInner {
     fn function_name(&self) -> &str {
-        &self.function.name
+        match self {
+            ChatCompletionMessageToolCallsInner::ChatCompletionMessageToolCall(tool_call) => {
+                &tool_call.function.name
+            }
+            ChatCompletionMessageToolCallsInner::ChatCompletionMessageCustomToolCall(_) => {
+                // Custom tool calls don't have function names in the same way
+                ""
+            }
+        }
     }
 
     fn function_arguments(&self) -> &str {
-        &self.function.arguments
+        match self {
+            ChatCompletionMessageToolCallsInner::ChatCompletionMessageToolCall(tool_call) => {
+                &tool_call.function.arguments
+            }
+            ChatCompletionMessageToolCallsInner::ChatCompletionMessageCustomToolCall(_) => {
+                // Custom tool calls don't have function arguments in the same way
+                ""
+            }
+        }
     }
 
     fn parse_arguments<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
-        serde_json::from_str(&self.function.arguments)
+        serde_json::from_str(self.function_arguments())
     }
 }
 
