@@ -10,7 +10,7 @@
 //!
 //! Run with: `cargo run --example chat_comprehensive`
 
-use openai_ergonomic::{Client, Error};
+use openai_ergonomic::{Client, Error, Response};
 use std::collections::VecDeque;
 use std::io::{self, Write};
 
@@ -219,8 +219,8 @@ async fn demonstrate_basic_chat(
         // Track token usage if available
         if let Some(usage) = response.usage() {
             conversation.update_token_usage(
-                usage.prompt_tokens.unwrap_or(0),
-                usage.completion_tokens.unwrap_or(0),
+                usage.prompt_tokens,
+                usage.completion_tokens,
             );
         }
     } else {
@@ -274,8 +274,8 @@ async fn demonstrate_multi_turn_chat(
             // Track token usage
             if let Some(usage) = response.usage() {
                 conversation.update_token_usage(
-                    usage.prompt_tokens.unwrap_or(0),
-                    usage.completion_tokens.unwrap_or(0),
+                    usage.prompt_tokens,
+                    usage.completion_tokens,
                 );
             }
         }
@@ -361,19 +361,19 @@ async fn demonstrate_token_tracking(
         // Display detailed token usage
         if let Some(usage) = response.usage() {
             println!("\n📈 Token Usage Breakdown:");
-            println!("  Prompt tokens: {}", usage.prompt_tokens.unwrap_or(0));
+            println!("  Prompt tokens: {}", usage.prompt_tokens);
             println!(
                 "  Completion tokens: {}",
-                usage.completion_tokens.unwrap_or(0)
+                usage.completion_tokens
             );
-            println!("  Total tokens: {}", usage.total_tokens.unwrap_or(0));
+            println!("  Total tokens: {}", usage.total_tokens);
 
             conversation.update_token_usage(
-                usage.prompt_tokens.unwrap_or(0),
-                usage.completion_tokens.unwrap_or(0),
+                usage.prompt_tokens,
+                usage.completion_tokens,
             );
 
-            conversation.add_assistant_message(content.to_string(), usage.completion_tokens);
+            conversation.add_assistant_message(content.to_string(), Some(usage.completion_tokens));
         } else {
             conversation.add_assistant_message(content.to_string(), None);
         }
