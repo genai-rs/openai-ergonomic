@@ -503,5 +503,18 @@ fn handle_api_error(error: &Error) {
             eprintln!("🚫 Internal Error: {msg}");
             eprintln!("💡 This may be a bug, please report it");
         }
+        Error::StreamConnection { message } => {
+            eprintln!("🚫 Stream Connection Error: {message}");
+            eprintln!("💡 Check your network connection");
+        }
+        Error::StreamParsing { message, chunk } => {
+            eprintln!("🚫 Stream Parsing Error: {message}");
+            eprintln!("   Problematic chunk: {chunk}");
+            eprintln!("💡 The response stream may be corrupted");
+        }
+        Error::StreamBuffer { message } => {
+            eprintln!("🚫 Stream Buffer Error: {message}");
+            eprintln!("💡 The stream buffer encountered an issue");
+        }
     }
 }
