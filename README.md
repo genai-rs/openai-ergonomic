@@ -94,20 +94,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The `examples/` directory contains comprehensive examples for all major `OpenAI` API features:
 
-- **Basic Usage**: Simple chat completions and responses
-- **Streaming**: Real-time response streaming
-- **Function Calling**: Tool integration and function calling
-- **Vision**: Image understanding and analysis
-- **Audio**: Speech-to-text and text-to-speech
-- **Assistants**: Assistant API with file handling
-- **Embeddings**: Vector embeddings generation
-- **Images**: Image generation and editing
+### Core Examples
 
-Run an example:
+- [**quickstart.rs**](examples/quickstart.rs) - Quick introduction to the library with basic usage patterns
+- [**responses_comprehensive.rs**](examples/responses_comprehensive.rs) - Complete responses API demonstration including function calling and web search
+- [**responses_streaming.rs**](examples/responses_streaming.rs) - Real-time streaming responses with progress indicators
+- [**chat_comprehensive.rs**](examples/chat_comprehensive.rs) - Full chat completions API with conversation history
+- [**structured_outputs.rs**](examples/structured_outputs.rs) - JSON mode and schema-based structured outputs
+- [**vision_chat.rs**](examples/vision_chat.rs) - Image understanding with GPT-4 Vision
+
+### Media & AI Capabilities
+
+- [**audio_speech.rs**](examples/audio_speech.rs) - Text-to-speech generation with multiple voices
+- [**audio_transcription.rs**](examples/audio_transcription.rs) - Speech-to-text transcription and translation
+- [**images_comprehensive.rs**](examples/images_comprehensive.rs) - Image generation, editing, and variations
+- [**embeddings.rs**](examples/embeddings.rs) - Vector embeddings with similarity search patterns
+
+### Advanced APIs
+
+- [**assistants_basic.rs**](examples/assistants_basic.rs) - Introduction to the Assistants API with threads and tools
+
+Run any example with:
 
 ```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY="your-api-key-here"
+
+# Run an example
 cargo run --example quickstart
+cargo run --example responses_streaming
+cargo run --example vision_chat
 ```
+
+Each example includes:
+- ✅ Comprehensive documentation and inline comments
+- ✅ Error handling best practices
+- ✅ Real-world use cases and patterns
+- ✅ Progressive complexity from basic to advanced usage
 
 ## Contributing
 
