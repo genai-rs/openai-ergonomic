@@ -27,9 +27,9 @@
 //! ```
 
 use openai_client_base::models::{
-    AssistantsNamedToolChoiceFunction, ChatCompletionMessageToolCall, ChatCompletionTool,
-    ChatCompletionToolChoiceOption, CompletionUsage, CreateChatCompletionResponse,
-    CreateChatCompletionStreamResponse, FunctionObject,
+    AssistantsNamedToolChoiceFunction, ChatCompletionTool, ChatCompletionToolChoiceOption,
+    CompletionUsage, CreateChatCompletionResponse, CreateChatCompletionStreamResponse,
+    FunctionObject,
 };
 
 pub mod assistants;
@@ -135,8 +135,7 @@ impl ChatCompletionResponseWrapper {
             .choices
             .first()
             .and_then(|c| c.message.refusal.as_ref())
-            .and_then(|r| r.as_ref())
-            .map(|s| s.as_str())
+            .map(std::string::String::as_str)
     }
 
     /// Get the finish reason for the first choice.
@@ -151,7 +150,7 @@ impl ChatCompletionResponseWrapper {
         })
     }
 
-    /// Generate a URL for this response if base_url was provided.
+    /// Generate a URL for this response if `base_url` was provided.
     pub fn url(&self) -> Option<String> {
         self.base_url
             .as_ref()
@@ -174,7 +173,7 @@ impl Response for ChatCompletionResponseWrapper {
     }
 
     fn usage(&self) -> Option<&CompletionUsage> {
-        self.inner.usage.as_ref().map(|u| &**u)
+        self.inner.usage.as_deref()
     }
 }
 
@@ -197,7 +196,7 @@ impl ChatCompletionStreamResponseWrapper {
             .first()
             .and_then(|c| c.delta.content.as_ref())
             .and_then(|c| c.as_ref())
-            .map(|s| s.as_str())
+            .map(std::string::String::as_str)
     }
 
     /// Get tool call deltas from this chunk.
@@ -215,20 +214,16 @@ impl ChatCompletionStreamResponseWrapper {
     /// Check if this is the final chunk.
     pub fn is_finished(&self) -> bool {
         use openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason;
-        self.inner
-            .choices
-            .first()
-            .map(|c| {
-                !matches!(
-                    c.finish_reason,
-                    FinishReason::Stop
-                        | FinishReason::Length
-                        | FinishReason::ToolCalls
-                        | FinishReason::ContentFilter
-                        | FinishReason::FunctionCall
-                )
-            })
-            .unwrap_or(true)
+        self.inner.choices.first().is_none_or(|c| {
+            !matches!(
+                c.finish_reason,
+                FinishReason::Stop
+                    | FinishReason::Length
+                    | FinishReason::ToolCalls
+                    | FinishReason::ContentFilter
+                    | FinishReason::FunctionCall
+            )
+        })
     }
 
     /// Get the inner stream response object.
@@ -330,7 +325,7 @@ pub use openai_client_base::models::{
     CreateChatCompletionStreamResponse as StreamResponse,
 };
 
-/// Placeholder for the ResponseBuilder until client is ready
+/// Placeholder for the `ResponseBuilder` until client is ready
 #[derive(Debug, Clone)]
 pub struct ResponseBuilder;
 
