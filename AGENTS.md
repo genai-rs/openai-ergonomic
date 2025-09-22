@@ -43,6 +43,11 @@
 - **Scope**: README, docs.rs comments, `docs/` guides, examples.
 - **Inputs**: Feature notes, diffs from implementation agents, documentation gaps flagged in TODO.
 - **Outputs**: Updated README sections, new examples, expanded documentation, doctest coverage.
+- **Headless Operation**:
+  - Use `cargo doc` WITHOUT `--open` flag to prevent launching GUI programs
+  - Never attempt to open HTML files with system defaults
+  - View generated docs by navigating directly to `target/doc/` paths
+  - Run all documentation generation in CI-friendly headless mode
 
 ### 4. QA Agent
 - **Scope**: Testing harness, regression coverage, CI guardrails.
@@ -124,6 +129,10 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 # Run tests (once implemented)
 cargo test --all
+
+# Generate documentation (headless, no GUI)
+cargo doc --no-deps
+# View docs manually at: target/doc/openai_ergonomic/index.html
 
 # Run a specific example (placeholder)
 cargo run --example responses_quickstart
