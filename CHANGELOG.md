@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.1.0...v0.2.0) - 2025-09-22
+
+### Added
+
+- add comprehensive testing harness and update documentation
+- implement Phase 1 core examples
+- implement comprehensive streaming responses example
+- implement comprehensive chat completions example
+- implement comprehensive responses API example
+- implement core builder patterns and client wrapper
+
+### Fixed
+
+- apply cargo fmt formatting changes
+- add missing stream error variant handlers in comprehensive example
+- resolve clippy warnings in responses_comprehensive example
+- resolve compilation errors in responses_comprehensive example
+- resolve clippy warnings in responses_streaming example
+- remove misplaced responses_comprehensive example from chat branch
+- resolve clippy warnings in chat_comprehensive example
+- resolve compilation errors in chat comprehensive example
+- use proper structure for required_pull_request_reviews
+- restore full settings.yml - Settings app is working
+- simplify settings.yml format to match working repo
+- update settings.yml with correct CI check names
+- update docs agent to work headless without GUI programs
+- resolve CI failures - compilation, clippy, and formatting issues
+
+### Other
+
+- mark responses_streaming.rs task complete in TODO
+- minimal branch protection config
+- trigger Settings app to create branch protection
+- minimal settings.yml to debug Settings app
+- trigger Settings app sync
+- add Agile Coach Agent for workflow optimization
+
 ### Added
 - Initial project scaffolding with Cargo.toml configuration
 - Basic library structure with error handling foundation
