@@ -444,7 +444,9 @@ mod tests {
                     ChatCompletionRequestSystemMessageContent::TextContent(content) => {
                         assert_eq!(content, "You are a helpful assistant");
                     }
-                    ChatCompletionRequestSystemMessageContent::ArrayOfContentParts(_) => panic!("Expected text content"),
+                    ChatCompletionRequestSystemMessageContent::ArrayOfContentParts(_) => {
+                        panic!("Expected text content")
+                    }
                 }
             }
             _ => panic!("Expected system message"),
@@ -463,7 +465,9 @@ mod tests {
                     ChatCompletionRequestUserMessageContent::TextContent(content) => {
                         assert_eq!(content, "Hello, world!");
                     }
-                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(_) => panic!("Expected text content"),
+                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(_) => {
+                        panic!("Expected text content")
+                    }
                 }
             }
             _ => panic!("Expected user message"),

@@ -2,7 +2,7 @@
 //!
 //! These tests demonstrate how to use the testing infrastructure
 //! and validate the interaction between builders and mock servers.
-
+#![allow(clippy::significant_drop_tightening)]
 #![cfg(feature = "test-utils")]
 
 use openai_ergonomic::{
@@ -46,7 +46,7 @@ async fn test_mock_chat_completions_success() {
     // Make a request to the mock server
     let client = reqwest::Client::new();
     let response = client
-        .post(&format!("{}/v1/chat/completions", mock_server.base_url()))
+        .post(format!("{}/v1/chat/completions", mock_server.base_url()))
         .header("authorization", "Bearer test-api-key")
         .header("content-type", "application/json")
         .json(&serde_json::json!({
@@ -78,7 +78,7 @@ async fn test_mock_streaming_response() {
     // Make a streaming request
     let client = reqwest::Client::new();
     let response = client
-        .post(&format!("{}/v1/chat/completions", mock_server.base_url()))
+        .post(format!("{}/v1/chat/completions", mock_server.base_url()))
         .header("authorization", "Bearer test-api-key")
         .header("content-type", "application/json")
         .json(&serde_json::json!({
@@ -113,7 +113,7 @@ async fn test_mock_error_response() {
 
     let client = reqwest::Client::new();
     let response = client
-        .post(&format!("{}/v1/chat/completions", mock_server.base_url()))
+        .post(format!("{}/v1/chat/completions", mock_server.base_url()))
         .header("authorization", "Bearer test-api-key")
         .header("content-type", "application/json")
         .json(&serde_json::json!({
@@ -144,7 +144,7 @@ async fn test_mock_embeddings_endpoint() {
 
     let client = reqwest::Client::new();
     let response = client
-        .post(&format!("{}/v1/embeddings", mock_server.base_url()))
+        .post(format!("{}/v1/embeddings", mock_server.base_url()))
         .header("authorization", "Bearer test-api-key")
         .header("content-type", "application/json")
         .json(&serde_json::json!({
@@ -173,7 +173,7 @@ async fn test_mock_models_list() {
 
     let client = reqwest::Client::new();
     let response = client
-        .get(&format!("{}/v1/models", mock_server.base_url()))
+        .get(format!("{}/v1/models", mock_server.base_url()))
         .header("authorization", "Bearer test-api-key")
         .send()
         .await
@@ -266,7 +266,7 @@ async fn test_multiple_mock_scenarios() {
 
     // First request should succeed
     let response1 = client
-        .post(&format!("{}/v1/chat/completions", mock_server.base_url()))
+        .post(format!("{}/v1/chat/completions", mock_server.base_url()))
         .header("authorization", "Bearer test-api-key")
         .json(&serde_json::json!({
             "model": "gpt-4",
@@ -280,7 +280,7 @@ async fn test_multiple_mock_scenarios() {
 
     // Second request should return rate limit error
     let response2 = client
-        .post(&format!("{}/v1/chat/completions", mock_server.base_url()))
+        .post(format!("{}/v1/chat/completions", mock_server.base_url()))
         .header("authorization", "Bearer test-api-key")
         .json(&serde_json::json!({
             "model": "gpt-4",
@@ -313,7 +313,7 @@ async fn test_concurrent_mock_requests() {
 
     // Create concurrent requests
     let request1 = client
-        .post(&format!("{}/v1/chat/completions", base_url))
+        .post(format!("{base_url}/v1/chat/completions"))
         .header("authorization", "Bearer test-api-key")
         .json(&serde_json::json!({
             "model": "gpt-4",
@@ -322,7 +322,7 @@ async fn test_concurrent_mock_requests() {
         .send();
 
     let request2 = client
-        .post(&format!("{}/v1/chat/completions", base_url))
+        .post(format!("{base_url}/v1/chat/completions"))
         .header("authorization", "Bearer test-api-key")
         .json(&serde_json::json!({
             "model": "gpt-4",
@@ -331,7 +331,7 @@ async fn test_concurrent_mock_requests() {
         .send();
 
     let request3 = client
-        .post(&format!("{}/v1/chat/completions", base_url))
+        .post(format!("{base_url}/v1/chat/completions"))
         .header("authorization", "Bearer test-api-key")
         .json(&serde_json::json!({
             "model": "gpt-4",
