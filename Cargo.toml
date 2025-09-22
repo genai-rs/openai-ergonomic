@@ -26,7 +26,7 @@ thiserror = "2.0"
 tracing = "0.1"
 async-trait = "0.1"
 bytes = "1.5"
-tokio-stream = "0.1"
+tokio-stream = { version = "0.1", features = ["io-util"] }
 mockito = { version = "1.2", optional = true }
 
 [dev-dependencies]
