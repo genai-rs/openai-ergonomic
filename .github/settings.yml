@@ -51,29 +51,28 @@ branches:
         strict: true  # Require branches to be up to date before merging
         contexts:
           # Core CI checks from ci.yml workflow
-          - "Format"                             # rustfmt check
-          - "Clippy"                             # clippy linting
-          - "Test (ubuntu-latest, stable)"      # Ubuntu stable tests
-          - "Test (ubuntu-latest, beta)"        # Ubuntu beta tests
-          - "Test (macos-latest, stable)"       # macOS tests
-          - "Test (windows-latest, stable)"     # Windows tests
-          - "Documentation"                      # cargo doc check
-          - "MSRV"                              # Minimum supported Rust version
-
-          # Build checks for different platforms
-          - "Build (x86_64-unknown-linux-gnu)"
-          - "Build (x86_64-apple-darwin)"
-          - "Build (x86_64-pc-windows-msvc)"
-          - "Build (aarch64-apple-darwin)"
-
-          # Security checks from security.yml workflow
-          - "Security Audit"                    # cargo audit
-          - "Cargo Deny (advisories)"          # Advisory database check
-          - "Cargo Deny (bans sources)"        # Banned dependencies check
-          - "Cargo Deny (licenses)"            # License compliance check
-          - "Dependency Review"                # GitHub dependency review
-          - "Supply Chain Security"            # Supply chain checks
-          - "License Compliance"               # License validation
+          - Format
+          - Clippy
+          - Documentation
+          - MSRV
+          # Test suite
+          - Test (ubuntu-latest, stable)
+          - Test (ubuntu-latest, beta)
+          - Test (macos-latest, stable)
+          - Test (windows-latest, stable)
+          # Build checks
+          - Build (x86_64-unknown-linux-gnu)
+          - Build (x86_64-apple-darwin)
+          - Build (x86_64-pc-windows-msvc)
+          - Build (aarch64-apple-darwin)
+          # Security checks
+          - Security Audit
+          - Cargo Deny (advisories)
+          - Cargo Deny (bans sources)
+          - Cargo Deny (licenses)
+          - Dependency Review
+          - Supply Chain Security
+          - License Compliance
 
           # Note: Code Coverage is informational only, not required
 
