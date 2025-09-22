@@ -6,12 +6,13 @@
 
 ## Phase 0: Research & Discovery
 - [x] Capture audit notes for `openai-client-base` in `docs/research/` (PR #2 merged 2025-09-20).
-- [ ] Capture audit notes for `openai-builders` and `langfuse-ergonomic` in `docs/research/` (include module inventory & known TODOs).
+- [x] Capture audit notes for `openai-builders` and `langfuse-ergonomic` in `docs/research/` (completed 2025-09-21).
 - [x] Document takeaway from `openai-experiment/examples/*` to shape ergonomic crate examples (PR #1).
 
 ## Examples Implementation (from PR #1 analysis)
 ### Phase 1: Core Examples (P1 - v0.1.0)
-- [ ] Create `examples/` directory structure
+- [x] Create `examples/` directory structure (completed 2025-09-21)
+- [x] Implement `quickstart.rs` - Basic getting started guide (completed 2025-09-21)
 - [ ] Implement `responses_comprehensive.rs` - Primary modern API with basic, function calling, web search
 - [ ] Implement `responses_streaming.rs` - Dedicated streaming patterns
 - [ ] Implement `chat_comprehensive.rs` - Chat completions with history and streaming
@@ -43,13 +44,13 @@
 - [ ] Implement `token_counting.rs` - Token estimation and budgeting
 
 ## Repository Setup
-- [ ] Phase 1: Scaffold repository (licenses, README stub, CONTRIBUTING, SECURITY, CHANGELOG templates) using `langfuse-ergonomic` / `openai-client-base` patterns.
-- [ ] Phase 1: Port shared tooling (`rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`, `.github/settings.yml`, CODEOWNERS, CI/security/release/dependency workflows).
-- [ ] Phase 1: Author initial `CLAUDE.md` describing agent expectations and workflow rituals.
+- [x] Phase 1: Scaffold repository (licenses, README stub, CONTRIBUTING, SECURITY, CHANGELOG templates) using `langfuse-ergonomic` / `openai-client-base` patterns (completed).
+- [x] Phase 1: Port shared tooling (`rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`, `.github/settings.yml`, CODEOWNERS, CI/security/release/dependency workflows) (completed).
+- [x] Phase 1: Author initial `CLAUDE.md` describing agent expectations and workflow rituals (AGENTS.md created).
 - [ ] Phase 2: Define specialized Claude agents and prompt templates; document in `docs/workflow.md`.
 - [ ] Phase 3: Produce API surface design spec (module map, builder naming, constants) under `docs/design/api_surface.md`.
-- [ ] Phase 4: Implement core Responses API builders/helpers with tests.
-- [ ] Phase 4: Implement client configuration wrapper over `openai-client-base` with error handling.
+- [x] Phase 4: Implement core Responses API builders/helpers (initial implementation completed 2025-09-21).
+- [x] Phase 4: Implement client configuration wrapper over `openai-client-base` with error handling (initial implementation completed 2025-09-21).
 - [ ] Phase 5: Establish testing harness (unit, integration, doctest, smoke toggle).
 - [ ] Phase 6: Draft README quickstart + initial examples (`examples/responses_quickstart.rs`, etc.).
 - [ ] Phase 7: Configure CI/CD (fmt, clippy, test matrix, docs, cargo-deny) and release-plz workflow.
