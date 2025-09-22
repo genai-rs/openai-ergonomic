@@ -1,6 +1,6 @@
-//! Comprehensive Responses API example demonstrating modern OpenAI usage patterns.
+//! Comprehensive Responses API example demonstrating modern `OpenAI` usage patterns.
 //!
-//! This example showcases the Responses API, which is OpenAI's recommended modern interface
+//! This example showcases the Responses API, which is `OpenAI`'s recommended modern interface
 //! for chat completions, function calling, web search, and structured outputs.
 //!
 //! ## Features Demonstrated
@@ -15,7 +15,7 @@
 //!
 //! ## Prerequisites
 //!
-//! Set your OpenAI API key:
+//! Set your `OpenAI` API key:
 //! ```bash
 //! export OPENAI_API_KEY="your-key-here"
 //! ```
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             client
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {}", e);
+            eprintln!("❌ Failed to initialize client: {e}");
             eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
@@ -54,9 +54,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=====================================");
 
     match basic_responses_example(&client).await {
-        Ok(_) => println!("✅ Basic responses example completed"),
+        Ok(()) => println!("✅ Basic responses example completed"),
         Err(e) => {
-            eprintln!("❌ Basic responses example failed: {}", e);
+            eprintln!("❌ Basic responses example failed: {e}");
             handle_api_error(&e);
         }
     }
@@ -66,9 +66,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("===============================");
 
     match function_calling_example(&client).await {
-        Ok(_) => println!("✅ Function calling example completed"),
+        Ok(()) => println!("✅ Function calling example completed"),
         Err(e) => {
-            eprintln!("❌ Function calling example failed: {}", e);
+            eprintln!("❌ Function calling example failed: {e}");
             handle_api_error(&e);
         }
     }
@@ -78,9 +78,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("====================================");
 
     match web_search_example(&client).await {
-        Ok(_) => println!("✅ Web search example completed"),
+        Ok(()) => println!("✅ Web search example completed"),
         Err(e) => {
-            eprintln!("❌ Web search example failed: {}", e);
+            eprintln!("❌ Web search example failed: {e}");
             handle_api_error(&e);
         }
     }
@@ -90,9 +90,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("======================================");
 
     match structured_output_example(&client).await {
-        Ok(_) => println!("✅ Structured output example completed"),
+        Ok(()) => println!("✅ Structured output example completed"),
         Err(e) => {
-            eprintln!("❌ Structured output example failed: {}", e);
+            eprintln!("❌ Structured output example failed: {e}");
             handle_api_error(&e);
         }
     }
@@ -102,9 +102,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("====================================");
 
     match advanced_configuration_example(&client).await {
-        Ok(_) => println!("✅ Advanced configuration example completed"),
+        Ok(()) => println!("✅ Advanced configuration example completed"),
         Err(e) => {
-            eprintln!("❌ Advanced configuration example failed: {}", e);
+            eprintln!("❌ Advanced configuration example failed: {e}");
             handle_api_error(&e);
         }
     }
@@ -129,7 +129,7 @@ async fn basic_responses_example(client: &Client) -> Result<(), Error> {
 
     // Extract and display the response
     if let Some(content) = response.content() {
-        println!("🤖 Assistant: {}", content);
+        println!("🤖 Assistant: {content}");
     } else {
         println!("⚠️  No content in response");
     }
@@ -139,7 +139,9 @@ async fn basic_responses_example(client: &Client) -> Result<(), Error> {
     println!("   - Model: {}", response.model().unwrap_or("unknown"));
     println!(
         "   - Finish reason: {}",
-        response.finish_reason().unwrap_or("unknown".to_string())
+        response
+            .finish_reason()
+            .unwrap_or_else(|| "unknown".to_string())
     );
 
     if let Some(usage) = response.usage() {
@@ -234,7 +236,7 @@ async fn function_calling_example(client: &Client) -> Result<(), Error> {
             }
         }
     } else if let Some(content) = response.content() {
-        println!("🤖 Assistant response: {}", content);
+        println!("🤖 Assistant response: {content}");
     }
 
     Ok(())
@@ -278,7 +280,7 @@ async fn web_search_example(client: &Client) -> Result<(), Error> {
             }
         }
     } else if let Some(content) = response.content() {
-        println!("🤖 Assistant response: {}", content);
+        println!("🤖 Assistant response: {content}");
     }
 
     println!("💡 Note: Web search requires additional implementation to execute actual searches");
@@ -357,7 +359,7 @@ async fn structured_output_example(client: &Client) -> Result<(), Error> {
                 println!("{}", serde_json::to_string_pretty(&json)?);
             }
             Err(_) => {
-                println!("Raw response: {}", content);
+                println!("Raw response: {content}");
             }
         }
     }
@@ -374,7 +376,7 @@ async fn structured_output_example(client: &Client) -> Result<(), Error> {
     let simple_response = client.send_responses(simple_builder).await?;
 
     if let Some(content) = simple_response.content() {
-        println!("📊 Analysis result: {}", content);
+        println!("📊 Analysis result: {content}");
     }
 
     Ok(())
@@ -403,7 +405,7 @@ async fn advanced_configuration_example(client: &Client) -> Result<(), Error> {
 
     println!("🎨 Creative tagline generation:");
     if let Some(content) = response.content() {
-        println!("   Result: {}", content);
+        println!("   Result: {content}");
     }
 
     // Example with reasoning effort (for o3 models)
@@ -418,7 +420,7 @@ async fn advanced_configuration_example(client: &Client) -> Result<(), Error> {
     let reasoning_response = client.send_responses(reasoning_builder).await?;
 
     if let Some(content) = reasoning_response.content() {
-        println!("   Solution: {}", content);
+        println!("   Solution: {content}");
     } else {
         println!("   Note: Reasoning effort requires compatible model (e.g., o3)");
     }
@@ -445,12 +447,12 @@ fn handle_api_error(error: &Error) {
             error_type,
             error_code,
         } => {
-            eprintln!("🚫 API Error [{}]: {}", status, message);
+            eprintln!("🚫 API Error [{status}]: {message}");
             if let Some(error_type) = error_type {
-                eprintln!("   Type: {}", error_type);
+                eprintln!("   Type: {error_type}");
             }
             if let Some(error_code) = error_code {
-                eprintln!("   Code: {}", error_code);
+                eprintln!("   Code: {error_code}");
             }
 
             // Provide specific guidance based on error type
@@ -462,43 +464,43 @@ fn handle_api_error(error: &Error) {
             }
         }
         Error::InvalidRequest(msg) => {
-            eprintln!("🚫 Invalid Request: {}", msg);
+            eprintln!("🚫 Invalid Request: {msg}");
             eprintln!("💡 Check your request parameters");
         }
         Error::Config(msg) => {
-            eprintln!("🚫 Configuration Error: {}", msg);
+            eprintln!("🚫 Configuration Error: {msg}");
             eprintln!("💡 Check your client configuration");
         }
         Error::Http(err) => {
-            eprintln!("🚫 HTTP Error: {}", err);
+            eprintln!("🚫 HTTP Error: {err}");
             eprintln!("💡 Check your network connection");
         }
         Error::Json(err) => {
-            eprintln!("🚫 JSON Error: {}", err);
+            eprintln!("🚫 JSON Error: {err}");
             eprintln!("💡 Response parsing failed - may be a temporary issue");
         }
         Error::Authentication(msg) => {
-            eprintln!("🚫 Authentication Error: {}", msg);
+            eprintln!("🚫 Authentication Error: {msg}");
             eprintln!("💡 Check your API key");
         }
         Error::RateLimit(msg) => {
-            eprintln!("🚫 Rate Limit Error: {}", msg);
+            eprintln!("🚫 Rate Limit Error: {msg}");
             eprintln!("💡 Try again in a moment");
         }
         Error::Stream(msg) => {
-            eprintln!("🚫 Stream Error: {}", msg);
+            eprintln!("🚫 Stream Error: {msg}");
             eprintln!("💡 Connection issue with streaming");
         }
         Error::File(err) => {
-            eprintln!("🚫 File Error: {}", err);
+            eprintln!("🚫 File Error: {err}");
             eprintln!("💡 Check file permissions and paths");
         }
         Error::Builder(msg) => {
-            eprintln!("🚫 Builder Error: {}", msg);
+            eprintln!("🚫 Builder Error: {msg}");
             eprintln!("💡 Check your request builder configuration");
         }
         Error::Internal(msg) => {
-            eprintln!("🚫 Internal Error: {}", msg);
+            eprintln!("🚫 Internal Error: {msg}");
             eprintln!("💡 This may be a bug, please report it");
         }
     }
