@@ -44,7 +44,30 @@ pub enum Error {
         error_code: Option<String>,
     },
 
-    /// Streaming errors.
+    /// Streaming connection errors.
+    #[error("Stream connection error: {message}")]
+    StreamConnection {
+        /// Error message describing the connection issue
+        message: String,
+    },
+
+    /// Streaming data parsing errors.
+    #[error("Stream parsing error: {message}, chunk: {chunk}")]
+    StreamParsing {
+        /// Error message describing the parsing issue
+        message: String,
+        /// The problematic chunk data
+        chunk: String,
+    },
+
+    /// Streaming buffer management errors.
+    #[error("Stream buffer error: {message}")]
+    StreamBuffer {
+        /// Error message describing the buffer issue
+        message: String,
+    },
+
+    /// Generic streaming errors.
     #[error("Stream error: {0}")]
     Stream(String),
 
