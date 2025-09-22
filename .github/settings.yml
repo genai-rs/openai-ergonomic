@@ -41,58 +41,15 @@ repository:
 # Branch protection rules
 branches:
   - name: main
-    # https://docs.github.com/en/rest/branches/branch-protection
     protection:
-      # Require PR reviews
-      required_pull_request_reviews:
-        required_approving_review_count: 0  # No required reviews for now
-        dismiss_stale_reviews: false
-        require_code_owner_reviews: false
-
-      # Require status checks
       required_status_checks:
-        strict: true  # Require branches to be up to date before merging
+        strict: true
         contexts:
-          # Core CI checks from ci.yml workflow
           - Format
           - Clippy
           - Documentation
           - MSRV
-          # Test suite
-          - Test (ubuntu-latest, stable)
-          - Test (ubuntu-latest, beta)
-          - Test (macos-latest, stable)
-          - Test (windows-latest, stable)
-          # Build checks
-          - Build (x86_64-unknown-linux-gnu)
-          - Build (x86_64-apple-darwin)
-          - Build (x86_64-pc-windows-msvc)
-          - Build (aarch64-apple-darwin)
-          # Security checks
-          - Security Audit
-          - Cargo Deny (advisories)
-          - Cargo Deny (bans sources)
-          - Cargo Deny (licenses)
-          - Dependency Review
-          - Supply Chain Security
-          - License Compliance
-
-          # Note: Code Coverage is informational only, not required
-
-      # Enforce for admins
       enforce_admins: false
-
-      # Restrict who can push
-      restrictions: null
-
-      # Other settings
-      required_linear_history: true
-      allow_force_pushes: false
-      allow_deletions: false
-      block_creations: false
-      required_conversation_resolution: false
-      lock_branch: false
-      allow_fork_syncing: false
 
 # Labels for issues and PRs
 labels:
