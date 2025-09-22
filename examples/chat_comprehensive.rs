@@ -33,7 +33,7 @@ struct ConversationManager {
 
 impl ConversationManager {
     /// Create a new conversation manager with optional system message.
-    fn new(system_message: Option<String>, max_history: usize) -> Self {
+    const fn new(system_message: Option<String>, max_history: usize) -> Self {
         Self {
             history: VecDeque::new(),
             max_history,
@@ -79,16 +79,14 @@ impl ConversationManager {
         println!("\n=== Conversation History ===");
 
         if let Some(ref system) = self.system_message {
-            println!("System: {}", system);
+            println!("System: {system}");
             println!();
         }
 
         for (i, turn) in self.history.iter().enumerate() {
-            let token_info = if let Some(tokens) = turn.token_count {
-                format!(" ({} tokens)", tokens)
-            } else {
-                String::new()
-            };
+            let token_info = turn
+                .token_count
+                .map_or_else(String::new, |tokens| format!(" ({tokens} tokens)"));
 
             println!(
                 "{}. {}{}: {}",
@@ -141,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             client
         }
         Err(e) => {
-            eprintln!("✗ Failed to initialize client: {}", e);
+            eprintln!("✗ Failed to initialize client: {e}");
             eprintln!("Make sure OPENAI_API_KEY environment variable is set");
             return Err(e.into());
         }
@@ -192,7 +190,7 @@ async fn demonstrate_basic_chat(
     let user_message = "Hello! Can you explain what you can help me with?";
     conversation.add_user_message(user_message.to_string());
 
-    println!("User: {}", user_message);
+    println!("User: {user_message}");
     print!("Assistant: ");
     io::stdout().flush()?;
 
@@ -213,15 +211,12 @@ async fn demonstrate_basic_chat(
     let response = client.send_chat(chat_builder.temperature(0.7)).await?;
 
     if let Some(content) = response.content() {
-        println!("{}", content);
+        println!("{content}");
         conversation.add_assistant_message(content.to_string(), None);
 
         // Track token usage if available
         if let Some(usage) = response.usage() {
-            conversation.update_token_usage(
-                usage.prompt_tokens,
-                usage.completion_tokens,
-            );
+            conversation.update_token_usage(usage.prompt_tokens, usage.completion_tokens);
         }
     } else {
         println!("No response content received");
@@ -248,7 +243,7 @@ async fn demonstrate_multi_turn_chat(
     for question in questions {
         conversation.add_user_message(question.to_string());
 
-        println!("User: {}", question);
+        println!("User: {question}");
         print!("Assistant: ");
         io::stdout().flush()?;
 
@@ -268,15 +263,12 @@ async fn demonstrate_multi_turn_chat(
         let response = client.send_chat(chat_builder.temperature(0.3)).await?;
 
         if let Some(content) = response.content() {
-            println!("{}", content);
+            println!("{content}");
             conversation.add_assistant_message(content.to_string(), None);
 
             // Track token usage
             if let Some(usage) = response.usage() {
-                conversation.update_token_usage(
-                    usage.prompt_tokens,
-                    usage.completion_tokens,
-                );
+                conversation.update_token_usage(usage.prompt_tokens, usage.completion_tokens);
             }
         }
 
@@ -300,7 +292,7 @@ async fn demonstrate_streaming_chat(
     let streaming_question = "Can you write a short poem about programming?";
     conversation.add_user_message(streaming_question.to_string());
 
-    println!("User: {}", streaming_question);
+    println!("User: {streaming_question}");
     println!("Assistant (streaming): ");
 
     // Note: Streaming is not yet fully implemented in the client
@@ -313,7 +305,7 @@ async fn demonstrate_streaming_chat(
 
     // Simulate typing effect
     for char in simulated_response.chars() {
-        print!("{}", char);
+        print!("{char}");
         io::stdout().flush()?;
         tokio::time::sleep(tokio::time::Duration::from_millis(30)).await;
     }
@@ -336,7 +328,7 @@ async fn demonstrate_token_tracking(
     let efficiency_question = "In one sentence, what is machine learning?";
     conversation.add_user_message(efficiency_question.to_string());
 
-    println!("User: {}", efficiency_question);
+    println!("User: {efficiency_question}");
     print!("Assistant: ");
     io::stdout().flush()?;
 
@@ -356,22 +348,16 @@ async fn demonstrate_token_tracking(
     let response = client.send_chat(chat_builder).await?;
 
     if let Some(content) = response.content() {
-        println!("{}", content);
+        println!("{content}");
 
         // Display detailed token usage
         if let Some(usage) = response.usage() {
             println!("\n📈 Token Usage Breakdown:");
             println!("  Prompt tokens: {}", usage.prompt_tokens);
-            println!(
-                "  Completion tokens: {}",
-                usage.completion_tokens
-            );
+            println!("  Completion tokens: {}", usage.completion_tokens);
             println!("  Total tokens: {}", usage.total_tokens);
 
-            conversation.update_token_usage(
-                usage.prompt_tokens,
-                usage.completion_tokens,
-            );
+            conversation.update_token_usage(usage.prompt_tokens, usage.completion_tokens);
 
             conversation.add_assistant_message(content.to_string(), Some(usage.completion_tokens));
         } else {
@@ -404,16 +390,16 @@ async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::
             Error::Api {
                 status, message, ..
             } => {
-                println!("✗ API Error ({}): {}", status, message);
+                println!("✗ API Error ({status}): {message}");
             }
             Error::Http(reqwest_err) => {
-                println!("✗ HTTP Error: {}", reqwest_err);
+                println!("✗ HTTP Error: {reqwest_err}");
             }
             Error::InvalidRequest(msg) => {
-                println!("✗ Invalid Request: {}", msg);
+                println!("✗ Invalid Request: {msg}");
             }
             _ => {
-                println!("✗ Unexpected Error: {}", e);
+                println!("✗ Unexpected Error: {e}");
             }
         },
     }
@@ -425,10 +411,10 @@ async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::
     match client.send_chat(empty_builder).await {
         Ok(_) => println!("✗ Empty request unexpectedly succeeded"),
         Err(Error::InvalidRequest(msg)) => {
-            println!("✓ Validation caught empty request: {}", msg);
+            println!("✓ Validation caught empty request: {msg}");
         }
         Err(e) => {
-            println!("✗ Unexpected error type: {}", e);
+            println!("✗ Unexpected error type: {e}");
         }
     }
 
