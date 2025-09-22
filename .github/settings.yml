@@ -1,6 +1,7 @@
 # GitHub repository settings
-# These settings document the repository configuration
-# To apply automatically, install the GitHub Settings app: https://github.com/apps/settings
+# These settings are automatically synced by the GitHub Settings app
+# App: https://github.com/apps/settings
+# Last updated: 2025-09-22
 
 repository:
   # Basic settings
