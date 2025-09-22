@@ -37,7 +37,7 @@ use tokio::time::Duration;
 #[derive(Debug, Clone)]
 pub struct Client {
     config: Arc<Config>,
-    http_client: HttpClient,
+    http: HttpClient,
     base_configuration: Configuration,
 }
 
@@ -66,7 +66,7 @@ impl Client {
 
         Ok(Self {
             config: Arc::new(config),
-            http_client,
+            http: http_client,
             base_configuration,
         })
     }
@@ -83,7 +83,7 @@ impl Client {
 
     /// Get a reference to the HTTP client.
     pub fn http_client(&self) -> &HttpClient {
-        &self.http_client
+        &self.http
     }
 }
 
@@ -117,6 +117,7 @@ impl Client {
         let response = chat_api::create_chat_completion()
             .configuration(&self.base_configuration)
             .create_chat_completion_request(request)
+            .call()
             .await
             .map_err(|e| Error::Api {
                 status: 0,

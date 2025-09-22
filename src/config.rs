@@ -125,8 +125,26 @@ impl Config {
     }
 
     /// Get the default model to use.
-    pub fn default_model(&self) -> &str {
-        &self.default_model
+    pub fn default_model(&self) -> Option<&str> {
+        if self.default_model.is_empty() {
+            None
+        } else {
+            Some(&self.default_model)
+        }
+    }
+
+    /// Get the base URL, if different from default.
+    pub fn base_url(&self) -> Option<&str> {
+        if self.api_base == "https://api.openai.com/v1" {
+            None
+        } else {
+            Some(&self.api_base)
+        }
+    }
+
+    /// Get the organization ID, if set.
+    pub fn organization_id(&self) -> Option<&str> {
+        self.organization.as_deref()
     }
 
     /// Create an authorization header value.
@@ -256,6 +274,6 @@ mod tests {
         let config = Config::default();
         assert_eq!(config.timeout_seconds(), 120);
         assert_eq!(config.max_retries(), 3);
-        assert_eq!(config.default_model(), "gpt-4");
+        assert_eq!(config.default_model(), Some("gpt-4"));
     }
 }

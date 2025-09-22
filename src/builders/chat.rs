@@ -8,8 +8,12 @@ use openai_client_base::models::{
     ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
     ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
     ChatCompletionRequestUserMessageContent, ChatCompletionTool, ChatCompletionToolChoiceOption,
-    CreateChatCompletionRequest, FunctionObject,
+    CreateChatCompletionRequest, CreateChatCompletionRequestAllOfTools, FunctionObject,
 };
+// Import the specific Role enums for each message type
+use openai_client_base::models::chat_completion_request_assistant_message::Role as AssistantRole;
+use openai_client_base::models::chat_completion_request_system_message::Role as SystemRole;
+use openai_client_base::models::chat_completion_request_user_message::Role as UserRole;
 use serde_json::Value;
 
 /// Builder for chat completion requests.
@@ -60,8 +64,10 @@ impl ChatCompletionBuilder {
     #[must_use]
     pub fn system(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestSystemMessage {
-            content: ChatCompletionRequestSystemMessageContent::TextContent(content.into()),
-            role: "system".to_string(),
+            content: Box::new(ChatCompletionRequestSystemMessageContent::TextContent(
+                content.into(),
+            )),
+            role: SystemRole::System,
             name: None,
         };
         self.messages.push(
@@ -74,8 +80,10 @@ impl ChatCompletionBuilder {
     #[must_use]
     pub fn user(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestUserMessage {
-            content: ChatCompletionRequestUserMessageContent::TextContent(content.into()),
-            role: "user".to_string(),
+            content: Box::new(ChatCompletionRequestUserMessageContent::TextContent(
+                content.into(),
+            )),
+            role: UserRole::User,
             name: None,
         };
         self.messages.push(
@@ -88,10 +96,10 @@ impl ChatCompletionBuilder {
     #[must_use]
     pub fn assistant(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestAssistantMessage {
-            content: Some(ChatCompletionRequestAssistantMessageContent::TextContent(
-                content.into(),
-            )),
-            role: "assistant".to_string(),
+            content: Some(Some(Box::new(
+                ChatCompletionRequestAssistantMessageContent::TextContent(content.into()),
+            ))),
+            role: AssistantRole::Assistant,
             name: None,
             tool_calls: None,
             function_call: None,
@@ -226,15 +234,22 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             response_format,
             seed: None,
             service_tier: None,
-            stop: self
-                .stop
-                .map(|s| openai_client_base::models::StopConfiguration::ArrayOfStrings(s)),
+            stop: self.stop.map(|s| {
+                Box::new(openai_client_base::models::StopConfiguration::ArrayOfStrings(s))
+            }),
             stream: self.stream,
             stream_options: None,
             temperature: self.temperature,
             top_p: self.top_p,
-            tools: self.tools,
-            tool_choice: self.tool_choice,
+            tools: self.tools.map(|tools| {
+                tools
+                    .into_iter()
+                    .map(|tool| {
+                        CreateChatCompletionRequestAllOfTools::ChatCompletionTool(Box::new(tool))
+                    })
+                    .collect()
+            }),
+            tool_choice: self.tool_choice.map(Box::new),
             parallel_tool_calls: None,
             user: self.user,
             function_call: None,
@@ -242,6 +257,10 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             store: None,
             metadata: None,
             reasoning_effort: None,
+            prompt_cache_key: None,
+            safety_identifier: None,
+            verbosity: None,
+            web_search_options: None,
         })
     }
 }
