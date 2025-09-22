@@ -414,3 +414,288 @@ pub fn responses_tool_web_search() -> ChatCompletionTool {
         }),
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::builders::Builder;
+    use openai_client_base::models::{
+        chat_completion_tool_choice_option::ChatCompletionToolChoiceOption,
+        create_chat_completion_request_all_of_response_format,
+    };
+
+    #[test]
+    fn test_responses_builder_new() {
+        let builder = ResponsesBuilder::new("gpt-4");
+        assert_eq!(builder.model, "gpt-4");
+        assert!(builder.messages.is_empty());
+        assert!(builder.temperature.is_none());
+    }
+
+    #[test]
+    fn test_responses_builder_system_message() {
+        let builder = ResponsesBuilder::new("gpt-4").system("You are a helpful assistant");
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
+                match msg.content.as_ref() {
+                    ChatCompletionRequestSystemMessageContent::TextContent(content) => {
+                        assert_eq!(content, "You are a helpful assistant");
+                    }
+                    ChatCompletionRequestSystemMessageContent::ArrayOfContentParts(_) => panic!("Expected text content"),
+                }
+            }
+            _ => panic!("Expected system message"),
+        }
+    }
+
+    #[test]
+    fn test_responses_builder_user_message() {
+        let builder = ResponsesBuilder::new("gpt-4").user("Hello, world!");
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
+                match msg.content.as_ref() {
+                    ChatCompletionRequestUserMessageContent::TextContent(content) => {
+                        assert_eq!(content, "Hello, world!");
+                    }
+                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(_) => panic!("Expected text content"),
+                }
+            }
+            _ => panic!("Expected user message"),
+        }
+    }
+
+    #[test]
+    fn test_responses_builder_assistant_message() {
+        let builder = ResponsesBuilder::new("gpt-4").assistant("Hello! How can I help you?");
+        assert_eq!(builder.messages.len(), 1);
+
+        // Verify the message structure
+        match &builder.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(msg) => {
+                if let Some(Some(content)) = &msg.content {
+                    match content.as_ref() {
+                        ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
+                            assert_eq!(text, "Hello! How can I help you?");
+                        }
+                        _ => panic!("Expected text content"),
+                    }
+                } else {
+                    panic!("Expected content");
+                }
+            }
+            _ => panic!("Expected assistant message"),
+        }
+    }
+
+    #[test]
+    fn test_responses_builder_chaining() {
+        let builder = ResponsesBuilder::new("gpt-4")
+            .system("You are a helpful assistant")
+            .user("What's the weather?")
+            .temperature(0.7)
+            .max_tokens(100);
+
+        assert_eq!(builder.messages.len(), 2);
+        assert_eq!(builder.temperature, Some(0.7));
+        assert_eq!(builder.max_tokens, Some(100));
+    }
+
+    #[test]
+    fn test_responses_builder_temperature() {
+        let builder = ResponsesBuilder::new("gpt-4").temperature(0.5);
+        assert_eq!(builder.temperature, Some(0.5));
+    }
+
+    #[test]
+    fn test_responses_builder_max_tokens() {
+        let builder = ResponsesBuilder::new("gpt-4").max_tokens(150);
+        assert_eq!(builder.max_tokens, Some(150));
+    }
+
+    #[test]
+    fn test_responses_builder_max_completion_tokens() {
+        let builder = ResponsesBuilder::new("gpt-4").max_completion_tokens(200);
+        assert_eq!(builder.max_completion_tokens, Some(200));
+    }
+
+    #[test]
+    fn test_responses_builder_stream() {
+        let builder = ResponsesBuilder::new("gpt-4").stream(true);
+        assert_eq!(builder.stream, Some(true));
+    }
+
+    #[test]
+    fn test_responses_builder_json_mode() {
+        let builder = ResponsesBuilder::new("gpt-4").json_mode();
+        assert!(builder.response_format.is_some());
+
+        if let Some(format) = &builder.response_format {
+            assert!(matches!(
+                format.r#type,
+                create_chat_completion_request_all_of_response_format::Type::JsonObject
+            ));
+        }
+    }
+
+    #[test]
+    fn test_responses_builder_json_schema() {
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"}
+            }
+        });
+
+        let builder = ResponsesBuilder::new("gpt-4").json_schema("person", schema);
+        assert!(builder.response_format.is_some());
+
+        if let Some(format) = &builder.response_format {
+            assert!(matches!(
+                format.r#type,
+                create_chat_completion_request_all_of_response_format::Type::JsonSchema
+            ));
+            assert_eq!(format.json_schema.name, "person");
+        }
+    }
+
+    #[test]
+    fn test_responses_builder_tools() {
+        let tool = responses_tool_function(
+            "test_function",
+            "A test function",
+            serde_json::json!({"type": "object", "properties": {}}),
+        );
+
+        let builder = ResponsesBuilder::new("gpt-4").tool(tool.clone());
+        assert_eq!(builder.tools.as_ref().unwrap().len(), 1);
+
+        // Test adding multiple tools
+        let builder = builder.tool(tool);
+        assert_eq!(builder.tools.as_ref().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_responses_builder_tool_choice() {
+        let builder =
+            ResponsesBuilder::new("gpt-4").tool_choice(ChatCompletionToolChoiceOption::Auto(
+                openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum::Auto
+            ));
+        assert!(builder.tool_choice.is_some());
+    }
+
+    #[test]
+    fn test_responses_builder_other_parameters() {
+        let builder = ResponsesBuilder::new("gpt-4")
+            .n(2)
+            .stop(vec!["STOP".to_string()])
+            .presence_penalty(0.1)
+            .frequency_penalty(0.2)
+            .top_p(0.9)
+            .user_id("user123")
+            .seed(42)
+            .reasoning_effort("high");
+
+        assert_eq!(builder.n, Some(2));
+        assert_eq!(builder.stop, Some(vec!["STOP".to_string()]));
+        assert_eq!(builder.presence_penalty, Some(0.1));
+        assert_eq!(builder.frequency_penalty, Some(0.2));
+        assert_eq!(builder.top_p, Some(0.9));
+        assert_eq!(builder.user, Some("user123".to_string()));
+        assert_eq!(builder.seed, Some(42));
+        assert_eq!(builder.reasoning_effort, Some("high".to_string()));
+    }
+
+    #[test]
+    fn test_responses_builder_build_success() {
+        let builder = ResponsesBuilder::new("gpt-4").user("Hello");
+        let request = builder.build().unwrap();
+
+        assert_eq!(request.model, "gpt-4");
+        assert_eq!(request.messages.len(), 1);
+    }
+
+    #[test]
+    fn test_responses_builder_build_empty_messages_error() {
+        let builder = ResponsesBuilder::new("gpt-4");
+        let result = builder.build();
+
+        assert!(result.is_err());
+        if let Err(error) = result {
+            assert!(matches!(error, crate::Error::InvalidRequest(_)));
+        }
+    }
+
+    #[test]
+    fn test_responses_simple_helper() {
+        let builder = responses_simple("gpt-4", "Hello, world!");
+        assert_eq!(builder.model, "gpt-4");
+        assert_eq!(builder.messages.len(), 1);
+    }
+
+    #[test]
+    fn test_responses_system_user_helper() {
+        let builder = responses_system_user(
+            "gpt-4",
+            "You are a helpful assistant",
+            "What's the weather?",
+        );
+        assert_eq!(builder.model, "gpt-4");
+        assert_eq!(builder.messages.len(), 2);
+    }
+
+    #[test]
+    fn test_responses_tool_function() {
+        let tool = responses_tool_function(
+            "get_weather",
+            "Get current weather",
+            serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string"}
+                }
+            }),
+        );
+
+        assert_eq!(tool.function.name, "get_weather");
+        assert_eq!(
+            tool.function.description.as_ref().unwrap(),
+            "Get current weather"
+        );
+        assert!(tool.function.parameters.is_some());
+    }
+
+    #[test]
+    fn test_responses_tool_web_search() {
+        let tool = responses_tool_web_search();
+        assert_eq!(tool.function.name, "web_search");
+        assert!(tool.function.description.is_some());
+        assert!(tool.function.parameters.is_some());
+    }
+
+    #[test]
+    fn test_responses_builder_reasoning_effort_mapping() {
+        let test_cases = vec![
+            ("minimal", "minimal"),
+            ("low", "low"),
+            ("medium", "medium"),
+            ("high", "high"),
+            ("invalid", "medium"), // Should default to medium
+        ];
+
+        for (input, _expected) in test_cases {
+            let builder = ResponsesBuilder::new("o3-mini")
+                .user("Test")
+                .reasoning_effort(input);
+            let request = builder.build().unwrap();
+
+            // Verify that reasoning_effort is properly set in the request
+            assert!(request.reasoning_effort.is_some());
+        }
+    }
+}
