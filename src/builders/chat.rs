@@ -491,7 +491,9 @@ mod tests {
                     ChatCompletionRequestSystemMessageContent::TextContent(content) => {
                         assert_eq!(content, "You are a helpful assistant");
                     }
-                    ChatCompletionRequestSystemMessageContent::ArrayOfContentParts(_) => panic!("Expected text content"),
+                    ChatCompletionRequestSystemMessageContent::ArrayOfContentParts(_) => {
+                        panic!("Expected text content")
+                    }
                 }
             }
             _ => panic!("Expected system message"),
@@ -510,7 +512,9 @@ mod tests {
                     ChatCompletionRequestUserMessageContent::TextContent(content) => {
                         assert_eq!(content, "Hello, world!");
                     }
-                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(_) => panic!("Expected text content"),
+                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(_) => {
+                        panic!("Expected text content")
+                    }
                 }
             }
             _ => panic!("Expected user message"),
@@ -570,7 +574,9 @@ mod tests {
                             _ => panic!("Expected image part"),
                         }
                     }
-                    ChatCompletionRequestUserMessageContent::TextContent(_) => panic!("Expected array of content parts"),
+                    ChatCompletionRequestUserMessageContent::TextContent(_) => {
+                        panic!("Expected array of content parts")
+                    }
                 }
             }
             _ => panic!("Expected user message"),
@@ -601,7 +607,9 @@ mod tests {
                             _ => panic!("Expected image part"),
                         }
                     }
-                    ChatCompletionRequestUserMessageContent::TextContent(_) => panic!("Expected array of content parts"),
+                    ChatCompletionRequestUserMessageContent::TextContent(_) => {
+                        panic!("Expected array of content parts")
+                    }
                 }
             }
             _ => panic!("Expected user message"),
@@ -624,7 +632,9 @@ mod tests {
                     ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
                         assert_eq!(parts.len(), 2);
                     }
-                    ChatCompletionRequestUserMessageContent::TextContent(_) => panic!("Expected array of content parts"),
+                    ChatCompletionRequestUserMessageContent::TextContent(_) => {
+                        panic!("Expected array of content parts")
+                    }
                 }
             }
             _ => panic!("Expected user message"),
