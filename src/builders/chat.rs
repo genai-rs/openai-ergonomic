@@ -5,15 +5,22 @@
 
 use openai_client_base::models::{
     ChatCompletionRequestAssistantMessage, ChatCompletionRequestAssistantMessageContent,
-    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
+    ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPartImage,
+    ChatCompletionRequestMessageContentPartImageImageUrl,
+    ChatCompletionRequestMessageContentPartText, ChatCompletionRequestSystemMessage,
     ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
-    ChatCompletionRequestUserMessageContent, ChatCompletionTool, ChatCompletionToolChoiceOption,
-    CreateChatCompletionRequest, CreateChatCompletionRequestAllOfTools, FunctionObject,
+    ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,
+    ChatCompletionTool, ChatCompletionToolChoiceOption, CreateChatCompletionRequest,
+    CreateChatCompletionRequestAllOfTools, FunctionObject,
 };
 // Import the specific Role enums for each message type
 use openai_client_base::models::chat_completion_request_assistant_message::Role as AssistantRole;
 use openai_client_base::models::chat_completion_request_system_message::Role as SystemRole;
 use openai_client_base::models::chat_completion_request_user_message::Role as UserRole;
+// Import the Type enums for content parts
+use openai_client_base::models::chat_completion_request_message_content_part_image::Type as ImageType;
+use openai_client_base::models::chat_completion_request_message_content_part_image_image_url::Detail;
+use openai_client_base::models::chat_completion_request_message_content_part_text::Type as TextType;
 use serde_json::Value;
 
 /// Builder for chat completion requests.
@@ -86,6 +93,75 @@ impl ChatCompletionBuilder {
             role: UserRole::User,
             name: None,
         };
+        self.messages.push(
+            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(message)),
+        );
+        self
+    }
+
+    /// Add a user message with both text and an image URL.
+    #[must_use]
+    pub fn user_with_image_url(
+        self,
+        text: impl Into<String>,
+        image_url: impl Into<String>,
+    ) -> Self {
+        self.user_with_image_url_and_detail(text, image_url, Detail::Auto)
+    }
+
+    /// Add a user message with both text and an image URL with specified detail level.
+    #[must_use]
+    pub fn user_with_image_url_and_detail(
+        mut self,
+        text: impl Into<String>,
+        image_url: impl Into<String>,
+        detail: Detail,
+    ) -> Self {
+        let text_part = ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(
+            Box::new(ChatCompletionRequestMessageContentPartText {
+                r#type: TextType::Text,
+                text: text.into(),
+            }),
+        );
+
+        let image_part = ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(
+            Box::new(ChatCompletionRequestMessageContentPartImage {
+                r#type: ImageType::ImageUrl,
+                image_url: Box::new(ChatCompletionRequestMessageContentPartImageImageUrl {
+                    url: image_url.into(),
+                    detail: Some(detail),
+                }),
+            }),
+        );
+
+        let message = ChatCompletionRequestUserMessage {
+            content: Box::new(
+                ChatCompletionRequestUserMessageContent::ArrayOfContentParts(vec![
+                    text_part, image_part,
+                ]),
+            ),
+            role: UserRole::User,
+            name: None,
+        };
+
+        self.messages.push(
+            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(message)),
+        );
+        self
+    }
+
+    /// Add a user message with multiple content parts (text and/or images).
+    #[must_use]
+    pub fn user_with_parts(
+        mut self,
+        parts: Vec<ChatCompletionRequestUserMessageContentPart>,
+    ) -> Self {
+        let message = ChatCompletionRequestUserMessage {
+            content: Box::new(ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts)),
+            role: UserRole::User,
+            name: None,
+        };
+
         self.messages.push(
             ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(message)),
         );
@@ -333,4 +409,58 @@ pub fn tool_web_search() -> ChatCompletionTool {
             "required": ["query"]
         }),
     )
+}
+
+/// Helper function to create a text content part.
+#[must_use]
+pub fn text_part(content: impl Into<String>) -> ChatCompletionRequestUserMessageContentPart {
+    ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(
+        Box::new(ChatCompletionRequestMessageContentPartText {
+            r#type: TextType::Text,
+            text: content.into(),
+        }),
+    )
+}
+
+/// Helper function to create an image content part from a URL with auto detail.
+#[must_use]
+pub fn image_url_part(url: impl Into<String>) -> ChatCompletionRequestUserMessageContentPart {
+    image_url_part_with_detail(url, Detail::Auto)
+}
+
+/// Helper function to create an image content part from a URL with specified detail level.
+#[must_use]
+pub fn image_url_part_with_detail(
+    url: impl Into<String>,
+    detail: Detail,
+) -> ChatCompletionRequestUserMessageContentPart {
+    ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(
+        Box::new(ChatCompletionRequestMessageContentPartImage {
+            r#type: ImageType::ImageUrl,
+            image_url: Box::new(ChatCompletionRequestMessageContentPartImageImageUrl {
+                url: url.into(),
+                detail: Some(detail),
+            }),
+        }),
+    )
+}
+
+/// Helper function to create an image content part from base64 data with auto detail.
+#[must_use]
+pub fn image_base64_part(
+    base64_data: impl Into<String>,
+    media_type: impl Into<String>,
+) -> ChatCompletionRequestUserMessageContentPart {
+    image_base64_part_with_detail(base64_data, media_type, Detail::Auto)
+}
+
+/// Helper function to create an image content part from base64 data with specified detail level.
+#[must_use]
+pub fn image_base64_part_with_detail(
+    base64_data: impl Into<String>,
+    media_type: impl Into<String>,
+    detail: Detail,
+) -> ChatCompletionRequestUserMessageContentPart {
+    let data_url = format!("data:{};base64,{}", media_type.into(), base64_data.into());
+    image_url_part_with_detail(data_url, detail)
 }

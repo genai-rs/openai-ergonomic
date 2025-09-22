@@ -147,9 +147,14 @@ pub use errors::{Error, Result};
 
 // Re-export specific builder and response types for convenience
 // NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
-pub use builders::chat::{system_user, user_message};
+pub use builders::chat::{
+    image_base64_part, image_base64_part_with_detail, image_url_part, image_url_part_with_detail,
+    system_user, text_part, user_message,
+};
+// Re-export vision types for convenience
 pub use builders::responses::{responses_simple, responses_system_user, ResponsesBuilder};
 pub use builders::{Builder, ChatCompletionBuilder, Sendable};
+pub use openai_client_base::models::chat_completion_request_message_content_part_image_image_url::Detail;
 pub use responses::chat::{
     ChatChoice, ChatCompletionResponse, ChatCompletionResponseExt,
     ChatMessage as ResponseChatMessage, FunctionCall, ToolCall, ToolCallExt,
