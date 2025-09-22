@@ -1,94 +1,128 @@
 //! Chat completion response types and helpers.
 
-use serde::{Deserialize, Serialize};
+use openai_client_base::models::{
+    ChatCompletionMessageToolCallsInner, ChatCompletionResponseMessage,
+    CreateChatCompletionResponse, CreateChatCompletionResponseChoicesInner,
+};
 
-/// Placeholder for chat completion response until openai-client-base is integrated
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatCompletionResponse {
-    /// Unique identifier for the completion
-    pub id: String,
-    /// Model used for the completion
-    pub model: String,
-    /// Array of completion choices
-    pub choices: Vec<ChatChoice>,
-    /// Token usage information
-    pub usage: Option<super::Usage>,
-}
-
-/// Placeholder for chat choice until openai-client-base is integrated
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatChoice {
-    /// Index of this choice in the array
-    pub index: u32,
-    /// Message content for this choice
-    pub message: ChatMessage,
-    /// Reason the model stopped generating
-    pub finish_reason: Option<String>,
-}
-
-/// Placeholder for chat message until openai-client-base is integrated
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatMessage {
-    /// Role of the message sender (system, user, assistant, etc.)
-    pub role: String,
-    /// Text content of the message
-    pub content: Option<String>,
-    /// Tool calls made by the assistant
-    pub tool_calls: Option<Vec<ToolCall>>,
-}
-
-/// Placeholder for tool call until openai-client-base is integrated
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolCall {
-    /// Unique identifier for the tool call
-    pub id: String,
-    /// Type of tool (usually "function")
-    #[serde(rename = "type")]
-    pub tool_type: String,
-    /// Function call details
-    pub function: FunctionCall,
-}
-
-/// Placeholder for function call until openai-client-base is integrated
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FunctionCall {
-    /// Name of the function to call
-    pub name: String,
-    /// JSON-encoded arguments for the function
-    pub arguments: String,
-}
-
-impl super::Response for ChatCompletionResponse {
-    fn id(&self) -> Option<&str> {
-        Some(&self.id)
-    }
-
-    fn model(&self) -> Option<&str> {
-        Some(&self.model)
-    }
-
-    fn usage(&self) -> Option<&super::Usage> {
-        self.usage.as_ref()
-    }
-}
-
-impl ChatCompletionResponse {
+/// Extension trait for chat completion responses.
+pub trait ChatCompletionResponseExt {
     /// Get the content of the first choice, if available.
-    pub fn content(&self) -> Option<&str> {
+    fn content(&self) -> Option<&str>;
+
+    /// Get the tool calls from the first choice, if available.
+    fn tool_calls(&self) -> Vec<&ChatCompletionMessageToolCallsInner>;
+
+    /// Check if the response has tool calls.
+    fn has_tool_calls(&self) -> bool;
+
+    /// Get the first choice from the response.
+    fn first_choice(&self) -> Option<&CreateChatCompletionResponseChoicesInner>;
+
+    /// Get the message from the first choice.
+    fn first_message(&self) -> Option<&ChatCompletionResponseMessage>;
+
+    /// Check if the response was refused.
+    fn is_refusal(&self) -> bool;
+
+    /// Get the refusal message if the response was refused.
+    fn refusal(&self) -> Option<&str>;
+
+    /// Get the finish reason for the first choice.
+    fn finish_reason(&self) -> Option<&str>;
+}
+
+impl ChatCompletionResponseExt for CreateChatCompletionResponse {
+    fn content(&self) -> Option<&str> {
         self.choices
             .first()
             .and_then(|choice| choice.message.content.as_deref())
     }
 
-    /// Get the tool calls from the first choice, if available.
-    pub fn tool_calls(&self) -> Option<&[ToolCall]> {
+    fn tool_calls(&self) -> Vec<&ChatCompletionMessageToolCallsInner> {
         self.choices
             .first()
-            .and_then(|choice| choice.message.tool_calls.as_deref())
+            .and_then(|choice| choice.message.tool_calls.as_ref())
+            .map(|calls| calls.iter().collect())
+            .unwrap_or_default()
     }
 
-    /// Check if the response has tool calls.
-    pub fn has_tool_calls(&self) -> bool {
-        self.tool_calls().is_some_and(|calls| !calls.is_empty())
+    fn has_tool_calls(&self) -> bool {
+        !self.tool_calls().is_empty()
+    }
+
+    fn first_choice(&self) -> Option<&CreateChatCompletionResponseChoicesInner> {
+        self.choices.first()
+    }
+
+    fn first_message(&self) -> Option<&ChatCompletionResponseMessage> {
+        self.first_choice().map(|choice| &choice.message)
+    }
+
+    fn is_refusal(&self) -> bool {
+        self.first_message()
+            .and_then(|msg| msg.refusal.as_ref())
+            .is_some()
+    }
+
+    fn refusal(&self) -> Option<&str> {
+        self.first_message()
+            .and_then(|msg| msg.refusal.as_ref())
+            .and_then(|r| r.as_ref())
+            .map(|s| s.as_str())
+    }
+
+    fn finish_reason(&self) -> Option<String> {
+        use openai_client_base::models::create_chat_completion_response_choices_inner::FinishReason;
+        self.first_choice()
+            .map(|choice| match &choice.finish_reason {
+                FinishReason::Stop => "stop".to_string(),
+                FinishReason::Length => "length".to_string(),
+                FinishReason::ToolCalls => "tool_calls".to_string(),
+                FinishReason::ContentFilter => "content_filter".to_string(),
+                FinishReason::FunctionCall => "function_call".to_string(),
+            })
     }
 }
+
+/// Extension trait for tool calls.
+pub trait ToolCallExt {
+    /// Get the function name from the tool call.
+    fn function_name(&self) -> &str;
+
+    /// Get the function arguments as a string.
+    fn function_arguments(&self) -> &str;
+
+    /// Parse the function arguments as JSON.
+    fn parse_arguments<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error>;
+}
+
+impl ToolCallExt for ChatCompletionMessageToolCallsInner {
+    fn function_name(&self) -> &str {
+        &self.function.name
+    }
+
+    fn function_arguments(&self) -> &str {
+        &self.function.arguments
+    }
+
+    fn parse_arguments<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
+        serde_json::from_str(&self.function.arguments)
+    }
+}
+
+// Re-export types for convenience
+pub use openai_client_base::models::{
+    ChatCompletionResponseMessage as ChatMessage,
+    CreateChatCompletionResponse as ChatCompletionResponse,
+    CreateChatCompletionResponseChoicesInner as ChatChoice,
+};
+
+// Re-export the FunctionCall type with a more ergonomic alias
+pub use openai_client_base::models::{
+    ChatCompletionMessageToolCallFunction as FunctionCall,
+    ChatCompletionResponseMessageFunctionCall,
+};
+
+// Re-export ToolCall with an alias
+pub use openai_client_base::models::ChatCompletionMessageToolCallsInner as ToolCall;

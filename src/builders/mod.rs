@@ -36,10 +36,10 @@ pub use chat::*; // Has implementation
                  // pub use fine_tuning::*;
                  // pub use images::*;
                  // pub use moderations::*;
-                 // pub use responses::*;
-                 // pub use threads::*;
-                 // pub use uploads::*;
-                 // pub use vector_stores::*;
+pub use responses::*; // Has implementation
+                      // pub use threads::*;
+                      // pub use uploads::*;
+                      // pub use vector_stores::*;
 
 /// Common trait for all builders to provide consistent APIs.
 pub trait Builder<T> {

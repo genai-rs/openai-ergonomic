@@ -8,10 +8,29 @@
 //!
 //! ```rust,ignore
 //! # use openai_ergonomic::responses::*;
-//! // TODO: Add example once responses are implemented
+//! let response = client.responses()
+//!     .model("gpt-4")
+//!     .user("What is the weather?")
+//!     .tool(tool_web_search())
+//!     .send()
+//!     .await?;
+//!
+//! // Access response content
+//! if let Some(content) = response.content() {
+//!     println!("{}", content);
+//! }
+//!
+//! // Handle tool calls
+//! for tool_call in response.tool_calls() {
+//!     println!("Tool: {} Args: {}", tool_call.name(), tool_call.arguments());
+//! }
 //! ```
 
-use serde::{Deserialize, Serialize};
+use openai_client_base::models::{
+    AssistantsNamedToolChoiceFunction, ChatCompletionMessageToolCall, ChatCompletionTool,
+    ChatCompletionToolChoiceOption, CompletionUsage, CreateChatCompletionResponse,
+    CreateChatCompletionStreamResponse, FunctionObject,
+};
 
 pub mod assistants;
 pub mod audio;
@@ -41,9 +60,6 @@ pub use chat::*; // Has implementation
                  // pub use uploads::*;
                  // pub use vector_stores::*;
 
-// TODO: Import actual types from openai-client-base once available
-// use openai_client_base::responses::*;
-
 /// Common trait for all response types to provide consistent access patterns.
 pub trait Response {
     /// Get the unique identifier for this response, if available.
@@ -53,151 +69,271 @@ pub trait Response {
     fn model(&self) -> Option<&str>;
 
     /// Get any usage information from the response, if available.
-    fn usage(&self) -> Option<&Usage>;
+    fn usage(&self) -> Option<&CompletionUsage>;
 }
 
-/// Usage information for API calls.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Usage {
-    /// Number of tokens in the prompt
-    pub prompt_tokens: u32,
-    /// Number of tokens in the completion (if applicable)
-    pub completion_tokens: Option<u32>,
-    /// Total number of tokens used
-    pub total_tokens: u32,
-}
-
-/// Tool definition for function calling.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Tool {
-    /// Type of tool (usually "function")
-    #[serde(rename = "type")]
-    pub tool_type: String,
-    /// Function definition for the tool
-    pub function: ToolFunction,
-}
-
-/// Function definition for tool calling.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolFunction {
-    /// Name of the function
-    pub name: String,
-    /// Description of what the function does
-    pub description: Option<String>,
-    /// JSON Schema defining the function parameters
-    pub parameters: Option<serde_json::Value>,
-}
-
-/// Tool choice options for responses.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum ToolChoice {
-    /// Let the model decide whether to call tools
-    Auto,
-    /// Disable tool calling
-    None,
-    /// Force the model to call a tool
-    Required,
-    /// Force the model to call a specific function
-    Function {
-        /// The function to call
-        function: ToolFunction,
-    },
-}
-
-/// Builder for responses-first structured output requests.
+/// Wrapper for chat completion responses with ergonomic helpers.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ResponseBuilder {
-    model: String,
-    messages: Vec<crate::builders::ChatMessage>,
-    tools: Vec<Tool>,
-    tool_choice: Option<ToolChoice>,
-    response_format: Option<serde_json::Value>,
+pub struct ChatCompletionResponseWrapper {
+    inner: CreateChatCompletionResponse,
+    base_url: Option<String>,
 }
 
-impl ResponseBuilder {
-    /// Create a new response builder with the specified model.
-    #[must_use]
-    pub fn new(model: impl Into<String>) -> Self {
+impl ChatCompletionResponseWrapper {
+    /// Create a new response wrapper.
+    pub fn new(response: CreateChatCompletionResponse) -> Self {
         Self {
-            model: model.into(),
-            messages: Vec::new(),
-            tools: Vec::new(),
-            tool_choice: None,
-            response_format: None,
+            inner: response,
+            base_url: None,
         }
     }
 
-    /// Add a message to the conversation.
-    #[must_use]
-    pub fn message(mut self, role: impl Into<String>, content: impl Into<String>) -> Self {
-        self.messages.push(crate::builders::ChatMessage {
-            role: role.into(),
-            content: content.into(),
-        });
-        self
+    /// Create a response wrapper with a base URL for generating links.
+    pub fn with_base_url(response: CreateChatCompletionResponse, base_url: String) -> Self {
+        Self {
+            inner: response,
+            base_url: Some(base_url),
+        }
     }
 
-    /// Add a tool for function calling.
-    #[must_use]
-    pub fn tool(mut self, tool: Tool) -> Self {
-        self.tools.push(tool);
-        self
+    /// Get the first message content from the response.
+    pub fn content(&self) -> Option<&str> {
+        self.inner.choices.first()?.message.content.as_deref()
     }
 
-    /// Set the tool choice strategy.
-    #[must_use]
-    pub fn tool_choice(mut self, tool_choice: ToolChoice) -> Self {
-        self.tool_choice = Some(tool_choice);
-        self
+    /// Get all choices from the response.
+    pub fn choices(
+        &self,
+    ) -> &[openai_client_base::models::CreateChatCompletionResponseChoicesInner] {
+        &self.inner.choices
     }
 
-    /// Set the response format for structured outputs.
-    #[must_use]
-    pub fn response_format(mut self, format: serde_json::Value) -> Self {
-        self.response_format = Some(format);
-        self
+    /// Get tool calls from the first choice, if any.
+    pub fn tool_calls(
+        &self,
+    ) -> Vec<&openai_client_base::models::ChatCompletionMessageToolCallsInner> {
+        self.inner
+            .choices
+            .first()
+            .and_then(|c| c.message.tool_calls.as_ref())
+            .map(|calls| calls.iter().collect())
+            .unwrap_or_default()
+    }
+
+    /// Check if the response was refused.
+    pub fn is_refusal(&self) -> bool {
+        self.inner
+            .choices
+            .first()
+            .and_then(|c| c.message.refusal.as_ref())
+            .is_some()
+    }
+
+    /// Get the refusal message if the response was refused.
+    pub fn refusal(&self) -> Option<&str> {
+        self.inner
+            .choices
+            .first()
+            .and_then(|c| c.message.refusal.as_ref())
+            .and_then(|r| r.as_ref())
+            .map(|s| s.as_str())
+    }
+
+    /// Get the finish reason for the first choice.
+    pub fn finish_reason(&self) -> Option<String> {
+        use openai_client_base::models::create_chat_completion_response_choices_inner::FinishReason;
+        self.inner.choices.first().map(|c| match &c.finish_reason {
+            FinishReason::Stop => "stop".to_string(),
+            FinishReason::Length => "length".to_string(),
+            FinishReason::ToolCalls => "tool_calls".to_string(),
+            FinishReason::ContentFilter => "content_filter".to_string(),
+            FinishReason::FunctionCall => "function_call".to_string(),
+        })
+    }
+
+    /// Generate a URL for this response if base_url was provided.
+    pub fn url(&self) -> Option<String> {
+        self.base_url
+            .as_ref()
+            .map(|base| format!("{}/chat/{}", base, self.inner.id))
+    }
+
+    /// Get the inner response object.
+    pub fn inner(&self) -> &CreateChatCompletionResponse {
+        &self.inner
     }
 }
 
-// Helper functions for common tool patterns
+impl Response for ChatCompletionResponseWrapper {
+    fn id(&self) -> Option<&str> {
+        Some(&self.inner.id)
+    }
 
-/// Create a web search tool definition.
-#[must_use]
-pub fn tool_web_search() -> Tool {
-    Tool {
-        tool_type: "function".to_string(),
-        function: ToolFunction {
-            name: "web_search".to_string(),
-            description: Some("Search the web for current information".to_string()),
-            parameters: Some(serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query"
-                    }
-                },
-                "required": ["query"]
-            })),
-        },
+    fn model(&self) -> Option<&str> {
+        Some(&self.inner.model)
+    }
+
+    fn usage(&self) -> Option<&CompletionUsage> {
+        self.inner.usage.as_ref().map(|u| &**u)
     }
 }
 
-/// Create a function tool definition with JSON schema parameters.
+/// Wrapper for streaming chat completion responses.
+#[derive(Debug, Clone)]
+pub struct ChatCompletionStreamResponseWrapper {
+    inner: CreateChatCompletionStreamResponse,
+}
+
+impl ChatCompletionStreamResponseWrapper {
+    /// Create a new stream response wrapper.
+    pub fn new(response: CreateChatCompletionStreamResponse) -> Self {
+        Self { inner: response }
+    }
+
+    /// Get the delta content from this chunk.
+    pub fn delta_content(&self) -> Option<&str> {
+        self.inner
+            .choices
+            .first()
+            .and_then(|c| c.delta.content.as_ref())
+            .and_then(|c| c.as_ref())
+            .map(|s| s.as_str())
+    }
+
+    /// Get tool call deltas from this chunk.
+    pub fn delta_tool_calls(
+        &self,
+    ) -> Vec<&openai_client_base::models::ChatCompletionMessageToolCallChunk> {
+        self.inner
+            .choices
+            .first()
+            .and_then(|c| c.delta.tool_calls.as_ref())
+            .map(|calls| calls.iter().collect())
+            .unwrap_or_default()
+    }
+
+    /// Check if this is the final chunk.
+    pub fn is_finished(&self) -> bool {
+        use openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason;
+        self.inner
+            .choices
+            .first()
+            .map(|c| {
+                !matches!(
+                    c.finish_reason,
+                    FinishReason::Stop
+                        | FinishReason::Length
+                        | FinishReason::ToolCalls
+                        | FinishReason::ContentFilter
+                        | FinishReason::FunctionCall
+                )
+            })
+            .unwrap_or(true)
+    }
+
+    /// Get the inner stream response object.
+    pub fn inner(&self) -> &CreateChatCompletionStreamResponse {
+        &self.inner
+    }
+}
+
+// Helper functions for creating tools
+
+/// Create a function tool definition.
 #[must_use]
 pub fn tool_function(
     name: impl Into<String>,
     description: impl Into<String>,
     parameters: serde_json::Value,
-) -> Tool {
-    Tool {
-        tool_type: "function".to_string(),
-        function: ToolFunction {
+) -> ChatCompletionTool {
+    use std::collections::HashMap;
+
+    // Convert Value to HashMap<String, Value>
+    let params_map = if let serde_json::Value::Object(map) = parameters {
+        map.into_iter()
+            .collect::<HashMap<String, serde_json::Value>>()
+    } else {
+        HashMap::new()
+    };
+
+    ChatCompletionTool {
+        r#type: openai_client_base::models::chat_completion_tool::Type::Function,
+        function: Box::new(FunctionObject {
             name: name.into(),
             description: Some(description.into()),
-            parameters: Some(parameters),
-        },
+            parameters: Some(params_map),
+            strict: None,
+        }),
     }
 }
+
+/// Create a web search tool definition.
+#[must_use]
+pub fn tool_web_search() -> ChatCompletionTool {
+    tool_function(
+        "web_search",
+        "Search the web for current information",
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query"
+                }
+            },
+            "required": ["query"],
+            "additionalProperties": false
+        }),
+    )
+}
+
+/// Helper for creating tool choice options.
+pub struct ToolChoiceHelper;
+
+impl ToolChoiceHelper {
+    /// Let the model automatically decide whether to use tools.
+    pub fn auto() -> ChatCompletionToolChoiceOption {
+        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum;
+        ChatCompletionToolChoiceOption::Auto(ChatCompletionToolChoiceOptionAutoEnum::Auto)
+    }
+
+    /// Prevent the model from using any tools.
+    pub fn none() -> ChatCompletionToolChoiceOption {
+        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum;
+        ChatCompletionToolChoiceOption::Auto(ChatCompletionToolChoiceOptionAutoEnum::None)
+    }
+
+    /// Require the model to use a tool.
+    pub fn required() -> ChatCompletionToolChoiceOption {
+        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum;
+        ChatCompletionToolChoiceOption::Auto(ChatCompletionToolChoiceOptionAutoEnum::Required)
+    }
+
+    /// Require the model to use a specific tool.
+    pub fn specific(name: impl Into<String>) -> ChatCompletionToolChoiceOption {
+        ChatCompletionToolChoiceOption::Chatcompletionnamedtoolchoice(
+            openai_client_base::models::ChatCompletionNamedToolChoice {
+                r#type:
+                    openai_client_base::models::chat_completion_named_tool_choice::Type::Function,
+                function: Box::new(AssistantsNamedToolChoiceFunction { name: name.into() }),
+            },
+        )
+    }
+}
+
+/// Re-export commonly used types from openai-client-base for convenience
+pub use openai_client_base::models::{
+    ChatCompletionMessageToolCall as ToolCall,
+    ChatCompletionResponseMessageFunctionCall as FunctionCall, ChatCompletionTool as Tool,
+    ChatCompletionToolChoiceOption as ToolChoice, CompletionUsage as Usage,
+    CreateChatCompletionResponse as ChatResponse,
+    CreateChatCompletionStreamResponse as StreamResponse,
+};
+
+/// Placeholder for the ResponseBuilder until client is ready
+#[derive(Debug, Clone)]
+pub struct ResponseBuilder;
+
+/// Placeholder for the Response struct
+#[derive(Debug, Clone)]
+pub struct ResponsePlaceholder;

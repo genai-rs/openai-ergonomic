@@ -148,12 +148,14 @@ pub use errors::{Error, Result};
 // Re-export specific builder and response types for convenience
 // NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
 pub use builders::chat::{system_user, user_message};
+pub use builders::responses::{responses_simple, responses_system_user, ResponsesBuilder};
 pub use builders::{Builder, ChatCompletionBuilder, Sendable};
 pub use responses::chat::{
-    ChatChoice, ChatCompletionResponse, ChatMessage as ResponseChatMessage, FunctionCall, ToolCall,
+    ChatChoice, ChatCompletionResponse, ChatCompletionResponseExt,
+    ChatMessage as ResponseChatMessage, FunctionCall, ToolCall, ToolCallExt,
 };
-pub use responses::{tool_function, tool_web_search};
-pub use responses::{Response, ResponseBuilder, Tool, ToolChoice, ToolFunction, Usage};
+pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrapper};
+pub use responses::{Response, Tool, ToolChoice, Usage};
 
 // Test utilities (feature-gated)
 #[cfg(feature = "test-utils")]

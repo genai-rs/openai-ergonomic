@@ -3,7 +3,17 @@
 //! This module provides a high-level client that wraps the base `OpenAI` client
 //! with ergonomic builders and response handling.
 
-use crate::{config::Config, errors::Result, Error};
+use crate::{
+    builders::{Builder, ChatCompletionBuilder, ResponsesBuilder},
+    config::Config,
+    errors::Result,
+    responses::ChatCompletionResponseWrapper,
+    Error,
+};
+use openai_client_base::{
+    apis::{chat_api, configuration::Configuration},
+    models::CreateChatCompletionRequest,
+};
 use reqwest::Client as HttpClient;
 use std::sync::Arc;
 use tokio::time::Duration;
@@ -28,8 +38,7 @@ use tokio::time::Duration;
 pub struct Client {
     config: Arc<Config>,
     http_client: HttpClient,
-    // TODO: Add openai-client-base client once available
-    // base_client: openai_client_base::Client,
+    base_configuration: Configuration,
 }
 
 impl Client {
@@ -41,9 +50,24 @@ impl Client {
             .build()
             .map_err(Error::Http)?;
 
+        // Create openai-client-base configuration
+        let mut base_configuration = Configuration::new();
+        base_configuration.bearer_access_token = Some(config.api_key().to_string());
+        if let Some(base_url) = config.base_url() {
+            base_configuration.base_path = base_url.to_string();
+        }
+        if let Some(org_id) = config.organization_id() {
+            base_configuration.user_agent = Some(format!(
+                "openai-ergonomic/{} org/{}",
+                env!("CARGO_PKG_VERSION"),
+                org_id
+            ));
+        }
+
         Ok(Self {
             config: Arc::new(config),
             http_client,
+            base_configuration,
         })
     }
 
@@ -66,16 +90,13 @@ impl Client {
 // Chat API methods
 impl Client {
     /// Create a chat completion builder.
-    pub fn chat(&self) -> crate::builders::ChatCompletionBuilder {
-        // TODO: Use default model from config
-        crate::builders::ChatCompletionBuilder::new("gpt-4")
+    pub fn chat(&self) -> ChatCompletionBuilder {
+        let model = self.config.default_model().unwrap_or("gpt-4");
+        ChatCompletionBuilder::new(model)
     }
 
     /// Create a chat completion with a simple user message.
-    pub fn chat_simple(
-        &self,
-        message: impl Into<String>,
-    ) -> crate::builders::ChatCompletionBuilder {
+    pub fn chat_simple(&self, message: impl Into<String>) -> ChatCompletionBuilder {
         self.chat().user(message)
     }
 
@@ -84,17 +105,68 @@ impl Client {
         &self,
         system: impl Into<String>,
         user: impl Into<String>,
-    ) -> crate::builders::ChatCompletionBuilder {
+    ) -> ChatCompletionBuilder {
         self.chat().system(system).user(user)
+    }
+
+    /// Execute a chat completion request.
+    pub async fn execute_chat(
+        &self,
+        request: CreateChatCompletionRequest,
+    ) -> Result<ChatCompletionResponseWrapper> {
+        let response = chat_api::create_chat_completion()
+            .configuration(&self.base_configuration)
+            .create_chat_completion_request(request)
+            .await
+            .map_err(|e| Error::Api {
+                status: 0,
+                message: e.to_string(),
+                error_type: None,
+                error_code: None,
+            })?;
+
+        Ok(ChatCompletionResponseWrapper::new(response))
+    }
+
+    /// Execute a chat completion builder.
+    pub async fn send_chat(
+        &self,
+        builder: ChatCompletionBuilder,
+    ) -> Result<ChatCompletionResponseWrapper> {
+        let request = builder.build()?;
+        self.execute_chat(request).await
     }
 }
 
 // Responses API methods
 impl Client {
     /// Create a responses builder for structured outputs.
-    pub fn responses(&self) -> crate::responses::ResponseBuilder {
-        // TODO: Use default model from config
-        crate::responses::ResponseBuilder::new("gpt-4")
+    pub fn responses(&self) -> ResponsesBuilder {
+        let model = self.config.default_model().unwrap_or("gpt-4");
+        ResponsesBuilder::new(model)
+    }
+
+    /// Create a simple responses request with a user message.
+    pub fn responses_simple(&self, message: impl Into<String>) -> ResponsesBuilder {
+        self.responses().user(message)
+    }
+
+    /// Execute a responses request.
+    pub async fn execute_responses(
+        &self,
+        request: CreateChatCompletionRequest,
+    ) -> Result<ChatCompletionResponseWrapper> {
+        // The Responses API uses the same underlying endpoint as chat
+        self.execute_chat(request).await
+    }
+
+    /// Execute a responses builder.
+    pub async fn send_responses(
+        &self,
+        builder: ResponsesBuilder,
+    ) -> Result<ChatCompletionResponseWrapper> {
+        let request = builder.build()?;
+        self.execute_responses(request).await
     }
 }
 
