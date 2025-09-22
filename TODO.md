@@ -14,7 +14,7 @@
 - [x] Create `examples/` directory structure (completed 2025-09-21)
 - [x] Implement `quickstart.rs` - Basic getting started guide (completed 2025-09-21)
 - [ ] Implement `responses_comprehensive.rs` - Primary modern API with basic, function calling, web search
-- [ ] Implement `responses_streaming.rs` - Dedicated streaming patterns
+- [x] Implement `responses_streaming.rs` - Dedicated streaming patterns (PR #24 completed 2025-09-22)
 - [ ] Implement `chat_comprehensive.rs` - Chat completions with history and streaming
 - [ ] Implement `assistants_basic.rs` - Assistant API introduction
 - [ ] Implement `audio_speech.rs` - Text-to-speech with streaming
