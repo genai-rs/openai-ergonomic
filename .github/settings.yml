@@ -44,7 +44,10 @@ branches:
     # https://docs.github.com/en/rest/branches/branch-protection
     protection:
       # Require PR reviews
-      required_pull_request_reviews: null  # No required reviews for now
+      required_pull_request_reviews:
+        required_approving_review_count: 0  # No required reviews for now
+        dismiss_stale_reviews: false
+        require_code_owner_reviews: false
 
       # Require status checks
       required_status_checks:
