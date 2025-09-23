@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
 
     // Example 9: Secure key management
     println!("\n9. Secure Key Management:");
-    secure_key_management()?;
+    secure_key_management();
 
     Ok(())
 }
@@ -277,7 +277,7 @@ fn config_validation() -> Result<()> {
     Ok(())
 }
 
-fn secure_key_management() -> Result<()> {
+fn secure_key_management() {
     println!("Secure Key Management Best Practices:");
     println!();
 
@@ -342,6 +342,4 @@ fn secure_key_management() -> Result<()> {
             }
         }
     }
-
-    Ok(())
 }
