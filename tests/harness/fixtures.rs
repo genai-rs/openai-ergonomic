@@ -232,7 +232,7 @@ pub mod chat_responses {
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": null,
+                    "content": "",
                     "refusal": null,
                     "tool_calls": [{
                         "id": "call_test123",
@@ -265,7 +265,8 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"role": "assistant", "content": ""},
-                    "logprobs": null
+                    "logprobs": null,
+                    "finish_reason": null
                 }]
             }),
             json!({
@@ -276,7 +277,8 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"content": "Hello"},
-                    "logprobs": null
+                    "logprobs": null,
+                    "finish_reason": null
                 }]
             }),
             json!({
@@ -287,7 +289,8 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"content": " there!"},
-                    "logprobs": null
+                    "logprobs": null,
+                    "finish_reason": null
                 }]
             }),
             json!({
