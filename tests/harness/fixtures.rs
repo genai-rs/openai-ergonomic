@@ -201,7 +201,7 @@ pub mod chat_responses {
         json!({
             "id": "chatcmpl-test123",
             "object": "chat.completion",
-            "created": 1677652288,
+            "created": 1_677_652_288,
             "model": "gpt-4",
             "choices": [{
                 "index": 0,
@@ -224,7 +224,7 @@ pub mod chat_responses {
         json!({
             "id": "chatcmpl-test123",
             "object": "chat.completion",
-            "created": 1677652288,
+            "created": 1_677_652_288,
             "model": "gpt-4",
             "choices": [{
                 "index": 0,
@@ -256,7 +256,7 @@ pub mod chat_responses {
             json!({
                 "id": "chatcmpl-test123",
                 "object": "chat.completion.chunk",
-                "created": 1677652288,
+                "created": 1_677_652_288,
                 "model": "gpt-4",
                 "choices": [{
                     "index": 0,
@@ -267,7 +267,7 @@ pub mod chat_responses {
             json!({
                 "id": "chatcmpl-test123",
                 "object": "chat.completion.chunk",
-                "created": 1677652288,
+                "created": 1_677_652_288,
                 "model": "gpt-4",
                 "choices": [{
                     "index": 0,
@@ -278,7 +278,7 @@ pub mod chat_responses {
             json!({
                 "id": "chatcmpl-test123",
                 "object": "chat.completion.chunk",
-                "created": 1677652288,
+                "created": 1_677_652_288,
                 "model": "gpt-4",
                 "choices": [{
                     "index": 0,
@@ -289,14 +289,14 @@ pub mod chat_responses {
             json!({
                 "id": "chatcmpl-test123",
                 "object": "chat.completion.chunk",
-                "created": 1677652288,
+                "created": 1_677_652_288,
                 "model": "gpt-4",
                 "choices": [{
                     "index": 0,
                     "delta": {},
                     "finish_reason": "stop"
                 }]
-            })
+            }),
         ]
     }
 
@@ -305,7 +305,7 @@ pub mod chat_responses {
         json!({
             "id": "chatcmpl-test123",
             "object": "chat.completion",
-            "created": 1677652288,
+            "created": 1_677_652_288,
             "model": "gpt-4",
             "choices": [{
                 "index": 0,
@@ -701,13 +701,13 @@ pub mod other_endpoints {
                 {
                     "id": "gpt-4",
                     "object": "model",
-                    "created": 1677610602,
+                    "created": 1_677_610_602,
                     "owned_by": "openai"
                 },
                 {
                     "id": "gpt-3.5-turbo",
                     "object": "model",
-                    "created": 1677610602,
+                    "created": 1_677_610_602,
                     "owned_by": "openai"
                 }
             ]
@@ -719,7 +719,7 @@ pub mod other_endpoints {
         json!({
             "id": "gpt-4",
             "object": "model",
-            "created": 1677610602,
+            "created": 1_677_610_602,
             "owned_by": "openai"
         })
     }
@@ -733,13 +733,16 @@ pub mod scenarios {
     pub fn complete_conversation() -> HashMap<String, Value> {
         let mut scenario = HashMap::new();
 
-        scenario.insert("initial_request".to_string(), json!({
-            "model": "gpt-4",
-            "messages": [
-                {"role": "system", "content": "You are a helpful travel assistant."},
-                {"role": "user", "content": "I want to plan a trip to Paris. Can you help?"}
-            ]
-        }));
+        scenario.insert(
+            "initial_request".to_string(),
+            json!({
+                "model": "gpt-4",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful travel assistant."},
+                    {"role": "user", "content": "I want to plan a trip to Paris. Can you help?"}
+                ]
+            }),
+        );
 
         scenario.insert("assistant_response".to_string(), json!({
             "role": "assistant",
@@ -763,15 +766,21 @@ pub mod scenarios {
     pub fn function_calling_flow() -> HashMap<String, Value> {
         let mut scenario = HashMap::new();
 
-        scenario.insert("request_with_tools".to_string(), json!({
-            "model": "gpt-4",
-            "messages": [
-                {"role": "user", "content": "What's the weather like in Paris today?"}
-            ],
-            "tools": [tools::simple_function()]
-        }));
+        scenario.insert(
+            "request_with_tools".to_string(),
+            json!({
+                "model": "gpt-4",
+                "messages": [
+                    {"role": "user", "content": "What's the weather like in Paris today?"}
+                ],
+                "tools": [tools::simple_function()]
+            }),
+        );
 
-        scenario.insert("function_call_response".to_string(), chat_responses::with_function_call());
+        scenario.insert(
+            "function_call_response".to_string(),
+            chat_responses::with_function_call(),
+        );
 
         scenario.insert("function_result_request".to_string(), json!({
             "model": "gpt-4",
@@ -807,7 +816,10 @@ pub mod scenarios {
 
         scenarios.insert("rate_limit".to_string(), error_responses::rate_limit());
         scenarios.insert("auth_error".to_string(), error_responses::authentication());
-        scenarios.insert("invalid_request".to_string(), error_responses::invalid_request());
+        scenarios.insert(
+            "invalid_request".to_string(),
+            error_responses::invalid_request(),
+        );
         scenarios.insert("server_error".to_string(), error_responses::server_error());
 
         scenarios
@@ -848,9 +860,18 @@ pub mod edge_cases {
         let mut data = HashMap::new();
 
         data.insert("unicode_emoji".to_string(), json!("Hello 🌍🚀✨"));
-        data.insert("unicode_text".to_string(), json!("Здравствуй мир! 你好世界! مرحبا بالعالم!"));
-        data.insert("special_chars".to_string(), json!("!@#$%^&*()_+-=[]{}|;':\",./<>?"));
-        data.insert("escaped_json".to_string(), json!("{\"key\": \"value with \\\"quotes\\\" and \\n newlines\"}"));
+        data.insert(
+            "unicode_text".to_string(),
+            json!("Здравствуй мир! 你好世界! مرحبا بالعالم!"),
+        );
+        data.insert(
+            "special_chars".to_string(),
+            json!("!@#$%^&*()_+-=[]{}|;':\",./<>?"),
+        );
+        data.insert(
+            "escaped_json".to_string(),
+            json!("{\"key\": \"value with \\\"quotes\\\" and \\n newlines\"}"),
+        );
 
         data
     }
