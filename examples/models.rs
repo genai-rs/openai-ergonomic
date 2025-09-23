@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Model listing and selection example.
 //!
 //! This example demonstrates:
@@ -36,7 +37,7 @@ async fn main() -> Result<()> {
 
     // Example 1: List available models
     println!("1. Available Models:");
-    list_models(&client).await?;
+    list_models(&client)?;
 
     // Example 2: Model capabilities
     println!("\n2. Model Capabilities:");
@@ -65,7 +66,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn list_models(_client: &Client) -> Result<()> {
+fn list_models(_client: &Client) -> Result<()> {
     // In a real implementation, you'd call the models API endpoint
     // For now, we'll use a hardcoded list of current models
 
@@ -366,7 +367,7 @@ fn get_model_registry() -> HashMap<String, ModelInfo> {
             "gpt-4o".to_string(),
             ModelInfo {
                 name: "gpt-4o".to_string(),
-                context_window: 128000,
+                context_window: 128_000,
                 max_output_tokens: 16384,
                 supports_vision: true,
                 supports_function_calling: true,
@@ -380,7 +381,7 @@ fn get_model_registry() -> HashMap<String, ModelInfo> {
             "gpt-4o-mini".to_string(),
             ModelInfo {
                 name: "gpt-4o-mini".to_string(),
-                context_window: 128000,
+                context_window: 128_000,
                 max_output_tokens: 16384,
                 supports_vision: true,
                 supports_function_calling: true,

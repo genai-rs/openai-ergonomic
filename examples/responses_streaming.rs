@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Streaming responses example for the openai-ergonomic crate.
 //!
 //! This example demonstrates streaming patterns for the Responses API, including:

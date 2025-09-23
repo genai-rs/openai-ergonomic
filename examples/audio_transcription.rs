@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Audio Transcription (Speech-to-Text) example for the openai-ergonomic crate.
 //!
 //! This example demonstrates speech-to-text and translation functionality using `OpenAI`'s

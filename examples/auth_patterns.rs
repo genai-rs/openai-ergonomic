@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Authentication patterns and configuration examples.
 //!
 //! This example demonstrates:
@@ -28,31 +29,31 @@ async fn main() -> Result<()> {
 
     // Example 3: Organization configuration
     println!("\n3. Organization Configuration:");
-    organization_config().await?;
+    organization_config()?;
 
     // Example 4: Project configuration
     println!("\n4. Project Configuration:");
-    project_config().await?;
+    project_config()?;
 
     // Example 5: Custom headers
     println!("\n5. Custom Headers:");
-    custom_headers().await?;
+    custom_headers()?;
 
     // Example 6: Proxy configuration
     println!("\n6. Proxy Configuration:");
-    proxy_config().await?;
+    proxy_config()?;
 
     // Example 7: Multiple client configurations
     println!("\n7. Multiple Client Configurations:");
-    multiple_clients().await?;
+    multiple_clients()?;
 
     // Example 8: Configuration validation
     println!("\n8. Configuration Validation:");
-    config_validation().await?;
+    config_validation()?;
 
     // Example 9: Secure key management
     println!("\n9. Secure Key Management:");
-    secure_key_management().await?;
+    secure_key_management()?;
 
     Ok(())
 }
@@ -113,7 +114,7 @@ async fn direct_api_key() -> Result<()> {
     Ok(())
 }
 
-async fn organization_config() -> Result<()> {
+fn organization_config() -> Result<()> {
     // Configure client with organization ID
     let config = Config::builder()
         .api_key("your-api-key")
@@ -132,7 +133,7 @@ async fn organization_config() -> Result<()> {
     Ok(())
 }
 
-async fn project_config() -> Result<()> {
+fn project_config() -> Result<()> {
     // Configure client with project ID
     let config = Config::builder()
         .api_key("your-api-key")
@@ -150,7 +151,7 @@ async fn project_config() -> Result<()> {
     Ok(())
 }
 
-async fn custom_headers() -> Result<()> {
+fn custom_headers() -> Result<()> {
     // Note: Custom headers are not yet supported in the current API
     // This would typically be used for:
     // - Request tracing
@@ -168,7 +169,7 @@ async fn custom_headers() -> Result<()> {
     Ok(())
 }
 
-async fn proxy_config() -> Result<()> {
+fn proxy_config() -> Result<()> {
     // Note: Proxy configuration is not yet supported in the current API
     // This would typically be used for:
     // - Enterprise security policies
@@ -186,7 +187,7 @@ async fn proxy_config() -> Result<()> {
     Ok(())
 }
 
-async fn multiple_clients() -> Result<()> {
+fn multiple_clients() -> Result<()> {
     // Create multiple clients for different use cases
 
     // Production client with retries and longer timeout
@@ -238,7 +239,7 @@ async fn multiple_clients() -> Result<()> {
     Ok(())
 }
 
-async fn config_validation() -> Result<()> {
+fn config_validation() -> Result<()> {
     // Validate configuration before use
 
     fn validate_api_key(key: &str) -> bool {
@@ -276,7 +277,7 @@ async fn config_validation() -> Result<()> {
     Ok(())
 }
 
-async fn secure_key_management() -> Result<()> {
+fn secure_key_management() -> Result<()> {
     println!("Secure Key Management Best Practices:");
     println!();
 
