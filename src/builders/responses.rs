@@ -278,6 +278,7 @@ impl ResponsesBuilder {
 }
 
 impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
+    #[allow(clippy::too_many_lines)]
     fn build(self) -> crate::Result<CreateChatCompletionRequest> {
         // Validate model
         if self.model.trim().is_empty() {
