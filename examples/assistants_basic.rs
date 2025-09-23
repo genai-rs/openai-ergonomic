@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Basic Assistants API example demonstrating assistant creation and thread management.
 //!
 //! This example showcases the Assistants API, which provides a way to build AI assistants

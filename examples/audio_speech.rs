@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Audio Speech (Text-to-Speech) example for the openai-ergonomic crate.
 //!
 //! This example demonstrates text-to-speech functionality using `OpenAI`'s TTS models.

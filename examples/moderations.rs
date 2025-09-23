@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Content moderation and filtering example.
 //!
 //! This example demonstrates:
@@ -38,23 +39,23 @@ async fn main() -> Result<()> {
 
     // Example 1: Basic moderation
     println!("1. Basic Moderation:");
-    basic_moderation(&client).await?;
+    basic_moderation(&client)?;
 
     // Example 2: Category detection
     println!("\n2. Category Detection:");
-    category_detection(&client).await?;
+    category_detection(&client)?;
 
     // Example 3: Custom thresholds
     println!("\n3. Custom Thresholds:");
-    custom_thresholds(&client).await?;
+    custom_thresholds(&client)?;
 
     // Example 4: Multi-language moderation
     println!("\n4. Multi-language Moderation:");
-    multilingual_moderation(&client).await?;
+    multilingual_moderation(&client)?;
 
     // Example 5: Batch moderation
     println!("\n5. Batch Moderation:");
-    batch_moderation(&client).await?;
+    batch_moderation(&client)?;
 
     // Example 6: Response filtering
     println!("\n6. Response Filtering:");
@@ -62,7 +63,7 @@ async fn main() -> Result<()> {
 
     // Example 7: Policy enforcement
     println!("\n7. Policy Enforcement:");
-    policy_enforcement(&client).await?;
+    policy_enforcement(&client)?;
 
     // Example 8: Moderation pipeline
     println!("\n8. Moderation Pipeline:");
@@ -71,7 +72,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn basic_moderation(_client: &Client) -> Result<()> {
+fn basic_moderation(_client: &Client) -> Result<()> {
     // Test various content types
     let test_inputs = vec![
         "This is a completely normal message about the weather.",
@@ -96,7 +97,7 @@ async fn basic_moderation(_client: &Client) -> Result<()> {
     Ok(())
 }
 
-async fn category_detection(_client: &Client) -> Result<()> {
+fn category_detection(_client: &Client) -> Result<()> {
     // Moderation categories
     let categories = vec![
         "harassment",
@@ -135,7 +136,7 @@ async fn category_detection(_client: &Client) -> Result<()> {
     Ok(())
 }
 
-async fn custom_thresholds(_client: &Client) -> Result<()> {
+fn custom_thresholds(_client: &Client) -> Result<()> {
     // Custom thresholds for different categories
     let mut custom_thresholds = HashMap::new();
     custom_thresholds.insert("harassment".to_string(), 0.7);
@@ -162,7 +163,7 @@ async fn custom_thresholds(_client: &Client) -> Result<()> {
     Ok(())
 }
 
-async fn multilingual_moderation(_client: &Client) -> Result<()> {
+fn multilingual_moderation(_client: &Client) -> Result<()> {
     // Test moderation in different languages
     let multilingual_tests = vec![
         ("English", "This is a test message"),
@@ -182,7 +183,7 @@ async fn multilingual_moderation(_client: &Client) -> Result<()> {
     Ok(())
 }
 
-async fn batch_moderation(_client: &Client) -> Result<()> {
+fn batch_moderation(_client: &Client) -> Result<()> {
     // Moderate multiple pieces of content efficiently
     let batch_content = vec![
         "First message to check",
@@ -254,7 +255,7 @@ async fn response_filtering(client: &Client) -> Result<()> {
     Ok(())
 }
 
-async fn policy_enforcement(_client: &Client) -> Result<()> {
+fn policy_enforcement(_client: &Client) -> Result<()> {
     // Enforce content policies
     let policy = ModerationPolicy {
         thresholds: HashMap::from([

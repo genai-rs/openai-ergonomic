@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Simple tool calling example that compiles successfully.
 //!
 //! This example demonstrates basic tool calling functionality.
@@ -32,9 +33,9 @@ fn get_weather_tool() -> openai_ergonomic::responses::Tool {
     )
 }
 
-fn execute_weather_function(params: WeatherParams) -> Result<String> {
+fn execute_weather_function(params: &WeatherParams) -> String {
     // Simulate weather lookup
-    Ok(format!("The weather in {} is sunny, 24°C", params.location))
+    format!("The weather in {} is sunny, 24°C", params.location)
 }
 
 #[tokio::main]
@@ -58,8 +59,8 @@ async fn main() -> Result<()> {
             println!("Arguments: {}", tool_call.function_arguments());
 
             // Execute the function
-            let params: WeatherParams = serde_json::from_str(&tool_call.function_arguments())?;
-            let result = execute_weather_function(params)?;
+            let params: WeatherParams = serde_json::from_str(tool_call.function_arguments())?;
+            let result = execute_weather_function(&params);
             println!("Function result: {}", result);
         }
     } else if let Some(content) = response.content() {

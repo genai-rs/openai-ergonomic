@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Resilience and retry strategies for OpenAI API calls.
 //!
 //! This example demonstrates:
@@ -285,7 +286,7 @@ async fn timeout_management(client: &Client) {
                     elapsed
                 );
                 // Adjust timeout based on actual response time
-                adaptive_timeout = elapsed * 2;
+                adaptive_timeout = elapsed * 2; // Update timeout based on response time
                 if let Some(content) = response.content() {
                     println!("Response: {}", content);
                 } else {
@@ -379,7 +380,6 @@ async fn fallback_chain(client: &Client) -> Result<()> {
             }
             Err(e) => {
                 println!("Failed with {}: {}", name, e);
-                continue;
             }
         }
     }

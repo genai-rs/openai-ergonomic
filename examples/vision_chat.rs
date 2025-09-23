@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Vision chat example demonstrating image understanding capabilities.
 //!
 //! This example demonstrates:

@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Comprehensive chat completions example.
 //!
 //! This example demonstrates advanced chat completion features including:
