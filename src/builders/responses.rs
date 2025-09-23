@@ -329,6 +329,28 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             }
         }
 
+        // Validate response format (JSON schema)
+        if let Some(ref format) = self.response_format {
+            if matches!(format.r#type, openai_client_base::models::create_chat_completion_request_all_of_response_format::Type::JsonSchema) {
+                // Validate schema name
+                if format.json_schema.name.trim().is_empty() {
+                    return Err(crate::Error::InvalidRequest(
+                        "JSON schema name cannot be empty".to_string(),
+                    ));
+                }
+
+                // Validate schema structure
+                if let Some(ref schema) = format.json_schema.schema {
+                    // Check if schema has required 'type' field
+                    if !schema.contains_key("type") {
+                        return Err(crate::Error::InvalidRequest(
+                            "JSON schema must have a 'type' field".to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+
         let response_format = self.response_format.map(Box::new);
 
         Ok(CreateChatCompletionRequest {
