@@ -6,24 +6,41 @@
 //! - Custom assertions
 //! - Performance testing utilities
 
+#![allow(
+    dead_code,
+    unused_imports,
+    missing_docs,
+    clippy::doc_markdown,
+    clippy::single_match_else,
+    clippy::match_wildcard_for_single_variants,
+    clippy::unnecessary_map_or,
+    clippy::cast_possible_truncation,
+    clippy::significant_drop_tightening,
+    clippy::cast_possible_wrap,
+    clippy::unused_enumerate_index,
+    clippy::let_unit_value,
+    clippy::format_push_string,
+    clippy::uninlined_format_args,
+    clippy::manual_let_else,
+    clippy::needless_raw_string_hashes,
+    clippy::suboptimal_flops,
+    clippy::cast_precision_loss,
+    clippy::missing_const_for_fn,
+    clippy::assertions_on_constants,
+    clippy::const_is_empty
+)]
+
 pub mod assertions;
 pub mod fixtures;
 pub mod mock_client;
 
 // Re-export commonly used items
 pub use assertions::*;
-pub use fixtures::*;
-pub use mock_client::*;
+// Note: fixtures re-exported from child modules as needed
+pub use mock_client::{MockClientBuilder, MockOpenAIClient, ResponseConfig};
 
 use openai_client_base::models::CreateChatCompletionRequest;
-use openai_ergonomic::{
-    builders::{
-        chat::{tool_function, ChatCompletionBuilder},
-        responses::{responses_tool_function, ResponsesBuilder},
-        Builder,
-    },
-    Error,
-};
+use openai_ergonomic::{builders::Builder, Error};
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 
@@ -167,9 +184,7 @@ where
             Err(_) => {
                 if attempt == max_retries {
                     return TestResult {
-                        result: Err(TestError::Timeout {
-                            duration: timeout,
-                        }),
+                        result: Err(TestError::Timeout { duration: timeout }),
                         duration: start.elapsed(),
                         metadata,
                     };
@@ -206,6 +221,14 @@ where
     result
 }
 
+/// Alias for assert_performance to maintain compatibility with different test patterns
+pub fn assert_completes_within<F, R>(operation: F, max_duration: Duration, description: &str) -> R
+where
+    F: FnOnce() -> R,
+{
+    assert_performance(operation, max_duration, description)
+}
+
 /// Create test scenarios for parameter validation
 pub fn parameter_validation_tests() -> Vec<(&'static str, f64, bool)> {
     vec![
@@ -214,19 +237,16 @@ pub fn parameter_validation_tests() -> Vec<(&'static str, f64, bool)> {
         ("temperature_valid_max", 2.0, true),
         ("temperature_invalid_negative", -0.1, false),
         ("temperature_invalid_high", 2.1, false),
-
         // Top-p tests
         ("top_p_valid_min", 0.0, true),
         ("top_p_valid_max", 1.0, true),
         ("top_p_invalid_negative", -0.1, false),
         ("top_p_invalid_high", 1.1, false),
-
         // Frequency penalty tests
         ("frequency_penalty_valid_min", -2.0, true),
         ("frequency_penalty_valid_max", 2.0, true),
         ("frequency_penalty_invalid_low", -2.1, false),
         ("frequency_penalty_invalid_high", 2.1, false),
-
         // Presence penalty tests
         ("presence_penalty_valid_min", -2.0, true),
         ("presence_penalty_valid_max", 2.0, true),
@@ -256,7 +276,10 @@ pub fn content_type_tests() -> Vec<(&'static str, Value)> {
         ("json_object", json!({"key": "value", "number": 42})),
         ("json_array", json!(["item1", "item2", "item3"])),
         ("multiline_text", json!("Line 1\nLine 2\nLine 3")),
-        ("special_chars", json!("Special: @#$%^&*()_+-={}[]|\\:;\"'<>?,./")),
+        (
+            "special_chars",
+            json!("Special: @#$%^&*()_+-={}[]|\\:;\"'<>?,./"),
+        ),
     ]
 }
 
@@ -296,7 +319,6 @@ macro_rules! assert_field_value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio_test;
 
     #[test]
     fn test_config_constants() {
@@ -353,11 +375,7 @@ mod tests {
 
     #[test]
     fn test_assert_performance() {
-        let result = assert_performance(
-            || 42,
-            Duration::from_millis(100),
-            "test_performance"
-        );
+        let result = assert_performance(|| 42, Duration::from_millis(100), "test_performance");
 
         assert_eq!(result, 42);
     }
@@ -369,7 +387,8 @@ mod tests {
             || async { Ok::<i32, TestError>(42) },
             3,
             Duration::from_secs(1),
-        ).await;
+        )
+        .await;
 
         assert!(result.result.is_ok());
         assert_eq!(result.result.unwrap(), 42);
@@ -386,7 +405,8 @@ mod tests {
             },
             1,
             Duration::from_millis(100),
-        ).await;
+        )
+        .await;
 
         assert!(result.result.is_err());
         matches!(result.result.unwrap_err(), TestError::Timeout { .. });
