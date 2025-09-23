@@ -140,8 +140,10 @@ impl MockOpenAIClient {
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": content
+                    "content": content,
+                    "refusal": null
                 },
+                "logprobs": null,
                 "finish_reason": "stop"
             }],
             "usage": {
@@ -390,6 +392,7 @@ impl MockOpenAIClient {
                 "message": {
                     "role": "assistant",
                     "content": null,
+                    "refusal": null,
                     "tool_calls": [{
                         "id": "call_test123",
                         "type": "function",
@@ -399,6 +402,7 @@ impl MockOpenAIClient {
                         }
                     }]
                 },
+                "logprobs": null,
                 "finish_reason": "tool_calls"
             }],
             "usage": {
@@ -429,8 +433,10 @@ impl MockOpenAIClient {
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": json_content.to_string()
+                    "content": json_content.to_string(),
+                    "refusal": null
                 },
+                "logprobs": null,
                 "finish_reason": "stop"
             }],
             "usage": {
