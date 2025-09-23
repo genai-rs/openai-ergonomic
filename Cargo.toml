@@ -64,3 +64,7 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 must_use_candidate = "allow"
 multiple_crate_versions = "allow"
+
+[[example]]
+name = "quickstart"
+doc-scrape-examples = true
