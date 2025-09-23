@@ -71,7 +71,8 @@ fn test_chat_builder_all_parameters() {
         .n(1)
         .stop(vec!["STOP".to_string(), "END".to_string()])
         .tools(vec![tool])
-        .user_id("test-user");
+        .user_id("test-user")
+        .seed(12345);
 
     let request = assert_builder_success!(builder);
     assert_valid_chat_request(&request);
