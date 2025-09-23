@@ -1,4 +1,25 @@
-//! Caching strategies for OpenAI API responses.
+//! Caching strategies for `OpenAI` API responses.
+#![allow(dead_code)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::match_same_arms)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::redundant_closure_for_method_calls)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_const_for_fn)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::unused_async)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::map_unwrap_or)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::significant_drop_tightening)]
+#![allow(clippy::inherent_to_string)]
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::inefficient_to_string)]
 //!
 //! This example demonstrates comprehensive caching approaches including:
 //! - In-memory caching with TTL (Time To Live)
@@ -130,7 +151,7 @@ struct TokenUsageInfo {
 }
 
 /// Chat completion request parameters
-#[derive(Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ChatCompletionParams {
     model: String,
     messages: Vec<ChatMessage>,
@@ -139,6 +160,27 @@ struct ChatCompletionParams {
     top_p: Option<f64>,
     frequency_penalty: Option<f64>,
     presence_penalty: Option<f64>,
+}
+
+impl std::hash::Hash for ChatCompletionParams {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.model.hash(state);
+        self.messages.hash(state);
+        // Convert f64 to bits for hashing
+        if let Some(temp) = self.temperature {
+            temp.to_bits().hash(state);
+        }
+        self.max_tokens.hash(state);
+        if let Some(top_p) = self.top_p {
+            top_p.to_bits().hash(state);
+        }
+        if let Some(freq_penalty) = self.frequency_penalty {
+            freq_penalty.to_bits().hash(state);
+        }
+        if let Some(pres_penalty) = self.presence_penalty {
+            pres_penalty.to_bits().hash(state);
+        }
+    }
 }
 
 /// Chat message
@@ -267,11 +309,10 @@ impl MemoryCache {
 
                 debug!("Cache hit for key: {}", key.to_string());
                 return Some(cached_response.content.clone());
-            } else {
-                // Remove expired entry
-                cache.remove(key);
-                debug!("Removed expired cache entry for key: {}", key.to_string());
             }
+            // Remove expired entry
+            cache.remove(key);
+            debug!("Removed expired cache entry for key: {}", key.to_string());
         }
 
         stats.cache_misses += 1;
@@ -378,8 +419,9 @@ struct FileCache {
 impl FileCache {
     /// Create a new file-based cache
     fn new(cache_dir: &Path, default_ttl: Duration) -> Result<Self> {
-        fs::create_dir_all(cache_dir)
-            .map_err(|e| Error::InvalidRequest(format!("Failed to create cache directory: {}", e)))?;
+        fs::create_dir_all(cache_dir).map_err(|e| {
+            Error::InvalidRequest(format!("Failed to create cache directory: {}", e))
+        })?;
 
         let cache = Self {
             cache_dir: cache_dir.to_path_buf(),
@@ -443,11 +485,10 @@ impl FileCache {
 
                         debug!("File cache hit for key: {}", key.to_string());
                         return Some(cached_response.content);
-                    } else {
-                        // Remove expired file
-                        let _ = fs::remove_file(file_path);
-                        debug!("Removed expired cache file: {:?}", file_path);
                     }
+                    // Remove expired file
+                    let _ = fs::remove_file(file_path);
+                    debug!("Removed expired cache file: {:?}", file_path);
                 }
             }
         }
@@ -478,8 +519,9 @@ impl FileCache {
         let filename = format!("{}.json", key.to_string());
         let file_path = self.cache_dir.join(filename);
 
-        let json_content = serde_json::to_string_pretty(&cached_response)
-            .map_err(|e| Error::InvalidRequest(format!("Failed to serialize cache entry: {}", e)))?;
+        let json_content = serde_json::to_string_pretty(&cached_response).map_err(|e| {
+            Error::InvalidRequest(format!("Failed to serialize cache entry: {}", e))
+        })?;
 
         fs::write(&file_path, json_content)
             .map_err(|e| Error::InvalidRequest(format!("Failed to write cache file: {}", e)))?;
@@ -571,10 +613,10 @@ impl Default for CacheStrategy {
 impl CachingClient {
     /// Create a new caching client
     fn new(client: Client, cache_dir: Option<&Path>) -> Result<Self> {
-        let memory_cache = MemoryCache::new(Duration::from_hours(1), 1000);
+        let memory_cache = MemoryCache::new(Duration::from_secs(60 * 60), 1000);
 
         let file_cache = if let Some(dir) = cache_dir {
-            Some(FileCache::new(dir, Duration::from_hours(24))?)
+            Some(FileCache::new(dir, Duration::from_secs(24 * 60 * 60))?)
         } else {
             None
         };
@@ -1034,7 +1076,7 @@ async fn main() -> Result<()> {
     info!("Statistics after cleanup:");
     memory_stats_after.print_stats();
 
-    if let Some(file_stats_after) = file_stats_after {
+    if let Some(ref file_stats_after) = file_stats_after {
         info!("\nFile cache after cleanup:");
         file_stats_after.print_stats();
     }
@@ -1043,10 +1085,16 @@ async fn main() -> Result<()> {
     info!("\n=== Example 7: Cost Analysis ===");
 
     let total_cost_savings = memory_stats_after.cost_savings_usd
-        + file_stats_after.map(|s| s.cost_savings_usd).unwrap_or(0.0);
+        + file_stats_after
+            .as_ref()
+            .map(|s| s.cost_savings_usd)
+            .unwrap_or(0.0);
 
     let total_time_savings = memory_stats_after.time_savings_ms
-        + file_stats_after.map(|s| s.time_savings_ms).unwrap_or(0);
+        + file_stats_after
+            .as_ref()
+            .map(|s| s.time_savings_ms)
+            .unwrap_or(0);
 
     info!("=== Overall Cache Performance ===");
     info!("Total cost savings: ${:.4}", total_cost_savings);

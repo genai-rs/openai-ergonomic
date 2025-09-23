@@ -1,4 +1,19 @@
-//! Batch processing example for high-volume OpenAI API usage.
+//! Batch processing example for high-volume `OpenAI` API usage.
+#![allow(dead_code)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_const_for_fn)]
+#![allow(clippy::unused_async)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::redundant_closure_for_method_calls)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::struct_field_names)]
+#![allow(clippy::cast_possible_wrap)]
 //!
 //! This example demonstrates advanced batch processing patterns including:
 //! - Batch API endpoint usage for cost-effective processing
@@ -113,7 +128,7 @@ impl BatchProcessor {
             batch_dir: "./batch_files".to_string(),
             max_batch_size: 50_000,
             poll_interval: Duration::from_secs(30),
-            max_wait_time: Duration::from_hours(25), // Slightly more than 24h limit
+            max_wait_time: Duration::from_secs(25 * 60 * 60), // Slightly more than 24h limit
         }
     }
 
@@ -141,8 +156,9 @@ impl BatchProcessor {
         info!("Starting batch processing for {} requests", requests.len());
 
         // Ensure batch directory exists
-        fs::create_dir_all(&self.batch_dir)
-            .map_err(|e| Error::InvalidRequest(format!("Failed to create batch directory: {}", e)))?;
+        fs::create_dir_all(&self.batch_dir).map_err(|e| {
+            Error::InvalidRequest(format!("Failed to create batch directory: {}", e))
+        })?;
 
         // Split requests into batches if needed
         let batches = self.split_into_batches(requests);
@@ -213,8 +229,9 @@ impl BatchProcessor {
     fn create_batch_file(&self, requests: &[BatchRequest], file_path: &str) -> Result<()> {
         let mut content = String::new();
         for request in requests {
-            let json_line = serde_json::to_string(request)
-                .map_err(|e| Error::InvalidRequest(format!("Failed to serialize request: {}", e)))?;
+            let json_line = serde_json::to_string(request).map_err(|e| {
+                Error::InvalidRequest(format!("Failed to serialize request: {}", e))
+            })?;
             content.push_str(&json_line);
             content.push('\n');
         }
@@ -255,7 +272,7 @@ impl BatchProcessor {
     }
 
     /// Create a batch job using the uploaded file
-    async fn create_batch_job(&self, input_file_id: &str, batch_name: &str) -> Result<BatchJob> {
+    async fn create_batch_job(&self, input_file_id: &str, _batch_name: &str) -> Result<BatchJob> {
         info!("Creating batch job for file: {}", input_file_id);
 
         // Note: This is a placeholder implementation
@@ -624,9 +641,9 @@ async fn main() -> Result<()> {
 
     // Initialize batch processor with custom configuration
     let batch_processor = BatchProcessor::new(client).with_config(
-        "./batch_results",          // Custom batch directory
-        1000,                       // Smaller batch size for demo
-        Duration::from_secs(10),    // More frequent polling for demo
+        "./batch_results",            // Custom batch directory
+        1000,                         // Smaller batch size for demo
+        Duration::from_secs(10),      // More frequent polling for demo
         Duration::from_secs(30 * 60), // Shorter timeout for demo
     );
 

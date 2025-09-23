@@ -1,4 +1,25 @@
-//! Testing patterns and strategies for OpenAI API integration.
+//! Testing patterns and strategies for `OpenAI` API integration.
+#![allow(dead_code)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_const_for_fn)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+#![allow(clippy::format_push_string)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::struct_field_names)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::or_fun_call)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::if_not_else)]
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::significant_drop_tightening)]
+#![allow(clippy::struct_excessive_bools)]
 //!
 //! This example demonstrates comprehensive testing approaches including:
 //! - Mock server setup with mockito for unit testing
@@ -26,7 +47,6 @@ use tokio::time::sleep;
 use tracing::{error, info, warn};
 
 /// Mock OpenAI server for testing purposes
-#[derive(Debug)]
 struct MockOpenAIServer {
     /// Mock server instance
     server: mockito::ServerGuard,
@@ -118,7 +138,7 @@ impl MockOpenAIServer {
     fn client(&self) -> Result<Client> {
         let config = Config::builder()
             .api_key("test-api-key")
-            .base_url(&self.base_url())
+            .api_base(&self.base_url())
             .build();
 
         Client::new(config)
@@ -290,8 +310,8 @@ impl TestUtils {
     fn create_test_client() -> Result<Client> {
         let config = Config::builder()
             .api_key("test-api-key")
-            .base_url("http://localhost:1234") // Mock server URL
-            .timeout(Duration::from_secs(5))
+            .api_base("http://localhost:1234") // Mock server URL
+            .timeout_seconds(5)
             .max_retries(2)
             .build();
 
@@ -404,7 +424,7 @@ impl IntegrationTestRunner {
         let test_name = "basic_chat_completion";
         info!("Running integration test: {}", test_name);
 
-        let (result, duration) = TestUtils::time_async_operation(async {
+        let (result, duration) = TestUtils::time_async_operation::<_, String, Error>(async {
             // Note: This would use real API in integration tests
             // self.client.chat_simple("Hello, world!").await
 
@@ -445,7 +465,7 @@ impl IntegrationTestRunner {
         let test_name = "streaming_completion";
         info!("Running integration test: {}", test_name);
 
-        let (result, duration) = TestUtils::time_async_operation(async {
+        let (result, duration) = TestUtils::time_async_operation::<_, String, Error>(async {
             // Note: This would use real streaming API in integration tests
             // let mut stream = self.client.chat().user("Tell me a story").stream().await?;
             // let mut chunks = Vec::new();
@@ -492,11 +512,11 @@ impl IntegrationTestRunner {
         let test_name = "error_handling";
         info!("Running integration test: {}", test_name);
 
-        let (result, duration) = TestUtils::time_async_operation(async {
+        let (result, duration) = TestUtils::time_async_operation::<_, String, Error>(async {
             // Test with invalid API key to trigger authentication error
             let bad_config = Config::builder().api_key("invalid-key").build();
 
-            let bad_client = Client::new(bad_config)?;
+            let _bad_client = Client::new(bad_config)?;
 
             // This should fail with an authentication error
             // bad_client.chat_simple("Test").await
@@ -631,7 +651,7 @@ impl PerformanceTestRunner {
         let mut handles = Vec::new();
 
         for worker_id in 0..concurrency {
-            let client = self.client.clone(); // Assume Client implements Clone
+            let _client = self.client.clone(); // Assume Client implements Clone
             let handle = tokio::spawn(async move {
                 let mut worker_results = Vec::new();
 
