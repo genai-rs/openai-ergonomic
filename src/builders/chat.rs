@@ -308,6 +308,58 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             ));
         }
 
+        // Validate message contents
+        for (i, message) in self.messages.iter().enumerate() {
+            match message {
+                ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
+                    if let ChatCompletionRequestSystemMessageContent::TextContent(content) = msg.content.as_ref() {
+                        if content.trim().is_empty() {
+                            return Err(crate::Error::InvalidRequest(
+                                format!("System message at index {} cannot have empty content", i)
+                            ));
+                        }
+                    }
+                }
+                ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
+                    match msg.content.as_ref() {
+                        ChatCompletionRequestUserMessageContent::TextContent(content) => {
+                            if content.trim().is_empty() {
+                                return Err(crate::Error::InvalidRequest(
+                                    format!("User message at index {} cannot have empty content", i)
+                                ));
+                            }
+                        }
+                        ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
+                            if parts.is_empty() {
+                                return Err(crate::Error::InvalidRequest(
+                                    format!("User message at index {} cannot have empty content parts", i)
+                                ));
+                            }
+                        }
+                    }
+                }
+                ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(msg) => {
+                    // Assistant messages can have content or tool calls, but not both empty
+                    let has_content = msg.content.as_ref().and_then(|opt| opt.as_ref()).map_or(false, |c| {
+                        match c.as_ref() {
+                            ChatCompletionRequestAssistantMessageContent::TextContent(text) => !text.trim().is_empty(),
+                            _ => true, // Other content types are considered valid
+                        }
+                    });
+                    let has_tool_calls = msg.tool_calls.as_ref().map_or(false, |tc| !tc.is_empty());
+
+                    if !has_content && !has_tool_calls {
+                        return Err(crate::Error::InvalidRequest(
+                            format!("Assistant message at index {} must have either content or tool calls", i)
+                        ));
+                    }
+                }
+                _ => {
+                    // Other message types (tool, function) are valid as-is
+                }
+            }
+        }
+
         // Validate temperature
         if let Some(temp) = self.temperature {
             if !(0.0..=2.0).contains(&temp) {
@@ -341,6 +393,63 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
                 return Err(crate::Error::InvalidRequest(format!(
                     "presence_penalty must be between -2.0 and 2.0, got {pres}"
                 )));
+            }
+        }
+
+        // Validate max_tokens
+        if let Some(max_tokens) = self.max_tokens {
+            if max_tokens <= 0 {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "max_tokens must be positive, got {max_tokens}"
+                )));
+            }
+        }
+
+        // Validate max_completion_tokens
+        if let Some(max_completion_tokens) = self.max_completion_tokens {
+            if max_completion_tokens <= 0 {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "max_completion_tokens must be positive, got {max_completion_tokens}"
+                )));
+            }
+        }
+
+        // Validate n
+        if let Some(n) = self.n {
+            if n <= 0 {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "n must be positive, got {n}"
+                )));
+            }
+        }
+
+        // Validate tools
+        if let Some(ref tools) = self.tools {
+            for (i, tool) in tools.iter().enumerate() {
+                let function = &tool.function;
+
+                // Validate function name
+                if function.name.trim().is_empty() {
+                    return Err(crate::Error::InvalidRequest(format!(
+                        "Tool {} function name cannot be empty", i
+                    )));
+                }
+
+                // Validate function name contains only valid characters
+                if !function.name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    return Err(crate::Error::InvalidRequest(format!(
+                        "Tool {} function name '{}' contains invalid characters", i, function.name
+                    )));
+                }
+
+                // Validate function description
+                if let Some(ref description) = &function.description {
+                    if description.trim().is_empty() {
+                        return Err(crate::Error::InvalidRequest(format!(
+                            "Tool {} function description cannot be empty", i
+                        )));
+                    }
+                }
             }
         }
 
