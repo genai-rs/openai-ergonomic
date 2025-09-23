@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Comprehensive error handling patterns for the OpenAI API.
 //!
 //! This example demonstrates:

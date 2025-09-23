@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Structured Outputs example demonstrating JSON mode and schema validation.
 //!
 //! This example showcases `OpenAI`'s structured outputs capabilities, including:
