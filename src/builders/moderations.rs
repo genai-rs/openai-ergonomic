@@ -1,6 +1,6 @@
 //! Moderations API builders.
 //!
-//! This module provides ergonomic builders for OpenAI Moderations API operations,
+//! This module provides ergonomic builders for `OpenAI` Moderations API operations,
 //! which help detect potentially harmful content across various categories.
 //!
 //! The Moderations API can identify content that may be:
@@ -14,7 +14,7 @@
 /// Builder for content moderation requests.
 ///
 /// This builder provides a fluent interface for creating moderation requests
-/// to check if content violates OpenAI's usage policies.
+/// to check if content violates `OpenAI`'s usage policies.
 #[derive(Debug, Clone)]
 pub struct ModerationBuilder {
     input: ModerationInput,
@@ -33,40 +33,66 @@ pub enum ModerationInput {
 /// Result of a moderation check.
 #[derive(Debug, Clone)]
 pub struct ModerationResult {
+    /// Whether the content was flagged
     pub flagged: bool,
+    /// The flagged categories
     pub categories: ModerationCategories,
+    /// The confidence scores for each category
     pub category_scores: ModerationCategoryScores,
 }
 
 /// Categories that can be flagged by moderation.
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ModerationCategories {
+    /// Hate speech
     pub hate: bool,
+    /// Threatening hate speech
     pub hate_threatening: bool,
+    /// Harassment
     pub harassment: bool,
+    /// Threatening harassment
     pub harassment_threatening: bool,
+    /// Self-harm content
     pub self_harm: bool,
+    /// Intent to self-harm
     pub self_harm_intent: bool,
+    /// Instructions for self-harm
     pub self_harm_instructions: bool,
+    /// Sexual content
     pub sexual: bool,
+    /// Sexual content involving minors
     pub sexual_minors: bool,
+    /// Violence
     pub violence: bool,
+    /// Graphic violence
     pub violence_graphic: bool,
 }
 
 /// Confidence scores for each moderation category.
 #[derive(Debug, Clone)]
 pub struct ModerationCategoryScores {
+    /// Hate speech score
     pub hate: f64,
+    /// Threatening hate speech score
     pub hate_threatening: f64,
+    /// Harassment score
     pub harassment: f64,
+    /// Threatening harassment score
     pub harassment_threatening: f64,
+    /// Self-harm content score
     pub self_harm: f64,
+    /// Intent to self-harm score
     pub self_harm_intent: f64,
+    /// Instructions for self-harm score
     pub self_harm_instructions: f64,
+    /// Sexual content score
     pub sexual: f64,
+    /// Sexual content involving minors score
     pub sexual_minors: f64,
+    /// Violence score
     pub violence: f64,
+    /// Graphic violence score
     pub violence_graphic: f64,
 }
 
@@ -140,7 +166,7 @@ impl ModerationBuilder {
     pub fn first_input(&self) -> Option<&str> {
         match &self.input {
             ModerationInput::Text(text) => Some(text),
-            ModerationInput::TextArray(texts) => texts.first().map(|s| s.as_str()),
+            ModerationInput::TextArray(texts) => texts.first().map(std::string::String::as_str),
         }
     }
 
@@ -149,13 +175,15 @@ impl ModerationBuilder {
     pub fn all_inputs(&self) -> Vec<&str> {
         match &self.input {
             ModerationInput::Text(text) => vec![text],
-            ModerationInput::TextArray(texts) => texts.iter().map(|s| s.as_str()).collect(),
+            ModerationInput::TextArray(texts) => {
+                texts.iter().map(std::string::String::as_str).collect()
+            }
         }
     }
 }
 
 impl ModerationCategories {
-    /// Create a new ModerationCategories with all categories set to false.
+    /// Create a new `ModerationCategories` with all categories set to false.
     #[must_use]
     pub fn new_clean() -> Self {
         Self {
@@ -231,7 +259,7 @@ impl ModerationCategories {
 }
 
 impl ModerationCategoryScores {
-    /// Create a new ModerationCategoryScores with all scores set to 0.0.
+    /// Create a new `ModerationCategoryScores` with all scores set to 0.0.
     #[must_use]
     pub fn new_zero() -> Self {
         Self {
@@ -395,7 +423,7 @@ mod tests {
     #[test]
     fn test_moderation_builder_new_array() {
         let inputs = vec!["First text".to_string(), "Second text".to_string()];
-        let builder = ModerationBuilder::new_array(inputs.clone());
+        let builder = ModerationBuilder::new_array(inputs);
 
         assert_eq!(builder.input_count(), 2);
         assert_eq!(builder.first_input(), Some("First text"));
@@ -433,7 +461,7 @@ mod tests {
     #[test]
     fn test_moderation_category_scores_new_zero() {
         let scores = ModerationCategoryScores::new_zero();
-        assert_eq!(scores.max_score(), 0.0);
+        assert!((scores.max_score() - 0.0).abs() < f64::EPSILON);
         assert!(scores.scores_above_threshold(0.1).is_empty());
     }
 
@@ -444,7 +472,7 @@ mod tests {
         scores.violence = 0.6;
         scores.sexual = 0.3;
 
-        assert_eq!(scores.max_score(), 0.8);
+        assert!((scores.max_score() - 0.8).abs() < f64::EPSILON);
 
         let high_scores = scores.scores_above_threshold(0.5);
         assert_eq!(high_scores.len(), 2);
@@ -516,12 +544,12 @@ mod tests {
 
         match single {
             ModerationInput::Text(text) => assert_eq!(text, "single"),
-            _ => panic!("Expected Text variant"),
+            ModerationInput::TextArray(_) => panic!("Expected Text variant"),
         }
 
         match multiple {
             ModerationInput::TextArray(texts) => assert_eq!(texts.len(), 2),
-            _ => panic!("Expected TextArray variant"),
+            ModerationInput::Text(_) => panic!("Expected TextArray variant"),
         }
     }
 }
