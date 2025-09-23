@@ -1,6 +1,6 @@
 //! Batch API builders.
 //!
-//! This module provides ergonomic builders for OpenAI Batch API operations,
+//! This module provides ergonomic builders for `OpenAI` Batch API operations,
 //! which allow you to send asynchronous groups of requests with 24-hour turnaround
 //! and 50% cost reduction compared to synchronous API calls.
 
@@ -206,6 +206,7 @@ pub fn batch_completions(input_file_id: impl Into<String>) -> BatchJobBuilder {
 
 /// Helper function to create a batch job with metadata.
 #[must_use]
+#[allow(clippy::implicit_hasher)]
 pub fn batch_job_with_metadata(
     input_file_id: impl Into<String>,
     endpoint: BatchEndpoint,
