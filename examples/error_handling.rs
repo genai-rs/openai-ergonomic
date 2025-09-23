@@ -1,5 +1,5 @@
 #![allow(clippy::uninlined_format_args)]
-//! Comprehensive error handling patterns for the OpenAI API.
+//! Comprehensive error handling patterns for the `OpenAI` API.
 //!
 //! This example demonstrates:
 //! - Different error types and how to handle them
@@ -76,9 +76,8 @@ async fn basic_error_handling() {
 }
 
 async fn pattern_matching_errors() {
-    let client = match Client::from_env() {
-        Ok(c) => c,
-        Err(_) => return,
+    let Ok(client) = Client::from_env() else {
+        return;
     };
 
     // Simulate various errors by using invalid parameters
@@ -120,14 +119,14 @@ async fn pattern_matching_errors() {
 }
 
 async fn rate_limit_handling() {
-    let client = match Client::from_env() {
-        Ok(c) => c,
-        Err(_) => return,
+    const MAX_RETRIES: u32 = 3;
+
+    let Ok(client) = Client::from_env() else {
+        return;
     };
 
     // Retry logic for rate limiting
     let mut retries = 0;
-    const MAX_RETRIES: u32 = 3;
 
     loop {
         match client.send_chat(client.chat_simple("Hello")).await {
@@ -159,9 +158,8 @@ async fn rate_limit_handling() {
 }
 
 async fn token_limit_handling() {
-    let client = match Client::from_env() {
-        Ok(c) => c,
-        Err(_) => return,
+    let Ok(client) = Client::from_env() else {
+        return;
     };
 
     // Generate a very long prompt that might exceed token limits
@@ -348,11 +346,11 @@ async fn hedged_request(client: &Client) -> Result<String> {
     match select(fut1, fut2).await {
         futures::future::Either::Left((result, _)) => {
             println!("Request 1 completed first");
-            result.and_then(|r| Ok(r.content().unwrap_or("").to_string()))
+            result.map(|r| r.content().unwrap_or("").to_string())
         }
         futures::future::Either::Right((result, _)) => {
             println!("Request 2 completed first");
-            result.and_then(|r| Ok(r.content().unwrap_or("").to_string()))
+            result.map(|r| r.content().unwrap_or("").to_string())
         }
     }
 }
@@ -364,7 +362,7 @@ struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             failures: std::sync::atomic::AtomicU32::new(0),
             threshold: 3,

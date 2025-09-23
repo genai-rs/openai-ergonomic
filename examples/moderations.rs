@@ -39,23 +39,23 @@ async fn main() -> Result<()> {
 
     // Example 1: Basic moderation
     println!("1. Basic Moderation:");
-    basic_moderation(&client)?;
+    basic_moderation(&client);
 
     // Example 2: Category detection
     println!("\n2. Category Detection:");
-    category_detection(&client)?;
+    category_detection(&client);
 
     // Example 3: Custom thresholds
     println!("\n3. Custom Thresholds:");
-    custom_thresholds(&client)?;
+    custom_thresholds(&client);
 
     // Example 4: Multi-language moderation
     println!("\n4. Multi-language Moderation:");
-    multilingual_moderation(&client)?;
+    multilingual_moderation(&client);
 
     // Example 5: Batch moderation
     println!("\n5. Batch Moderation:");
-    batch_moderation(&client)?;
+    batch_moderation(&client);
 
     // Example 6: Response filtering
     println!("\n6. Response Filtering:");
@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
 
     // Example 7: Policy enforcement
     println!("\n7. Policy Enforcement:");
-    policy_enforcement(&client)?;
+    policy_enforcement(&client);
 
     // Example 8: Moderation pipeline
     println!("\n8. Moderation Pipeline:");
@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn basic_moderation(_client: &Client) -> Result<()> {
+fn basic_moderation(_client: &Client) {
     // Test various content types
     let test_inputs = vec![
         "This is a completely normal message about the weather.",
@@ -93,11 +93,9 @@ fn basic_moderation(_client: &Client) -> Result<()> {
         }
         println!();
     }
-
-    Ok(())
 }
 
-fn category_detection(_client: &Client) -> Result<()> {
+fn category_detection(_client: &Client) {
     // Moderation categories
     let categories = vec![
         "harassment",
@@ -132,11 +130,9 @@ fn category_detection(_client: &Client) -> Result<()> {
             category, flagged, score
         );
     }
-
-    Ok(())
 }
 
-fn custom_thresholds(_client: &Client) -> Result<()> {
+fn custom_thresholds(_client: &Client) {
     // Custom thresholds for different categories
     let mut custom_thresholds = HashMap::new();
     custom_thresholds.insert("harassment".to_string(), 0.7);
@@ -159,11 +155,9 @@ fn custom_thresholds(_client: &Client) -> Result<()> {
             if flagged { "FLAGGED" } else { "OK" }
         );
     }
-
-    Ok(())
 }
 
-fn multilingual_moderation(_client: &Client) -> Result<()> {
+fn multilingual_moderation(_client: &Client) {
     // Test moderation in different languages
     let multilingual_tests = vec![
         ("English", "This is a test message"),
@@ -179,13 +173,11 @@ fn multilingual_moderation(_client: &Client) -> Result<()> {
         let result = simulate_moderation(content);
         println!("  Flagged: {}", result.flagged);
     }
-
-    Ok(())
 }
 
-fn batch_moderation(_client: &Client) -> Result<()> {
+fn batch_moderation(_client: &Client) {
     // Moderate multiple pieces of content efficiently
-    let batch_content = vec![
+    let batch_content = [
         "First message to check",
         "Second message to check",
         "Third message to check",
@@ -209,8 +201,6 @@ fn batch_moderation(_client: &Client) -> Result<()> {
             );
         }
     }
-
-    Ok(())
 }
 
 async fn response_filtering(client: &Client) -> Result<()> {
@@ -255,7 +245,7 @@ async fn response_filtering(client: &Client) -> Result<()> {
     Ok(())
 }
 
-fn policy_enforcement(_client: &Client) -> Result<()> {
+fn policy_enforcement(_client: &Client) {
     // Enforce content policies
     let policy = ModerationPolicy {
         thresholds: HashMap::from([
@@ -288,16 +278,16 @@ fn policy_enforcement(_client: &Client) -> Result<()> {
             PolicyAction::Review(reason) => println!("  ⚠ Human review needed: {}", reason),
         }
     }
-
-    Ok(())
 }
 
 async fn moderation_pipeline(client: &Client) -> Result<()> {
     // Complete moderation pipeline
 
+    type FilterFn = Box<dyn Fn(&str) -> bool + Send + Sync>;
+
     struct ModerationPipeline {
-        pre_filters: Vec<Box<dyn Fn(&str) -> bool>>,
-        post_filters: Vec<Box<dyn Fn(&str) -> bool>>,
+        pre_filters: Vec<FilterFn>,
+        post_filters: Vec<FilterFn>,
     }
 
     let pipeline = ModerationPipeline {

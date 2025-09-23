@@ -79,16 +79,16 @@ fn execute_weather_function(params: WeatherParams) -> Result<String> {
     // Simulated weather API call
     let response = WeatherResponse {
         temperature: 72,
-        unit: params.unit.unwrap_or("fahrenheit".to_string()),
+        unit: params.unit.unwrap_or_else(|| "fahrenheit".to_string()),
         description: format!("Sunny in {}", params.location),
     };
 
     Ok(serde_json::to_string(&response)?)
 }
 
-fn execute_time_function(timezone: &str) -> Result<String> {
+fn execute_time_function(timezone: &str) -> String {
     // Simulated time API call
-    Ok(format!("Current time in {}: 2:30 PM", timezone))
+    format!("Current time in {}: 2:30 PM", timezone)
 }
 
 #[tokio::main]
@@ -140,7 +140,7 @@ async fn simple_tool_call(client: &Client) -> Result<()> {
             println!("Arguments: {}", tool_call.function_arguments());
 
             // Execute the function
-            let params: WeatherParams = serde_json::from_str(&tool_call.function_arguments())?;
+            let params: WeatherParams = serde_json::from_str(tool_call.function_arguments())?;
             let result = execute_weather_function(params)?;
             println!("Function result: {}", result);
         }
@@ -159,15 +159,15 @@ async fn multiple_tools(client: &Client) -> Result<()> {
     for tool_call in response.tool_calls() {
         match tool_call.function_name() {
             "get_weather" => {
-                let params: WeatherParams = serde_json::from_str(&tool_call.function_arguments())?;
+                let params: WeatherParams = serde_json::from_str(tool_call.function_arguments())?;
                 let result = execute_weather_function(params)?;
                 println!("Weather result: {}", result);
             }
             "get_current_time" => {
                 let params: serde_json::Value =
-                    serde_json::from_str(&tool_call.function_arguments())?;
+                    serde_json::from_str(tool_call.function_arguments())?;
                 if let Some(timezone) = params["timezone"].as_str() {
-                    let result = execute_time_function(timezone)?;
+                    let result = execute_time_function(timezone);
                     println!("Time result: {}", result);
                 }
             }
