@@ -171,7 +171,7 @@ impl MockOpenAIClient {
         let mut streaming_response = String::new();
 
         for (i, chunk) in chunks.iter().enumerate() {
-            let chunk_data = json!({
+            let mut chunk_data = json!({
                 "id": "chatcmpl-test123",
                 "object": "chat.completion.chunk",
                 "created": 1_677_652_288,
@@ -180,10 +180,14 @@ impl MockOpenAIClient {
                     "index": 0,
                     "delta": {
                         "content": chunk
-                    },
-                    "finish_reason": if i == chunks.len() - 1 { serde_json::Value::String("stop".to_string()) } else { serde_json::Value::Null }
+                    }
                 }]
             });
+
+            // Add finish_reason only to the last chunk
+            if i == chunks.len() - 1 {
+                chunk_data["choices"][0]["finish_reason"] = json!("stop");
+            }
 
             streaming_response.push_str(&format!("data: {}\n\n", chunk_data));
         }
