@@ -3,17 +3,26 @@
 //! This module tests response parsing, validation, and integration with various
 //! OpenAI API response formats including streaming, function calling, and error responses.
 
+#![allow(
+    dead_code,
+    unused_imports,
+    clippy::cast_possible_truncation,
+    clippy::significant_drop_tightening,
+    clippy::doc_markdown,
+    clippy::uninlined_format_args,
+    clippy::manual_let_else
+)]
+
 mod harness;
 
 use harness::{
-    assert_valid_chat_response, assert_valid_stream_chunk, assert_success_response,
-    assert_error_response, assert_has_field, assert_field_equals, assert_json_equivalent,
-    assert_complete_streaming_message, fixtures, MockOpenAIClient, MockClientBuilder,
+    assert_complete_streaming_message, assert_error_response, assert_field_equals,
+    assert_has_field, assert_json_equivalent, assert_success_response, assert_valid_chat_response,
+    assert_valid_stream_chunk, fixtures, MockClientBuilder, MockOpenAIClient,
 };
 use openai_client_base::models::{
     CreateChatCompletionResponse, CreateChatCompletionStreamResponse,
 };
-use openai_ergonomic::builders::{responses::responses_simple, Builder};
 use serde_json::{json, Value};
 use std::time::Duration;
 
@@ -33,8 +42,8 @@ fn test_basic_response_parsing() {
     assert_field_equals(&response_json, "model", &json!("gpt-4"));
 
     // Test that the response can be deserialized
-    let response: CreateChatCompletionResponse = serde_json::from_value(response_json)
-        .expect("Should be able to deserialize response");
+    let response: CreateChatCompletionResponse =
+        serde_json::from_value(response_json).expect("Should be able to deserialize response");
 
     assert_valid_chat_response(&response);
 }
@@ -126,8 +135,7 @@ fn test_json_mode_response_parsing() {
     let content = message.get("content").unwrap().as_str().unwrap();
 
     // Content should be valid JSON
-    let json_content: Value = serde_json::from_str(content)
-        .expect("Content should be valid JSON");
+    let json_content: Value = serde_json::from_str(content).expect("Content should be valid JSON");
 
     assert!(json_content.is_object());
     assert_has_field(&json_content, "name");
@@ -233,9 +241,12 @@ async fn test_custom_response_content() {
     let response_json: Value = response.json().await.unwrap();
     let choices = response_json.get("choices").unwrap().as_array().unwrap();
     let message_content = choices[0]
-        .get("message").unwrap()
-        .get("content").unwrap()
-        .as_str().unwrap();
+        .get("message")
+        .unwrap()
+        .get("content")
+        .unwrap()
+        .as_str()
+        .unwrap();
 
     assert_eq!(message_content, custom_content);
 
@@ -359,7 +370,9 @@ async fn test_function_calling_mock_response() {
 async fn test_json_mode_mock_response() {
     let mut mock_client = MockOpenAIClient::new().await;
     let json_content = json!({"name": "John", "age": 30, "city": "New York"});
-    let mock = mock_client.mock_json_mode_response(json_content.clone()).await;
+    let mock = mock_client
+        .mock_json_mode_response(json_content.clone())
+        .await;
 
     let client = reqwest::Client::new();
     let response = client
@@ -380,9 +393,12 @@ async fn test_json_mode_mock_response() {
 
     let choices = response_json.get("choices").unwrap().as_array().unwrap();
     let message_content = choices[0]
-        .get("message").unwrap()
-        .get("content").unwrap()
-        .as_str().unwrap();
+        .get("message")
+        .unwrap()
+        .get("content")
+        .unwrap()
+        .as_str()
+        .unwrap();
 
     let parsed_content: Value = serde_json::from_str(message_content).unwrap();
     assert_json_equivalent(&parsed_content, &json_content);
@@ -518,7 +534,7 @@ async fn test_response_with_custom_config() {
     let mut mock_client = MockClientBuilder::new()
         .default_model("gpt-3.5-turbo")
         .token_counts(25, 50)
-        .rate_limits(Some(1000), Some(1234567890))
+        .rate_limits(Some(1000), Some(1_234_567_890))
         .custom_header("x-test-header", "test-value")
         .build()
         .await;
@@ -538,6 +554,9 @@ async fn test_response_with_custom_config() {
         .await
         .unwrap();
 
+    // Check rate limiting headers before consuming response
+    let headers = response.headers().clone();
+
     let response_json: Value = response.json().await.unwrap();
     assert_success_response(&response_json);
 
@@ -549,7 +568,6 @@ async fn test_response_with_custom_config() {
     assert_field_equals(usage, "total_tokens", &json!(75));
 
     // Check rate limiting headers
-    let headers = response.headers();
     assert_eq!(
         headers.get("x-ratelimit-remaining-requests").unwrap(),
         "1000"
@@ -586,7 +604,7 @@ fn test_response_validation_edge_cases() {
     let minimal_response = json!({
         "id": "test",
         "object": "chat.completion",
-        "created": 1677652288,
+        "created": 1_677_652_288,
         "model": "gpt-4",
         "choices": [{
             "index": 0,
@@ -599,8 +617,8 @@ fn test_response_validation_edge_cases() {
         // Note: usage is optional
     });
 
-    let response: CreateChatCompletionResponse = serde_json::from_value(minimal_response)
-        .expect("Should parse minimal response");
+    let response: CreateChatCompletionResponse =
+        serde_json::from_value(minimal_response).expect("Should parse minimal response");
 
     assert_valid_chat_response(&response);
 
@@ -608,7 +626,7 @@ fn test_response_validation_edge_cases() {
     let multi_choice_response = json!({
         "id": "test",
         "object": "chat.completion",
-        "created": 1677652288,
+        "created": 1_677_652_288,
         "model": "gpt-4",
         "choices": [
             {
@@ -635,8 +653,8 @@ fn test_response_validation_edge_cases() {
         }
     });
 
-    let response: CreateChatCompletionResponse = serde_json::from_value(multi_choice_response)
-        .expect("Should parse multi-choice response");
+    let response: CreateChatCompletionResponse =
+        serde_json::from_value(multi_choice_response).expect("Should parse multi-choice response");
 
     assert_valid_chat_response(&response);
     assert_eq!(response.choices.len(), 2);
