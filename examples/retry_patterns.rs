@@ -1,5 +1,5 @@
 #![allow(clippy::uninlined_format_args)]
-//! Resilience and retry strategies for OpenAI API calls.
+//! Resilience and retry strategies for `OpenAI` API calls.
 //!
 //! This example demonstrates:
 //! - Exponential backoff
@@ -136,12 +136,8 @@ async fn exponential_backoff(client: &Client) -> Result<()> {
 }
 
 async fn retry_with_jitter(client: &Client) -> Result<()> {
-    use rand::Rng;
-
     const MAX_RETRIES: u32 = 5;
     const BASE_DELAY_MS: u64 = 100;
-
-    let mut rng = rand::thread_rng();
 
     for attempt in 1..=MAX_RETRIES {
         match client
@@ -157,9 +153,9 @@ async fn retry_with_jitter(client: &Client) -> Result<()> {
                 return Ok(());
             }
             Err(e) if attempt < MAX_RETRIES => {
-                // Calculate delay with jitter
+                // Calculate delay with jitter using random() instead of thread_rng for Send compatibility
                 let base = BASE_DELAY_MS * 2_u64.pow(attempt - 1);
-                let jitter = rng.gen_range(0..=base / 2);
+                let jitter = rand::random::<u64>() % (base / 2 + 1);
                 let delay = Duration::from_millis(base + jitter);
 
                 println!(
@@ -282,11 +278,12 @@ async fn timeout_management(client: &Client) {
             Ok(Ok(response)) => {
                 let elapsed = start.elapsed();
                 println!(
-                    "Success in {:?}. Adjusting timeout for next request.",
-                    elapsed
+                    "Success in {:?}. Next timeout would be {:?}.",
+                    elapsed,
+                    elapsed * 2
                 );
-                // Adjust timeout based on actual response time
-                adaptive_timeout = elapsed * 2; // Update timeout based on response time
+                // Adjust timeout based on actual response time for potential future requests
+                // adaptive_timeout = elapsed * 2; // Not used since we break out of the loop
                 if let Some(content) = response.content() {
                     println!("Response: {}", content);
                 } else {
@@ -400,6 +397,7 @@ async fn idempotency_example(_client: &Client) -> Result<()> {
         // In a real implementation, you'd pass the idempotency key in headers
         let mut headers = std::collections::HashMap::new();
         headers.insert("Idempotency-Key".to_string(), idempotency_key.clone());
+        println!("  Would send {} headers", headers.len());
 
         let config = Config::builder()
             .api_key(std::env::var("OPENAI_API_KEY").unwrap_or_default())
@@ -481,32 +479,31 @@ impl CircuitBreaker {
     {
         // Check if circuit should transition from Open to HalfOpen
         let mut state = self.state.write().await;
-        match *state {
-            CircuitState::Open => {
-                let last_failure = self.last_failure_time.load(Ordering::Relaxed);
-                let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs();
+        if matches!(*state, CircuitState::Open) {
+            let last_failure = self.last_failure_time.load(Ordering::Relaxed);
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
 
-                if now - last_failure > self.timeout.as_secs() {
-                    println!("  Circuit transitioning to HALF-OPEN");
-                    *state = CircuitState::HalfOpen;
-                } else {
-                    return Err(CircuitBreakerError::Open);
-                }
+            if now - last_failure > self.timeout.as_secs() {
+                println!("  Circuit transitioning to HALF-OPEN");
+                *state = CircuitState::HalfOpen;
+            } else {
+                return Err(CircuitBreakerError::Open);
             }
-            _ => {}
         }
         drop(state);
 
         // Execute the request
         match f().await {
             Ok(result) => {
-                let mut state = self.state.write().await;
-                if matches!(*state, CircuitState::HalfOpen) {
-                    println!("  Circuit transitioning to CLOSED");
-                    *state = CircuitState::Closed;
+                {
+                    let mut state = self.state.write().await;
+                    if matches!(*state, CircuitState::HalfOpen) {
+                        println!("  Circuit transitioning to CLOSED");
+                        *state = CircuitState::Closed;
+                    }
                 }
                 self.failure_count.store(0, Ordering::Relaxed);
                 Ok(result)
@@ -521,10 +518,12 @@ impl CircuitBreaker {
                     Ordering::Relaxed,
                 );
 
-                let mut state = self.state.write().await;
-                if count >= self.threshold {
-                    println!("  Circuit transitioning to OPEN (failures: {})", count);
-                    *state = CircuitState::Open;
+                {
+                    let mut state = self.state.write().await;
+                    if count >= self.threshold {
+                        println!("  Circuit transitioning to OPEN (failures: {})", count);
+                        *state = CircuitState::Open;
+                    }
                 }
 
                 Err(CircuitBreakerError::RequestFailed(e))
