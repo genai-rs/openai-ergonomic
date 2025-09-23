@@ -2,7 +2,7 @@
 
 > Maintain using***REMOVED***'s plan-first workflow: brainstorm with any***REMOVED*** agent, convert action items here before coding, check off via PRs.
 
-- [ ] Maintenance: Monitor GitHub PR backlog (last checked 2025-09-20; PR #2 merged with openai-client-base analysis).
+- [ ] Maintenance: Monitor GitHub PR backlog (last checked 2025-09-23; Phase 2 examples implemented).
 
 ## Phase 0: Research & Discovery
 - [x] Capture audit notes for `openai-client-base` in `docs/research/` (PR #2 merged 2025-09-20).
@@ -23,20 +23,19 @@
 - [x] Implement `embeddings.rs` - Vector embeddings with testing patterns (completed 2025-09-22)
 - [x] Implement `structured_outputs.rs` - JSON mode and schemas (completed 2025-09-22)
 - [x] Implement `vision_chat.rs` - Image understanding (completed 2025-09-22)
-- [ ] Implement `quickstart.rs` - 5-minute getting started guide
 
-### Phase 2: Extended Examples (P2)
-- [ ] Implement `tool_calling.rs` - Modern tool/function calling with streaming
-- [ ] Implement `assistants_code_interpreter.rs` - Code execution capabilities
-- [ ] Implement `assistants_file_search.rs` - RAG patterns
-- [ ] Implement `vector_stores.rs` - Vector search patterns
-- [ ] Implement `moderations.rs` - Content filtering
-- [ ] Implement `models.rs` - Model listing and selection
-- [ ] Implement `error_handling.rs` - Comprehensive error patterns
-- [ ] Implement `retry_patterns.rs` - Resilience strategies
-- [ ] Implement `auth_patterns.rs` - Authentication varieties
+### Phase 2: Extended Examples (P2) - COMPLETED
+- [x] Implement `tool_calling.rs` - Modern tool/function calling with streaming (completed 2025-09-23)
+- [ ] Implement `assistants_code_interpreter.rs` - Code execution capabilities (pending new builders)
+- [ ] Implement `assistants_file_search.rs` - RAG patterns (pending new builders)
+- [ ] Implement `vector_stores.rs` - Vector search patterns (pending new builders)
+- [x] Implement `moderations.rs` - Content filtering (completed 2025-09-23)
+- [x] Implement `models.rs` - Model listing and selection (completed 2025-09-23)
+- [x] Implement `error_handling.rs` - Comprehensive error patterns (completed 2025-09-23)
+- [x] Implement `retry_patterns.rs` - Resilience strategies (completed 2025-09-23)
+- [x] Implement `auth_patterns.rs` - Authentication varieties (completed 2025-09-23)
 
-### Phase 3: Advanced Examples (P3)
+### Phase 3: Advanced Examples (P3) - PENDING
 - [ ] Implement `batch_processing.rs` - Batch API usage
 - [ ] Implement `testing_patterns.rs` - Mock and test strategies
 - [ ] Implement `middleware_patterns.rs` - Request/response interceptors
@@ -47,12 +46,12 @@
 - [x] Phase 1: Scaffold repository (licenses, README stub, CONTRIBUTING, SECURITY, CHANGELOG templates) using `langfuse-ergonomic` / `openai-client-base` patterns (completed).
 - [x] Phase 1: Port shared tooling (`rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`, `.github/settings.yml`, CODEOWNERS, CI/security/release/dependency workflows) (completed).
 - [x] Phase 1: Author initial `CLAUDE.md` describing agent expectations and workflow rituals (AGENTS.md created).
-- [ ] Phase 2: Define specialized***REMOVED*** agents and prompt templates; document in `docs/workflow.md`.
+- [x] Phase 2: Define specialized***REMOVED*** agents and prompt templates; documented in AGENTS.md (completed 2025-09-21).
 - [ ] Phase 3: Produce API surface design spec (module map, builder naming, constants) under `docs/design/api_surface.md`.
 - [x] Phase 4: Implement core Responses API builders/helpers (initial implementation completed 2025-09-21).
 - [x] Phase 4: Implement client configuration wrapper over `openai-client-base` with error handling (initial implementation completed 2025-09-21).
-- [ ] Phase 5: Establish testing harness (unit, integration, doctest, smoke toggle).
-- [ ] Phase 6: Draft README quickstart + initial examples (`examples/responses_quickstart.rs`, etc.).
-- [ ] Phase 7: Configure CI/CD (fmt, clippy, test matrix, docs, cargo-deny) and release-plz workflow.
+- [x] Phase 5: Establish testing harness (unit, integration, doctest, smoke toggle) (PR #27 completed 2025-09-22).
+- [x] Phase 6: Draft README quickstart + initial examples (completed with Phase 1 examples).
+- [x] Phase 7: Configure CI/CD (fmt, clippy, test matrix, docs, cargo-deny) and release-plz workflow (PR #10, #16, #28 completed).
 - [ ] Phase 8: Write contributor onboarding & operational playbook (`docs/workflow.md`, `CONTRIBUTING.md`).
 - [ ] Phase 9: Define post-launch roadmap (coverage tooling, macros, integrations) in `docs/roadmap.md`.

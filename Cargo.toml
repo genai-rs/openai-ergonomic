@@ -35,6 +35,7 @@ mockito = "1.2"
 pretty_assertions = "1.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 regex = "1.5"
+rand = "0.8"
 
 [features]
 default = ["rustls-tls"]
