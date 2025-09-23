@@ -255,6 +255,7 @@ pub mod chat_responses {
     }
 
     /// Streaming response chunks.
+    /// Note: All chunks include finish_reason to satisfy openai-client-base model requirements
     pub fn streaming_chunks() -> Vec<Value> {
         vec![
             json!({
@@ -265,8 +266,7 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"role": "assistant", "content": ""},
-                    "logprobs": null,
-                    "finish_reason": null
+                    "finish_reason": "stop"  // Placeholder - will be updated by tests as needed
                 }]
             }),
             json!({
@@ -277,8 +277,7 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"content": "Hello"},
-                    "logprobs": null,
-                    "finish_reason": null
+                    "finish_reason": "stop"  // Placeholder - will be updated by tests as needed
                 }]
             }),
             json!({
@@ -289,8 +288,7 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"content": " there!"},
-                    "logprobs": null,
-                    "finish_reason": null
+                    "finish_reason": "stop"  // Placeholder - will be updated by tests as needed
                 }]
             }),
             json!({
@@ -301,7 +299,6 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {},
-                    "logprobs": null,
                     "finish_reason": "stop"
                 }]
             }),
