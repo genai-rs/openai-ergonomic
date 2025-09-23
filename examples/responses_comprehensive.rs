@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Comprehensive Responses API example demonstrating modern `OpenAI` usage patterns.
 //!
 //! This example showcases the Responses API, which is `OpenAI`'s recommended modern interface

@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 //! Modern tool/function calling example with streaming support.
 //!
 //! This example demonstrates:
@@ -115,7 +116,7 @@ async fn main() -> Result<()> {
 
     // Example 5: Streaming with tools (simplified)
     println!("\n5. Streaming with Tools (Simplified):");
-    streaming_with_tools(&client).await?;
+    streaming_with_tools(&client);
 
     // Example 6: Parallel tool calls (simplified)
     println!("\n6. Parallel Tool Calls (Simplified):");
@@ -240,7 +241,7 @@ async fn conversation_with_tools(client: &Client) -> Result<()> {
     Ok(())
 }
 
-async fn streaming_with_tools(_client: &Client) -> Result<()> {
+fn streaming_with_tools(_client: &Client) {
     println!("Streaming response with tools:");
 
     // Note: Streaming with tool calls is more complex and requires
@@ -249,8 +250,6 @@ async fn streaming_with_tools(_client: &Client) -> Result<()> {
 
     println!("This would demonstrate streaming tool calls if streaming API was available");
     println!("In streaming mode, tool calls would arrive as chunks that need to be assembled");
-
-    Ok(())
 }
 
 async fn parallel_tool_calls(client: &Client) -> Result<()> {
