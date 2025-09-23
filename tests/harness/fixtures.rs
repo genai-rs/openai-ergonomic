@@ -814,8 +814,14 @@ pub mod scenarios {
     pub fn error_scenarios() -> HashMap<String, Value> {
         let mut scenarios = HashMap::new();
 
-        scenarios.insert("rate_limit_exceeded".to_string(), error_responses::rate_limit());
-        scenarios.insert("invalid_api_key".to_string(), error_responses::authentication());
+        scenarios.insert(
+            "rate_limit_exceeded".to_string(),
+            error_responses::rate_limit(),
+        );
+        scenarios.insert(
+            "invalid_api_key".to_string(),
+            error_responses::authentication(),
+        );
         scenarios.insert(
             "invalid_request_error".to_string(),
             error_responses::invalid_request(),
