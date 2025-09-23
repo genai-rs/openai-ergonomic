@@ -1,0 +1,261 @@
+# Cargo-make configuration for test automation and coverage
+
+[config]
+default_to_workspace = false
+reduce_output = false
+
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+RUST_LOG = "debug"
+RUST_BACKTRACE = "1"
+
+# Default test task
+[tasks.test]
+description = "Run all tests with coverage"
+dependencies = ["test-unit", "test-integration", "coverage"]
+
+# Unit tests only
+[tasks.test-unit]
+description = "Run unit tests"
+command = "cargo"
+args = ["test", "--lib", "--bins", "--all-features"]
+
+# Integration tests (excluding smoke tests)
+[tasks.test-integration]
+description = "Run integration tests"
+command = "cargo"
+args = ["test", "--tests", "--all-features", "--", "--skip", "smoke"]
+
+# Doc tests
+[tasks.test-doc]
+description = "Run documentation tests"
+command = "cargo"
+args = ["test", "--doc", "--all-features"]
+
+# Smoke tests (requires API key)
+[tasks.test-smoke]
+description = "Run smoke tests (requires OPENAI_TEST_API_KEY)"
+command = "cargo"
+args = ["test", "--test", "smoke", "--ignored"]
+condition = { env_set = ["OPENAI_TEST_API_KEY"] }
+
+# Mock-based tests
+[tasks.test-mock]
+description = "Run mock-based tests"
+command = "cargo"
+args = ["test", "--features", "test-utils", "--", "mock"]
+
+# Builder tests
+[tasks.test-builders]
+description = "Run builder integration tests"
+command = "cargo"
+args = ["test", "--test", "builder_integration_tests", "--all-features"]
+
+# Response tests
+[tasks.test-responses]
+description = "Run response integration tests"
+command = "cargo"
+args = ["test", "--test", "response_integration_tests", "--all-features"]
+
+# Streaming tests
+[tasks.test-streaming]
+description = "Run streaming integration tests"
+command = "cargo"
+args = ["test", "--test", "streaming_integration_tests", "--all-features"]
+
+# Error handling tests
+[tasks.test-errors]
+description = "Run error handling tests"
+command = "cargo"
+args = ["test", "--test", "error_handling_tests", "--all-features"]
+
+# Coverage with tarpaulin
+[tasks.coverage]
+description = "Generate test coverage report"
+install_crate = "cargo-tarpaulin"
+command = "cargo"
+args = [
+    "tarpaulin",
+    "--verbose",
+    "--all-features",
+    "--workspace",
+    "--timeout", "120",
+    "--exclude-files", "tests/smoke/*",
+    "--exclude-files", "examples/*",
+    "--out", "Html",
+    "--out", "Xml"
+]
+
+# Coverage for unit tests only
+[tasks.coverage-unit]
+description = "Generate coverage report for unit tests only"
+install_crate = "cargo-tarpaulin"
+command = "cargo"
+args = [
+    "tarpaulin",
+    "--verbose",
+    "--lib",
+    "--bins",
+    "--all-features",
+    "--timeout", "60",
+    "--out", "Html"
+]
+
+# Coverage for integration tests
+[tasks.coverage-integration]
+description = "Generate coverage report for integration tests"
+install_crate = "cargo-tarpaulin"
+command = "cargo"
+args = [
+    "tarpaulin",
+    "--verbose",
+    "--tests",
+    "--all-features",
+    "--exclude-files", "tests/smoke/*",
+    "--timeout", "120",
+    "--out", "Html"
+]
+
+# Watch tests for development
+[tasks.test-watch]
+description = "Watch tests during development"
+install_crate = "cargo-watch"
+command = "cargo"
+args = ["watch", "-x", "test --all-features -- --skip smoke"]
+
+# Lint and format checks
+[tasks.lint]
+description = "Run linting checks"
+dependencies = ["format-check", "clippy-check"]
+
+[tasks.format-check]
+description = "Check code formatting"
+command = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.clippy-check]
+description = "Run clippy lints"
+command = "cargo"
+args = ["clippy", "--all-targets", "--all-features", "--", "-D", "warnings"]
+
+# Fix formatting and lints
+[tasks.fix]
+description = "Fix formatting and lints"
+dependencies = ["format", "clippy-fix"]
+
+[tasks.format]
+description = "Format code"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.clippy-fix]
+description = "Fix clippy issues"
+command = "cargo"
+args = ["clippy", "--fix", "--all-targets", "--all-features", "--allow-dirty"]
+
+# Documentation
+[tasks.docs]
+description = "Generate documentation"
+command = "cargo"
+args = ["doc", "--all-features", "--no-deps"]
+
+[tasks.docs-open]
+description = "Generate and open documentation"
+command = "cargo"
+args = ["doc", "--all-features", "--no-deps", "--open"]
+
+# Security audit
+[tasks.audit]
+description = "Run security audit"
+install_crate = "cargo-audit"
+command = "cargo"
+args = ["audit"]
+
+# Dependency updates
+[tasks.update]
+description = "Update dependencies"
+command = "cargo"
+args = ["update"]
+
+# Clean build artifacts
+[tasks.clean]
+description = "Clean build artifacts"
+command = "cargo"
+args = ["clean"]
+
+# Full CI-like check
+[tasks.ci]
+description = "Run full CI-like checks"
+dependencies = [
+    "clean",
+    "format-check",
+    "clippy-check",
+    "test-unit",
+    "test-integration",
+    "test-doc",
+    "docs",
+    "coverage"
+]
+
+# Quick development check
+[tasks.check]
+description = "Quick development check"
+dependencies = ["format-check", "clippy-check", "test-unit"]
+
+# Performance benchmarks
+[tasks.bench]
+description = "Run performance benchmarks"
+command = "cargo"
+args = ["bench", "--all-features"]
+condition = { files_exist = ["benches"] }
+
+# Test specific features
+[tasks.test-feature]
+description = "Test specific feature"
+command = "cargo"
+args = ["test", "--features", "${@}"]
+
+# Test without default features
+[tasks.test-no-default]
+description = "Test without default features"
+command = "cargo"
+args = ["test", "--no-default-features"]
+
+# Test with minimal features
+[tasks.test-minimal]
+description = "Test with minimal features"
+command = "cargo"
+args = ["test", "--no-default-features", "--features", "rustls-tls"]
+
+# Publish dry run
+[tasks.publish-check]
+description = "Check if package can be published"
+command = "cargo"
+args = ["publish", "--dry-run", "--allow-dirty"]
+
+# Generate release changelog
+[tasks.changelog]
+description = "Generate changelog"
+install_crate = "git-cliff"
+command = "git-cliff"
+args = ["--output", "CHANGELOG.md"]
+condition = { files_exist = ["cliff.toml"] }
+
+# Profile-specific tasks
+[tasks.dev]
+description = "Development profile tasks"
+dependencies = ["format", "test-unit", "test-integration"]
+
+[tasks.release]
+description = "Release profile checks"
+dependencies = ["ci", "publish-check"]
+
+# Environment-specific configurations
+[tasks.test.linux]
+env = { "RUST_TEST_THREADS" = "4" }
+
+[tasks.test.windows]
+env = { "RUST_TEST_THREADS" = "2" }
+
+[tasks.test.mac]
+env = { "RUST_TEST_THREADS" = "4" }
