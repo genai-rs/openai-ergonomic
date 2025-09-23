@@ -615,7 +615,13 @@ async fn test_concurrent_error_scenarios() {
         let mut mock_client = MockOpenAIClient::new().await;
         let rate_limit_mock = mock_client.mock_rate_limit_error().await;
 
-        let result = make_error_request(&client, &mock_client.base_url(), mock_client.api_key(), "rate_limit").await;
+        let result = make_error_request(
+            &client,
+            &mock_client.base_url(),
+            mock_client.api_key(),
+            "rate_limit",
+        )
+        .await;
         assert_eq!(result.unwrap(), 429);
         rate_limit_mock.assert_async().await;
     }
@@ -625,7 +631,13 @@ async fn test_concurrent_error_scenarios() {
         let mut mock_client = MockOpenAIClient::new().await;
         let auth_mock = mock_client.mock_auth_error().await;
 
-        let result = make_error_request(&client, &mock_client.base_url(), mock_client.api_key(), "auth").await;
+        let result = make_error_request(
+            &client,
+            &mock_client.base_url(),
+            mock_client.api_key(),
+            "auth",
+        )
+        .await;
         assert_eq!(result.unwrap(), 401);
         auth_mock.assert_async().await;
     }
@@ -635,7 +647,13 @@ async fn test_concurrent_error_scenarios() {
         let mut mock_client = MockOpenAIClient::new().await;
         let validation_mock = mock_client.mock_validation_error("messages").await;
 
-        let result = make_error_request(&client, &mock_client.base_url(), mock_client.api_key(), "validation").await;
+        let result = make_error_request(
+            &client,
+            &mock_client.base_url(),
+            mock_client.api_key(),
+            "validation",
+        )
+        .await;
         assert_eq!(result.unwrap(), 400);
         validation_mock.assert_async().await;
     }
