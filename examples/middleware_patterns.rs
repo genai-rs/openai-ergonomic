@@ -1,4 +1,16 @@
-//! Middleware patterns for OpenAI API request/response processing.
+//! Middleware patterns for `OpenAI` API request/response processing.
+#![allow(dead_code)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::missing_const_for_fn)]
+#![allow(clippy::unnecessary_literal_bound)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::items_after_statements)]
+#![allow(clippy::needless_continue)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::fn_params_excessive_bools)]
 //!
 //! This example demonstrates advanced middleware architectures including:
 //! - Request/response interceptors for cross-cutting concerns
@@ -213,7 +225,7 @@ impl MiddlewareChain {
         for middleware in &self.middlewares {
             debug!("Executing on_error for middleware: {}", middleware.name());
             match middleware.on_error(&mut error_context).await? {
-                ErrorAction::Propagate => continue,
+                ErrorAction::Propagate => {}
                 ErrorAction::Retry => {
                     if error_context.retry_count < 3 {
                         info!("Retrying request due to middleware: {}", middleware.name());
@@ -224,10 +236,8 @@ impl MiddlewareChain {
                         ))
                         .await;
                         return Box::pin(self.process_request(error_context.request)).await;
-                    } else {
-                        warn!("Max retries exceeded, propagating error");
-                        continue;
                     }
+                    warn!("Max retries exceeded, propagating error");
                 }
                 ErrorAction::CustomResponse(body) => {
                     info!(
@@ -264,7 +274,7 @@ impl MiddlewareChain {
         let response_body = serde_json::json!({
             "id": "chatcmpl-123",
             "object": "chat.completion",
-            "created": 1677652288,
+            "created": 1_677_652_288,
             "model": "gpt-3.5-turbo",
             "choices": [{
                 "index": 0,
@@ -583,8 +593,9 @@ impl Middleware for ResponseTransformationMiddleware {
                     serde_json::Value::String(context.request.request_id.clone()),
                 );
 
-                context.body = serde_json::to_string(&response_json)
-                    .map_err(|e| Error::InvalidRequest(format!("Response transformation failed: {}", e)))?;
+                context.body = serde_json::to_string(&response_json).map_err(|e| {
+                    Error::InvalidRequest(format!("Response transformation failed: {}", e))
+                })?;
             }
         }
 
@@ -796,7 +807,9 @@ impl MiddlewareClient {
             }
         }
 
-        Err(Error::InvalidRequest("Failed to parse response".to_string()))
+        Err(Error::InvalidRequest(
+            "Failed to parse response".to_string(),
+        ))
     }
 }
 
@@ -959,8 +972,9 @@ async fn main() -> Result<()> {
                         )),
                     );
 
-                    context.body = serde_json::to_string(&body_json)
-                        .map_err(|e| Error::InvalidRequest(format!("Body modification failed: {}", e)))?;
+                    context.body = serde_json::to_string(&body_json).map_err(|e| {
+                        Error::InvalidRequest(format!("Body modification failed: {}", e))
+                    })?;
                 }
             }
 

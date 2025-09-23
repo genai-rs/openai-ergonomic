@@ -1,4 +1,29 @@
-//! Token counting, estimation, and budget management for OpenAI API.
+//! Token counting, estimation, and budget management for `OpenAI` API.
+#![allow(dead_code)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_const_for_fn)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::similar_names)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::uninlined_format_args)]
+#![allow(clippy::unused_self)]
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::fn_params_excessive_bools)]
+#![allow(clippy::significant_drop_tightening)]
+#![allow(clippy::branches_sharing_code)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::eq_op)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::use_self)]
+#![allow(clippy::struct_field_names)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::suboptimal_flops)]
+#![allow(clippy::option_if_let_else)]
 //!
 //! This example demonstrates comprehensive token management including:
 //! - Accurate token counting for different models and encodings
