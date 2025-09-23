@@ -814,10 +814,10 @@ pub mod scenarios {
     pub fn error_scenarios() -> HashMap<String, Value> {
         let mut scenarios = HashMap::new();
 
-        scenarios.insert("rate_limit".to_string(), error_responses::rate_limit());
-        scenarios.insert("auth_error".to_string(), error_responses::authentication());
+        scenarios.insert("rate_limit_exceeded".to_string(), error_responses::rate_limit());
+        scenarios.insert("invalid_api_key".to_string(), error_responses::authentication());
         scenarios.insert(
-            "invalid_request".to_string(),
+            "invalid_request_error".to_string(),
             error_responses::invalid_request(),
         );
         scenarios.insert("server_error".to_string(), error_responses::server_error());
