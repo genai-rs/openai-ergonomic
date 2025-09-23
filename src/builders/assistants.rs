@@ -1,6 +1,6 @@
 //! Assistants API builders.
 //!
-//! This module provides ergonomic builders for OpenAI Assistants API operations,
+//! This module provides ergonomic builders for `OpenAI` Assistants API operations,
 //! including creating assistants, managing threads, messages, and runs.
 //!
 //! Note: This is a simplified implementation focusing on the most commonly used features.
@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 /// Builder for creating a new assistant.
 ///
-/// This builder provides a fluent interface for creating OpenAI assistants
+/// This builder provides a fluent interface for creating `OpenAI` assistants
 /// with commonly used parameters.
 #[derive(Debug, Clone)]
 pub struct AssistantBuilder {

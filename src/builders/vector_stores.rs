@@ -1,6 +1,6 @@
 //! Vector Stores API builders.
 //!
-//! This module provides ergonomic builders for OpenAI Vector Stores API operations,
+//! This module provides ergonomic builders for `OpenAI` Vector Stores API operations,
 //! including creating and managing vector stores for RAG (Retrieval-Augmented Generation) use cases.
 //!
 //! Vector stores are used to store and search through documents that can be used

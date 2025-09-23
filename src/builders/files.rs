@@ -1,6 +1,6 @@
 //! Files API builders.
 //!
-//! This module provides ergonomic builders for OpenAI Files API operations,
+//! This module provides ergonomic builders for `OpenAI` Files API operations,
 //! including uploading files, managing file metadata, and retrieving file content.
 //!
 //! Files are used for various purposes including:
@@ -12,7 +12,7 @@ use std::path::Path;
 
 /// Builder for file upload operations.
 ///
-/// This builder provides a fluent interface for uploading files to OpenAI
+/// This builder provides a fluent interface for uploading files to `OpenAI`
 /// with specified purposes and metadata.
 #[derive(Debug, Clone)]
 pub struct FileUploadBuilder {
@@ -83,7 +83,6 @@ impl FileUploadBuilder {
     }
 
     /// Create a file upload builder from JSON content.
-    #[must_use]
     pub fn from_json(
         filename: impl Into<String>,
         purpose: FilePurpose,
@@ -310,7 +309,7 @@ impl std::fmt::Display for FilePurpose {
             FilePurpose::Assistants => write!(f, "assistants"),
             FilePurpose::Vision => write!(f, "vision"),
             FilePurpose::Batch => write!(f, "batch"),
-            FilePurpose::Custom(purpose) => write!(f, "{}", purpose),
+            FilePurpose::Custom(purpose) => write!(f, "{purpose}"),
         }
     }
 }

@@ -1,6 +1,6 @@
 //! Fine-tuning API builders.
 //!
-//! This module provides ergonomic builders for OpenAI Fine-tuning API operations,
+//! This module provides ergonomic builders for `OpenAI` Fine-tuning API operations,
 //! including creating fine-tuning jobs, monitoring progress, and managing models.
 //!
 //! Fine-tuning allows you to customize models on your specific training data
@@ -23,7 +23,7 @@ pub struct FineTuningJobBuilder {
 }
 
 /// Hyperparameters for fine-tuning jobs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FineTuningHyperparameters {
     /// Number of epochs to train for
     pub n_epochs: Option<i32>,
@@ -146,16 +146,6 @@ impl FineTuningJobBuilder {
     #[must_use]
     pub fn integrations(&self) -> &[FineTuningIntegration] {
         &self.integrations
-    }
-}
-
-impl Default for FineTuningHyperparameters {
-    fn default() -> Self {
-        Self {
-            n_epochs: None,
-            batch_size: None,
-            learning_rate_multiplier: None,
-        }
     }
 }
 
