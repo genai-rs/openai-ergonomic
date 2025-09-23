@@ -3,16 +3,24 @@
 //! This module tests various error scenarios including validation errors,
 //! API errors, network errors, and builder errors.
 
+#![allow(
+    dead_code,
+    unused_imports,
+    clippy::significant_drop_tightening,
+    clippy::cast_possible_truncation,
+    clippy::uninlined_format_args,
+    clippy::manual_let_else
+)]
+
 mod harness;
 
 use harness::{
-    assert_error_response, assert_error_type, assert_error_contains, assert_builder_fails_with,
-    fixtures, MockOpenAIClient, config,
+    assert_builder_fails_with, assert_error_response, assert_error_type, fixtures, MockOpenAIClient,
 };
 use openai_ergonomic::{
     builders::{
         chat::{tool_function, ChatCompletionBuilder},
-        responses::{responses_simple, responses_system_user, ResponsesBuilder},
+        responses::{responses_simple, responses_system_user},
         Builder,
     },
     errors::Error,
@@ -58,14 +66,10 @@ fn test_parameter_boundary_validation_errors() {
     assert_builder_fails_with(|| invalid_temp_high.build(), "temperature");
 
     // Top-p out of range
-    let invalid_top_p_low = ChatCompletionBuilder::new("gpt-4")
-        .user("test")
-        .top_p(-0.1);
+    let invalid_top_p_low = ChatCompletionBuilder::new("gpt-4").user("test").top_p(-0.1);
     assert_builder_fails_with(|| invalid_top_p_low.build(), "top_p");
 
-    let invalid_top_p_high = ChatCompletionBuilder::new("gpt-4")
-        .user("test")
-        .top_p(1.1);
+    let invalid_top_p_high = ChatCompletionBuilder::new("gpt-4").user("test").top_p(1.1);
     assert_builder_fails_with(|| invalid_top_p_high.build(), "top_p");
 
     // Frequency penalty out of range
@@ -97,9 +101,7 @@ fn test_parameter_boundary_validation_errors() {
     assert_builder_fails_with(|| invalid_max_tokens.build(), "max_tokens");
 
     // Invalid n (zero)
-    let invalid_n = ChatCompletionBuilder::new("gpt-4")
-        .user("test")
-        .n(0);
+    let invalid_n = ChatCompletionBuilder::new("gpt-4").user("test").n(0);
     assert_builder_fails_with(|| invalid_n.build(), "n");
 }
 
@@ -355,7 +357,9 @@ fn test_error_response_fixtures() {
 fn test_error_message_formatting() {
     // Test various Error types
     let invalid_request = Error::InvalidRequest("Test validation error".to_string());
-    assert!(invalid_request.to_string().contains("Test validation error"));
+    assert!(invalid_request
+        .to_string()
+        .contains("Test validation error"));
 
     let auth_error = Error::Authentication("Invalid API key".to_string());
     assert!(auth_error.to_string().contains("Invalid API key"));
@@ -371,7 +375,9 @@ fn test_error_message_formatting() {
     assert!(config_error.to_string().contains("Invalid configuration"));
 
     let builder_error = Error::Builder("Builder validation failed".to_string());
-    assert!(builder_error.to_string().contains("Builder validation failed"));
+    assert!(builder_error
+        .to_string()
+        .contains("Builder validation failed"));
 
     let internal_error = Error::Internal("Internal error".to_string());
     assert!(internal_error.to_string().contains("Internal error"));
@@ -389,9 +395,7 @@ fn test_error_propagation() {
     assert_error_type(result, "invalid");
 
     // Test multiple validation errors
-    let result = ChatCompletionBuilder::new("")
-        .temperature(-1.0)
-        .build();
+    let result = ChatCompletionBuilder::new("").temperature(-1.0).build();
     assert!(result.is_err());
     let error = result.unwrap_err();
     let error_str = error.to_string();
@@ -405,9 +409,13 @@ async fn test_malformed_response_handling() {
     let mut mock_client = MockOpenAIClient::new().await;
 
     // Mock a malformed JSON response
-    let malformed_mock = mock_client.server
+    let malformed_mock = mock_client
+        .server()
         .mock("POST", "/v1/chat/completions")
-        .match_header("authorization", format!("Bearer {}", mock_client.api_key()).as_str())
+        .match_header(
+            "authorization",
+            format!("Bearer {}", mock_client.api_key()).as_str(),
+        )
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body("{ invalid json")
@@ -571,11 +579,7 @@ fn test_error_handling_performance() {
 
     // Test that validation errors are detected quickly
     let _result = assert_performance(
-        || {
-            ChatCompletionBuilder::new("")
-                .user("test")
-                .build()
-        },
+        || ChatCompletionBuilder::new("").user("test").build(),
         Duration::from_millis(1),
         "validation_error_detection",
     );
@@ -595,7 +599,7 @@ fn test_error_handling_edge_cases() {
     assert!(error.to_string().contains(special_chars));
 
     // Test with empty error message
-    let error = Error::Config("".to_string());
+    let error = Error::Config(String::new());
     assert!(!error.to_string().is_empty()); // Should still have error type info
 }
 

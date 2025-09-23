@@ -35,7 +35,7 @@ impl Default for ResponseConfig {
             default_completion_tokens: 20,
             default_prompt_tokens: 10,
             rate_limit_remaining: Some(4999),
-            rate_limit_reset: Some(1677652288),
+            rate_limit_reset: Some(1_677_652_288),
             custom_headers: HashMap::new(),
         }
     }
@@ -63,10 +63,7 @@ impl MockOpenAIClient {
     }
 
     /// Create a mock client with full configuration.
-    pub async fn with_config(
-        api_key: impl Into<String>,
-        config: ResponseConfig,
-    ) -> Self {
+    pub async fn with_config(api_key: impl Into<String>, config: ResponseConfig) -> Self {
         Self {
             server: mockito::Server::new_async().await,
             api_key: api_key.into(),
@@ -83,6 +80,11 @@ impl MockOpenAIClient {
     /// Get the API key being used.
     pub fn api_key(&self) -> &str {
         &self.api_key
+    }
+
+    /// Get access to the underlying mock server for custom mocks.
+    pub fn server(&mut self) -> &mut ServerGuard {
+        &mut self.server
     }
 
     /// Update response configuration.
@@ -107,11 +109,9 @@ impl MockOpenAIClient {
     }
 
     /// Mock a chat completions response with custom content.
-    pub async fn mock_chat_completions_success_with_content(
-        &mut self,
-        content: &str,
-    ) -> Mock {
-        let mut mock = self.server
+    pub async fn mock_chat_completions_success_with_content(&mut self, content: &str) -> Mock {
+        let mut mock = self
+            .server
             .mock("POST", "/v1/chat/completions")
             .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
             .with_status(200)
@@ -159,22 +159,13 @@ impl MockOpenAIClient {
     /// Mock a streaming chat completions response.
     pub async fn mock_chat_completions_streaming(&mut self) -> Mock {
         self.mock_chat_completions_streaming_with_chunks(vec![
-            "Hello",
-            " there!",
-            " How",
-            " can",
-            " I",
-            " help",
-            " you",
-            " today?"
-        ]).await
+            "Hello", " there!", " How", " can", " I", " help", " you", " today?",
+        ])
+        .await
     }
 
     /// Mock streaming response with custom chunks.
-    pub async fn mock_chat_completions_streaming_with_chunks(
-        &mut self,
-        chunks: Vec<&str>,
-    ) -> Mock {
+    pub async fn mock_chat_completions_streaming_with_chunks(&mut self, chunks: Vec<&str>) -> Mock {
         let mut streaming_response = String::new();
 
         for (i, chunk) in chunks.iter().enumerate() {
@@ -188,7 +179,7 @@ impl MockOpenAIClient {
                     "delta": {
                         "content": chunk
                     },
-                    "finish_reason": if i == chunks.len() - 1 { "stop" } else { null }
+                    "finish_reason": if i == chunks.len() - 1 { serde_json::Value::String("stop".to_string()) } else { serde_json::Value::Null }
                 }]
             });
 
@@ -264,7 +255,8 @@ impl MockOpenAIClient {
             "Rate limit exceeded. Please try again later.",
             Some("rate_limit_exceeded"),
             None,
-        ).await
+        )
+        .await
     }
 
     /// Mock authentication error.
@@ -275,7 +267,8 @@ impl MockOpenAIClient {
             "Invalid API key provided",
             Some("invalid_api_key"),
             None,
-        ).await
+        )
+        .await
     }
 
     /// Mock validation error.
@@ -286,7 +279,8 @@ impl MockOpenAIClient {
             &format!("Invalid parameter: {param}"),
             Some("invalid_request_error"),
             Some(param),
-        ).await
+        )
+        .await
     }
 
     /// Mock embeddings endpoint.
@@ -328,7 +322,8 @@ impl MockOpenAIClient {
             ("gpt-4", "openai"),
             ("gpt-3.5-turbo", "openai"),
             ("text-embedding-ada-002", "openai"),
-        ]).await
+        ])
+        .await
     }
 
     /// Mock models list with custom models.
@@ -370,7 +365,7 @@ impl MockOpenAIClient {
         });
 
         self.server
-            .mock("GET", &format!("/v1/models/{model_id}"))
+            .mock("GET", format!("/v1/models/{model_id}").as_str())
             .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
             .with_status(200)
             .with_header("content-type", "application/json")
@@ -380,7 +375,11 @@ impl MockOpenAIClient {
     }
 
     /// Mock function calling response.
-    pub async fn mock_function_calling_response(&mut self, function_name: &str, arguments: Value) -> Mock {
+    pub async fn mock_function_calling_response(
+        &mut self,
+        function_name: &str,
+        arguments: Value,
+    ) -> Mock {
         let response_body = json!({
             "id": "chatcmpl-test123",
             "object": "chat.completion",
@@ -563,7 +562,10 @@ mod tests {
         assert_eq!(client.response_config.default_model, "gpt-3.5-turbo");
         assert_eq!(client.response_config.default_prompt_tokens, 15);
         assert_eq!(client.response_config.default_completion_tokens, 25);
-        assert_eq!(client.response_config.custom_headers.get("x-test"), Some(&"value".to_string()));
+        assert_eq!(
+            client.response_config.custom_headers.get("x-test"),
+            Some(&"value".to_string())
+        );
     }
 
     #[tokio::test]
