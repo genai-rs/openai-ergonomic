@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
 
     // Example 1: List available models
     println!("1. Available Models:");
-    list_models(&client)?;
+    list_models(&client);
 
     // Example 2: Model capabilities
     println!("\n2. Model Capabilities:");
@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn list_models(_client: &Client) -> Result<()> {
+fn list_models(_client: &Client) {
     // In a real implementation, you'd call the models API endpoint
     // For now, we'll use a hardcoded list of current models
 
@@ -101,8 +101,6 @@ fn list_models(_client: &Client) -> Result<()> {
             );
         }
     }
-
-    Ok(())
 }
 
 fn model_capabilities() {
@@ -160,7 +158,7 @@ async fn model_selection_by_task(client: &Client) -> Result<()> {
         // Demo the model
         let builder = client
             .chat()
-            .user(&format!("Say 'Hello from {}'", model))
+            .user(format!("Say 'Hello from {}'", model))
             .max_completion_tokens(10);
         let response = client.send_chat(builder).await?;
 
@@ -185,8 +183,9 @@ async fn cost_optimization(client: &Client) -> Result<()> {
 
     for (name, info) in &models {
         if !info.deprecated {
-            let input_cost = (estimated_input_tokens as f64 / 1000.0) * info.cost_per_1k_input;
-            let output_cost = (estimated_output_tokens as f64 / 1000.0) * info.cost_per_1k_output;
+            let input_cost = (f64::from(estimated_input_tokens) / 1000.0) * info.cost_per_1k_input;
+            let output_cost =
+                (f64::from(estimated_output_tokens) / 1000.0) * info.cost_per_1k_output;
             let total_cost = input_cost + output_cost;
 
             costs.push((name.clone(), total_cost));
@@ -232,7 +231,7 @@ async fn performance_testing(client: &Client) -> Result<()> {
         let elapsed = start.elapsed();
 
         if let Some(usage) = response.usage() {
-            let total_tokens = usage.total_tokens as f64;
+            let total_tokens = f64::from(usage.total_tokens);
             let tokens_per_sec = total_tokens / elapsed.as_secs_f64();
 
             println!("{:<20} {:>10.2?} {:>15.1}", model, elapsed, tokens_per_sec);
@@ -301,16 +300,13 @@ async fn dynamic_model_selection(client: &Client) -> Result<()> {
         Flexible,
     }
 
-    fn select_model(ctx: &RequestContext) -> &'static str {
+    const fn select_model(ctx: &RequestContext) -> &'static str {
         match (&ctx.urgency, &ctx.complexity, &ctx.budget) {
-            // High urgency + simple = fast cheap model
-            (Urgency::High, Complexity::Simple, _) => "gpt-3.5-turbo",
+            // High urgency + simple = fast cheap model, or tight budget = cheapest
+            (Urgency::High, Complexity::Simple, _) | (_, _, Budget::Tight) => "gpt-3.5-turbo",
 
             // Complex + flexible budget = best model
             (_, Complexity::Complex, Budget::Flexible) => "gpt-4o",
-
-            // Tight budget = cheapest
-            (_, _, Budget::Tight) => "gpt-3.5-turbo",
 
             // Vision required
             _ if ctx.needs_vision => "gpt-4o",
@@ -321,7 +317,7 @@ async fn dynamic_model_selection(client: &Client) -> Result<()> {
     }
 
     // Example contexts
-    let contexts = vec![
+    let contexts = [
         RequestContext {
             urgency: Urgency::High,
             complexity: Complexity::Simple,
@@ -343,13 +339,13 @@ async fn dynamic_model_selection(client: &Client) -> Result<()> {
     ];
 
     for (i, ctx) in contexts.iter().enumerate() {
-        let model = select_model(&ctx);
+        let model = select_model(ctx);
         println!("Context {}: {:?}", i + 1, ctx);
         println!("  Selected model: {}", model);
 
         let builder = client
             .chat()
-            .user(&format!("Hello from dynamically selected {}", model))
+            .user(format!("Hello from dynamically selected {}", model))
             .max_completion_tokens(20);
         let response = client.send_chat(builder).await?;
 
