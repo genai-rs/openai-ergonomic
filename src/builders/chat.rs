@@ -293,6 +293,7 @@ impl ChatCompletionBuilder {
 }
 
 impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
+    #[allow(clippy::too_many_lines)]
     fn build(self) -> crate::Result<CreateChatCompletionRequest> {
         // Validate model
         if self.model.trim().is_empty() {
@@ -312,11 +313,13 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
         for (i, message) in self.messages.iter().enumerate() {
             match message {
                 ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
-                    if let ChatCompletionRequestSystemMessageContent::TextContent(content) = msg.content.as_ref() {
+                    if let ChatCompletionRequestSystemMessageContent::TextContent(content) =
+                        msg.content.as_ref()
+                    {
                         if content.trim().is_empty() {
-                            return Err(crate::Error::InvalidRequest(
-                                format!("System message at index {} cannot have empty content", i)
-                            ));
+                            return Err(crate::Error::InvalidRequest(format!(
+                                "System message at index {i} cannot have empty content"
+                            )));
                         }
                     }
                 }
@@ -324,34 +327,40 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
                     match msg.content.as_ref() {
                         ChatCompletionRequestUserMessageContent::TextContent(content) => {
                             if content.trim().is_empty() {
-                                return Err(crate::Error::InvalidRequest(
-                                    format!("User message at index {} cannot have empty content", i)
-                                ));
+                                return Err(crate::Error::InvalidRequest(format!(
+                                    "User message at index {i} cannot have empty content"
+                                )));
                             }
                         }
                         ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
                             if parts.is_empty() {
-                                return Err(crate::Error::InvalidRequest(
-                                    format!("User message at index {} cannot have empty content parts", i)
-                                ));
+                                return Err(crate::Error::InvalidRequest(format!(
+                                    "User message at index {i} cannot have empty content parts"
+                                )));
                             }
                         }
                     }
                 }
                 ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(msg) => {
                     // Assistant messages can have content or tool calls, but not both empty
-                    let has_content = msg.content.as_ref().and_then(|opt| opt.as_ref()).map_or(false, |c| {
-                        match c.as_ref() {
-                            ChatCompletionRequestAssistantMessageContent::TextContent(text) => !text.trim().is_empty(),
-                            _ => true, // Other content types are considered valid
-                        }
-                    });
-                    let has_tool_calls = msg.tool_calls.as_ref().map_or(false, |tc| !tc.is_empty());
+                    let has_content = msg
+                        .content
+                        .as_ref()
+                        .and_then(|opt| opt.as_ref())
+                        .is_some_and(|c| {
+                            match c.as_ref() {
+                                ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
+                                    !text.trim().is_empty()
+                                }
+                                _ => true, // Other content types are considered valid
+                            }
+                        });
+                    let has_tool_calls = msg.tool_calls.as_ref().is_some_and(|tc| !tc.is_empty());
 
                     if !has_content && !has_tool_calls {
-                        return Err(crate::Error::InvalidRequest(
-                            format!("Assistant message at index {} must have either content or tool calls", i)
-                        ));
+                        return Err(crate::Error::InvalidRequest(format!(
+                            "Assistant message at index {i} must have either content or tool calls"
+                        )));
                     }
                 }
                 _ => {
@@ -431,14 +440,19 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
                 // Validate function name
                 if function.name.trim().is_empty() {
                     return Err(crate::Error::InvalidRequest(format!(
-                        "Tool {} function name cannot be empty", i
+                        "Tool {i} function name cannot be empty"
                     )));
                 }
 
                 // Validate function name contains only valid characters
-                if !function.name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                if !function
+                    .name
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_')
+                {
                     return Err(crate::Error::InvalidRequest(format!(
-                        "Tool {} function name '{}' contains invalid characters", i, function.name
+                        "Tool {} function name '{}' contains invalid characters",
+                        i, function.name
                     )));
                 }
 
@@ -446,7 +460,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
                 if let Some(ref description) = &function.description {
                     if description.trim().is_empty() {
                         return Err(crate::Error::InvalidRequest(format!(
-                            "Tool {} function description cannot be empty", i
+                            "Tool {i} function description cannot be empty"
                         )));
                     }
                 }
