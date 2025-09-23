@@ -89,8 +89,8 @@ fn test_function_calling_response_parsing() {
     assert_eq!(function.get("name").unwrap(), "get_weather");
 
     let arguments_str = function.get("arguments").unwrap().as_str().unwrap();
-    let parsed_args: serde_json::Value = serde_json::from_str(arguments_str)
-        .expect("Arguments should be valid JSON");
+    let parsed_args: serde_json::Value =
+        serde_json::from_str(arguments_str).expect("Arguments should be valid JSON");
 
     assert!(parsed_args.get("location").is_some());
     assert!(parsed_args.get("units").is_some());
@@ -614,7 +614,6 @@ fn test_response_parsing_performance() {
         "response_parsing",
     );
 }
-
 
 /// Test response validation edge cases
 #[test]
