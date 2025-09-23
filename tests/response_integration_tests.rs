@@ -610,8 +610,10 @@ fn test_response_validation_edge_cases() {
             "index": 0,
             "message": {
                 "role": "assistant",
-                "content": "Hello"
+                "content": "Hello",
+                "refusal": null
             },
+            "logprobs": null,
             "finish_reason": "stop"
         }]
         // Note: usage is optional
@@ -633,16 +635,20 @@ fn test_response_validation_edge_cases() {
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": "First response"
+                    "content": "First response",
+                    "refusal": null
                 },
+                "logprobs": null,
                 "finish_reason": "stop"
             },
             {
                 "index": 1,
                 "message": {
                     "role": "assistant",
-                    "content": "Second response"
+                    "content": "Second response",
+                    "refusal": null
                 },
+                "logprobs": null,
                 "finish_reason": "stop"
             }
         ],

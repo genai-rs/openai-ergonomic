@@ -207,8 +207,10 @@ pub mod chat_responses {
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": "Hello! How can I help you today?"
+                    "content": "Hello! How can I help you today?",
+                    "refusal": null
                 },
+                "logprobs": null,
                 "finish_reason": "stop"
             }],
             "usage": {
@@ -231,6 +233,7 @@ pub mod chat_responses {
                 "message": {
                     "role": "assistant",
                     "content": null,
+                    "refusal": null,
                     "tool_calls": [{
                         "id": "call_test123",
                         "type": "function",
@@ -240,6 +243,7 @@ pub mod chat_responses {
                         }
                     }]
                 },
+                "logprobs": null,
                 "finish_reason": "tool_calls"
             }],
             "usage": {
@@ -261,7 +265,7 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"role": "assistant", "content": ""},
-                    "finish_reason": null
+                    "logprobs": null
                 }]
             }),
             json!({
@@ -272,7 +276,7 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"content": "Hello"},
-                    "finish_reason": null
+                    "logprobs": null
                 }]
             }),
             json!({
@@ -283,7 +287,7 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {"content": " there!"},
-                    "finish_reason": null
+                    "logprobs": null
                 }]
             }),
             json!({
@@ -294,6 +298,7 @@ pub mod chat_responses {
                 "choices": [{
                     "index": 0,
                     "delta": {},
+                    "logprobs": null,
                     "finish_reason": "stop"
                 }]
             }),
@@ -311,8 +316,10 @@ pub mod chat_responses {
                 "index": 0,
                 "message": {
                     "role": "assistant",
-                    "content": "{\"name\": \"John Doe\", \"age\": 30, \"city\": \"New York\"}"
+                    "content": "{\"name\": \"John Doe\", \"age\": 30, \"city\": \"New York\"}",
+                    "refusal": null
                 },
+                "logprobs": null,
                 "finish_reason": "stop"
             }],
             "usage": {
