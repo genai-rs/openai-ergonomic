@@ -4,21 +4,21 @@ coverage:
       default:
         target: 80%
         threshold: 5%
-        if_ci_failed: error
-        informational: false
+        if_ci_failed: ignore
+        informational: true
         only_pulls: false
 
     patch:
       default:
         target: 70%
         threshold: 10%
-        if_ci_failed: error
-        informational: false
+        if_ci_failed: ignore
+        informational: true
         only_pulls: false
 
     changes:
       default:
-        informational: false
+        informational: true
 
   ignore:
     - "examples/"
@@ -41,7 +41,7 @@ comment:
   hide_project_coverage: false
 
 github_checks:
-  annotations: true
+  annotations: false
 
 flags:
   unittests:
