@@ -26,7 +26,7 @@
 ## Phase 2 – Claude & Agent Workflow Enablement
 - ✅ **COMPLETE**: Define specialized Claude agents (Scaffolder, API Designer, Docs, QA, Release, Support, Reviewer/Driver, Agile Coach) with scoped prompts and responsibilities in AGENTS.md.
 - ✅ **COMPLETE**: Document plan-first rituals: brainstorm/plan in Claude.ai, translate to Claude Code TODOs before edits.
-- ⚠️ **PARTIAL**: Record workflow expectations in `docs/workflow.md` (documented in AGENTS.md instead).
+- ✅ **COMPLETE**: Record workflow expectations in `docs/workflow.md` (expanded with publish checklist references).
 
 ## Phase 3 – API Surface Design
 - Establish module map aligned with OpenAI endpoints (responses, chat, assistants, images, embeddings, audio, files, fine_tuning, batch, vector_stores, moderations, tools).
@@ -48,17 +48,17 @@
 - ✅ **COMPLETE**: Introduce optional smoke tests gated by env vars for real API hits (disabled in CI by default).
 
 ## Phase 6 – Examples & Documentation
-- ⚠️ **PARTIAL**: Populate `examples/` - Phase 1 complete (11 core examples), Phase 2-3 pending.
+- ✅ **COMPLETE**: Populate `examples/` - Phase 1-3 complete (26 curated examples maintained).
 - ✅ **COMPLETE**: Expand README with messaging, install instructions, quickstart, feature matrix.
 - ✅ **COMPLETE**: Add module-level documentation for builders/helpers; ensure docs.rs builds cleanly.
-- ⚠️ **PARTIAL**: Create deeper guides in `docs/` (some research docs complete, guides pending).
+- ⚠️ **PARTIAL**: Create deeper guides in `docs/` (deep dives for responses-first workflows, tool orchestration, vector stores still pending).
 
 ## Phase 7 – CI/CD & Release Engineering
 - ✅ **COMPLETE**: Configure GitHub Actions (fmt, clippy, test matrix, cargo-deny, doc build, example compilation) (PRs #10, #16, #28).
 - ✅ **COMPLETE**: Set up release-plz for versioning, changelog generation, crates.io publishing workflow.
 - ✅ **COMPLETE**: Configure Renovate for dependency updates, especially tracking `openai-client-base`.
 - ✅ **COMPLETE**: Integrate Codecov for coverage reporting (PR #28).
-- ⚠️ **PARTIAL**: Document publish checklist covering dry-run, docs.rs verification, tagging, announcements.
+- ✅ **COMPLETE**: Document publish checklist covering dry-run, docs.rs verification, tagging, announcements (`docs/workflow/publish_checklist.md`).
 
 ## Phase 8 – Operational Playbook
 - Document onboarding (plan-first workflow, agent usage, TODO maintenance).
@@ -72,8 +72,8 @@
 - Long-term: optional integrations (tracing middleware, retries), community contribution pathways, auxiliary crates if scope expands.
 
 ## Immediate Next Steps
-- Implement Phase 2 extended examples (tool calling, assistants with code interpreter/file search, vector stores, moderations).
-- Implement Phase 3 advanced examples (batch processing, testing patterns, middleware, caching).
-- Complete documentation guides in `docs/` (responses workflow, tool usage, streaming, error handling).
-- Prepare for v0.1.0 release once all Phase 1-2 examples and documentation are complete.
-- Monitor GitHub PR backlog; last checked 2025-09-23, PR #18 (release v0.2.0) on hold.
+- Implement remaining builder modules (embeddings, threads/uploads) to close API coverage gaps (audio/images completed 2025-09-24).
+- Author deep-dive documentation (responses-first workflow, tool orchestration, vector store RAG playbook, migration guide from `openai-builders`).
+- Run the publish checklist dry run for the upcoming v0.3.0 release candidate; capture outcomes.
+- Keep examples aligned with new builder capabilities; add docs.rs snippets once new builders land.
+- Monitor GitHub PR backlog; last checked 2025-09-24, PR #18 (release v0.2.0) still pending merge.
