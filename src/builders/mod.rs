@@ -32,7 +32,7 @@ pub use assistants::{
     temperature_run, tool_code_interpreter, tool_file_search, AssistantBuilder, AssistantTool,
     RunBuilder, ThreadBuilder,
 };
-// pub use audio::*; // TODO: Implement audio builders
+pub use audio::*;
 pub use batch::*;
 pub use chat::{
     image_base64_part, image_base64_part_with_detail, image_url_part, image_url_part_with_detail,
@@ -41,7 +41,7 @@ pub use chat::{
 // pub use embeddings::*; // TODO: Implement embeddings builders
 pub use files::*;
 pub use fine_tuning::*;
-// pub use images::*; // TODO: Implement images builders
+pub use images::*;
 pub use moderations::*;
 pub use responses::*;
 // pub use threads::*; // TODO: Implement threads builders
