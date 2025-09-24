@@ -9,23 +9,29 @@ use crate::{
             SpeechBuilder, TranscriptionBuilder, TranscriptionRequest, TranslationBuilder,
             TranslationRequest,
         },
+        embeddings::EmbeddingsBuilder,
         images::{
             ImageEditBuilder, ImageEditRequest, ImageGenerationBuilder, ImageVariationBuilder,
             ImageVariationRequest,
         },
+        threads::ThreadRequestBuilder,
+        uploads::UploadBuilder,
         Builder, ChatCompletionBuilder, ResponsesBuilder,
     },
     config::Config,
     errors::Result,
     responses::ChatCompletionResponseWrapper,
-    Error,
+    Error, UploadPurpose,
 };
 use openai_client_base::apis::Error as ApiError;
 use openai_client_base::{
-    apis::{audio_api, chat_api, configuration::Configuration, images_api},
+    apis::{
+        assistants_api, audio_api, chat_api, configuration::Configuration, embeddings_api,
+        images_api, uploads_api,
+    },
     models::{
-        CreateChatCompletionRequest, CreateTranscription200Response, CreateTranslation200Response,
-        ImagesResponse,
+        CreateChatCompletionRequest, CreateEmbeddingResponse, CreateTranscription200Response,
+        CreateTranslation200Response, ImagesResponse, ThreadObject, Upload,
     },
 };
 use reqwest::Client as HttpClient;
@@ -367,6 +373,40 @@ impl AudioClient<'_> {
     }
 }
 
+impl EmbeddingsClient<'_> {
+    /// Start a builder for creating embeddings requests with the given model.
+    #[must_use]
+    pub fn builder(&self, model: impl Into<String>) -> EmbeddingsBuilder {
+        EmbeddingsBuilder::new(model)
+    }
+
+    /// Convenience helper for embedding a single string input.
+    #[must_use]
+    pub fn text(&self, model: impl Into<String>, input: impl Into<String>) -> EmbeddingsBuilder {
+        self.builder(model).input_text(input)
+    }
+
+    /// Convenience helper for embedding a single tokenized input.
+    #[must_use]
+    pub fn tokens<I>(&self, model: impl Into<String>, tokens: I) -> EmbeddingsBuilder
+    where
+        I: IntoIterator<Item = i32>,
+    {
+        self.builder(model).input_tokens(tokens)
+    }
+
+    /// Execute an embeddings request built with [`EmbeddingsBuilder`].
+    pub async fn create(&self, builder: EmbeddingsBuilder) -> Result<CreateEmbeddingResponse> {
+        let request = builder.build()?;
+        embeddings_api::create_embedding()
+            .configuration(&self.client.base_configuration)
+            .create_embedding_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
 impl ImagesClient<'_> {
     /// Create a builder for image generation requests.
     #[must_use]
@@ -462,6 +502,50 @@ impl ImagesClient<'_> {
             .maybe_response_format(response_format.as_deref())
             .maybe_size(size.as_deref())
             .maybe_user(user.as_deref())
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+impl ThreadsClient<'_> {
+    /// Start building a new thread request.
+    #[must_use]
+    pub fn builder(&self) -> ThreadRequestBuilder {
+        ThreadRequestBuilder::new()
+    }
+
+    /// Create a thread using the provided builder.
+    pub async fn create(&self, builder: ThreadRequestBuilder) -> Result<ThreadObject> {
+        let request = builder.build()?;
+        assistants_api::create_thread()
+            .configuration(&self.client.base_configuration)
+            .maybe_create_thread_request(Some(request))
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+impl UploadsClient<'_> {
+    /// Create a new upload builder for the given file metadata.
+    #[must_use]
+    pub fn builder(
+        &self,
+        filename: impl Into<String>,
+        purpose: UploadPurpose,
+        bytes: i32,
+        mime_type: impl Into<String>,
+    ) -> UploadBuilder {
+        UploadBuilder::new(filename, purpose, bytes, mime_type)
+    }
+
+    /// Create an upload session.
+    pub async fn create(&self, builder: UploadBuilder) -> Result<Upload> {
+        let request = builder.build()?;
+        uploads_api::create_upload()
+            .configuration(&self.client.base_configuration)
+            .create_upload_request(request)
             .call()
             .await
             .map_err(map_api_error)
