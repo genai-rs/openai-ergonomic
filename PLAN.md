@@ -75,5 +75,6 @@
 - Implement Phase 2 extended examples (tool calling, assistants with code interpreter/file search, vector stores, moderations).
 - Implement Phase 3 advanced examples (batch processing, testing patterns, middleware, caching).
 - Complete documentation guides in `docs/` (responses workflow, tool usage, streaming, error handling).
+- Tackle remaining builder gaps (threads/uploads); embeddings completed 2025-09-24.
 - Prepare for v0.1.0 release once all Phase 1-2 examples and documentation are complete.
 - Monitor GitHub PR backlog; last checked 2025-09-23, PR #18 (release v0.2.0) on hold.
