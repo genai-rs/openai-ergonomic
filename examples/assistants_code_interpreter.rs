@@ -1,4 +1,6 @@
 #![allow(clippy::uninlined_format_args)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::unnecessary_wraps)]
 //! Assistants API Code Interpreter Example
 //!
 //! This example demonstrates how to use the OpenAI Assistants API with the Code Interpreter tool
@@ -37,14 +39,13 @@ use openai_ergonomic::{
     },
     Client, Error,
 };
-use std::io::{self, Write};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📊 OpenAI Ergonomic - Code Interpreter Assistant Example\n");
 
     // Initialize client from environment variables
-    let client = match Client::from_env() {
+    let _client = match Client::from_env() {
         Ok(client) => {
             println!("✅ Client initialized successfully");
             client
@@ -57,19 +58,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Demonstrate different code interpreter use cases
-    run_data_analysis_example().await?;
-    run_mathematical_computation_example().await?;
-    run_visualization_example().await?;
-    run_file_processing_example().await?;
+    run_data_analysis_example()?;
+    run_mathematical_computation_example()?;
+    run_visualization_example()?;
+    run_file_processing_example()?;
 
     println!("\n🎉 Code Interpreter examples completed successfully!");
     Ok(())
 }
 
 /// Example 1: Data Analysis with CSV Processing
-async fn run_data_analysis_example() -> Result<(), Error> {
+fn run_data_analysis_example() -> Result<(), Error> {
     println!("📈 Example 1: Data Analysis with CSV Processing");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create an assistant specifically for data analysis
     let assistant = assistant_with_instructions(
@@ -89,7 +90,7 @@ async fn run_data_analysis_example() -> Result<(), Error> {
     );
 
     // Create a thread for the data analysis conversation
-    let thread = simple_thread().metadata("purpose", "data-analysis");
+    let _thread = simple_thread().metadata("purpose", "data-analysis");
 
     println!("\n📝 Created thread with metadata:");
     println!("   Purpose: data-analysis");
@@ -116,9 +117,9 @@ async fn run_data_analysis_example() -> Result<(), Error> {
 }
 
 /// Example 2: Mathematical Computations and Modeling
-async fn run_mathematical_computation_example() -> Result<(), Error> {
+fn run_mathematical_computation_example() -> Result<(), Error> {
     println!("\n🔢 Example 2: Mathematical Computations and Modeling");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create an assistant for mathematical tasks
     let math_assistant = AssistantBuilder::new("gpt-4-1106-preview")
@@ -132,7 +133,7 @@ async fn run_mathematical_computation_example() -> Result<(), Error> {
     println!("   Focus: Complex mathematical computations");
 
     // Create thread for mathematical discussion
-    let math_thread = simple_thread()
+    let _math_thread = simple_thread()
         .metadata("type", "mathematics")
         .metadata("complexity", "advanced");
 
@@ -154,7 +155,10 @@ async fn run_mathematical_computation_example() -> Result<(), Error> {
 
     println!("\n🎯 Run Configuration:");
     println!("   Assistant ID: {}", math_run.assistant_id());
-    println!("   Temperature: {:?} (low for precision)", math_run.temperature_ref());
+    println!(
+        "   Temperature: {:?} (low for precision)",
+        math_run.temperature_ref()
+    );
 
     println!("\n✨ Expected Mathematical Outputs:");
     println!("   • Step-by-step solution derivation");
@@ -167,12 +171,12 @@ async fn run_mathematical_computation_example() -> Result<(), Error> {
 }
 
 /// Example 3: Data Visualization and Chart Generation
-async fn run_visualization_example() -> Result<(), Error> {
+fn run_visualization_example() -> Result<(), Error> {
     println!("\n📊 Example 3: Data Visualization and Chart Generation");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create visualization-focused assistant
-    let viz_assistant = assistant_with_instructions(
+    let _viz_assistant = assistant_with_instructions(
         "gpt-4-1106-preview",
         "Visualization Specialist",
         "You are a data visualization expert. Create compelling, informative charts and graphs that effectively communicate data insights. Always consider best practices for visual design and choose appropriate chart types for the data."
@@ -209,12 +213,12 @@ async fn run_visualization_example() -> Result<(), Error> {
 }
 
 /// Example 4: File Processing and Analysis
-async fn run_file_processing_example() -> Result<(), Error> {
+fn run_file_processing_example() -> Result<(), Error> {
     println!("\n📁 Example 4: File Processing and Analysis");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create file processing assistant
-    let file_assistant = AssistantBuilder::new("gpt-4-1106-preview")
+    let _file_assistant = AssistantBuilder::new("gpt-4-1106-preview")
         .name("File Processing Expert")
         .description("Processes various file formats and performs analysis")
         .instructions(
@@ -268,13 +272,16 @@ mod tests {
         let assistant = assistant_with_instructions(
             "gpt-4-1106-preview",
             "Test Data Analyst",
-            "Test instructions for data analysis"
+            "Test instructions for data analysis",
         )
         .add_tool(tool_code_interpreter());
 
         assert_eq!(assistant.model(), "gpt-4-1106-preview");
         assert_eq!(assistant.name_ref(), Some("Test Data Analyst"));
-        assert_eq!(assistant.instructions_ref(), Some("Test instructions for data analysis"));
+        assert_eq!(
+            assistant.instructions_ref(),
+            Some("Test instructions for data analysis")
+        );
     }
 
     #[test]
@@ -297,8 +304,14 @@ mod tests {
             .metadata("type", "unit-test");
 
         assert_eq!(thread.metadata_ref().len(), 2);
-        assert_eq!(thread.metadata_ref().get("purpose"), Some(&"testing".to_string()));
-        assert_eq!(thread.metadata_ref().get("type"), Some(&"unit-test".to_string()));
+        assert_eq!(
+            thread.metadata_ref().get("purpose"),
+            Some(&"testing".to_string())
+        );
+        assert_eq!(
+            thread.metadata_ref().get("type"),
+            Some(&"unit-test".to_string())
+        );
     }
 
     #[test]
@@ -311,6 +324,9 @@ mod tests {
         assert_eq!(run.assistant_id(), "test-assistant");
         assert_eq!(run.temperature_ref(), Some(0.1));
         assert!(run.is_streaming());
-        assert_eq!(run.instructions_ref(), Some("Custom instructions for testing"));
+        assert_eq!(
+            run.instructions_ref(),
+            Some("Custom instructions for testing")
+        );
     }
 }

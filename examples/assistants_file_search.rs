@@ -1,4 +1,9 @@
 #![allow(clippy::uninlined_format_args)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::redundant_clone)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::manual_let_else)]
 //! Assistants API File Search Example (RAG Patterns)
 //!
 //! This example demonstrates how to use the OpenAI Assistants API with the File Search tool
@@ -35,25 +40,22 @@
 use openai_ergonomic::{
     builders::{
         assistants::{
-            assistant_with_instructions, simple_run, simple_thread, tool_file_search,
-            AssistantBuilder,
+            assistant_with_instructions, simple_thread, tool_file_search, AssistantBuilder,
         },
-        files::FileBuilder,
         vector_stores::{
-            simple_vector_store, vector_store_with_files, search_vector_store_with_limit,
-            temporary_vector_store, VectorStoreBuilder,
+            search_vector_store_with_limit, simple_vector_store, temporary_vector_store,
+            vector_store_with_files, VectorStoreBuilder,
         },
     },
     Client, Error,
 };
-use std::io::{self, Write};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔍 OpenAI Ergonomic - File Search Assistant Example (RAG)\n");
 
     // Initialize client from environment variables
-    let client = match Client::from_env() {
+    let _client = match Client::from_env() {
         Ok(client) => {
             println!("✅ Client initialized successfully");
             client
@@ -66,20 +68,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Demonstrate different RAG use cases
-    run_knowledge_base_example().await?;
-    run_document_qa_example().await?;
-    run_research_assistant_example().await?;
-    run_citation_example().await?;
-    run_multi_document_analysis_example().await?;
+    run_knowledge_base_example()?;
+    run_document_qa_example()?;
+    run_research_assistant_example()?;
+    run_citation_example()?;
+    run_multi_document_analysis_example()?;
 
     println!("\n🎉 File Search RAG examples completed successfully!");
     Ok(())
 }
 
 /// Example 1: Building a Knowledge Base Assistant
-async fn run_knowledge_base_example() -> Result<(), Error> {
+fn run_knowledge_base_example() -> Result<(), Error> {
     println!("📚 Example 1: Building a Knowledge Base Assistant");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create a knowledge base vector store
     let knowledge_store = simple_vector_store("Company Knowledge Base")
@@ -141,12 +143,12 @@ async fn run_knowledge_base_example() -> Result<(), Error> {
 }
 
 /// Example 2: Document Q&A Assistant
-async fn run_document_qa_example() -> Result<(), Error> {
+fn run_document_qa_example() -> Result<(), Error> {
     println!("\n❓ Example 2: Document Q&A Assistant");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create specialized document Q&A assistant
-    let qa_assistant = AssistantBuilder::new("gpt-4-1106-preview")
+    let _qa_assistant = AssistantBuilder::new("gpt-4-1106-preview")
         .name("Document Q&A Specialist")
         .description("Answers questions based on uploaded documents with high accuracy")
         .instructions(
@@ -201,12 +203,12 @@ async fn run_document_qa_example() -> Result<(), Error> {
 }
 
 /// Example 3: Research Assistant with Advanced RAG
-async fn run_research_assistant_example() -> Result<(), Error> {
+fn run_research_assistant_example() -> Result<(), Error> {
     println!("\n🔬 Example 3: Research Assistant with Advanced RAG");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create research-focused assistant
-    let research_assistant = assistant_with_instructions(
+    let _research_assistant = assistant_with_instructions(
         "gpt-4-1106-preview",
         "Research Assistant",
         "You are a research assistant specializing in literature review and analysis. Help researchers find relevant information, identify patterns across documents, synthesize findings, and suggest research directions. Always provide comprehensive citations and acknowledge research limitations."
@@ -217,7 +219,7 @@ async fn run_research_assistant_example() -> Result<(), Error> {
     println!("   Focus: Literature review and cross-document analysis");
 
     // Create a comprehensive research vector store
-    let research_store = VectorStoreBuilder::new()
+    let _research_store = VectorStoreBuilder::new()
         .name("Research Literature Database")
         .add_file("file-paper-ai-ethics-001")
         .add_file("file-paper-ml-bias-002")
@@ -234,7 +236,9 @@ async fn run_research_assistant_example() -> Result<(), Error> {
     println!("   Date range: 2020-2024");
 
     println!("\n💭 Research Query:");
-    println!("   'What are the current approaches to addressing algorithmic bias in machine learning?'");
+    println!(
+        "   'What are the current approaches to addressing algorithmic bias in machine learning?'"
+    );
     println!("   'Please provide a comprehensive overview with citations.'");
 
     println!("\n🔄 Advanced RAG Research Workflow:");
@@ -247,9 +251,10 @@ async fn run_research_assistant_example() -> Result<(), Error> {
     println!("   7. 📎 Provide detailed citations and references");
 
     // Demonstrate search refinement
-    let refined_search = search_vector_store_with_limit("research-db-123", "algorithmic bias mitigation", 20)
-        .filter("category", "methodology")
-        .filter("confidence", "high");
+    let refined_search =
+        search_vector_store_with_limit("research-db-123", "algorithmic bias mitigation", 20)
+            .filter("category", "methodology")
+            .filter("confidence", "high");
 
     println!("\n🎯 Search Refinement:");
     println!("   Query: algorithmic bias mitigation");
@@ -281,12 +286,12 @@ async fn run_research_assistant_example() -> Result<(), Error> {
 }
 
 /// Example 4: Citation and Source Attribution
-async fn run_citation_example() -> Result<(), Error> {
+fn run_citation_example() -> Result<(), Error> {
     println!("\n📎 Example 4: Citation and Source Attribution");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create citation-focused assistant
-    let citation_assistant = AssistantBuilder::new("gpt-4-1106-preview")
+    let _citation_assistant = AssistantBuilder::new("gpt-4-1106-preview")
         .name("Citation Specialist")
         .description("Provides detailed source attribution and citation management")
         .instructions(
@@ -298,7 +303,7 @@ async fn run_citation_example() -> Result<(), Error> {
     println!("   Focus: Accurate source attribution and citation formatting");
 
     // Create thread for citation-heavy work
-    let citation_thread = simple_thread()
+    let _citation_thread = simple_thread()
         .metadata("citation_style", "APA")
         .metadata("requirement", "academic_standards")
         .metadata("verification", "enabled");
@@ -323,7 +328,9 @@ async fn run_citation_example() -> Result<(), Error> {
     // Demonstrate different citation formats
     println!("\n📖 Citation Format Examples:");
     println!("   🎯 Direct Quote:");
-    println!("      \"Privacy-preserving AI requires careful balance between utility and protection\"");
+    println!(
+        "      \"Privacy-preserving AI requires careful balance between utility and protection\""
+    );
     println!("      (Johnson, 2024, p. 15)");
     println!("   ");
     println!("   📝 Paraphrased Content:");
@@ -341,7 +348,9 @@ async fn run_citation_example() -> Result<(), Error> {
     println!("      • Regulatory considerations (Privacy Commission Report, 2024, §3.2)");
     println!("   ");
     println!("   📎 Reference List:");
-    println!("      Anderson, M. (2024). AI Privacy Challenges. Tech Ethics Journal, 15(3), 20-30.");
+    println!(
+        "      Anderson, M. (2024). AI Privacy Challenges. Tech Ethics Journal, 15(3), 20-30."
+    );
     println!("      Johnson, P., Smith, R., & Lee, K. (2023). Differential privacy in practice.");
     println!("      Privacy Commission. (2024). AI governance guidelines (Report #2024-AI-001).");
 
@@ -349,12 +358,12 @@ async fn run_citation_example() -> Result<(), Error> {
 }
 
 /// Example 5: Multi-Document Analysis and Synthesis
-async fn run_multi_document_analysis_example() -> Result<(), Error> {
+fn run_multi_document_analysis_example() -> Result<(), Error> {
     println!("\n📄 Example 5: Multi-Document Analysis and Synthesis");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create multi-document analysis assistant
-    let analysis_assistant = assistant_with_instructions(
+    let _analysis_assistant = assistant_with_instructions(
         "gpt-4-1106-preview",
         "Document Analysis Specialist",
         "You are a document analysis expert. Compare and contrast information across multiple documents, identify contradictions or gaps, synthesize information from diverse sources, and provide comprehensive analysis that considers multiple perspectives."
@@ -365,7 +374,7 @@ async fn run_multi_document_analysis_example() -> Result<(), Error> {
     println!("   Specialty: Cross-document comparison and synthesis");
 
     // Create comprehensive document store for analysis
-    let analysis_store = VectorStoreBuilder::new()
+    let _analysis_store = VectorStoreBuilder::new()
         .name("Multi-Document Analysis Store")
         .add_file("file-policy-proposal-v1")
         .add_file("file-policy-proposal-v2")
@@ -397,9 +406,10 @@ async fn run_multi_document_analysis_example() -> Result<(), Error> {
     println!("   7. 📈 Provide recommendations based on synthesis");
 
     // Demonstrate advanced search patterns
-    let comparative_search = search_vector_store_with_limit("analysis-store-456", "risk assessment comparison", 15)
-        .filter("document_type", "technical,legal")
-        .filter("section", "risks");
+    let _comparative_search =
+        search_vector_store_with_limit("analysis-store-456", "risk assessment comparison", 15)
+            .filter("document_type", "technical,legal")
+            .filter("section", "risks");
 
     println!("\n🔍 Advanced Search Pattern:");
     println!("   Query: risk assessment comparison");
@@ -439,7 +449,7 @@ mod tests {
         let assistant = assistant_with_instructions(
             "gpt-4",
             "Test KB Assistant",
-            "Test knowledge base assistant"
+            "Test knowledge base assistant",
         )
         .add_tool(tool_file_search());
 
@@ -497,7 +507,13 @@ mod tests {
             .metadata("verification", "enabled");
 
         assert_eq!(thread.metadata_ref().len(), 2);
-        assert_eq!(thread.metadata_ref().get("citation_style"), Some(&"APA".to_string()));
-        assert_eq!(thread.metadata_ref().get("verification"), Some(&"enabled".to_string()));
+        assert_eq!(
+            thread.metadata_ref().get("citation_style"),
+            Some(&"APA".to_string())
+        );
+        assert_eq!(
+            thread.metadata_ref().get("verification"),
+            Some(&"enabled".to_string())
+        );
     }
 }
