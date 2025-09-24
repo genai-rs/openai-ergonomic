@@ -1,0 +1,58 @@
+#![allow(missing_docs)]
+
+use mockito::{self, Matcher};
+use openai_ergonomic::{builders::images::ImageGenerationBuilder, Client, Config};
+use serde_json::json;
+
+#[tokio::test]
+async fn images_client_create_hits_generation_endpoint() {
+    let mut server = mockito::Server::new_async().await;
+
+    let expected_body = json!({
+        "prompt": "A cat on a surfboard",
+        "model": "gpt-image-1"
+    });
+
+    let mock = server
+        .mock("POST", "/images/generations")
+        .match_header("authorization", "Bearer test-key")
+        .match_header("content-type", "application/json")
+        .match_body(Matcher::PartialJson(expected_body))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(
+            r#"{
+                "created": 12,
+                "data": [
+                    { "url": "https://example.test/image.png" }
+                ]
+            }"#,
+        )
+        .create();
+
+    let config = Config::builder()
+        .api_key("test-key")
+        .api_base(server.url())
+        .default_model("gpt-image-1")
+        .build();
+    let client = Client::new(config).expect("client builds");
+
+    let builder = ImageGenerationBuilder::new("A cat on a surfboard").model("gpt-image-1");
+    let response = client
+        .images()
+        .create(builder)
+        .await
+        .expect("request succeeds");
+
+    assert_eq!(response.created, 12);
+    let urls: Vec<_> = response
+        .data
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|image| image.url)
+        .collect();
+    assert_eq!(urls, vec!["https://example.test/image.png".to_string()]);
+
+    mock.assert();
+    drop(server);
+}
