@@ -1,4 +1,11 @@
 #![allow(clippy::uninlined_format_args)]
+#![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::or_fun_call)]
+#![allow(clippy::single_char_pattern)]
+#![allow(clippy::inefficient_to_string)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::redundant_closure_for_method_calls)]
 //! Vector Stores API Example
 //!
 //! This example demonstrates how to use the OpenAI Vector Stores API for semantic search,
@@ -34,25 +41,20 @@
 //! complex vector operations and document management.
 
 use openai_ergonomic::{
-    builders::{
-        files::FileBuilder,
-        vector_stores::{
-            add_file_to_vector_store, search_vector_store, search_vector_store_with_limit,
-            simple_vector_store, temporary_vector_store, vector_store_with_files,
-            VectorStoreBuilder, VectorStoreSearchBuilder,
-        },
+    builders::vector_stores::{
+        add_file_to_vector_store, search_vector_store, search_vector_store_with_limit,
+        simple_vector_store, temporary_vector_store, vector_store_with_files, VectorStoreBuilder,
+        VectorStoreSearchBuilder,
     },
     Client, Error,
 };
-use std::collections::HashMap;
-use std::io::{self, Write};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🗄️ OpenAI Ergonomic - Vector Stores Example\n");
 
     // Initialize client from environment variables
-    let client = match Client::from_env() {
+    let _client = match Client::from_env() {
         Ok(client) => {
             println!("✅ Client initialized successfully");
             client
@@ -65,21 +67,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Demonstrate different vector store use cases
-    run_basic_vector_store_example().await?;
-    run_document_management_example().await?;
-    run_semantic_search_example().await?;
-    run_enterprise_knowledge_base_example().await?;
-    run_vector_store_lifecycle_example().await?;
-    run_advanced_search_patterns_example().await?;
+    run_basic_vector_store_example()?;
+    run_document_management_example()?;
+    run_semantic_search_example()?;
+    run_enterprise_knowledge_base_example()?;
+    run_vector_store_lifecycle_example()?;
+    run_advanced_search_patterns_example()?;
 
     println!("\n🎉 Vector Stores examples completed successfully!");
     Ok(())
 }
 
 /// Example 1: Basic Vector Store Operations
-async fn run_basic_vector_store_example() -> Result<(), Error> {
+fn run_basic_vector_store_example() -> Result<(), Error> {
     println!("🔧 Example 1: Basic Vector Store Operations");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create a simple vector store
     let basic_store = simple_vector_store("Getting Started Vector Store")
@@ -88,7 +90,10 @@ async fn run_basic_vector_store_example() -> Result<(), Error> {
 
     println!("📁 Created basic vector store:");
     println!("   Name: {}", basic_store.name_ref().unwrap());
-    println!("   Purpose: {}", basic_store.metadata_ref().get("purpose").unwrap());
+    println!(
+        "   Purpose: {}",
+        basic_store.metadata_ref().get("purpose").unwrap()
+    );
     println!("   Files: {}", basic_store.file_count());
 
     // Add files to the vector store
@@ -106,8 +111,18 @@ async fn run_basic_vector_store_example() -> Result<(), Error> {
     // Demonstrate vector store properties
     println!("\n📊 Vector Store Properties:");
     println!("   Has files: {}", store_with_files.has_files());
-    println!("   Metadata entries: {}", store_with_files.metadata_ref().len());
-    println!("   Expires: {}", if store_with_files.expires_after_ref().is_some() { "Yes" } else { "No" });
+    println!(
+        "   Metadata entries: {}",
+        store_with_files.metadata_ref().len()
+    );
+    println!(
+        "   Expires: {}",
+        if store_with_files.expires_after_ref().is_some() {
+            "Yes"
+        } else {
+            "No"
+        }
+    );
 
     println!("\n🔄 Basic Operations:");
     println!("   ✅ Create vector store");
@@ -120,9 +135,9 @@ async fn run_basic_vector_store_example() -> Result<(), Error> {
 }
 
 /// Example 2: Document Management and Batch Operations
-async fn run_document_management_example() -> Result<(), Error> {
+fn run_document_management_example() -> Result<(), Error> {
     println!("\n📚 Example 2: Document Management and Batch Operations");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Simulate a large document collection
     let document_collection = vec![
@@ -139,7 +154,7 @@ async fn run_document_management_example() -> Result<(), Error> {
     // Create vector store with batch file addition
     let doc_store = vector_store_with_files(
         "Product Documentation Store",
-        document_collection.iter().map(|s| s.to_string()).collect()
+        document_collection.iter().map(|s| s.to_string()).collect(),
     )
     .metadata("category", "documentation")
     .metadata("product", "api_platform")
@@ -149,7 +164,10 @@ async fn run_document_management_example() -> Result<(), Error> {
     println!("📚 Created documentation vector store:");
     println!("   Name: {}", doc_store.name_ref().unwrap());
     println!("   Documents: {} files", doc_store.file_count());
-    println!("   Category: {}", doc_store.metadata_ref().get("category").unwrap());
+    println!(
+        "   Category: {}",
+        doc_store.metadata_ref().get("category").unwrap()
+    );
     println!("   Retention: 180 days");
 
     // Demonstrate individual file operations
@@ -163,16 +181,28 @@ async fn run_document_management_example() -> Result<(), Error> {
     println!("\n🗂️ Document Organization Strategies:");
 
     let categorized_stores = vec![
-        ("API Documentation", vec!["file-api-ref", "file-endpoints", "file-auth"]),
-        ("User Guides", vec!["file-quickstart", "file-tutorials", "file-howtos"]),
-        ("Technical Specs", vec!["file-architecture", "file-protocols", "file-security"]),
-        ("Release Notes", vec!["file-changelog", "file-migration", "file-breaking-changes"]),
+        (
+            "API Documentation",
+            vec!["file-api-ref", "file-endpoints", "file-auth"],
+        ),
+        (
+            "User Guides",
+            vec!["file-quickstart", "file-tutorials", "file-howtos"],
+        ),
+        (
+            "Technical Specs",
+            vec!["file-architecture", "file-protocols", "file-security"],
+        ),
+        (
+            "Release Notes",
+            vec!["file-changelog", "file-migration", "file-breaking-changes"],
+        ),
     ];
 
     for (category, files) in &categorized_stores {
         let category_store = vector_store_with_files(
             format!("{} Vector Store", category),
-            files.iter().map(|s| s.to_string()).collect()
+            files.iter().map(|s| s.to_string()).collect(),
         )
         .metadata("category", category.to_lowercase().replace(" ", "_"))
         .metadata("auto_managed", "true");
@@ -191,9 +221,9 @@ async fn run_document_management_example() -> Result<(), Error> {
 }
 
 /// Example 3: Semantic Search and Similarity Queries
-async fn run_semantic_search_example() -> Result<(), Error> {
+fn run_semantic_search_example() -> Result<(), Error> {
     println!("\n🔍 Example 3: Semantic Search and Similarity Queries");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create a search-optimized vector store
     let search_store = simple_vector_store("Semantic Search Demo Store")
@@ -223,24 +253,27 @@ async fn run_semantic_search_example() -> Result<(), Error> {
     let limited_search = search_vector_store_with_limit(
         "search-store-123",
         "natural language processing techniques",
-        5
+        5,
     );
     println!("   2. Limited Results:");
     println!("      Query: '{}'", limited_search.query());
-    println!("      Limit: {} results", limited_search.limit_ref().unwrap());
+    println!(
+        "      Limit: {} results",
+        limited_search.limit_ref().unwrap()
+    );
 
     // Advanced filtered search
-    let filtered_search = search_vector_store_with_limit(
-        "search-store-123",
-        "computer vision applications",
-        10
-    )
-    .filter("category", "practical_applications")
-    .filter("difficulty", "intermediate");
+    let filtered_search =
+        search_vector_store_with_limit("search-store-123", "computer vision applications", 10)
+            .filter("category", "practical_applications")
+            .filter("difficulty", "intermediate");
 
     println!("   3. Filtered Search:");
     println!("      Query: '{}'", filtered_search.query());
-    println!("      Filters: {} applied", filtered_search.filter_ref().len());
+    println!(
+        "      Filters: {} applied",
+        filtered_search.filter_ref().len()
+    );
     for (key, value) in filtered_search.filter_ref() {
         println!("         {}={}", key, value);
     }
@@ -256,11 +289,31 @@ async fn run_semantic_search_example() -> Result<(), Error> {
     // Show different query types
     println!("\n🧠 Query Type Examples:");
     let query_examples = vec![
-        ("Conceptual", "What is machine learning?", "Broad conceptual understanding"),
-        ("Technical", "How to implement backpropagation?", "Specific technical implementation"),
-        ("Comparative", "LSTM vs Transformer architectures", "Comparative analysis"),
-        ("Problem-solving", "Overfitting in neural networks", "Problem identification and solutions"),
-        ("Application", "Computer vision in healthcare", "Domain-specific applications"),
+        (
+            "Conceptual",
+            "What is machine learning?",
+            "Broad conceptual understanding",
+        ),
+        (
+            "Technical",
+            "How to implement backpropagation?",
+            "Specific technical implementation",
+        ),
+        (
+            "Comparative",
+            "LSTM vs Transformer architectures",
+            "Comparative analysis",
+        ),
+        (
+            "Problem-solving",
+            "Overfitting in neural networks",
+            "Problem identification and solutions",
+        ),
+        (
+            "Application",
+            "Computer vision in healthcare",
+            "Domain-specific applications",
+        ),
     ];
 
     for (query_type, query, description) in query_examples {
@@ -272,19 +325,24 @@ async fn run_semantic_search_example() -> Result<(), Error> {
 }
 
 /// Example 4: Enterprise Knowledge Base
-async fn run_enterprise_knowledge_base_example() -> Result<(), Error> {
+fn run_enterprise_knowledge_base_example() -> Result<(), Error> {
     println!("\n🏢 Example 4: Enterprise Knowledge Base");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create enterprise-scale vector stores
-    let enterprise_stores = create_enterprise_knowledge_base().await?;
+    let enterprise_stores = create_enterprise_knowledge_base()?;
 
     println!("🏢 Enterprise Knowledge Base Architecture:");
     for (department, store) in enterprise_stores {
         println!("   📂 {}", department);
         println!("      Files: {} documents", store.file_count());
-        println!("      Retention: {} days",
-            store.expires_after_ref().map_or("permanent", |exp| &format!("{}", exp.days)));
+        println!(
+            "      Retention: {} days",
+            store
+                .expires_after_ref()
+                .map_or("permanent".to_string(), |exp| exp.days.to_string())
+                .as_str()
+        );
 
         // Show metadata structure
         for (key, value) in store.metadata_ref() {
@@ -297,10 +355,26 @@ async fn run_enterprise_knowledge_base_example() -> Result<(), Error> {
     println!("🔍 Cross-Departmental Search Examples:");
 
     let cross_searches = vec![
-        ("Security Compliance", "GDPR data handling procedures", vec!["legal", "engineering", "hr"]),
-        ("Product Launch", "Q4 release planning and coordination", vec!["product", "engineering", "marketing"]),
-        ("Budget Planning", "Annual technology investment strategy", vec!["finance", "engineering", "executive"]),
-        ("Process Improvement", "Remote work productivity guidelines", vec!["hr", "operations", "it"]),
+        (
+            "Security Compliance",
+            "GDPR data handling procedures",
+            vec!["legal", "engineering", "hr"],
+        ),
+        (
+            "Product Launch",
+            "Q4 release planning and coordination",
+            vec!["product", "engineering", "marketing"],
+        ),
+        (
+            "Budget Planning",
+            "Annual technology investment strategy",
+            vec!["finance", "engineering", "executive"],
+        ),
+        (
+            "Process Improvement",
+            "Remote work productivity guidelines",
+            vec!["hr", "operations", "it"],
+        ),
     ];
 
     for (topic, query, departments) in cross_searches {
@@ -320,9 +394,9 @@ async fn run_enterprise_knowledge_base_example() -> Result<(), Error> {
 }
 
 /// Example 5: Vector Store Lifecycle Management
-async fn run_vector_store_lifecycle_example() -> Result<(), Error> {
+fn run_vector_store_lifecycle_example() -> Result<(), Error> {
     println!("\n♻️ Example 5: Vector Store Lifecycle Management");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Demonstrate different lifecycle patterns
     println!("⏰ Vector Store Lifecycle Patterns:");
@@ -386,9 +460,9 @@ async fn run_vector_store_lifecycle_example() -> Result<(), Error> {
 }
 
 /// Example 6: Advanced Search Patterns and Optimization
-async fn run_advanced_search_patterns_example() -> Result<(), Error> {
+fn run_advanced_search_patterns_example() -> Result<(), Error> {
     println!("\n🚀 Example 6: Advanced Search Patterns and Optimization");
-    println!("=" .repeat(60));
+    println!("{}", "=".repeat(60));
 
     // Create optimized search store
     let optimized_store = VectorStoreBuilder::new()
@@ -415,30 +489,28 @@ async fn run_advanced_search_patterns_example() -> Result<(), Error> {
     println!("      Stage 2: Filtered refinement (20 results)");
     println!("      Stage 3: Relevance re-ranking (5 top results)");
 
-    let multi_stage_search = VectorStoreSearchBuilder::new(
-        "advanced-store-789",
-        "machine learning best practices"
-    )
-    .limit(100)
-    .filter("category", "best_practices")
-    .filter("verified", "true");
+    let multi_stage_search =
+        VectorStoreSearchBuilder::new("advanced-store-789", "machine learning best practices")
+            .limit(100)
+            .filter("category", "best_practices")
+            .filter("verified", "true");
 
     println!("      Query: '{}'", multi_stage_search.query());
-    println!("      Initial limit: {}", multi_stage_search.limit_ref().unwrap());
+    println!(
+        "      Initial limit: {}",
+        multi_stage_search.limit_ref().unwrap()
+    );
 
     // Contextual search
     println!("   2. 🎭 Contextual Search:");
     println!("      Context: User role, project phase, domain expertise");
     println!("      Adaptation: Results tailored to user context");
 
-    let contextual_search = search_vector_store_with_limit(
-        "advanced-store-789",
-        "deployment strategies",
-        15
-    )
-    .filter("audience", "senior_engineer")
-    .filter("complexity", "advanced")
-    .filter("domain", "cloud_infrastructure");
+    let _contextual_search =
+        search_vector_store_with_limit("advanced-store-789", "deployment strategies", 15)
+            .filter("audience", "senior_engineer")
+            .filter("complexity", "advanced")
+            .filter("domain", "cloud_infrastructure");
 
     println!("      Audience: senior_engineer");
     println!("      Complexity: advanced");
@@ -470,14 +542,14 @@ async fn run_advanced_search_patterns_example() -> Result<(), Error> {
 }
 
 /// Helper function to create enterprise knowledge base structure
-async fn create_enterprise_knowledge_base() -> Result<Vec<(String, VectorStoreBuilder)>, Error> {
+fn create_enterprise_knowledge_base() -> Result<Vec<(String, VectorStoreBuilder)>, Error> {
     let departments = vec![
-        ("Engineering", create_engineering_store()),
-        ("Legal", create_legal_store()),
-        ("HR", create_hr_store()),
-        ("Marketing", create_marketing_store()),
-        ("Finance", create_finance_store()),
-        ("Operations", create_operations_store()),
+        ("Engineering".to_string(), create_engineering_store()),
+        ("Legal".to_string(), create_legal_store()),
+        ("HR".to_string(), create_hr_store()),
+        ("Marketing".to_string(), create_marketing_store()),
+        ("Finance".to_string(), create_finance_store()),
+        ("Operations".to_string(), create_operations_store()),
     ];
 
     Ok(departments)
@@ -574,7 +646,11 @@ mod tests {
 
     #[test]
     fn test_vector_store_with_files() {
-        let files = vec!["file-1".to_string(), "file-2".to_string(), "file-3".to_string()];
+        let files = vec![
+            "file-1".to_string(),
+            "file-2".to_string(),
+            "file-3".to_string(),
+        ];
         let store = vector_store_with_files("Bulk Store", files.clone());
 
         assert_eq!(store.name_ref(), Some("Bulk Store"));
@@ -618,8 +694,14 @@ mod tests {
             .filter("priority", "high");
 
         assert_eq!(search.filter_ref().len(), 2);
-        assert_eq!(search.filter_ref().get("category"), Some(&"docs".to_string()));
-        assert_eq!(search.filter_ref().get("priority"), Some(&"high".to_string()));
+        assert_eq!(
+            search.filter_ref().get("category"),
+            Some(&"docs".to_string())
+        );
+        assert_eq!(
+            search.filter_ref().get("priority"),
+            Some(&"high".to_string())
+        );
     }
 
     #[test]
@@ -628,7 +710,10 @@ mod tests {
         assert_eq!(eng_store.name_ref(), Some("Engineering Knowledge Base"));
         assert!(eng_store.has_files());
         assert!(eng_store.expires_after_ref().is_some());
-        assert_eq!(eng_store.metadata_ref().get("department"), Some(&"engineering".to_string()));
+        assert_eq!(
+            eng_store.metadata_ref().get("department"),
+            Some(&"engineering".to_string())
+        );
     }
 
     #[test]
