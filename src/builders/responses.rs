@@ -278,11 +278,78 @@ impl ResponsesBuilder {
 }
 
 impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
+    #[allow(clippy::too_many_lines)]
     fn build(self) -> crate::Result<CreateChatCompletionRequest> {
+        // Validate model
+        if self.model.trim().is_empty() {
+            return Err(crate::Error::InvalidRequest(
+                "Model cannot be empty".to_string(),
+            ));
+        }
+
+        // Validate messages
         if self.messages.is_empty() {
             return Err(crate::Error::InvalidRequest(
                 "At least one message is required".to_string(),
             ));
+        }
+
+        // Validate temperature
+        if let Some(temp) = self.temperature {
+            if !(0.0..=2.0).contains(&temp) {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "temperature must be between 0.0 and 2.0, got {temp}"
+                )));
+            }
+        }
+
+        // Validate top_p
+        if let Some(top_p) = self.top_p {
+            if !(0.0..=1.0).contains(&top_p) {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "top_p must be between 0.0 and 1.0, got {top_p}"
+                )));
+            }
+        }
+
+        // Validate frequency_penalty
+        if let Some(freq) = self.frequency_penalty {
+            if !(-2.0..=2.0).contains(&freq) {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "frequency_penalty must be between -2.0 and 2.0, got {freq}"
+                )));
+            }
+        }
+
+        // Validate presence_penalty
+        if let Some(pres) = self.presence_penalty {
+            if !(-2.0..=2.0).contains(&pres) {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "presence_penalty must be between -2.0 and 2.0, got {pres}"
+                )));
+            }
+        }
+
+        // Validate response format (JSON schema)
+        if let Some(ref format) = self.response_format {
+            if matches!(format.r#type, openai_client_base::models::create_chat_completion_request_all_of_response_format::Type::JsonSchema) {
+                // Validate schema name
+                if format.json_schema.name.trim().is_empty() {
+                    return Err(crate::Error::InvalidRequest(
+                        "JSON schema name cannot be empty".to_string(),
+                    ));
+                }
+
+                // Validate schema structure
+                if let Some(ref schema) = format.json_schema.schema {
+                    // Check if schema has required 'type' field
+                    if !schema.contains_key("type") {
+                        return Err(crate::Error::InvalidRequest(
+                            "JSON schema must have a 'type' field".to_string(),
+                        ));
+                    }
+                }
+            }
         }
 
         let response_format = self.response_format.map(Box::new);

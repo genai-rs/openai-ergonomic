@@ -1,0 +1,88 @@
+[package.metadata.tarpaulin]
+# Tarpaulin configuration for comprehensive coverage reporting
+
+# Include all workspace members
+run-types = ["Tests", "Doctests"]
+
+# Coverage output formats
+out = ["Html", "Xml", "Json"]
+
+# Timeout for individual tests (in seconds)
+timeout = 300
+
+# Follow symbolic links
+follow-exec = true
+
+# Include doc tests in coverage
+doc = true
+
+# Exclude specific files/directories from coverage
+exclude = [
+    "examples/*",
+    "benches/*",
+    "target/*",
+    "tests/smoke/*",  # Exclude smoke tests as they require API keys
+]
+
+# Exclude specific lines from coverage using attributes
+exclude-files = []
+
+# Additional configuration for different coverage profiles
+[tool.coverage]
+
+# Profile for unit tests only
+[[tool.coverage.profiles]]
+name = "unit"
+args = [
+    "--tests",
+    "--lib",
+    "--bins",
+    "--exclude-files", "tests/smoke/*",
+    "--exclude-files", "examples/*",
+]
+
+# Profile for integration tests
+[[tool.coverage.profiles]]
+name = "integration"
+args = [
+    "--tests",
+    "--exclude-files", "tests/smoke/*",
+    "--exclude-files", "examples/*",
+    "--features", "test-utils",
+]
+
+# Profile for comprehensive coverage (excluding smoke tests)
+[[tool.coverage.profiles]]
+name = "comprehensive"
+args = [
+    "--all-features",
+    "--workspace",
+    "--exclude-files", "tests/smoke/*",
+    "--exclude-files", "examples/*",
+    "--timeout", "120",
+]
+
+# Profile for smoke tests (requires API key)
+[[tool.coverage.profiles]]
+name = "smoke"
+args = [
+    "--test", "smoke",
+    "--ignored",
+    "--features", "test-utils",
+]
+
+# Configuration for specific test environments
+[package.metadata.tarpaulin.environment]
+# Set test API key for coverage runs
+OPENAI_API_KEY = "test-key-for-coverage"
+RUST_LOG = "debug"
+RUST_BACKTRACE = "1"
+
+# Coverage thresholds
+[package.metadata.tarpaulin.thresholds]
+# Minimum line coverage percentage
+line = 75.0
+# Minimum branch coverage percentage
+branch = 65.0
+# Minimum function coverage percentage
+function = 80.0

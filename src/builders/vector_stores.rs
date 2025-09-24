@@ -70,6 +70,24 @@ impl VectorStoreBuilder {
         self
     }
 
+    /// Add multiple file IDs to the vector store.
+    #[must_use]
+    pub fn add_files<I, S>(mut self, file_ids: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.file_ids.extend(file_ids.into_iter().map(std::convert::Into::into));
+        self
+    }
+
+    /// Clear all file IDs from the vector store.
+    #[must_use]
+    pub fn clear_files(mut self) -> Self {
+        self.file_ids.clear();
+        self
+    }
+
     /// Set expiration policy for the vector store.
     #[must_use]
     pub fn expires_after_days(mut self, days: i32) -> Self {
@@ -393,5 +411,34 @@ mod tests {
     fn test_vector_store_expiration_policy() {
         let policy = VectorStoreExpirationPolicy { days: 15 };
         assert_eq!(policy.days, 15);
+    }
+
+    #[test]
+    fn test_vector_store_builder_add_files() {
+        let builder = VectorStoreBuilder::new()
+            .name("Multi-File Store")
+            .add_file("file-1")
+            .add_files(vec!["file-2", "file-3", "file-4"])
+            .add_file("file-5");
+
+        assert_eq!(builder.name_ref(), Some("Multi-File Store"));
+        assert_eq!(builder.file_count(), 5);
+        assert_eq!(
+            builder.file_ids_ref(),
+            &["file-1", "file-2", "file-3", "file-4", "file-5"]
+        );
+        assert!(builder.has_files());
+    }
+
+    #[test]
+    fn test_vector_store_builder_clear_files() {
+        let builder = VectorStoreBuilder::new()
+            .add_files(vec!["file-1", "file-2", "file-3"])
+            .clear_files()
+            .add_file("file-new");
+
+        assert_eq!(builder.file_count(), 1);
+        assert_eq!(builder.file_ids_ref(), &["file-new"]);
+        assert!(builder.has_files());
     }
 }

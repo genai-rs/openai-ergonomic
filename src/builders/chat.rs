@@ -42,6 +42,7 @@ pub struct ChatCompletionBuilder {
     frequency_penalty: Option<f64>,
     top_p: Option<f64>,
     user: Option<String>,
+    seed: Option<i32>,
 }
 
 impl ChatCompletionBuilder {
@@ -64,6 +65,7 @@ impl ChatCompletionBuilder {
             frequency_penalty: None,
             top_p: None,
             user: None,
+            seed: None,
         }
     }
 
@@ -281,14 +283,188 @@ impl ChatCompletionBuilder {
         self.user = Some(user.into());
         self
     }
+
+    /// Set the random seed for deterministic outputs.
+    #[must_use]
+    pub fn seed(mut self, seed: i32) -> Self {
+        self.seed = Some(seed);
+        self
+    }
 }
 
 impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
+    #[allow(clippy::too_many_lines)]
     fn build(self) -> crate::Result<CreateChatCompletionRequest> {
+        // Validate model
+        if self.model.trim().is_empty() {
+            return Err(crate::Error::InvalidRequest(
+                "Model cannot be empty".to_string(),
+            ));
+        }
+
+        // Validate messages
         if self.messages.is_empty() {
             return Err(crate::Error::InvalidRequest(
                 "At least one message is required".to_string(),
             ));
+        }
+
+        // Validate message contents
+        for (i, message) in self.messages.iter().enumerate() {
+            match message {
+                ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
+                    if let ChatCompletionRequestSystemMessageContent::TextContent(content) =
+                        msg.content.as_ref()
+                    {
+                        if content.trim().is_empty() {
+                            return Err(crate::Error::InvalidRequest(format!(
+                                "System message at index {i} cannot have empty content"
+                            )));
+                        }
+                    }
+                }
+                ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
+                    match msg.content.as_ref() {
+                        ChatCompletionRequestUserMessageContent::TextContent(content) => {
+                            if content.trim().is_empty() {
+                                return Err(crate::Error::InvalidRequest(format!(
+                                    "User message at index {i} cannot have empty content"
+                                )));
+                            }
+                        }
+                        ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
+                            if parts.is_empty() {
+                                return Err(crate::Error::InvalidRequest(format!(
+                                    "User message at index {i} cannot have empty content parts"
+                                )));
+                            }
+                        }
+                    }
+                }
+                ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(msg) => {
+                    // Assistant messages can have content or tool calls, but not both empty
+                    let has_content = msg
+                        .content
+                        .as_ref()
+                        .and_then(|opt| opt.as_ref())
+                        .is_some_and(|c| {
+                            match c.as_ref() {
+                                ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
+                                    !text.trim().is_empty()
+                                }
+                                _ => true, // Other content types are considered valid
+                            }
+                        });
+                    let has_tool_calls = msg.tool_calls.as_ref().is_some_and(|tc| !tc.is_empty());
+
+                    if !has_content && !has_tool_calls {
+                        return Err(crate::Error::InvalidRequest(format!(
+                            "Assistant message at index {i} must have either content or tool calls"
+                        )));
+                    }
+                }
+                _ => {
+                    // Other message types (tool, function) are valid as-is
+                }
+            }
+        }
+
+        // Validate temperature
+        if let Some(temp) = self.temperature {
+            if !(0.0..=2.0).contains(&temp) {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "temperature must be between 0.0 and 2.0, got {temp}"
+                )));
+            }
+        }
+
+        // Validate top_p
+        if let Some(top_p) = self.top_p {
+            if !(0.0..=1.0).contains(&top_p) {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "top_p must be between 0.0 and 1.0, got {top_p}"
+                )));
+            }
+        }
+
+        // Validate frequency_penalty
+        if let Some(freq) = self.frequency_penalty {
+            if !(-2.0..=2.0).contains(&freq) {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "frequency_penalty must be between -2.0 and 2.0, got {freq}"
+                )));
+            }
+        }
+
+        // Validate presence_penalty
+        if let Some(pres) = self.presence_penalty {
+            if !(-2.0..=2.0).contains(&pres) {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "presence_penalty must be between -2.0 and 2.0, got {pres}"
+                )));
+            }
+        }
+
+        // Validate max_tokens
+        if let Some(max_tokens) = self.max_tokens {
+            if max_tokens <= 0 {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "max_tokens must be positive, got {max_tokens}"
+                )));
+            }
+        }
+
+        // Validate max_completion_tokens
+        if let Some(max_completion_tokens) = self.max_completion_tokens {
+            if max_completion_tokens <= 0 {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "max_completion_tokens must be positive, got {max_completion_tokens}"
+                )));
+            }
+        }
+
+        // Validate n
+        if let Some(n) = self.n {
+            if n <= 0 {
+                return Err(crate::Error::InvalidRequest(format!(
+                    "n must be positive, got {n}"
+                )));
+            }
+        }
+
+        // Validate tools
+        if let Some(ref tools) = self.tools {
+            for (i, tool) in tools.iter().enumerate() {
+                let function = &tool.function;
+
+                // Validate function name
+                if function.name.trim().is_empty() {
+                    return Err(crate::Error::InvalidRequest(format!(
+                        "Tool {i} function name cannot be empty"
+                    )));
+                }
+
+                // Validate function name contains only valid characters
+                if !function
+                    .name
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_')
+                {
+                    return Err(crate::Error::InvalidRequest(format!(
+                        "Tool {} function name '{}' contains invalid characters",
+                        i, function.name
+                    )));
+                }
+
+                // Validate function description
+                if let Some(ref description) = &function.description {
+                    if description.trim().is_empty() {
+                        return Err(crate::Error::InvalidRequest(format!(
+                            "Tool {i} function description cannot be empty"
+                        )));
+                    }
+                }
+            }
         }
 
         let response_format = self.response_format.map(Box::new);
@@ -308,7 +484,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             audio: None,
             presence_penalty: self.presence_penalty,
             response_format,
-            seed: None,
+            seed: self.seed,
             service_tier: None,
             stop: self.stop.map(|s| {
                 Box::new(openai_client_base::models::StopConfiguration::ArrayOfStrings(s))
