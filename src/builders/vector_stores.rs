@@ -77,7 +77,8 @@ impl VectorStoreBuilder {
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
-        self.file_ids.extend(file_ids.into_iter().map(std::convert::Into::into));
+        self.file_ids
+            .extend(file_ids.into_iter().map(std::convert::Into::into));
         self
     }
 
