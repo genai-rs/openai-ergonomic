@@ -254,7 +254,7 @@ impl Client {
     }
 }
 
-impl<'a> AudioClient<'a> {
+impl AudioClient<'_> {
     /// Create a speech builder for text-to-speech generation.
     #[must_use]
     pub fn speech(
@@ -367,7 +367,7 @@ impl<'a> AudioClient<'a> {
     }
 }
 
-impl<'a> ImagesClient<'a> {
+impl ImagesClient<'_> {
     /// Create a builder for image generation requests.
     #[must_use]
     pub fn generate(&self, prompt: impl Into<String>) -> ImageGenerationBuilder {
