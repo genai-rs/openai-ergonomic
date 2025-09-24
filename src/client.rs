@@ -485,6 +485,32 @@ fn map_api_error<T>(error: ApiError<T>) -> Error {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use openai_client_base::apis::{Error as BaseError, ResponseContent};
+
+    #[test]
+    fn map_api_error_converts_response() {
+        let response = ResponseContent {
+            status: reqwest::StatusCode::BAD_REQUEST,
+            content: "bad request".to_string(),
+            entity: Option::<()>::None,
+        };
+
+        let error = map_api_error(BaseError::ResponseError(response));
+        match error {
+            Error::Api {
+                status, message, ..
+            } => {
+                assert_eq!(status, 400);
+                assert!(message.contains("bad request"));
+            }
+            other => panic!("expected API error, got {other:?}"),
+        }
+    }
+}
+
 // Placeholder client types for different API endpoints
 // TODO: Implement these properly once the builders are ready
 
