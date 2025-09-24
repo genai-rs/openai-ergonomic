@@ -147,9 +147,18 @@ pub use errors::{Error, Result};
 
 // Re-export specific builder and response types for convenience
 // NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
+pub use builders::audio::{
+    SpeechBuilder, TimestampGranularity, TranscriptionBuilder, TranscriptionRequest,
+    TranslationBuilder, TranslationRequest,
+};
 pub use builders::chat::{
     image_base64_part, image_base64_part_with_detail, image_url_part, image_url_part_with_detail,
     system_user, text_part, user_message,
+};
+pub use builders::images::{
+    Background, ImageEditBuilder, ImageEditRequest, ImageGenerationBuilder, ImageInputFidelity,
+    ImageInputFidelityTextVariantEnum, ImageVariationBuilder, ImageVariationRequest, Moderation,
+    OutputFormat, Quality, ResponseFormat, Size, Style,
 };
 // Re-export vision types for convenience
 pub use builders::responses::{responses_simple, responses_system_user, ResponsesBuilder};
