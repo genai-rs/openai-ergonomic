@@ -68,6 +68,7 @@ This checklist guides maintainers through preparing and publishing a new version
   ```markdown
   - vX.Y.Z – YYYY-MM-DD – outcome / notable notes
   ```
+  - v0.3.0 – 2025-09-24 – Dry run: `cargo publish --dry-run --allow-dirty` ✅; `release-plz` skipped (binary unavailable in CLI sandbox)
 
 ## Reference Commands
 
