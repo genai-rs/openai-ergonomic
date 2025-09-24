@@ -55,3 +55,7 @@
 - [x] Phase 7: Configure CI/CD (fmt, clippy, test matrix, docs, cargo-deny) and release-plz workflow (PR #10, #16, #28 completed).
 - [ ] Phase 8: Write contributor onboarding & operational playbook (`docs/workflow.md`, `CONTRIBUTING.md`).
 - [ ] Phase 9: Define post-launch roadmap (coverage tooling, macros, integrations) in `docs/roadmap.md`.
+
+## Builder Coverage Expansion
+- [x] Implement embeddings builders in `src/builders/embeddings.rs` (completed 2025-09-24).
+- [ ] Flesh out threads/uploads builders (assistants attachments, file lifecycle).

@@ -4,15 +4,16 @@
 //! with ergonomic builders and response handling.
 
 use crate::{
-    builders::{Builder, ChatCompletionBuilder, ResponsesBuilder},
+    builders::{embeddings::EmbeddingBuilder, Builder, ChatCompletionBuilder, ResponsesBuilder},
     config::Config,
     errors::Result,
     responses::ChatCompletionResponseWrapper,
     Error,
 };
+use openai_client_base::apis::Error as ApiError;
 use openai_client_base::{
-    apis::{chat_api, configuration::Configuration},
-    models::CreateChatCompletionRequest,
+    apis::{chat_api, configuration::Configuration, embeddings_api},
+    models::{CreateChatCompletionRequest, CreateEmbeddingRequestInput, CreateEmbeddingResponse},
 };
 use reqwest::Client as HttpClient;
 use std::sync::Arc;
@@ -185,7 +186,7 @@ impl Client {
         AudioClient { client: self }
     }
 
-    /// Get embeddings client (placeholder).
+    /// Get embeddings client.
     #[must_use]
     pub fn embeddings(&self) -> EmbeddingsClient<'_> {
         EmbeddingsClient { client: self }
@@ -318,4 +319,50 @@ pub struct ThreadsClient<'a> {
 #[allow(dead_code)]
 pub struct UploadsClient<'a> {
     client: &'a Client,
+}
+
+impl EmbeddingsClient<'_> {
+    /// Create a new embeddings builder with an explicit input payload.
+    #[must_use]
+    pub fn builder(
+        &self,
+        model: impl Into<String>,
+        input: impl Into<CreateEmbeddingRequestInput>,
+    ) -> EmbeddingBuilder {
+        EmbeddingBuilder::new(model, input)
+    }
+
+    /// Convenience shorthand for embedding a single piece of text.
+    #[must_use]
+    pub fn text(&self, model: impl Into<String>, text: impl Into<String>) -> EmbeddingBuilder {
+        EmbeddingBuilder::from_text(model, text)
+    }
+
+    /// Submit an embedding request and return the generated vectors.
+    pub async fn create(&self, builder: EmbeddingBuilder) -> Result<CreateEmbeddingResponse> {
+        let request = builder.build()?;
+        embeddings_api::create_embedding()
+            .configuration(&self.client.base_configuration)
+            .create_embedding_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+fn map_api_error<T>(error: ApiError<T>) -> Error {
+    match error {
+        ApiError::Reqwest(err) => Error::Http(err),
+        ApiError::ReqwestMiddleware(err) => {
+            Error::Internal(format!("reqwest middleware error: {err}"))
+        }
+        ApiError::Serde(err) => Error::Json(err),
+        ApiError::Io(err) => Error::File(err),
+        ApiError::ResponseError(response) => Error::Api {
+            status: response.status.as_u16(),
+            message: response.content,
+            error_type: None,
+            error_code: None,
+        },
+    }
 }
