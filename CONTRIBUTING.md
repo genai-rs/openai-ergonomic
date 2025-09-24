@@ -282,15 +282,12 @@ See [docs/workflow.md](docs/workflow.md) for detailed guidance on development pa
 
 ## Release Process
 
-The project uses automated releases through `release-plz`. Maintainers must
-follow the detailed steps in
-[`docs/workflow/publish_checklist.md`](docs/workflow/publish_checklist.md)
-before merging a release PR:
+The project uses automated releases through `release-plz`:
 
-1. Merge feature work into `main` (CI must be green)
-2. Run `release-plz release-pr` locally (optionally with `--dry-run`)
-3. Complete the publish checklist (dry runs, docs.rs verification, changelog review)
-4. Merge the generated release PR and push the tag/publish artifacts as needed
+1. Changes are merged to `main`
+2. `release-plz` automatically creates release PRs
+3. Maintainers review and merge release PRs
+4. Releases are automatically published to crates.io
 
 ## Community
 
