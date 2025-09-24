@@ -72,8 +72,8 @@
 - Long-term: optional integrations (tracing middleware, retries), community contribution pathways, auxiliary crates if scope expands.
 
 ## Immediate Next Steps
-- Implement remaining builder modules (embeddings, threads/uploads) to close API coverage gaps (audio/images completed 2025-09-24).
-- Author deep-dive documentation (responses-first workflow, tool orchestration, vector store RAG playbook, migration guide from `openai-builders`).
-- Run the publish checklist dry run for the upcoming v0.3.0 release candidate; capture outcomes.
-- Keep examples aligned with new builder capabilities; add docs.rs snippets once new builders land.
+- Add Assistants API send helpers (create assistant/run lifecycle) to pair with the new thread/upload builders.
+- Introduce ergonomic streaming wrappers on `Client` so `.stream(true)` no longer requires dropping to `openai-client-base` directly.
+- Extend `VectorStoreBuilder` to emit full request structs (currently requires manual mapping in guides).
+- Ensure `release-plz` tooling is available in CI/local dev so the release dry-run can exercise automation (install binary, document usage).
 - Monitor GitHub PR backlog; last checked 2025-09-24, PR #18 (release v0.2.0) still pending merge.

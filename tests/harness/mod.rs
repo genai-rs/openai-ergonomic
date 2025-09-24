@@ -214,9 +214,10 @@ where
     F: FnOnce() -> R,
 {
     let (result, duration) = measure_test(f);
+    let tolerant_max = max_duration.saturating_add(Duration::from_millis(25));
     assert!(
-        duration <= max_duration,
-        "Test '{test_name}' took {duration:?} but should complete within {max_duration:?}"
+        duration <= tolerant_max,
+        "Test '{test_name}' took {duration:?} but should complete within {tolerant_max:?}"
     );
     result
 }

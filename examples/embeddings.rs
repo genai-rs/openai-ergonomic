@@ -30,9 +30,9 @@
 //! cargo run --example embeddings
 //! ```
 //!
-//! Note: This example demonstrates the intended API design. The embeddings API
-//! implementation is still in development. Many of these features will be available
-//! once the builders and response types are implemented.
+//! Note: This example uses simulated responses to keep the example runnable without
+//! real `OpenAI` credentials. Replace the simulated sections with
+//! `client.embeddings().create(...)` calls to interact with the live API.
 
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::no_effect_underscore_binding)]
@@ -462,8 +462,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("\n🎉 All examples completed! Check the console output above for results.");
-    println!("\nNote: This example demonstrates the intended embeddings API design.");
-    println!("The actual implementation is still in development.");
+    println!("\nNote: This example simulates API responses. Swap the simulated sections with");
+    println!("real `client.embeddings().create(...)` calls when you're ready to hit the API.");
 
     Ok(())
 }
@@ -473,12 +473,10 @@ async fn basic_embedding_example(_client: &Client) -> Result<(), Box<dyn std::er
     println!("Creating embeddings for a simple text...");
 
     // This would be the intended API usage:
-    // let request = EmbeddingRequest::new(
-    //     "The quick brown fox jumps over the lazy dog",
-    //     EmbeddingModel::TextEmbedding3Small,
-    // );
-    //
-    // let response = client.embeddings().create(request).await?;
+    // let builder = client
+    //     .embeddings()
+    //     .text("text-embedding-3-small", "The quick brown fox jumps over the lazy dog");
+    // let response = client.embeddings().create(builder).await?;
 
     // For now, we'll simulate the response
     let text = "The quick brown fox jumps over the lazy dog";
@@ -565,8 +563,11 @@ async fn batch_processing_example(_client: &Client) -> Result<(), Box<dyn std::e
     }
 
     // This would be the intended API usage:
-    // let request = EmbeddingRequest::batch(texts.clone(), EmbeddingModel::TextEmbedding3Small);
-    // let response = client.embeddings().create(request).await?;
+    // let builder = client
+    //     .embeddings()
+    //     .builder("text-embedding-3-small")
+    //     .input_texts(texts.clone());
+    // let response = client.embeddings().create(builder).await?;
 
     // Simulate batch processing
     let mut embeddings = Vec::new();
@@ -634,9 +635,11 @@ async fn dimension_reduction_example(_client: &Client) -> Result<(), Box<dyn std
     // Test different dimension reductions
     for &dims in &reduced_dims {
         // This would be the intended API usage:
-        // let request = EmbeddingRequest::new(text, model)
-        //     .with_dimensions(dims)?;
-        // let response = client.embeddings().create(request).await?;
+        // let builder = client
+        //     .embeddings()
+        //     .text(model.as_str(), text)
+        //     .dimensions(dims as i32);
+        // let response = client.embeddings().create(builder).await?;
 
         // Simulate dimension reduction
         let reduced_embedding = simulate_reduced_embedding(text, model, dims).unwrap();
