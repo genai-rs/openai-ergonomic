@@ -26,10 +26,18 @@ pub mod uploads;
 pub mod vector_stores;
 
 // Re-export common builder types for convenience
-pub use assistants::*;
+pub use assistants::{
+    assistant_with_code_interpreter, assistant_with_file_search, assistant_with_instructions,
+    assistant_with_tools, simple_assistant, simple_run, simple_thread, streaming_run,
+    temperature_run, tool_code_interpreter, tool_file_search, AssistantBuilder, AssistantTool,
+    RunBuilder, ThreadBuilder,
+};
 // pub use audio::*; // TODO: Implement audio builders
 pub use batch::*;
-pub use chat::*;
+pub use chat::{
+    image_base64_part, image_base64_part_with_detail, image_url_part, image_url_part_with_detail,
+    system_user, text_part, tool_web_search, user_message, ChatCompletionBuilder,
+};
 // pub use embeddings::*; // TODO: Implement embeddings builders
 pub use files::*;
 pub use fine_tuning::*;
