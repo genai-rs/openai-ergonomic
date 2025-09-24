@@ -31,14 +31,14 @@ src/
 │   ├── assistants.rs        # Assistants API builders (✅ IMPLEMENTED)
 │   ├── audio.rs             # Audio (TTS/STT) builders (🚧 PLACEHOLDER)
 │   ├── images.rs            # Image generation/editing builders (🚧 PLACEHOLDER)
-│   ├── embeddings.rs        # Embeddings builders (🚧 PLACEHOLDER)
+│   ├── embeddings.rs        # Embeddings builders (✅ Implemented)
 │   ├── files.rs             # File management builders (✅ IMPLEMENTED)
 │   ├── fine_tuning.rs       # Fine-tuning builders (✅ IMPLEMENTED)
 │   ├── batch.rs             # Batch processing builders (✅ IMPLEMENTED)
 │   ├── vector_stores.rs     # Vector stores builders (✅ IMPLEMENTED)
 │   ├── moderations.rs       # Content moderation builders (✅ IMPLEMENTED)
-│   ├── threads.rs           # Assistant threads builders (🚧 PLACEHOLDER)
-│   └── uploads.rs           # File upload helpers (🚧 PLACEHOLDER)
+│   ├── threads.rs           # Assistant threads builders (✅ Implemented)
+│   └── uploads.rs           # File upload helpers (✅ Implemented)
 ├── responses/               # Response wrappers with ergonomic helpers
 │   ├── mod.rs               # Response trait and common patterns (✅ IMPLEMENTED)
 │   ├── responses.rs         # Responses API response wrappers (🚧 PLACEHOLDER)
@@ -71,17 +71,17 @@ src/
 | `/chat/completions` | `builders::responses` | `responses::responses` | ✅ Builder / 🚧 Response | Modern API (preferred) |
 | `/chat/completions` | `builders::chat` | `responses::chat` | ✅ Implemented | Legacy compatibility |
 | `/assistants` | `builders::assistants` | `responses::assistants` | ✅ Builder / 🚧 Response | Assistant creation/management |
-| `/threads` | `builders::threads` | `responses::threads` | 🚧 Placeholder | Conversation management |
+| `/threads` | `builders::threads` | `responses::threads` | ✅ Builder / 🚧 Response | Conversation management |
 | `/audio/speech` | `builders::audio` | `responses::audio` | 🚧 Placeholder | Text-to-speech |
 | `/audio/transcriptions` | `builders::audio` | `responses::audio` | 🚧 Placeholder | Speech-to-text |
 | `/images/generations` | `builders::images` | `responses::images` | 🚧 Placeholder | Image generation |
-| `/embeddings` | `builders::embeddings` | `responses::embeddings` | 🚧 Placeholder | Vector embeddings |
+| `/embeddings` | `builders::embeddings` | `responses::embeddings` | ✅ Builder / 🚧 Response | Vector embeddings |
 | `/files` | `builders::files` | `responses::files` | ✅ Builder / 🚧 Response | File management |
 | `/fine_tuning/jobs` | `builders::fine_tuning` | `responses::fine_tuning` | ✅ Builder / 🚧 Response | Model fine-tuning |
 | `/batches` | `builders::batch` | `responses::batch` | ✅ Builder / 🚧 Response | Batch processing |
 | `/vector_stores` | `builders::vector_stores` | `responses::vector_stores` | ✅ Builder / 🚧 Response | Vector search |
 | `/moderations` | `builders::moderations` | `responses::moderations` | ✅ Builder / 🚧 Response | Content filtering |
-| `/uploads` | `builders::uploads` | `responses::uploads` | 🚧 Placeholder | Large file uploads |
+| `/uploads` | `builders::uploads` | `responses::uploads` | ✅ Builder / 🚧 Response | Large file uploads |
 
 **Legend:**
 - ✅ **Implemented**: Full functional implementation
