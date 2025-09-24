@@ -26,62 +26,67 @@ src/
 ├── errors.rs                 # Error types and handling
 ├── builders/                 # Builder patterns for requests
 │   ├── mod.rs               # Builder trait and common patterns
-│   ├── responses.rs         # Modern Responses API builders (primary)
-│   ├── chat.rs              # Legacy Chat API builders (compatibility)
-│   ├── assistants.rs        # Assistants API builders
-│   ├── audio.rs             # Audio (TTS/STT) builders
-│   ├── images.rs            # Image generation/editing builders
-│   ├── embeddings.rs        # Embeddings builders
-│   ├── files.rs             # File management builders
-│   ├── fine_tuning.rs       # Fine-tuning builders
-│   ├── batch.rs             # Batch processing builders
-│   ├── vector_stores.rs     # Vector stores builders
-│   ├── moderations.rs       # Content moderation builders
-│   ├── threads.rs           # Assistant threads builders
-│   └── uploads.rs           # File upload helpers
+│   ├── responses.rs         # Modern Responses API builders (✅ IMPLEMENTED)
+│   ├── chat.rs              # Legacy Chat API builders (✅ IMPLEMENTED)
+│   ├── assistants.rs        # Assistants API builders (✅ IMPLEMENTED)
+│   ├── audio.rs             # Audio (TTS/STT) builders (🚧 PLACEHOLDER)
+│   ├── images.rs            # Image generation/editing builders (🚧 PLACEHOLDER)
+│   ├── embeddings.rs        # Embeddings builders (🚧 PLACEHOLDER)
+│   ├── files.rs             # File management builders (✅ IMPLEMENTED)
+│   ├── fine_tuning.rs       # Fine-tuning builders (✅ IMPLEMENTED)
+│   ├── batch.rs             # Batch processing builders (✅ IMPLEMENTED)
+│   ├── vector_stores.rs     # Vector stores builders (✅ IMPLEMENTED)
+│   ├── moderations.rs       # Content moderation builders (✅ IMPLEMENTED)
+│   ├── threads.rs           # Assistant threads builders (🚧 PLACEHOLDER)
+│   └── uploads.rs           # File upload helpers (🚧 PLACEHOLDER)
 ├── responses/               # Response wrappers with ergonomic helpers
-│   ├── mod.rs               # Response trait and common patterns
-│   ├── responses.rs         # Responses API response wrappers
-│   ├── chat.rs              # Chat completion response wrappers
-│   ├── assistants.rs        # Assistant response wrappers
-│   ├── audio.rs             # Audio response wrappers
-│   ├── images.rs            # Image response wrappers
-│   ├── embeddings.rs        # Embedding response wrappers
-│   ├── files.rs             # File response wrappers
-│   ├── fine_tuning.rs       # Fine-tuning response wrappers
-│   ├── batch.rs             # Batch response wrappers
-│   ├── vector_stores.rs     # Vector stores response wrappers
-│   ├── moderations.rs       # Moderation response wrappers
-│   ├── threads.rs           # Thread response wrappers
-│   └── uploads.rs           # Upload response wrappers
-├── streaming/               # Streaming support
+│   ├── mod.rs               # Response trait and common patterns (✅ IMPLEMENTED)
+│   ├── responses.rs         # Responses API response wrappers (🚧 PLACEHOLDER)
+│   ├── chat.rs              # Chat completion response wrappers (✅ IMPLEMENTED)
+│   ├── assistants.rs        # Assistant response wrappers (🚧 PLACEHOLDER)
+│   ├── audio.rs             # Audio response wrappers (🚧 PLACEHOLDER)
+│   ├── images.rs            # Image response wrappers (🚧 PLACEHOLDER)
+│   ├── embeddings.rs        # Embedding response wrappers (🚧 PLACEHOLDER)
+│   ├── files.rs             # File response wrappers (🚧 PLACEHOLDER)
+│   ├── fine_tuning.rs       # Fine-tuning response wrappers (🚧 PLACEHOLDER)
+│   ├── batch.rs             # Batch response wrappers (🚧 PLACEHOLDER)
+│   ├── vector_stores.rs     # Vector stores response wrappers (🚧 PLACEHOLDER)
+│   ├── moderations.rs       # Moderation response wrappers (🚧 PLACEHOLDER)
+│   ├── threads.rs           # Thread response wrappers (🚧 PLACEHOLDER)
+│   └── uploads.rs           # Upload response wrappers (🚧 PLACEHOLDER)
+├── streaming/               # Streaming support (🚧 NOT YET IMPLEMENTED)
 │   ├── mod.rs               # Streaming traits and utilities
 │   ├── responses.rs         # Responses streaming
 │   ├── chat.rs              # Chat streaming (legacy)
 │   └── assistants.rs        # Assistant streaming
-├── constants.rs             # Model names, common values
-├── types.rs                 # Type aliases for verbose names
-└── test_utils.rs            # Testing utilities (feature-gated)
+├── constants.rs             # Model names, common values (🚧 NOT YET IMPLEMENTED)
+├── types.rs                 # Type aliases for verbose names (🚧 NOT YET IMPLEMENTED)
+└── test_utils.rs            # Testing utilities (feature-gated) (✅ IMPLEMENTED)
 ```
 
 ### Module Alignment with OpenAI Endpoints
 
-| OpenAI Endpoint | Builder Module | Response Module | Primary Use Case |
-|-----------------|----------------|-----------------|------------------|
-| `/chat/completions` | `builders::responses` | `responses::responses` | Modern API (preferred) |
-| `/chat/completions` | `builders::chat` | `responses::chat` | Legacy compatibility |
-| `/assistants` | `builders::assistants` | `responses::assistants` | Assistant creation/management |
-| `/threads` | `builders::threads` | `responses::threads` | Conversation management |
-| `/audio/speech` | `builders::audio` | `responses::audio` | Text-to-speech |
-| `/audio/transcriptions` | `builders::audio` | `responses::audio` | Speech-to-text |
-| `/images/generations` | `builders::images` | `responses::images` | Image generation |
-| `/embeddings` | `builders::embeddings` | `responses::embeddings` | Vector embeddings |
-| `/files` | `builders::files` | `responses::files` | File management |
-| `/fine_tuning/jobs` | `builders::fine_tuning` | `responses::fine_tuning` | Model fine-tuning |
-| `/batches` | `builders::batch` | `responses::batch` | Batch processing |
-| `/vector_stores` | `builders::vector_stores` | `responses::vector_stores` | Vector search |
-| `/moderations` | `builders::moderations` | `responses::moderations` | Content filtering |
-| `/uploads` | `builders::uploads` | `responses::uploads` | Large file uploads |
+| OpenAI Endpoint | Builder Module | Response Module | Implementation Status | Primary Use Case |
+|-----------------|----------------|-----------------|---------------------|------------------|
+| `/chat/completions` | `builders::responses` | `responses::responses` | ✅ Builder / 🚧 Response | Modern API (preferred) |
+| `/chat/completions` | `builders::chat` | `responses::chat` | ✅ Implemented | Legacy compatibility |
+| `/assistants` | `builders::assistants` | `responses::assistants` | ✅ Builder / 🚧 Response | Assistant creation/management |
+| `/threads` | `builders::threads` | `responses::threads` | 🚧 Placeholder | Conversation management |
+| `/audio/speech` | `builders::audio` | `responses::audio` | 🚧 Placeholder | Text-to-speech |
+| `/audio/transcriptions` | `builders::audio` | `responses::audio` | 🚧 Placeholder | Speech-to-text |
+| `/images/generations` | `builders::images` | `responses::images` | 🚧 Placeholder | Image generation |
+| `/embeddings` | `builders::embeddings` | `responses::embeddings` | 🚧 Placeholder | Vector embeddings |
+| `/files` | `builders::files` | `responses::files` | ✅ Builder / 🚧 Response | File management |
+| `/fine_tuning/jobs` | `builders::fine_tuning` | `responses::fine_tuning` | ✅ Builder / 🚧 Response | Model fine-tuning |
+| `/batches` | `builders::batch` | `responses::batch` | ✅ Builder / 🚧 Response | Batch processing |
+| `/vector_stores` | `builders::vector_stores` | `responses::vector_stores` | ✅ Builder / 🚧 Response | Vector search |
+| `/moderations` | `builders::moderations` | `responses::moderations` | ✅ Builder / 🚧 Response | Content filtering |
+| `/uploads` | `builders::uploads` | `responses::uploads` | 🚧 Placeholder | Large file uploads |
+
+**Legend:**
+- ✅ **Implemented**: Full functional implementation
+- 🚧 **Placeholder**: Module exists but contains only TODO comments
+- ✅ Builder / 🚧 Response: Builder is implemented, response wrapper is placeholder
 
 ## Builder API Specifications
 
@@ -143,24 +148,23 @@ client.create_chat_completion()
 ### Builder Pattern Specifications
 
 #### Builder Trait
-All builders implement a common `Builder` trait:
+All builders implement a common `Builder` trait for consistency:
 
 ```rust
+/// Common trait for all builders to provide consistent APIs.
 pub trait Builder<T> {
-    type Output;
-
-    /// Execute the request and return the response
-    async fn send(self) -> Result<Self::Output>;
-
-    /// Execute the request and return a stream (if supported)
-    async fn stream(self) -> Result<impl Stream<Item = Result<T>>>;
+    /// Build the final request type.
+    fn build(self) -> crate::Result<T>;
 }
 
-pub trait Sendable {
-    type Response;
-    async fn send(self) -> Result<Self::Response>;
+/// Helper trait for builders that can be sent to the OpenAI API.
+pub trait Sendable<R> {
+    /// Send the request to the OpenAI API and return the response.
+    async fn send(self) -> crate::Result<R>;
 }
 ```
+
+**Note**: Streaming support will be added in future versions with additional traits.
 
 #### Builder Naming Conventions
 - Builder structs end with `Builder`: `ResponsesBuilder`, `ChatCompletionBuilder`
@@ -168,44 +172,74 @@ pub trait Sendable {
 - Methods use descriptive names without prefixes: `.user()`, `.system()`, `.model()`
 - Boolean flags use `with_` prefix: `.with_streaming()`, `.with_tools()`
 
-#### Builder Method Patterns
+#### Actual Builder Method Patterns
+
+Based on the current implementation, here are the actual method patterns:
 
 ```rust
 impl ResponsesBuilder {
+    /// Create a new responses builder with the specified model
+    pub fn new(model: impl Into<String>) -> Self
+
     // Message methods
     pub fn system(mut self, content: impl Into<String>) -> Self
     pub fn user(mut self, content: impl Into<String>) -> Self
     pub fn assistant(mut self, content: impl Into<String>) -> Self
 
     // Configuration methods
-    pub fn model(mut self, model: impl Into<String>) -> Self
-    pub fn temperature(mut self, temp: f64) -> Self
-    pub fn max_tokens(mut self, tokens: u32) -> Self
+    pub fn temperature(mut self, temperature: f64) -> Self
+    pub fn max_tokens(mut self, max_tokens: i32) -> Self
+    pub fn max_completion_tokens(mut self, max_completion_tokens: i32) -> Self
+    pub fn stream(mut self, stream: bool) -> Self
 
     // Tool methods
-    pub fn tool(mut self, tool: Tool) -> Self
-    pub fn tool_choice(mut self, choice: ToolChoice) -> Self
+    pub fn tools(mut self, tools: Vec<ChatCompletionTool>) -> Self
+    pub fn tool(mut self, tool: ChatCompletionTool) -> Self
+    pub fn tool_choice(mut self, tool_choice: ChatCompletionToolChoiceOption) -> Self
 
-    // Execution methods
-    pub async fn send(self) -> Result<ResponsesResponse>
-    pub async fn stream(self) -> Result<ResponsesStream>
+    // Response format methods
+    pub fn json_mode(mut self) -> Self
+    pub fn json_schema(mut self, name: impl Into<String>, schema: Value) -> Self
+
+    // Advanced configuration
+    pub fn n(mut self, n: i32) -> Self
+    pub fn stop(mut self, stop: Vec<String>) -> Self
+    pub fn presence_penalty(mut self, presence_penalty: f64) -> Self
+    pub fn frequency_penalty(mut self, frequency_penalty: f64) -> Self
+    pub fn top_p(mut self, top_p: f64) -> Self
+    pub fn user_id(mut self, user: impl Into<String>) -> Self
+    pub fn seed(mut self, seed: i32) -> Self
+    pub fn reasoning_effort(mut self, effort: impl Into<String>) -> Self // For o3 models
+}
+
+// Builder trait implementation
+impl Builder<CreateChatCompletionRequest> for ResponsesBuilder {
+    fn build(self) -> crate::Result<CreateChatCompletionRequest>
 }
 ```
 
 ## Naming Conventions
 
-### Constants and Type Aliases
+### Constants and Type Aliases (Planned)
 
-#### Model Constants
-Organized by capability and release date:
+> **Status**: Not yet implemented. This section describes the planned design.
+
+Constants and type aliases will be added as needed to improve ergonomics:
+
+#### Model Constants (Future)
+When implemented, will be organized by capability:
 
 ```rust
+// Future implementation
 pub mod constants {
     pub mod models {
         // Language models (latest first)
         pub const GPT_4_TURBO: &str = "gpt-4-turbo";
         pub const GPT_4: &str = "gpt-4";
         pub const GPT_3_5_TURBO: &str = "gpt-3.5-turbo";
+        pub const O1: &str = "o1";
+        pub const O1_MINI: &str = "o1-mini";
+        pub const O3_MINI: &str = "o3-mini";
 
         // Embedding models
         pub const TEXT_EMBEDDING_3_LARGE: &str = "text-embedding-3-large";
@@ -220,42 +254,27 @@ pub mod constants {
         pub const DALL_E_3: &str = "dall-e-3";
         pub const DALL_E_2: &str = "dall-e-2";
     }
-
-    pub mod audio {
-        pub const VOICES: &[&str] = &["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
-        pub const FORMATS: &[&str] = &["mp3", "opus", "aac", "flac"];
-    }
-
-    pub mod images {
-        pub const SIZES_DALL_E_2: &[&str] = &["256x256", "512x512", "1024x1024"];
-        pub const SIZES_DALL_E_3: &[&str] = &["1024x1024", "1792x1024", "1024x1792"];
-    }
 }
 ```
 
-#### Type Aliases
-Simplify verbose generated type names:
+#### Type Aliases (Future)
+Currently, the crate uses full type names from `openai_client_base`. Type aliases will be added based on user feedback:
 
 ```rust
+// Future implementation
 pub mod types {
     use openai_client_base::models::*;
 
     // Request type aliases
     pub type ChatRequest = CreateChatCompletionRequest;
-    pub type ResponsesRequest = CreateResponsesRequest;
     pub type AssistantRequest = CreateAssistantRequest;
 
     // Response type aliases
     pub type ChatResponse = CreateChatCompletionResponse;
-    pub type ResponsesResponse = CreateResponsesResponse;
     pub type AssistantResponse = Assistant;
 
     // Message types
     pub type ChatMessage = ChatCompletionRequestMessage;
-    pub type ResponsesMessage = ResponsesRequestMessage;
-
-    // Tool types
-    pub type FunctionTool = ChatCompletionTool;
     pub type ToolCall = ChatCompletionMessageToolCall;
 }
 ```
@@ -267,61 +286,144 @@ pub mod types {
 - No `create_` or `build_` prefixes
 - Return builder instance ready for configuration
 
-#### Helper Function Naming
-- Action + object: `tool_function()`, `tool_web_search()`
-- Context when needed: `system_user()`, `image_base64_part()`
-- Streaming variants: `chat_stream()`, `responses_stream()`
+#### Current Helper Functions
 
-#### Response Method Naming
-- Use property names directly: `.content()`, `.usage()`, `.model()`
-- Boolean queries with `is_` or `has_`: `.is_finished()`, `.has_tools()`
-- Collections use plural: `.choices()`, `.messages()`, `.tools()`
+The crate provides these helper functions:
+
+```rust
+// Simple builder creation helpers
+pub fn responses_simple(model: impl Into<String>, content: impl Into<String>) -> ResponsesBuilder
+pub fn responses_system_user(
+    model: impl Into<String>,
+    system: impl Into<String>,
+    user: impl Into<String>,
+) -> ResponsesBuilder
+
+// Tool creation helpers
+pub fn responses_tool_function(
+    name: impl Into<String>,
+    description: impl Into<String>,
+    parameters: Value,
+) -> ChatCompletionTool
+
+pub fn responses_tool_web_search() -> ChatCompletionTool
+```
+
+#### Helper Function Naming Conventions
+- **Action + object**: `responses_tool_function()`, `responses_tool_web_search()`
+- **Context when needed**: `responses_system_user()`, `responses_simple()`
+- **Streaming variants**: Planned for future implementation
+
+#### Current Response Wrapper Patterns
+
+The crate currently implements response wrappers with extension traits:
+
+#### Chat Completion Response Extensions
+
+```rust
+/// Extension trait for chat completion responses
+pub trait ChatCompletionResponseExt {
+    /// Get the content of the first choice, if available
+    fn content(&self) -> Option<&str>;
+
+    /// Get the tool calls from the first choice, if available
+    fn tool_calls(&self) -> Vec<&ChatCompletionMessageToolCallsInner>;
+
+    /// Check if the response has tool calls
+    fn has_tool_calls(&self) -> bool;
+
+    /// Get the first choice from the response
+    fn first_choice(&self) -> Option<&CreateChatCompletionResponseChoicesInner>;
+
+    /// Get the message from the first choice
+    fn first_message(&self) -> Option<&ChatCompletionResponseMessage>;
+
+    /// Check if the response was refused
+    fn is_refusal(&self) -> bool;
+
+    /// Get the refusal message if the response was refused
+    fn refusal(&self) -> Option<&str>;
+
+    /// Get the finish reason for the first choice
+    fn finish_reason(&self) -> Option<String>;
+}
+
+// Implemented for CreateChatCompletionResponse
+impl ChatCompletionResponseExt for CreateChatCompletionResponse { /* ... */ }
+```
+
+#### Response Method Naming Conventions
+- **Property access**: `.content()`, `.usage()`, `.model()` (direct property names)
+- **Boolean queries**: `.is_refusal()`, `.has_tool_calls()` (use `is_` or `has_` prefixes)
+- **Collections**: `.tool_calls()`, `.choices()` (plural forms)
+- **First item access**: `.first_choice()`, `.first_message()` (explicit `first_` prefix)
+- **Optional access**: Most methods return `Option<T>` for safe access
 
 ## Error Handling Design
 
 ### Error Type Hierarchy
 
+The crate uses a comprehensive error handling system built on `thiserror`:
+
 ```rust
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// API errors from OpenAI
-    #[error("OpenAI API error: {0}")]
-    Api(#[from] openai_client_base::Error),
+    /// Invalid request parameters or configuration.
+    #[error("Invalid request: {0}")]
+    InvalidRequest(String),
 
-    /// Rate limiting errors
-    #[error("Rate limit exceeded: {message}")]
-    RateLimit {
-        message: String,
-        retry_after: Option<std::time::Duration>,
-    },
+    /// Authentication errors.
+    #[error("Authentication failed: {0}")]
+    Authentication(String),
 
-    /// Authentication errors
-    #[error("Authentication failed: {message}")]
-    Auth { message: String },
+    /// Rate limiting errors.
+    #[error("Rate limit exceeded: {0}")]
+    RateLimit(String),
 
-    /// Configuration errors
-    #[error("Configuration error: {message}")]
-    Config { message: String },
+    /// HTTP client errors.
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
 
-    /// Validation errors for request parameters
-    #[error("Validation error: {field}: {message}")]
-    Validation { field: String, message: String },
-
-    /// Network/transport errors
-    #[error("Network error: {0}")]
-    Network(#[from] reqwest::Error),
-
-    /// JSON parsing errors
-    #[error("JSON parsing error: {0}")]
+    /// JSON serialization/deserialization errors.
+    #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// Streaming errors
-    #[error("Streaming error: {message}")]
-    Stream { message: String },
+    /// OpenAI API errors with status code and message.
+    #[error("OpenAI API error (status {status}): {message}")]
+    Api {
+        /// HTTP status code returned by the API
+        status: u16,
+        /// Error message from the API
+        message: String,
+        /// Type of error (if provided by API)
+        error_type: Option<String>,
+        /// Error code (if provided by API)
+        error_code: Option<String>,
+    },
 
-    /// Timeout errors
-    #[error("Request timeout after {duration:?}")]
-    Timeout { duration: std::time::Duration },
+    /// Streaming connection errors.
+    #[error("Stream connection error: {message}")]
+    StreamConnection {
+        /// Error message describing the connection issue
+        message: String,
+    },
+
+    /// Streaming data parsing errors.
+    #[error("Stream parsing error: {message}, chunk: {chunk}")]
+    StreamParsing {
+        /// Error message describing the parsing issue
+        message: String,
+        /// The problematic chunk data
+        chunk: String,
+    },
+
+    /// Configuration errors
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+
+    /// Input/Output errors
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -330,52 +432,67 @@ pub type Result<T> = std::result::Result<T, Error>;
 ### Error Context Patterns
 
 #### Builder Validation
-Validate parameters at build time when possible:
+Validation occurs in the `build()` method to provide early error detection:
 
 ```rust
 impl ResponsesBuilder {
-    pub fn temperature(mut self, temp: f64) -> Result<Self> {
-        if temp < 0.0 || temp > 2.0 {
-            return Err(Error::Validation {
-                field: "temperature".to_string(),
-                message: "must be between 0.0 and 2.0".to_string(),
-            });
+    fn build(self) -> crate::Result<CreateChatCompletionRequest> {
+        // Validate model
+        if self.model.trim().is_empty() {
+            return Err(Error::InvalidRequest("Model cannot be empty".to_string()));
         }
-        self.temperature = Some(temp);
-        Ok(self)
+
+        // Validate messages
+        if self.messages.is_empty() {
+            return Err(Error::InvalidRequest(
+                "At least one message is required".to_string(),
+            ));
+        }
+
+        // Validate temperature range
+        if let Some(temp) = self.temperature {
+            if !(0.0..=2.0).contains(&temp) {
+                return Err(Error::InvalidRequest(format!(
+                    "temperature must be between 0.0 and 2.0, got {temp}"
+                )));
+            }
+        }
+
+        // Build the request...
+        Ok(request)
     }
 }
 ```
 
-#### Response Error Handling
-Provide context for API errors:
+#### Error Context Patterns
+The error types provide rich context for different failure scenarios:
 
 ```rust
-impl From<openai_client_base::Error> for Error {
-    fn from(err: openai_client_base::Error) -> Self {
-        match err {
-            openai_client_base::Error::Http { status: 429, .. } => {
-                Error::RateLimit {
-                    message: "API rate limit exceeded".to_string(),
-                    retry_after: None, // Parse from headers if available
-                }
-            }
-            openai_client_base::Error::Http { status: 401, .. } => {
-                Error::Auth {
-                    message: "Invalid API key or authentication failed".to_string(),
-                }
-            }
-            _ => Error::Api(err),
-        }
-    }
+// Authentication failures
+Error::Authentication("Invalid API key".to_string())
+
+// Rate limiting with actionable info
+Error::RateLimit("Rate limit exceeded, try again later".to_string())
+
+// API errors with structured data
+Error::Api {
+    status: 400,
+    message: "Invalid request body".to_string(),
+    error_type: Some("invalid_request_error".to_string()),
+    error_code: Some("missing_parameter".to_string()),
 }
 ```
 
-## Streaming Helper Specifications
+## Streaming Support (Future Implementation)
 
-### Streaming Traits
+> **Status**: Not yet implemented. This section describes the planned design based on example patterns.
+
+Streaming support will be added in future versions with the following design:
+
+### Planned Streaming Traits
 
 ```rust
+// Future implementation
 pub trait StreamExt {
     type Item;
 
@@ -390,117 +507,62 @@ pub trait StreamExt {
     where
         F: Fn(Self::Item) -> T;
 }
-
-pub trait ResponseStream: Stream<Item = Result<Self::Chunk>> {
-    type Chunk;
-    type FinalResponse;
-
-    /// Get the accumulated response so far
-    fn current_response(&self) -> &Self::FinalResponse;
-
-    /// Check if the stream is complete
-    fn is_finished(&self) -> bool;
-}
 ```
 
-### Streaming Response Types
+### Current Streaming Examples
+
+The crate includes comprehensive streaming examples that demonstrate the intended patterns:
+- `examples/responses_streaming.rs` - Responses API streaming
+- `examples/chat_comprehensive.rs` - Chat streaming patterns
+- `examples/tool_calling.rs` - Streaming with function calls
+
+### Builder Streaming Integration
+
+Builders currently support streaming configuration:
 
 ```rust
-/// Streaming chat completion chunk
-#[derive(Debug, Clone)]
-pub struct ChatChunk {
-    pub id: String,
-    pub choices: Vec<ChatChoice>,
-    pub usage: Option<Usage>,
-    pub model: String,
-}
+// Current implementation
+let builder = client.responses()
+    .user("Tell me about Rust")
+    .stream(true); // Enable streaming flag
 
-impl ChatChunk {
-    /// Get the content from the first choice
-    pub fn content(&self) -> Option<&str> {
-        self.choices.first()?.delta.content.as_deref()
-    }
-
-    /// Get the finish reason if present
-    pub fn finish_reason(&self) -> Option<&str> {
-        self.choices.first()?.finish_reason.as_deref()
-    }
-}
-
-/// Streaming responses chunk
-pub type ResponsesChunk = ChatChunk; // Same structure
-
-/// Assistant run stream chunk
-#[derive(Debug, Clone)]
-pub struct RunChunk {
-    pub event: String,
-    pub data: serde_json::Value,
-}
-```
-
-### Streaming Helper Functions
-
-```rust
-/// Create a streaming responses request
-pub async fn responses_stream(
-    client: &Client,
-    prompt: impl Into<String>,
-) -> Result<ResponsesStream> {
-    client.responses()
-        .user(prompt)
-        .with_streaming()
-        .stream()
-        .await
-}
-
-/// Stream with callback for each chunk
-pub async fn responses_stream_with_callback<F>(
-    client: &Client,
-    prompt: impl Into<String>,
-    mut callback: F,
-) -> Result<String>
-where
-    F: FnMut(&ResponsesChunk) -> Result<()>,
-{
-    let mut stream = responses_stream(client, prompt).await?;
-    let mut content = String::new();
-
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        callback(&chunk)?;
-
-        if let Some(text) = chunk.content() {
-            content.push_str(text);
-        }
-    }
-
-    Ok(content)
-}
+// Future: Direct streaming method
+// let stream = builder.stream().await?;
 ```
 
 ## Feature Flag Architecture
 
-### Feature Flags
+### Current Feature Flags
+
+Based on the current `Cargo.toml`, the crate uses a minimal but effective feature flag system:
 
 ```toml
 [features]
-default = ["native-tls"]
+default = ["rustls-tls"]
 
 # TLS backend selection (mutually exclusive)
-native-tls = ["openai-client-base/native-tls"]
-rustls = ["openai-client-base/rustls"]
+rustls-tls = ["reqwest/rustls-tls"]
+native-tls = ["reqwest/native-tls-vendored"]
 
 # Optional functionality
+test-utils = ["mockito"]
+```
+
+### Future Feature Flags (Planned)
+
+```toml
+# Streaming support (when implemented)
 stream = ["futures", "tokio-stream"]
-test-utils = ["mockito", "tokio-test"]
+
+# Observability integration
 observability = ["tracing", "opentelemetry"]
 
 # Experimental features
-realtime = ["tokio-tungstenite", "serde_json"]
 beta-endpoints = []
+realtime = ["tokio-tungstenite"]
 
 # Platform-specific features
-wasm = ["openai-client-base/wasm"]
+wasm = ["reqwest/wasm"]
 ```
 
 ### Feature-Gated Code Patterns
@@ -591,39 +653,90 @@ const TEMP: Temperature = Temperature::new(0.7).unwrap();
 builder.temperature(TEMP);
 ```
 
-### Response Type Safety
-Ensure response methods match the actual API response:
+### Response Type Safety Patterns
+
+The response wrappers prioritize type safety and null-safe access:
 
 ```rust
-pub trait ResponseExt {
-    fn usage(&self) -> Option<&Usage>;
-    fn model(&self) -> &str;
-    fn created(&self) -> u64;
+// Safe content access with None handling
+fn content(&self) -> Option<&str> {
+    self.choices
+        .first()
+        .and_then(|choice| choice.message.content.as_deref())
 }
 
-impl ResponseExt for ResponsesResponse {
-    fn usage(&self) -> Option<&Usage> {
-        self.usage.as_ref()
-    }
+// Safe tool call iteration
+fn tool_calls(&self) -> Vec<&ChatCompletionMessageToolCallsInner> {
+    self.choices
+        .first()
+        .and_then(|choice| choice.message.tool_calls.as_ref())
+        .map(|calls| calls.iter().collect())
+        .unwrap_or_default()
+}
 
-    fn model(&self) -> &str {
-        &self.model
-    }
+// Boolean convenience methods
+fn has_tool_calls(&self) -> bool {
+    !self.tool_calls().is_empty()
+}
 
-    fn created(&self) -> u64 {
-        self.created
-    }
+fn is_refusal(&self) -> bool {
+    self.first_message()
+        .and_then(|msg| msg.refusal.as_deref())
+        .map(|refusal| !refusal.is_empty())
+        .unwrap_or(false)
 }
 ```
+
+**Design Principles:**
+- **Null safety**: All response methods handle missing fields gracefully
+- **Convenience**: Boolean methods for common checks (`has_tool_calls()`, `is_refusal()`)
+- **First-choice focus**: Most methods operate on the first choice for simplicity
+- **Chain-safe**: Methods use Option chaining to avoid panics
+
+## Implementation Status & Roadmap
+
+### Current Implementation Status (v0.1.0)
+
+#### ✅ Fully Implemented
+- **Core Infrastructure**: Error handling, configuration, client wrapper
+- **Builder Patterns**: ResponsesBuilder, ChatCompletionBuilder, AssistantBuilder
+- **Advanced Builders**: BatchBuilder, FilesBuilder, FineTuningBuilder, ModerationsBuilder, VectorStoresBuilder
+- **Response Extensions**: ChatCompletionResponseExt with ergonomic helper methods
+- **Testing Infrastructure**: Comprehensive test utilities and patterns
+- **Documentation**: Examples covering all major use cases
+
+#### 🚧 Partial Implementation
+- **Response Wrappers**: Only chat responses implemented, others are placeholders
+- **Helper Functions**: Basic tool and builder creation helpers exist
+- **Feature Flags**: Basic TLS selection, test-utils available
+
+#### 🕳️ Planned for Future Versions
+- **Streaming Support**: Dedicated streaming module and traits
+- **Constants Module**: Model names and common values
+- **Type Aliases**: Simplified names for verbose generated types
+- **Missing Builders**: Audio, Images, Embeddings, Threads, Uploads
+- **Response Wrappers**: All endpoint response wrappers
+- **Advanced Features**: Observability, WebAssembly support
+
+### Design Achievements
 
 This API surface design provides:
 
 1. **Clear module organization** aligned with OpenAI endpoints
 2. **Tiered API design** from simple helpers to full builders
 3. **Consistent naming conventions** across the crate
-4. **Robust error handling** with rich context
-5. **First-class streaming support** with ergonomic helpers
-6. **Flexible feature flags** for optional functionality
-7. **Type safety patterns** to prevent runtime errors
+4. **Robust error handling** with rich context and validation
+5. **Comprehensive examples** demonstrating real-world usage patterns
+6. **Type safety** with compile-time validation where possible
+7. **Extensible architecture** for future OpenAI API additions
 
-The design balances ergonomics for common use cases with flexibility for advanced scenarios, following Rust idioms and providing a pleasant developer experience.
+### Development Priorities
+
+Based on usage patterns from examples and user feedback:
+
+1. **Phase 1 (v0.2.0)**: Complete response wrapper implementations
+2. **Phase 2 (v0.3.0)**: Add streaming support with dedicated traits and helpers
+3. **Phase 3 (v0.4.0)**: Implement missing builders (Audio, Images, Embeddings)
+4. **Phase 4 (v0.5.0)**: Add constants, type aliases, and advanced features
+
+The current implementation balances **immediate usability** with **future extensibility**, providing a solid foundation for ergonomic OpenAI API usage in Rust while maintaining compatibility with the underlying `openai-client-base` generated client.
