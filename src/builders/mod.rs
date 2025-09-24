@@ -38,7 +38,7 @@ pub use chat::{
     image_base64_part, image_base64_part_with_detail, image_url_part, image_url_part_with_detail,
     system_user, text_part, tool_web_search, user_message, ChatCompletionBuilder,
 };
-// pub use embeddings::*; // TODO: Implement embeddings builders
+pub use embeddings::*;
 pub use files::*;
 pub use fine_tuning::*;
 // pub use images::*; // TODO: Implement images builders
