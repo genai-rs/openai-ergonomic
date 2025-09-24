@@ -348,23 +348,33 @@ cargo doc --document-private-items
 
 ## Release Process
 
+The canonical minute-by-minute instructions live in
+[`docs/workflow/publish_checklist.md`](workflow/publish_checklist.md). Review that
+checklist before every release and record the outcome once finished.
+
 ### Version Management
 
-We use `release-plz` for automated releases:
+We use `release-plz` to generate release pull requests and keep the
+`Cargo.toml`/`CHANGELOG.md` entries in sync:
 
-1. Changes merged to `main` trigger release PR creation
-2. Maintainers review and merge release PRs
-3. Releases automatically publish to crates.io
-4. Version bumps follow semantic versioning
+1. Merge work into `main`; CI must be green before proceeding
+2. Run `release-plz release-pr` locally (optionally with `--dry-run`) to stage the release
+3. Review the generated PR for version bump, changelog, and dependency touches
+4. Merge the PR; ***REMOVED*** (or a manual follow-up) will publish to crates.io
 
-### Release Checklist
+### Publishing Phases (Quick Reference)
 
-Before releasing:
-- [ ] All tests pass
-- [ ] Documentation builds cleanly
-- [ ] Examples work with new changes
-- [ ] CHANGELOG updated
-- [ ] Version bumped appropriately
+1. **Preflight** – make sure planning artifacts are current, run the full
+   `cargo fmt`/`clippy`/`test`/`build`/`doc`/`build --examples` suite, and verify
+   examples still compile
+2. **Dry Run** – execute `cargo publish --dry-run`, `cargo doc --no-deps --all-features`
+   with `RUSTFLAGS="-D warnings"`, and `release-plz ... --dry-run`
+3. **Execution** – merge the release PR, tag the commit if needed, and run
+   `cargo publish` (or let ***REMOVED*** finish the job)
+4. **Post-release** – confirm the crate on crates.io, check docs.rs status, send
+   announcements, and capture release notes in `TODO.md`/`PLAN.md`
+
+Keep the quick reference small; adjust the dedicated checklist when the process evolves.
 
 ## Collaboration Patterns
 

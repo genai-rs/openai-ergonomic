@@ -1,249 +1,138 @@
 # Architecture Overview
 
-This document provides an overview of the `openai-ergonomic` crate architecture, design principles, and module organization.
+This document outlines how `openai-ergonomic` is structured and how the major
+modules interact to provide an ergonomic layer on top of
+[`openai-client-base`](https://github.com/openai/openai-client-base).
 
 ## Design Principles
 
-### 1. Ergonomic API Design
-- **Builder Pattern**: Use type-safe builders for complex request construction
-- **Sensible Defaults**: Provide reasonable defaults while allowing customization
-- **Fluent Interface**: Enable method chaining for natural API usage
-- **Type Safety**: Leverage Rust's type system to prevent invalid configurations
+### Ergonomic by Default
+- **Builder pattern everywhere** – complex request payloads are assembled through
+  fluent, type-safe builders
+- **Sensible defaults** – most helpers pick a reasonable model and configuration
+  so the developer can focus on intent
+- **Progressive disclosure** – the public API starts simple but exposes lower
+  level control when needed
 
-### 2. Async-First
-- **Tokio Integration**: Built on top of the Tokio async runtime
-- **Stream Support**: First-class support for streaming responses
-- **Non-blocking**: All network operations are non-blocking
-- **Future-ready**: Designed for async/await patterns
+### Async-first
+- Runs on Tokio and Reqwest for modern async usage
+- Streaming helpers return future-friendly abstractions (planned expansion)
+- Builders avoid blocking by deferring work until `Client` executes them
 
-### 3. Layered Architecture
+### Layered Architecture
 ```
 ┌─────────────────────────┐
-│   High-level Builders   │  ← Ergonomic API (openai-ergonomic)
+│  openai-ergonomic       │  ← ergonomic client, builders, helpers
 ├─────────────────────────┤
-│   Generated Client      │  ← Low-level API (openai-client-base)
+│  openai-client-base     │  ← generated OpenAPI client (models + apis)
 ├─────────────────────────┤
-│   HTTP Client (reqwest) │  ← Transport layer
+│  reqwest, tokio, bon    │  ← transport + builder foundations
 └─────────────────────────┘
 ```
 
 ## Module Structure
 
-### Core Modules
+```
+src/
+├── lib.rs         # Crate root & public re-exports
+├── client.rs      # High-level Client wrapper around openai-client-base
+├── config.rs      # Builder for configuration and env loading helpers
+├── errors.rs      # Unified Error type + streaming helpers
+├── responses/     # Thin response wrappers + convenience helpers
+├── builders/      # Fluent request builders organised by API surface
+└── test_utils.rs  # Mock server helpers for examples/tests
+```
 
-#### `client`
-The main client module providing the entry point for all API interactions.
+### Client (`client.rs`)
+
+The `Client` struct owns shared configuration and exposes ergonomic entry
+points:
 
 ```rust
-pub struct OpenAIClient {
-    // Internal HTTP client and configuration
-}
-
-impl OpenAIClient {
-    pub fn new() -> ClientBuilder { /* ... */ }
-    pub fn chat_completions(&self) -> ChatCompletionsBuilder { /* ... */ }
-    pub fn embeddings(&self) -> EmbeddingsBuilder { /* ... */ }
-    // ... other API endpoints
+pub struct Client {
+    config: Arc<Config>,
+    http: reqwest::Client,
+    base_configuration: openai_client_base::apis::configuration::Configuration,
 }
 ```
 
-#### `builders`
-Type-safe builder patterns for each OpenAI API endpoint.
+Key capabilities:
+- `Client::from_env()` builds configuration from environment variables
+- `Client::chat()` and `Client::responses()` return request builders
+- `Client::send_chat` / `Client::send_responses` execute the generated payloads
+- Placeholder accessors (`assistants()`, `audio()`, …) mark future expansion
 
-```
-builders/
-├── chat/              # Chat completions
-│   ├── mod.rs
-│   ├── builder.rs     # ChatCompletionsBuilder
-│   └── streaming.rs   # Streaming support
-├── embeddings/        # Embeddings API
-├── images/            # Image generation
-├── audio/             # Speech and transcription
-├── assistants/        # Assistants API
-└── files/             # File operations
-```
+### Configuration (`config.rs`)
 
-#### `types`
-Shared types, enums, and data structures.
+`Config::builder()` provides validation for API keys, custom base URLs, timeouts,
+and default model selection. `Config::from_env()` pulls from `OPENAI_API_KEY`,
+`OPENAI_ORG_ID`, etc.
+
+### Error Handling (`errors.rs`)
+
+A single `Error` enum wraps:
+- HTTP issues (`Error::Http`)
+- API error payloads (`Error::Api`)
+- Builder validation problems (`Error::InvalidRequest`)
+- Streaming-specific helpers via `errors::streaming`
+
+### Builders (`builders/`)
+
+Each endpoint family implements a dedicated builder module. Implemented modules
+today include:
+
+- `responses.rs`, `chat.rs`, `assistants.rs`, `audio.rs`, `vector_stores.rs`,
+  `files.rs`, `fine_tuning.rs`, `moderations.rs`, `batch.rs`
+- Placeholders exist for `embeddings.rs`, `threads.rs`, `uploads.rs`
+
+Common traits defined in `builders/mod.rs`:
 
 ```rust
-pub mod models;        // Model identifiers and metadata
-pub mod errors;        // Error types and handling
-pub mod responses;     // Response types
-pub mod common;        // Shared types and utilities
-```
+pub trait Builder<T> {
+    fn build(self) -> crate::Result<T>;
+}
 
-#### `config`
-Configuration management and client setup.
-
-```rust
-pub struct ClientConfig {
-    pub api_key: String,
-    pub base_url: String,
-    pub timeout: Duration,
-    // ... other configuration options
+pub trait Sendable<R> {
+    async fn send(self) -> crate::Result<R>;
 }
 ```
 
-### Builder Pattern Implementation
+(Implementations for `Sendable` are planned; currently builders are executed
+through `Client` helper methods.)
 
-Each API endpoint follows a consistent builder pattern:
+### Responses (`responses/`)
 
-```rust
-pub struct ChatCompletionsBuilder<'a> {
-    client: &'a OpenAIClient,
-    model: Option<String>,
-    messages: Vec<Message>,
-    temperature: Option<f32>,
-    // ... other parameters
-}
+Wrap generated response payloads with ergonomic helpers like
+`ChatCompletionResponseWrapper::primary_text()` and tool parsing utilities.
 
-impl<'a> ChatCompletionsBuilder<'a> {
-    pub fn model(mut self, model: impl Into<String>) -> Self {
-        self.model = Some(model.into());
-        self
-    }
+### Test Utilities (`test_utils.rs`)
 
-    pub fn message(mut self, role: &str, content: impl Into<String>) -> Self {
-        self.messages.push(Message::new(role, content));
-        self
-    }
+Provides mock server scaffolding and builder factories to support unit and
+integration tests without hitting the real API.
 
-    pub async fn send(self) -> Result<ChatCompletion, OpenAIError> {
-        // Validation and API call
-    }
+## Flow of a Typical Request
 
-    pub async fn stream(self) -> Result<impl Stream<Item = Result<ChatCompletionChunk, OpenAIError>>, OpenAIError> {
-        // Streaming implementation
-    }
-}
-```
+1. Call `Client::responses()` (or `chat()`) to construct a builder with defaults
+2. Chain builder methods (`.system(..).user(..).temperature(0.5)`)
+3. Pass the builder into `Client::send_responses` which
+   - Validates the payload via `Builder::build`
+   - Delegates to `openai-client-base` to perform the HTTP call
+   - Wraps the response inside ergonomic helpers
 
-## Key Design Decisions
+## Testing Strategy
 
-### 1. Builder Validation
-- **Compile-time**: Use type states where possible to catch errors at compile time
-- **Runtime**: Validate required parameters before making API calls
-- **Clear Errors**: Provide meaningful error messages for invalid configurations
+- **Unit tests** validate builder serialization and helper behaviour
+- **Integration tests** (with `mockito`) verify round-trips against fake servers
+- **Examples** double as documentation and compile-time regression tests
+- **Smoke tests** (opt-in) hit the real API when appropriate environment
+  variables are set
 
-### 2. Error Handling
-```rust
-#[derive(Debug, thiserror::Error)]
-pub enum OpenAIError {
-    #[error("API error: {message}")]
-    Api { message: String, status: u16 },
+## Future Work Highlights
 
-    #[error("Network error: {0}")]
-    Network(#[from] reqwest::Error),
+- Implement the remaining placeholder builder modules (images, embeddings,
+  threads, uploads)
+- Add streaming abstractions that integrate with async `Stream`
+- Expand the `Sendable` trait coverage for direct `.send()` ergonomics
 
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
-
-    #[error("Configuration error: {message}")]
-    Config { message: String },
-}
-```
-
-### 3. Streaming Support
-- **Async Streams**: Use `futures::Stream` for streaming responses
-- **Backpressure**: Handle backpressure naturally through the stream interface
-- **Error Handling**: Propagate errors through the stream
-
-### 4. Testing Strategy
-```
-tests/
-├── unit/              # Unit tests for individual components
-├── integration/       # End-to-end API tests
-├── mocks/             # Mock server tests
-└── examples/          # Example validation tests
-```
-
-## Extension Points
-
-### 1. Custom Models
-Support for custom model identifiers and parameters:
-
-```rust
-impl ChatCompletionsBuilder<'_> {
-    pub fn custom_model(mut self, model: CustomModel) -> Self {
-        // Handle custom model configuration
-    }
-}
-```
-
-### 2. Middleware Support
-Hook points for request/response middleware:
-
-```rust
-pub trait Middleware {
-    async fn process_request(&self, request: &mut Request) -> Result<(), Error>;
-    async fn process_response(&self, response: &mut Response) -> Result<(), Error>;
-}
-```
-
-### 3. Custom Serialization
-Support for custom serialization formats and transformations.
-
-## Performance Considerations
-
-### 1. Connection Pooling
-- Reuse HTTP connections through `reqwest::Client`
-- Configure connection pool size based on usage patterns
-
-### 2. Memory Management
-- Stream large responses to avoid memory pressure
-- Use efficient serialization for large payloads
-
-### 3. Rate Limiting
-- Built-in rate limiting and retry logic
-- Configurable backoff strategies
-
-## Future Architecture Considerations
-
-### 1. Plugin System
-Extensible plugin architecture for custom functionality:
-- Custom authentication methods
-- Response transformations
-- Caching strategies
-
-### 2. Multi-client Support
-Support for multiple OpenAI API keys and configurations within a single application.
-
-### 3. Offline Capabilities
-Local model integration and offline fallback strategies.
-
-## Dependencies
-
-### Core Dependencies
-- `tokio`: Async runtime
-- `reqwest`: HTTP client
-- `serde`: Serialization framework
-- `bon`: Builder pattern macros
-- `thiserror`: Error handling
-
-### Optional Dependencies
-- `tracing`: Logging and instrumentation
-- `wiremock`: Testing utilities
-- `futures`: Stream utilities
-
-## Migration Path
-
-For users migrating from other OpenAI Rust clients:
-
-1. **From `async-openai`**: Migration guide for common patterns
-2. **From `openai-api-rs`**: Mapping between API surface differences
-3. **From raw HTTP clients**: Benefits of type-safe builders
-
-## Documentation Standards
-
-### Code Documentation
-- All public APIs must have rustdoc comments
-- Include examples in documentation
-- Document error conditions and edge cases
-
-### Architecture Documentation
-- Keep this document updated with significant changes
-- Document design decisions and rationales
-- Provide migration guides for breaking changes
-
-This architecture provides a solid foundation for building an ergonomic, type-safe, and performant OpenAI API client while maintaining flexibility for future enhancements.
+This architecture intentionally mirrors `langfuse-ergonomic` to stay familiar for
+contributors while embracing the latest OpenAI endpoints.

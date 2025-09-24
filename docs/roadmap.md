@@ -13,48 +13,52 @@ This document outlines the development roadmap for `openai-ergonomic`, including
 - **Production Ready**: Ship with testing, documentation, and reliability built-in
 - **Community Driven**: Welcome contributions and maintain open development practices
 
-## Current Status (v0.2.0)
+## Current Status (September 2025)
 
-As of September 2024, we have achieved:
-- ✅ Complete repository scaffolding with CI/CD
-- ✅ Core API builders and helpers implementation
-- ✅ Comprehensive testing harness with coverage reporting
-- ✅ Phase 1 & 2 examples (16 comprehensive examples)
-- ✅ Agent-driven development workflow
-- ✅ Production-ready tooling and ***REMOVED***
+We now have:
+- ✅ Full repository scaffolding with CI/CD and release ***REMOVED***
+- ✅ Core ergonomic builders for responses, chat, assistants, vector stores, batches, files, moderations, and more
+- ✅ 26 curated examples across quickstarts, extended workflows, and advanced scenarios
+- ✅ Comprehensive testing harness (unit, integration, doctest, smoke toggles)
+- ✅ Agent-first workflow documentation (`AGENTS.md`, `docs/workflow.md`, publish checklist)
 
-**Active Development**: Finalizing Phase 3 examples and preparing for v0.3.0 release.
+**Active Development**: Polishing advanced guides, filling remaining builder gaps (audio/images/embeddings), and preparing the v0.3.0 release candidate.
 
 ## Short-term Goals (v0.3.0 - v0.4.0)
 
-*Timeline: Q4 2024 - Q1 2025*
+*Timeline: Q4 2025 - Q1 2026*
 
-### v0.3.0: Advanced Examples & Missing Builders
+### v0.3.0: Advanced Examples & Documentation Polish
 
 **Priority: High**
 
-- [ ] Complete Phase 3 advanced examples:
-  - [ ] `batch_processing.rs` - Batch API usage patterns
-  - [ ] `testing_patterns.rs` - Mock and test strategies
-  - [ ] `middleware_patterns.rs` - Request/response interceptors
-  - [ ] `caching_strategies.rs` - Response caching implementations
-  - [ ] `token_counting.rs` - Token estimation and budgeting
+- [x] Complete Phase 3 advanced examples:
+  - [x] `batch_processing.rs` – Batch API usage patterns
+  - [x] `testing_patterns.rs` – Mock/test strategies
+  - [x] `middleware_patterns.rs` – Request/response interceptors
+  - [x] `caching_strategies.rs` – Response caching implementations
+  - [x] `token_counting.rs` – Token estimation and budgeting
 
-- [ ] Implement missing builders:
-  - [ ] Assistants with code interpreter support
-  - [ ] File search capabilities
-  - [ ] Vector stores management
-  - [ ] Advanced tool calling patterns
+- [x] Implement advanced assistants/vector store builders:
+  - [x] Code interpreter helpers
+  - [x] File search tooling
+  - [x] Vector store management
+  - [x] Tool/function calling helpers
 
 - [ ] Documentation improvements:
-  - [ ] Complete API reference documentation
-  - [ ] User guides for complex workflows
-  - [ ] Migration guides from other Rust OpenAI clients
+  - [ ] Author deep-dive guides (responses-first workflow, tool orchestration, vector stores)
+  - [ ] Refresh API reference examples to mirror new builders
+  - [ ] Provide migration notes for users of `openai-builders`
+
+- [ ] Prepare v0.3.0 release:
+  - [ ] Run full publish checklist dry run
+  - [ ] Finalize release notes and highlight videos/blog post outline
+  - [ ] Confirm docs.rs renders long-form guides correctly
 
 **Success Metrics**:
-- All 25 planned examples implemented and working
-- 100% API endpoint coverage for current OpenAI features
-- Documentation coverage >90% for public APIs
+- 26 maintained examples compile and reflect best practices
+- Documentation coverage >90% for public builders
+- Release candidate validated through publish checklist without action items
 
 ### v0.4.0: Performance & Reliability
 
@@ -85,7 +89,7 @@ As of September 2024, we have achieved:
 
 ## Mid-term Goals (v0.5.0 - v1.0.0)
 
-*Timeline: Q2 2025 - Q4 2025*
+*Timeline: Q2 2026 - Q4 2026*
 
 ### v0.5.0: Advanced Features
 
