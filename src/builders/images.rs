@@ -11,8 +11,7 @@ pub use openai_client_base::models::create_image_request::{
     Background, Moderation, OutputFormat, Quality, ResponseFormat, Size, Style,
 };
 pub use openai_client_base::models::{
-    image_input_fidelity_text_variant_enum::ImageInputFidelityTextVariantEnum, CreateImageRequest,
-    ImageInputFidelity,
+    image_input_fidelity::ImageInputFidelityTextVariantEnum, CreateImageRequest, ImageInputFidelity,
 };
 
 use crate::{Builder, Error, Result};
@@ -28,6 +27,7 @@ pub struct ImageGenerationBuilder {
     output_format: Option<OutputFormat>,
     output_compression: Option<i32>,
     stream: Option<bool>,
+    #[allow(clippy::option_option)]
     partial_images: Option<Option<i32>>,
     size: Option<Size>,
     moderation: Option<Moderation>,
