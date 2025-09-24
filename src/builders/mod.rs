@@ -38,14 +38,14 @@ pub use chat::{
     image_base64_part, image_base64_part_with_detail, image_url_part, image_url_part_with_detail,
     system_user, text_part, tool_web_search, user_message, ChatCompletionBuilder,
 };
-// pub use embeddings::*; // TODO: Implement embeddings builders
+pub use embeddings::*;
 pub use files::*;
 pub use fine_tuning::*;
 pub use images::*;
 pub use moderations::*;
 pub use responses::*;
-// pub use threads::*; // TODO: Implement threads builders
-// pub use uploads::*; // TODO: Implement uploads builders
+pub use threads::*;
+pub use uploads::*;
 pub use vector_stores::*;
 
 /// Common trait for all builders to provide consistent APIs.
