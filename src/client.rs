@@ -4,16 +4,37 @@
 //! with ergonomic builders and response handling.
 
 use crate::{
-    builders::{embeddings::EmbeddingBuilder, Builder, ChatCompletionBuilder, ResponsesBuilder},
+    builders::{
+        assistants::{AssistantBuilder, RunBuilder},
+        audio::{
+            SpeechBuilder, TranscriptionBuilder, TranscriptionRequest, TranslationBuilder,
+            TranslationRequest,
+        },
+        images::{
+            ImageEditBuilder, ImageEditRequest, ImageGenerationBuilder, ImageVariationBuilder,
+            ImageVariationRequest,
+        },
+        threads::{ThreadMessageBuilder, ThreadRequestBuilder},
+        uploads::{CompleteUploadBuilder, UploadBuilder, UploadPartSource},
+        Builder, ChatCompletionBuilder, EmbeddingsBuilder, ResponsesBuilder,
+    },
     config::Config,
     errors::Result,
     responses::ChatCompletionResponseWrapper,
     Error,
 };
 use openai_client_base::apis::Error as ApiError;
+use openai_client_base::models::create_upload_request::Purpose as UploadPurpose;
 use openai_client_base::{
-    apis::{chat_api, configuration::Configuration, embeddings_api},
-    models::{CreateChatCompletionRequest, CreateEmbeddingRequestInput, CreateEmbeddingResponse},
+    apis::{
+        assistants_api, audio_api, chat_api, configuration::Configuration, embeddings_api,
+        images_api, uploads_api,
+    },
+    models::{
+        AssistantObject, CreateChatCompletionRequest, CreateEmbeddingResponse,
+        CreateTranscription200Response, CreateTranslation200Response, ImagesResponse,
+        MessageObject, RunObject, ThreadObject, Upload, UploadPart,
+    },
 };
 use reqwest::Client as HttpClient;
 use std::sync::Arc;
@@ -186,7 +207,7 @@ impl Client {
         AudioClient { client: self }
     }
 
-    /// Get embeddings client.
+    /// Get embeddings client (placeholder).
     #[must_use]
     pub fn embeddings(&self) -> EmbeddingsClient<'_> {
         EmbeddingsClient { client: self }
@@ -238,6 +259,465 @@ impl Client {
     #[must_use]
     pub fn uploads(&self) -> UploadsClient<'_> {
         UploadsClient { client: self }
+    }
+}
+
+impl AudioClient<'_> {
+    /// Create a speech builder for text-to-speech generation.
+    #[must_use]
+    pub fn speech(
+        &self,
+        model: impl Into<String>,
+        input: impl Into<String>,
+        voice: impl Into<String>,
+    ) -> SpeechBuilder {
+        SpeechBuilder::new(model, input, voice)
+    }
+
+    /// Submit a speech synthesis request and return binary audio data.
+    pub async fn create_speech(&self, builder: SpeechBuilder) -> Result<Vec<u8>> {
+        let request = builder.build()?;
+        let response = audio_api::create_speech()
+            .configuration(&self.client.base_configuration)
+            .create_speech_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)?;
+        let bytes = response.bytes().await.map_err(Error::Http)?;
+        Ok(bytes.to_vec())
+    }
+
+    /// Create a transcription builder for speech-to-text workflows.
+    #[must_use]
+    pub fn transcription(
+        &self,
+        file: impl AsRef<std::path::Path>,
+        model: impl Into<String>,
+    ) -> TranscriptionBuilder {
+        TranscriptionBuilder::new(file, model)
+    }
+
+    /// Submit a transcription request.
+    pub async fn create_transcription(
+        &self,
+        builder: TranscriptionBuilder,
+    ) -> Result<CreateTranscription200Response> {
+        let TranscriptionRequest {
+            file,
+            model,
+            language,
+            prompt,
+            response_format,
+            temperature,
+            stream,
+            chunking_strategy,
+            timestamp_granularities,
+            include,
+        } = builder.build()?;
+
+        let timestamp_strings = timestamp_granularities.as_ref().map(|values| {
+            values
+                .iter()
+                .map(|granularity| granularity.as_str().to_string())
+                .collect::<Vec<_>>()
+        });
+
+        let request_builder = audio_api::create_transcription()
+            .configuration(&self.client.base_configuration)
+            .file(file)
+            .model(&model)
+            .maybe_language(language.as_deref())
+            .maybe_prompt(prompt.as_deref())
+            .maybe_response_format(response_format)
+            .maybe_temperature(temperature)
+            .maybe_stream(stream)
+            .maybe_chunking_strategy(chunking_strategy)
+            .maybe_timestamp_granularities(timestamp_strings)
+            .maybe_include(include);
+
+        request_builder.call().await.map_err(map_api_error)
+    }
+
+    /// Create a translation builder for audio-to-English translation.
+    #[must_use]
+    pub fn translation(
+        &self,
+        file: impl AsRef<std::path::Path>,
+        model: impl Into<String>,
+    ) -> TranslationBuilder {
+        TranslationBuilder::new(file, model)
+    }
+
+    /// Submit an audio translation request.
+    pub async fn create_translation(
+        &self,
+        builder: TranslationBuilder,
+    ) -> Result<CreateTranslation200Response> {
+        let TranslationRequest {
+            file,
+            model,
+            prompt,
+            response_format,
+            temperature,
+        } = builder.build()?;
+
+        let response_format_owned = response_format.map(|format| format.to_string());
+
+        let request_builder = audio_api::create_translation()
+            .configuration(&self.client.base_configuration)
+            .file(file)
+            .model(&model)
+            .maybe_prompt(prompt.as_deref())
+            .maybe_response_format(response_format_owned.as_deref())
+            .maybe_temperature(temperature);
+
+        request_builder.call().await.map_err(map_api_error)
+    }
+}
+
+impl AssistantsClient<'_> {
+    /// Start a builder for creating assistants with the given model.
+    #[must_use]
+    pub fn builder(&self, model: impl Into<String>) -> AssistantBuilder {
+        AssistantBuilder::new(model)
+    }
+
+    /// Create a new assistant using the provided builder.
+    pub async fn create(&self, builder: AssistantBuilder) -> Result<AssistantObject> {
+        let request = builder.build()?;
+        assistants_api::create_assistant()
+            .configuration(&self.client.base_configuration)
+            .create_assistant_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Convenience helper to create a thread using the assistant namespace.
+    pub async fn create_thread(&self, builder: ThreadRequestBuilder) -> Result<ThreadObject> {
+        self.client.threads().create(builder).await
+    }
+
+    /// Create a message within an existing thread.
+    pub async fn create_message(
+        &self,
+        thread_id: impl AsRef<str>,
+        builder: ThreadMessageBuilder,
+    ) -> Result<MessageObject> {
+        self.client
+            .threads()
+            .create_message(thread_id, builder)
+            .await
+    }
+
+    /// Create a run for a thread using the supplied run configuration.
+    pub async fn create_run(
+        &self,
+        thread_id: impl AsRef<str>,
+        builder: RunBuilder,
+    ) -> Result<RunObject> {
+        self.client.threads().create_run(thread_id, builder).await
+    }
+
+    /// Convenience to start a run builder for the given assistant id.
+    #[must_use]
+    pub fn run_builder(&self, assistant_id: impl Into<String>) -> RunBuilder {
+        RunBuilder::new(assistant_id)
+    }
+}
+
+impl EmbeddingsClient<'_> {
+    /// Start a builder for creating embeddings requests with the given model.
+    #[must_use]
+    pub fn builder(&self, model: impl Into<String>) -> EmbeddingsBuilder {
+        EmbeddingsBuilder::new(model)
+    }
+
+    /// Convenience helper for embedding a single string input.
+    #[must_use]
+    pub fn text(&self, model: impl Into<String>, input: impl Into<String>) -> EmbeddingsBuilder {
+        self.builder(model).input_text(input)
+    }
+
+    /// Convenience helper for embedding a single tokenized input.
+    #[must_use]
+    pub fn tokens<I>(&self, model: impl Into<String>, tokens: I) -> EmbeddingsBuilder
+    where
+        I: IntoIterator<Item = i32>,
+    {
+        self.builder(model).input_tokens(tokens)
+    }
+
+    /// Execute an embeddings request built with [`EmbeddingsBuilder`].
+    pub async fn create(&self, builder: EmbeddingsBuilder) -> Result<CreateEmbeddingResponse> {
+        let request = builder.build()?;
+        embeddings_api::create_embedding()
+            .configuration(&self.client.base_configuration)
+            .create_embedding_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+impl ThreadsClient<'_> {
+    /// Start a builder for creating assistant threads with optional metadata and seed messages.
+    #[must_use]
+    pub fn builder(&self) -> ThreadRequestBuilder {
+        ThreadRequestBuilder::new()
+    }
+
+    /// Create a new thread using the Assistants API.
+    pub async fn create(&self, builder: ThreadRequestBuilder) -> Result<ThreadObject> {
+        let request = builder.build()?;
+        assistants_api::create_thread()
+            .configuration(&self.client.base_configuration)
+            .maybe_create_thread_request(Some(request))
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Add a message to an existing thread.
+    pub async fn create_message(
+        &self,
+        thread_id: impl AsRef<str>,
+        builder: ThreadMessageBuilder,
+    ) -> Result<MessageObject> {
+        let request = builder.build()?;
+        assistants_api::create_message()
+            .configuration(&self.client.base_configuration)
+            .thread_id(thread_id.as_ref())
+            .create_message_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Create a run on the specified thread.
+    pub async fn create_run(
+        &self,
+        thread_id: impl AsRef<str>,
+        builder: RunBuilder,
+    ) -> Result<RunObject> {
+        let request = builder.build()?;
+        assistants_api::create_run()
+            .configuration(&self.client.base_configuration)
+            .thread_id(thread_id.as_ref())
+            .create_run_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+impl ImagesClient<'_> {
+    /// Create a builder for image generation requests.
+    #[must_use]
+    pub fn generate(&self, prompt: impl Into<String>) -> ImageGenerationBuilder {
+        ImageGenerationBuilder::new(prompt)
+    }
+
+    /// Execute an image generation request.
+    pub async fn create(&self, builder: ImageGenerationBuilder) -> Result<ImagesResponse> {
+        let request = builder.build()?;
+        images_api::create_image()
+            .configuration(&self.client.base_configuration)
+            .create_image_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Create an image edit builder using a base image and prompt.
+    #[must_use]
+    pub fn edit(
+        &self,
+        image: impl AsRef<std::path::Path>,
+        prompt: impl Into<String>,
+    ) -> ImageEditBuilder {
+        ImageEditBuilder::new(image, prompt)
+    }
+
+    /// Execute an image edit request.
+    pub async fn create_edit(&self, builder: ImageEditBuilder) -> Result<ImagesResponse> {
+        let ImageEditRequest {
+            image,
+            prompt,
+            mask,
+            background,
+            model,
+            n,
+            size,
+            response_format,
+            output_format,
+            output_compression,
+            user,
+            input_fidelity,
+            stream,
+            partial_images,
+            quality,
+        } = builder.build()?;
+
+        images_api::create_image_edit()
+            .configuration(&self.client.base_configuration)
+            .image(image)
+            .prompt(&prompt)
+            .maybe_mask(mask)
+            .maybe_background(background.as_deref())
+            .maybe_model(model.as_deref())
+            .maybe_n(n)
+            .maybe_size(size.as_deref())
+            .maybe_response_format(response_format.as_deref())
+            .maybe_output_format(output_format.as_deref())
+            .maybe_output_compression(output_compression)
+            .maybe_user(user.as_deref())
+            .maybe_input_fidelity(input_fidelity)
+            .maybe_stream(stream)
+            .maybe_partial_images(partial_images)
+            .maybe_quality(quality.as_deref())
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Create an image variation builder.
+    #[must_use]
+    pub fn variation(&self, image: impl AsRef<std::path::Path>) -> ImageVariationBuilder {
+        ImageVariationBuilder::new(image)
+    }
+
+    /// Execute an image variation request.
+    pub async fn create_variation(&self, builder: ImageVariationBuilder) -> Result<ImagesResponse> {
+        let ImageVariationRequest {
+            image,
+            model,
+            n,
+            response_format,
+            size,
+            user,
+        } = builder.build()?;
+
+        images_api::create_image_variation()
+            .configuration(&self.client.base_configuration)
+            .image(image)
+            .maybe_model(model.as_deref())
+            .maybe_n(n)
+            .maybe_response_format(response_format.as_deref())
+            .maybe_size(size.as_deref())
+            .maybe_user(user.as_deref())
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+impl UploadsClient<'_> {
+    /// Start a builder for creating upload sessions.
+    #[must_use]
+    pub fn builder(
+        &self,
+        filename: impl Into<String>,
+        purpose: UploadPurpose,
+        bytes: i32,
+        mime_type: impl Into<String>,
+    ) -> UploadBuilder {
+        UploadBuilder::new(filename, purpose, bytes, mime_type)
+    }
+
+    /// Create a new upload session that can accept file parts.
+    pub async fn create(&self, builder: UploadBuilder) -> Result<Upload> {
+        let request = builder.build()?;
+        uploads_api::create_upload()
+            .configuration(&self.client.base_configuration)
+            .create_upload_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Upload a file part to an existing upload session.
+    pub async fn add_part(
+        &self,
+        upload_id: impl AsRef<str>,
+        source: UploadPartSource,
+    ) -> Result<UploadPart> {
+        uploads_api::add_upload_part()
+            .configuration(&self.client.base_configuration)
+            .upload_id(upload_id.as_ref())
+            .data(source.into_path())
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Finalize an upload session with the ordered part identifiers.
+    pub async fn complete(
+        &self,
+        upload_id: impl AsRef<str>,
+        builder: CompleteUploadBuilder,
+    ) -> Result<Upload> {
+        let request = builder.build()?;
+        uploads_api::complete_upload()
+            .configuration(&self.client.base_configuration)
+            .upload_id(upload_id.as_ref())
+            .complete_upload_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Cancel an in-progress upload session.
+    pub async fn cancel(&self, upload_id: impl AsRef<str>) -> Result<Upload> {
+        uploads_api::cancel_upload()
+            .configuration(&self.client.base_configuration)
+            .upload_id(upload_id.as_ref())
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+fn map_api_error<T>(error: ApiError<T>) -> Error {
+    match error {
+        ApiError::Reqwest(err) => Error::Http(err),
+        ApiError::ReqwestMiddleware(err) => {
+            Error::Internal(format!("reqwest middleware error: {err}"))
+        }
+        ApiError::Serde(err) => Error::Json(err),
+        ApiError::Io(err) => Error::File(err),
+        ApiError::ResponseError(response) => Error::Api {
+            status: response.status.as_u16(),
+            message: response.content,
+            error_type: None,
+            error_code: None,
+        },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use openai_client_base::apis::{Error as BaseError, ResponseContent};
+
+    #[test]
+    fn map_api_error_converts_response() {
+        let response = ResponseContent {
+            status: reqwest::StatusCode::BAD_REQUEST,
+            content: "bad request".to_string(),
+            entity: Option::<()>::None,
+        };
+
+        let error = map_api_error(BaseError::ResponseError(response));
+        match error {
+            Error::Api {
+                status, message, ..
+            } => {
+                assert_eq!(status, 400);
+                assert!(message.contains("bad request"));
+            }
+            other => panic!("expected API error, got {other:?}"),
+        }
     }
 }
 
@@ -319,76 +799,4 @@ pub struct ThreadsClient<'a> {
 #[allow(dead_code)]
 pub struct UploadsClient<'a> {
     client: &'a Client,
-}
-
-impl EmbeddingsClient<'_> {
-    /// Create a new embeddings builder with an explicit input payload.
-    #[must_use]
-    pub fn builder(
-        &self,
-        model: impl Into<String>,
-        input: impl Into<CreateEmbeddingRequestInput>,
-    ) -> EmbeddingBuilder {
-        EmbeddingBuilder::new(model, input)
-    }
-
-    /// Convenience shorthand for embedding a single piece of text.
-    #[must_use]
-    pub fn text(&self, model: impl Into<String>, text: impl Into<String>) -> EmbeddingBuilder {
-        EmbeddingBuilder::from_text(model, text)
-    }
-
-    /// Submit an embedding request and return the generated vectors.
-    pub async fn create(&self, builder: EmbeddingBuilder) -> Result<CreateEmbeddingResponse> {
-        let request = builder.build()?;
-        embeddings_api::create_embedding()
-            .configuration(&self.client.base_configuration)
-            .create_embedding_request(request)
-            .call()
-            .await
-            .map_err(map_api_error)
-    }
-}
-
-fn map_api_error<T>(error: ApiError<T>) -> Error {
-    match error {
-        ApiError::Reqwest(err) => Error::Http(err),
-        ApiError::ReqwestMiddleware(err) => {
-            Error::Internal(format!("reqwest middleware error: {err}"))
-        }
-        ApiError::Serde(err) => Error::Json(err),
-        ApiError::Io(err) => Error::File(err),
-        ApiError::ResponseError(response) => Error::Api {
-            status: response.status.as_u16(),
-            message: response.content,
-            error_type: None,
-            error_code: None,
-        },
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use openai_client_base::apis::{Error as BaseError, ResponseContent};
-
-    #[test]
-    fn map_api_error_converts_response() {
-        let response = ResponseContent {
-            status: reqwest::StatusCode::BAD_REQUEST,
-            content: "bad request".to_string(),
-            entity: Option::<()>::None,
-        };
-
-        let error = map_api_error(BaseError::ResponseError(response));
-        match error {
-            Error::Api {
-                status, message, ..
-            } => {
-                assert_eq!(status, 400);
-                assert!(message.contains("bad request"));
-            }
-            other => panic!("expected API error, got {other:?}"),
-        }
-    }
 }
