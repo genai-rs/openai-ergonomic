@@ -8,6 +8,16 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
+use openai_client_base::models::{
+    assistant_tools_code, assistant_tools_file_search, assistant_tools_function,
+    AssistantTool as BaseAssistantTool, AssistantToolsCode, AssistantToolsFileSearch,
+    AssistantToolsFunction, CreateAssistantRequest, CreateAssistantRequestDescription,
+    CreateAssistantRequestInstructions, CreateAssistantRequestName, CreateRunRequest,
+    FunctionObject,
+};
+
+use crate::Builder;
+
 /// Builder for creating a new assistant.
 ///
 /// This builder provides a fluent interface for creating `OpenAI` assistants
@@ -133,6 +143,49 @@ impl AssistantBuilder {
     }
 }
 
+impl Builder<CreateAssistantRequest> for AssistantBuilder {
+    fn build(self) -> crate::Result<CreateAssistantRequest> {
+        let Self {
+            model,
+            name,
+            description,
+            instructions,
+            tools,
+            metadata,
+        } = self;
+
+        let mut request = CreateAssistantRequest::new(model);
+
+        if let Some(name) = name {
+            request.name = Some(Box::new(CreateAssistantRequestName::from(name)));
+        }
+
+        if let Some(description) = description {
+            request.description = Some(Box::new(CreateAssistantRequestDescription::from(
+                description,
+            )));
+        }
+
+        if let Some(instructions) = instructions {
+            request.instructions = Some(Box::new(CreateAssistantRequestInstructions::from(
+                instructions,
+            )));
+        }
+
+        if !tools.is_empty() {
+            request.tools = Some(tools.into_iter().map(convert_tool).collect());
+        }
+
+        if metadata.is_empty() {
+            request.metadata = None;
+        } else {
+            request.metadata = Some(Some(metadata));
+        }
+
+        Ok(request)
+    }
+}
+
 /// Represents a tool that can be used by an assistant.
 #[derive(Debug, Clone)]
 pub enum AssistantTool {
@@ -149,6 +202,42 @@ pub enum AssistantTool {
         /// The JSON schema that describes the function parameters.
         parameters: Value,
     },
+}
+
+fn convert_tool(tool: AssistantTool) -> BaseAssistantTool {
+    match tool {
+        AssistantTool::CodeInterpreter => BaseAssistantTool::SCode(Box::new(
+            AssistantToolsCode::new(assistant_tools_code::Type::CodeInterpreter),
+        )),
+        AssistantTool::FileSearch => BaseAssistantTool::SFileSearch(Box::new(
+            AssistantToolsFileSearch::new(assistant_tools_file_search::Type::FileSearch),
+        )),
+        AssistantTool::Function {
+            name,
+            description,
+            parameters,
+        } => {
+            use std::collections::HashMap;
+
+            let params_map = if let serde_json::Value::Object(map) = parameters {
+                map.into_iter()
+                    .collect::<HashMap<String, serde_json::Value>>()
+            } else {
+                HashMap::new()
+            };
+
+            let mut function = FunctionObject::new(name);
+            function.description = Some(description);
+            if !params_map.is_empty() {
+                function.parameters = Some(params_map);
+            }
+
+            BaseAssistantTool::SFunction(Box::new(AssistantToolsFunction::new(
+                assistant_tools_function::Type::Function,
+                function,
+            )))
+        }
+    }
 }
 
 /// Builder for creating a thread.
@@ -272,6 +361,34 @@ impl RunBuilder {
     #[must_use]
     pub fn metadata_ref(&self) -> &HashMap<String, String> {
         &self.metadata
+    }
+}
+
+impl Builder<CreateRunRequest> for RunBuilder {
+    fn build(self) -> crate::Result<CreateRunRequest> {
+        let Self {
+            assistant_id,
+            model,
+            instructions,
+            temperature,
+            stream,
+            metadata,
+        } = self;
+
+        let mut request = CreateRunRequest::new(assistant_id);
+        request.model = model;
+        request.instructions = instructions;
+        if !metadata.is_empty() {
+            request.metadata = Some(Some(metadata));
+        }
+        if let Some(temp) = temperature {
+            request.temperature = Some(temp);
+        }
+        if stream {
+            request.stream = Some(true);
+        }
+
+        Ok(request)
     }
 }
 
@@ -432,21 +549,37 @@ pub fn assistant_with_tools(model: impl Into<String>, name: impl Into<String>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openai_client_base::models;
 
     #[test]
     fn test_assistant_builder() {
-        let builder = AssistantBuilder::new("gpt-4")
+        let request = AssistantBuilder::new("gpt-4")
             .name("Test Assistant")
             .description("A test assistant")
-            .instructions("You are a helpful assistant");
+            .instructions("You are a helpful assistant")
+            .add_metadata("team", "core")
+            .add_tool(tool_code_interpreter())
+            .build()
+            .expect("assistant builder should succeed");
 
-        assert_eq!(builder.model(), "gpt-4");
-        assert_eq!(builder.name_ref(), Some("Test Assistant"));
-        assert_eq!(builder.description_ref(), Some("A test assistant"));
-        assert_eq!(
-            builder.instructions_ref(),
-            Some("You are a helpful assistant")
-        );
+        assert_eq!(request.model, "gpt-4");
+        assert!(request
+            .name
+            .as_deref()
+            .is_some_and(|name| matches!(name, models::create_assistant_request_name::CreateAssistantRequestName::Text(ref value) if value == "Test Assistant")));
+        assert!(request
+            .description
+            .as_deref()
+            .is_some_and(|desc| matches!(desc, models::create_assistant_request_description::CreateAssistantRequestDescription::Text(ref value) if value == "A test assistant")));
+        assert!(request.instructions.is_some());
+        assert!(request
+            .tools
+            .as_ref()
+            .is_some_and(|tools| matches!(tools.first(), Some(models::AssistantTool::SCode(_)))));
+        assert!(request
+            .metadata
+            .as_ref()
+            .is_some_and(|meta| meta.as_ref().is_some()));
     }
 
     #[test]
@@ -468,22 +601,27 @@ mod tests {
 
     #[test]
     fn test_run_builder() {
-        let builder = RunBuilder::new("assistant-123")
+        let request = RunBuilder::new("assistant-123")
             .model("gpt-4")
             .instructions("Follow these instructions")
             .temperature(0.7)
             .stream(true)
-            .metadata("key", "value");
+            .metadata("key", "value")
+            .build()
+            .expect("run builder should succeed");
 
-        assert_eq!(builder.assistant_id(), "assistant-123");
-        assert_eq!(builder.model_ref(), Some("gpt-4"));
+        assert_eq!(request.assistant_id, "assistant-123");
+        assert_eq!(request.model.as_deref(), Some("gpt-4"));
         assert_eq!(
-            builder.instructions_ref(),
+            request.instructions.as_deref(),
             Some("Follow these instructions")
         );
-        assert_eq!(builder.temperature_ref(), Some(0.7));
-        assert!(builder.is_streaming());
-        assert_eq!(builder.metadata_ref().len(), 1);
+        assert_eq!(request.temperature, Some(0.7));
+        assert_eq!(request.stream, Some(true));
+        assert!(request
+            .metadata
+            .as_ref()
+            .is_some_and(|meta| meta.as_ref().is_some()));
     }
 
     #[test]

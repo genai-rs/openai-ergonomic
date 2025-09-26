@@ -51,7 +51,7 @@
 - ✅ **COMPLETE**: Populate `examples/` - Phase 1-3 complete (26 curated examples maintained).
 - ✅ **COMPLETE**: Expand README with messaging, install instructions, quickstart, feature matrix.
 - ✅ **COMPLETE**: Add module-level documentation for builders/helpers; ensure docs.rs builds cleanly.
-- ⚠️ **PARTIAL**: Create deeper guides in `docs/` (deep dives for responses-first workflows, tool orchestration, vector stores still pending).
+- ✅ **COMPLETE**: Create deeper guides in `docs/` (responses-first workflows, tool orchestration, vector stores, migration guide).
 
 ## Phase 7 – CI/CD & Release Engineering
 - ✅ **COMPLETE**: Configure GitHub Actions (fmt, clippy, test matrix, cargo-deny, doc build, example compilation) (PRs #10, #16, #28).
@@ -72,8 +72,8 @@
 - Long-term: optional integrations (tracing middleware, retries), community contribution pathways, auxiliary crates if scope expands.
 
 ## Immediate Next Steps
-- Implement remaining builder modules (embeddings, threads/uploads) to close API coverage gaps (audio/images completed 2025-09-24).
-- Author deep-dive documentation (responses-first workflow, tool orchestration, vector store RAG playbook, migration guide from `openai-builders`).
-- Run the publish checklist dry run for the upcoming v0.3.0 release candidate; capture outcomes.
-- Keep examples aligned with new builder capabilities; add docs.rs snippets once new builders land.
-- Monitor GitHub PR backlog; last checked 2025-09-24, PR #18 (release v0.2.0) still pending merge.
+- ✅ Implemented remaining builder modules (embeddings, threads/uploads) to close API coverage gaps.
+- ✅ Authored deep-dive documentation (responses-first workflow, tool orchestration, vector store RAG playbook, migration guide from `openai-builders`).
+- ✅ Ran the publish checklist dry run for the upcoming v0.3.0 release candidate and captured outcomes.
+- ✅ Kept examples aligned with new builder capabilities; added docs.rs snippets for new builders.
+- Monitor GitHub PR backlog; checked 2025-09-26 — Closed stale PRs #18 (release v0.2.0) and #40 (embeddings helpers - already integrated into main).
