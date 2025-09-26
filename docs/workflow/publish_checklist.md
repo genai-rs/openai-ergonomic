@@ -69,6 +69,10 @@ This checklist guides maintainers through preparing and publishing a new version
   - vX.Y.Z – YYYY-MM-DD – outcome / notable notes
   ```
 
+Recent dry runs:
+
+- v0.3.0-rc prep – 2025-09-24 – `cargo publish --dry-run --allow-dirty` succeeded; `RUSTFLAGS="-D warnings" cargo doc --no-deps --all-features` succeeded; `release-plz release-pr --allow-dirty` blocked (Git token required, command aborted).
+
 ## Reference Commands
 
 Quick commands for common release tasks:

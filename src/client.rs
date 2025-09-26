@@ -5,6 +5,7 @@
 
 use crate::{
     builders::{
+        assistants::{AssistantBuilder, RunBuilder},
         audio::{
             SpeechBuilder, TranscriptionBuilder, TranscriptionRequest, TranslationBuilder,
             TranslationRequest,
@@ -13,7 +14,9 @@ use crate::{
             ImageEditBuilder, ImageEditRequest, ImageGenerationBuilder, ImageVariationBuilder,
             ImageVariationRequest,
         },
-        Builder, ChatCompletionBuilder, ResponsesBuilder,
+        threads::{ThreadMessageBuilder, ThreadRequestBuilder},
+        uploads::{CompleteUploadBuilder, UploadBuilder, UploadPartSource},
+        Builder, ChatCompletionBuilder, EmbeddingsBuilder, ResponsesBuilder,
     },
     config::Config,
     errors::Result,
@@ -21,11 +24,16 @@ use crate::{
     Error,
 };
 use openai_client_base::apis::Error as ApiError;
+use openai_client_base::models::create_upload_request::Purpose as UploadPurpose;
 use openai_client_base::{
-    apis::{audio_api, chat_api, configuration::Configuration, images_api},
+    apis::{
+        assistants_api, audio_api, chat_api, configuration::Configuration, embeddings_api,
+        images_api, uploads_api,
+    },
     models::{
-        CreateChatCompletionRequest, CreateTranscription200Response, CreateTranslation200Response,
-        ImagesResponse,
+        AssistantObject, CreateChatCompletionRequest, CreateEmbeddingResponse,
+        CreateTranscription200Response, CreateTranslation200Response, ImagesResponse,
+        MessageObject, RunObject, ThreadObject, Upload, UploadPart,
     },
 };
 use reqwest::Client as HttpClient;
@@ -367,6 +375,142 @@ impl AudioClient<'_> {
     }
 }
 
+impl AssistantsClient<'_> {
+    /// Start a builder for creating assistants with the given model.
+    #[must_use]
+    pub fn builder(&self, model: impl Into<String>) -> AssistantBuilder {
+        AssistantBuilder::new(model)
+    }
+
+    /// Create a new assistant using the provided builder.
+    pub async fn create(&self, builder: AssistantBuilder) -> Result<AssistantObject> {
+        let request = builder.build()?;
+        assistants_api::create_assistant()
+            .configuration(&self.client.base_configuration)
+            .create_assistant_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Convenience helper to create a thread using the assistant namespace.
+    pub async fn create_thread(&self, builder: ThreadRequestBuilder) -> Result<ThreadObject> {
+        self.client.threads().create(builder).await
+    }
+
+    /// Create a message within an existing thread.
+    pub async fn create_message(
+        &self,
+        thread_id: impl AsRef<str>,
+        builder: ThreadMessageBuilder,
+    ) -> Result<MessageObject> {
+        self.client
+            .threads()
+            .create_message(thread_id, builder)
+            .await
+    }
+
+    /// Create a run for a thread using the supplied run configuration.
+    pub async fn create_run(
+        &self,
+        thread_id: impl AsRef<str>,
+        builder: RunBuilder,
+    ) -> Result<RunObject> {
+        self.client.threads().create_run(thread_id, builder).await
+    }
+
+    /// Convenience to start a run builder for the given assistant id.
+    #[must_use]
+    pub fn run_builder(&self, assistant_id: impl Into<String>) -> RunBuilder {
+        RunBuilder::new(assistant_id)
+    }
+}
+
+impl EmbeddingsClient<'_> {
+    /// Start a builder for creating embeddings requests with the given model.
+    #[must_use]
+    pub fn builder(&self, model: impl Into<String>) -> EmbeddingsBuilder {
+        EmbeddingsBuilder::new(model)
+    }
+
+    /// Convenience helper for embedding a single string input.
+    #[must_use]
+    pub fn text(&self, model: impl Into<String>, input: impl Into<String>) -> EmbeddingsBuilder {
+        self.builder(model).input_text(input)
+    }
+
+    /// Convenience helper for embedding a single tokenized input.
+    #[must_use]
+    pub fn tokens<I>(&self, model: impl Into<String>, tokens: I) -> EmbeddingsBuilder
+    where
+        I: IntoIterator<Item = i32>,
+    {
+        self.builder(model).input_tokens(tokens)
+    }
+
+    /// Execute an embeddings request built with [`EmbeddingsBuilder`].
+    pub async fn create(&self, builder: EmbeddingsBuilder) -> Result<CreateEmbeddingResponse> {
+        let request = builder.build()?;
+        embeddings_api::create_embedding()
+            .configuration(&self.client.base_configuration)
+            .create_embedding_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+impl ThreadsClient<'_> {
+    /// Start a builder for creating assistant threads with optional metadata and seed messages.
+    #[must_use]
+    pub fn builder(&self) -> ThreadRequestBuilder {
+        ThreadRequestBuilder::new()
+    }
+
+    /// Create a new thread using the Assistants API.
+    pub async fn create(&self, builder: ThreadRequestBuilder) -> Result<ThreadObject> {
+        let request = builder.build()?;
+        assistants_api::create_thread()
+            .configuration(&self.client.base_configuration)
+            .maybe_create_thread_request(Some(request))
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Add a message to an existing thread.
+    pub async fn create_message(
+        &self,
+        thread_id: impl AsRef<str>,
+        builder: ThreadMessageBuilder,
+    ) -> Result<MessageObject> {
+        let request = builder.build()?;
+        assistants_api::create_message()
+            .configuration(&self.client.base_configuration)
+            .thread_id(thread_id.as_ref())
+            .create_message_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Create a run on the specified thread.
+    pub async fn create_run(
+        &self,
+        thread_id: impl AsRef<str>,
+        builder: RunBuilder,
+    ) -> Result<RunObject> {
+        let request = builder.build()?;
+        assistants_api::create_run()
+            .configuration(&self.client.base_configuration)
+            .thread_id(thread_id.as_ref())
+            .create_run_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
 impl ImagesClient<'_> {
     /// Create a builder for image generation requests.
     #[must_use]
@@ -462,6 +606,72 @@ impl ImagesClient<'_> {
             .maybe_response_format(response_format.as_deref())
             .maybe_size(size.as_deref())
             .maybe_user(user.as_deref())
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+}
+
+impl UploadsClient<'_> {
+    /// Start a builder for creating upload sessions.
+    #[must_use]
+    pub fn builder(
+        &self,
+        filename: impl Into<String>,
+        purpose: UploadPurpose,
+        bytes: i32,
+        mime_type: impl Into<String>,
+    ) -> UploadBuilder {
+        UploadBuilder::new(filename, purpose, bytes, mime_type)
+    }
+
+    /// Create a new upload session that can accept file parts.
+    pub async fn create(&self, builder: UploadBuilder) -> Result<Upload> {
+        let request = builder.build()?;
+        uploads_api::create_upload()
+            .configuration(&self.client.base_configuration)
+            .create_upload_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Upload a file part to an existing upload session.
+    pub async fn add_part(
+        &self,
+        upload_id: impl AsRef<str>,
+        source: UploadPartSource,
+    ) -> Result<UploadPart> {
+        uploads_api::add_upload_part()
+            .configuration(&self.client.base_configuration)
+            .upload_id(upload_id.as_ref())
+            .data(source.into_path())
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Finalize an upload session with the ordered part identifiers.
+    pub async fn complete(
+        &self,
+        upload_id: impl AsRef<str>,
+        builder: CompleteUploadBuilder,
+    ) -> Result<Upload> {
+        let request = builder.build()?;
+        uploads_api::complete_upload()
+            .configuration(&self.client.base_configuration)
+            .upload_id(upload_id.as_ref())
+            .complete_upload_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)
+    }
+
+    /// Cancel an in-progress upload session.
+    pub async fn cancel(&self, upload_id: impl AsRef<str>) -> Result<Upload> {
+        uploads_api::cancel_upload()
+            .configuration(&self.client.base_configuration)
+            .upload_id(upload_id.as_ref())
             .call()
             .await
             .map_err(map_api_error)
