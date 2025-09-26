@@ -2,7 +2,7 @@
 
 > Maintain using Claude's plan-first workflow: brainstorm with any Claude agent, convert action items here before coding, check off via PRs.
 
-- [ ] Maintenance: Monitor GitHub PR backlog (last checked 2025-09-24; PR #18 "chore: release version 0.2.0" still open).
+- [x] Maintenance: Monitor GitHub PR backlog (checked 2025-09-26 — Closed stale PRs #18 and #40).
 
 ## Phase 0: Research & Discovery
 - [x] Capture audit notes for `openai-client-base` in `docs/research/` (PR #2 merged 2025-09-20).
@@ -59,11 +59,11 @@
 ## Builder Coverage Expansion
 - [x] Implement audio builders (speech + transcription) in `src/builders/audio.rs` (completed 2025-09-24)
 - [x] Implement images builders (edits, variations, responses) in `src/builders/images.rs` (completed 2025-09-24)
-- [ ] Implement embeddings builders in `src/builders/embeddings.rs`
-- [ ] Flesh out threads/uploads builders (assistants attachments, file lifecycle)
+- [x] Implement embeddings builders in `src/builders/embeddings.rs`
+- [x] Flesh out threads/uploads builders (assistants attachments, file lifecycle)
 
 ## Documentation & Enablement
-- [ ] Author deep-dive guides for responses-first workflows, tool orchestration, and vector store operations under `docs/guides/`
-- [ ] Provide migration notes for `openai-builders` consumers (`docs/guides/migrating_from_builders.md`)
-- [ ] Record release dry-run outcomes in `docs/workflow/publish_checklist.md` for each release cycle
-- [ ] Expand docs.rs examples to cover new builder modules once implemented
+- [x] Author deep-dive guides for responses-first workflows, tool orchestration, and vector store operations under `docs/guides/`
+- [x] Provide migration notes for `openai-builders` consumers (`docs/guides/migrating_from_builders.md`)
+- [x] Record release dry-run outcomes in `docs/workflow/publish_checklist.md` for each release cycle
+- [x] Expand docs.rs examples to cover new builder modules once implemented
