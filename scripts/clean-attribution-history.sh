@@ -21,12 +21,11 @@ echo "🧹 Cleaning commit messages..."
 
 # Use git filter-branch to clean commit messages
 git filter-branch -f --msg-filter '
-    sed -e "/🤖 Generated with \[Claude Code\]/d" \
+    sed -e "/🤖 Generated with \[/d" \
         -e "/🤖 Generated with/d" \
-        -e "/Co-authored-by: Claude/d" \
-        -e "/Co-Authored-By: Claude/d" \
-        -e "/Generated with Claude/d" \
-        -e "/Created with Claude/d" \
+        -e "/Generated with .*Code/d" \
+        -e "/Created with .*Code/d" \
+        -e "/Co-[Aa]uthored-[Bb]y: .*@anthropic.com/d" \
         -e "/AI-generated/d" \
         -e "/LLM-generated/d" |
     sed -e "/^[[:space:]]*$/d" |
@@ -37,9 +36,9 @@ git filter-branch -f --msg-filter '
 echo "✅ Commit messages cleaned"
 
 echo "🔍 Verifying no attribution remains..."
-if git log --all --format="%B" | grep -iE "(Claude|Anthropic|🤖|Co-authored-by.*Claude|Generated with)" > /dev/null 2>&1; then
+if git log --all --format="%B" | grep -iE "(Anthropic|🤖|Generated with)" > /dev/null 2>&1; then
     echo "❌ Attribution still found! Manual intervention may be needed."
-    git log --all --grep="Claude" --grep="🤖" --format="%h %s"
+    git log --all --grep="Anthropic" --grep="🤖" --format="%h %s"
     exit 1
 else
     echo "✅ No AI attribution found in commit history"

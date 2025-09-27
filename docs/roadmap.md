@@ -20,7 +20,7 @@ We now have:
 - ✅ Core ergonomic builders for responses, chat, assistants, vector stores, batches, files, moderations, and more
 - ✅ 26 curated examples across quickstarts, extended workflows, and advanced scenarios
 - ✅ Comprehensive testing harness (unit, integration, doctest, smoke toggles)
-- ✅ Agent-first workflow documentation (`AGENTS.md`, `docs/workflow.md`, publish checklist)
+- ✅ Agent-first workflow documentation (`AUTOMATION_AGENTS.md`, `docs/workflow.md`, publish checklist)
 
 **Active Development**: Polishing advanced guides, filling remaining builder gaps (audio/images/embeddings), and preparing the v0.3.0 release candidate.
 

@@ -10,7 +10,7 @@ Thank you for your interest in contributing to `openai-ergonomic`! This document
 - Git
 - A GitHub account
 - Familiarity with OpenAI API concepts (recommended)
-- Understanding of our agent workflow (see [AGENTS.md](AGENTS.md) and [docs/workflow.md](docs/workflow.md))
+- Understanding of our agent workflow (see [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) and [docs/workflow.md](docs/workflow.md))
 
 ### Setting up the Development Environment
 
@@ -32,12 +32,12 @@ Thank you for your interest in contributing to `openai-ergonomic`! This document
 
 ## Development Workflow
 
-We follow a **plan-first** development approach using specialized AI agents. Please read [AGENTS.md](AGENTS.md) for complete details on our agent-driven workflow.
+We follow a **plan-first** development approach using specialized AI agents. Please read [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) for complete details on our agent-driven workflow.
 
 ### Quick Workflow Overview
 
 1. **Plan First**: For any significant changes, create or update entries in `PLAN.md` and `TODO.md` before coding
-2. **Use Appropriate Agent Role**: Follow the agent guidelines in [AGENTS.md](AGENTS.md) based on your contribution type
+2. **Use Appropriate Agent Role**: Follow the agent guidelines in [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) based on your contribution type
 3. **Small, Focused Changes**: Make incremental commits with clear purposes
 4. **Maintain Documentation**: Keep planning artifacts and documentation in sync with code changes
 
@@ -74,7 +74,7 @@ cargo test --all
 ### Making Changes
 
 1. **Plan First**: For significant changes, create or update entries in `PLAN.md` and `TODO.md` before coding
-2. **Follow Agent Guidelines**: Reference [AGENTS.md](AGENTS.md) for role-specific responsibilities and workflows
+2. **Follow Agent Guidelines**: Reference [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) for role-specific responsibilities and workflows
 3. **Small Commits**: Make focused commits with clear messages following [Conventional Commits](https://www.conventionalcommits.org/)
 4. **Test Coverage**: Add tests for new functionality
 5. **Documentation**: Update documentation for API changes
@@ -155,20 +155,20 @@ cargo build
 
 ### Pull Request Guidelines
 
-- Keep PRs focused and reasonably sized (follow the small diffs principle from [AGENTS.md](AGENTS.md))
+- Keep PRs focused and reasonably sized (follow the small diffs principle from [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md))
 - Include tests for new functionality
 - Update documentation for API changes
 - **Mandatory**: Ensure all pre-commit checks pass before requesting review
 - Update planning artifacts (`TODO.md`, `PLAN.md`) as needed
 - Be responsive to feedback
-- Follow agent-specific guidelines from [AGENTS.md](AGENTS.md)
+- Follow agent-specific guidelines from [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md)
 - Never include AI attribution in commits or code (see policy below)
 
 ## Critical Policy: No AI Attribution
 
 **ABSOLUTELY NO AI ATTRIBUTION**: Never include any of the following in commits, PRs, or code:
-- "Generated with Claude Code" or similar
-- "Co-authored-by: Claude" or any AI co-authorship
+- "Generated with an AI assistant" or similar
+- "Co-authored-by: <automation assistant>" or any AI co-authorship
 - References to AI/LLM assistance in comments or documentation
 - Any indication that code was AI-generated
 
@@ -252,7 +252,7 @@ For feature requests, please:
 
 This project uses specialized AI agents for different aspects of development. Contributors should:
 
-1. **Understand Agent Roles**: Read [AGENTS.md](AGENTS.md) to understand which agent guidelines apply to your contribution
+1. **Understand Agent Roles**: Read [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) to understand which agent guidelines apply to your contribution
 2. **Follow Workflow Patterns**: Use the plan-first approach and maintain planning artifacts
 3. **Collaborate Effectively**: When working in parallel with others, use separate branches/worktrees as described in [docs/workflow.md](docs/workflow.md)
 4. **Maintain Context**: Keep documentation and planning files updated for future contributors
@@ -328,7 +328,7 @@ cargo run --example quickstart
 ## Getting Help
 
 - **New Contributors**: Start with [docs/getting-started.md](docs/getting-started.md)
-- **Development Workflow**: Read [docs/workflow.md](docs/workflow.md) and [AGENTS.md](AGENTS.md)
+- **Development Workflow**: Read [docs/workflow.md](docs/workflow.md) and [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md)
 - **Architecture Questions**: Check [docs/architecture.md](docs/architecture.md)
 - **Bug Reports**: Open an issue with reproduction steps
 - **Feature Requests**: Check the roadmap in [docs/roadmap.md](docs/roadmap.md) first
@@ -341,6 +341,6 @@ cargo run --example quickstart
 - [Getting Started Guide](docs/getting-started.md)
 - [Development Workflow Guide](docs/workflow.md)
 - [Project Roadmap](docs/roadmap.md)
-- [Agent Guidelines](AGENTS.md)
+- [Agent Guidelines](AUTOMATION_AGENTS.md)
 
 Thank you for contributing to `openai-ergonomic`!

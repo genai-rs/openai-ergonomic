@@ -1,6 +1,6 @@
-# Claude Agent Instructions – openai-ergonomic
+# Automation Agent Instructions – openai-ergonomic
 
-> This document is the comprehensive guide for LLM/GenAI agents collaborating on the repository.
+> This document is the comprehensive guide for automation assistants or other tooling collaborating on the repository.
 
 ## Project Overview
 - **Repository**: `/Users/tim.van.wassenhove/src/github/openai-ergonomic`
@@ -12,16 +12,16 @@
   - `langfuse-ergonomic` (scaffolding + workflow inspiration)
 
 ## Guiding Principles
-1. **Plan First** – Brainstorm with any Claude agent (Claude.ai, Claude Code, etc.), capture actionable steps in `PLAN.md`/`TODO.md` before touching code.
-2. **Small Diffs** – Execute in Claude Code using tight loops: plan → apply → review → update TODO.
+1. **Plan First** – Brainstorm with the approved automation tooling (delegated agents, scratchpads, etc.), capturing actionable steps in `PLAN.md`/`TODO.md` before touching code.
+2. **Small Diffs** – Execute in the automation workspace using tight loops: plan → apply → review → update TODO.
 3. **Truthful State** – Only describe features that exist. Keep docs/tests aligned with code.
 4. **Parity with OpenAI** – Prioritise coverage of current OpenAI endpoints, Responses-first ergonomics, and helper consistency.
 5. **Publishing Ready** – Every change nudges crate toward crates.io readiness (docs, tests, CI, release automation).
-6. **Parallel-Friendly** – When running multiple efforts concurrently, isolate work per git tree/branch so each Claude Code instance retains context without collisions.
+6. **Parallel-Friendly** – When running multiple efforts concurrently, isolate work per git tree/branch so each automation workspace retains context without collisions.
 
 ## Key References
 - `PLAN.md` – Long-form roadmap across phases.
-- `TODO.md` – Current actionable checklist tracked alongside Claude sessions.
+- `TODO.md` – Current actionable checklist tracked alongside recurring automation runs.
 - `docs/research/repo_scaffolding.md` – Findings on existing automation/tooling patterns.
 - `docs/research/openai_builders.md` – Audit of builders modules, known TODOs, and example coverage.
 - `openai-experiment/crates/openai-builders` – API ergonomics reference.
@@ -77,7 +77,7 @@
 ### 8. Agile Coach Agent
 - **Scope**: Post-task retrospectives, workflow optimization, agent instruction refinement.
 - **Inputs**: Completed task logs, agent execution histories, workflow friction points, recurring issues.
-- **Outputs**: Updated agent instructions, refined workflows, process improvements documented in `AGENTS.md`, retrospective notes in `docs/retrospectives/`.
+- **Outputs**: Updated agent instructions, refined workflows, process improvements documented in `AUTOMATION_AGENTS.md`, retrospective notes in `docs/retrospectives/`.
 - **Workflow Notes**:
   - Run after significant tasks or sprint-like cycles to assess what worked and what didn't.
   - Analyze patterns in agent failures or inefficiencies (e.g., missed edge cases, unclear instructions).
@@ -88,12 +88,12 @@
 
 ## Operating Procedure
 1. **Review Context** – Read `PLAN.md`, `TODO.md`, relevant files from reference projects before editing.
-2. **Draft Plan** – Using any Claude agent, outline steps, risks, questions. Capture distilled plan in TODO entry if new.
-3. **Seek Plan Approval** – When working in Claude Code, present a step-by-step approach; confirm before changes.
+2. **Draft Plan** – Using the approved automation tooling, outline steps, risks, questions. Capture the distilled plan in TODO entry if new.
+3. **Seek Plan Approval** – When working in an automation workspace, present a step-by-step approach; confirm before changes.
 4. **Execute Incrementally** – Apply modifications in small chunks, run checks (`cargo fmt`, `cargo clippy`, `cargo test`) where applicable.
 5. **Update Artefacts** – Mark TODOs, adjust docs/tests, summarise changes for PR preparation.
 6. **Document Decisions** – Record notable choices under `docs/` (design notes, research findings) to keep context persistent.
-7. **End-of-Session Review** – Before closing a session, ask Claude Code for a summary plus workflow improvement suggestions; capture outcomes in `TODO.md` or doc updates (including refinements to `CLAUDE.md`/`AGENTS.md`).
+7. **End-of-Session Review** – Before closing a session, note a concise summary and any workflow improvement suggestions; capture outcomes in `TODO.md` or doc updates (including refinements to `AUTOMATION_GUIDE.md`/`AUTOMATION_AGENTS.md`).
 
 ## Pre-Commit Checklist
 **MANDATORY**: Every agent MUST run these checks locally before committing any code changes:
@@ -104,7 +104,7 @@
 4. **Build check**: `cargo build --all-targets` - Verify the project compiles completely
 5. **Example check**: `cargo build --examples` - Ensure all examples compile
 6. **Doc check**: `cargo doc --no-deps` - Verify documentation builds
-7. **Attribution check**: Ensure NO Claude/AI attribution in commit messages or code
+7. **Attribution check**: Ensure NO AI assistant attribution in commit messages or code
 
 **CRITICAL**:
 - Never push code without running ALL checks
@@ -130,15 +130,15 @@ git push
 
 ## Critical Policy: No AI Attribution
 **ABSOLUTELY NO AI ATTRIBUTION**: Never include any of the following in commits, PRs, or code:
-- "Generated with Claude Code" or similar
-- "Co-authored-by: Claude" or any AI co-authorship
+- "Generated with an AI assistant" or similar
+- "Co-authored-by: <automation assistant>" or any AI co-authorship
 - References to AI/LLM assistance in comments or documentation
 - Any indication that code was AI-generated
 
 All code must appear as human-authored work. This is a hard requirement - violations will result in PR rejection.
 
 ## Parallel Session Management
-- Spin up separate Claude Code instances per long-running task (or per repository clone/worktree) to preserve context between sessions.
+- Spin up separate automation workspaces per long-running task (or per repository clone/worktree) to preserve context between sessions.
 - Use dedicated git trees (e.g., `git worktree add ../openai-ergonomic-taskA ...`) or distinct clones so concurrent agents can commit independently.
 - Synchronise frequently: merge or rebase when switching contexts to avoid drift across parallel branches.
 - Note active sessions and their locations in `TODO.md` to make handoffs explicit.

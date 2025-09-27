@@ -7,7 +7,7 @@
 
 ## Phase 0 – Research & Discovery
 - Audit `openai-experiment/crates/openai-builders` for module layout, builder patterns, naming, and gaps.
-- Review `langfuse-ergonomic` for repository scaffolding (tooling, docs, CI, CLAUDE workflow).
+- Review `langfuse-ergonomic` for repository scaffolding (tooling, docs, CI, automation workflow).
 - Inspect `openai-client-base` capabilities (auth, streaming, feature flags) to understand integration touchpoints.
 - Inventory licensing, release tooling, and process assets we can reuse.
 - ✅ **COMPLETE**: Catalogue existing builder implementations (e.g., responses/chat/assistants modules) and note outstanding TODOs/workarounds in `openai-builders`.
@@ -20,12 +20,12 @@
 - ✅ **COMPLETE**: Initialize standalone crate structure (licenses, README, CONTRIBUTING, SECURITY, CHANGELOG templates).
 - ✅ **COMPLETE**: Configure `Cargo.toml` with metadata, dependencies, feature flags, and lint settings.
 - ✅ **COMPLETE**: Port shared tooling (`rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`, GitHub workflows).
-- ✅ **COMPLETE**: Add `CLAUDE.md` explaining project context and workflow expectations (created as AGENTS.md).
+- ✅ **COMPLETE**: Add `AUTOMATION_GUIDE.md` explaining project context and workflow expectations (created as AUTOMATION_AGENTS.md).
 - ✅ **COMPLETE**: Use `langfuse-ergonomic` and `openai-client-base` as templates for `.github/settings.yml`, CODEOWNERS, CI/security/release/dependency workflows, release-plz, renovate, and dual MIT/Apache licensing.
 
-## Phase 2 – Claude & Agent Workflow Enablement
-- ✅ **COMPLETE**: Define specialized Claude agents (Scaffolder, API Designer, Docs, QA, Release, Support, Reviewer/Driver, Agile Coach) with scoped prompts and responsibilities in AGENTS.md.
-- ✅ **COMPLETE**: Document plan-first rituals: brainstorm/plan in Claude.ai, translate to Claude Code TODOs before edits.
+## Phase 2 – Automation Workflow Enablement
+- ✅ **COMPLETE**: Define specialized automation agents (Scaffolder, API Designer, Docs, QA, Release, Support, Reviewer/Driver, Agile Coach) with scoped prompts and responsibilities in AUTOMATION_AGENTS.md.
+- ✅ **COMPLETE**: Document plan-first rituals: brainstorm/plan using approved automation tooling, translate the plan to TODOs before edits.
 - ✅ **COMPLETE**: Record workflow expectations in `docs/workflow.md` (expanded with publish checklist references).
 
 ## Phase 3 – API Surface Design
@@ -62,7 +62,7 @@
 
 ## Phase 8 – Operational Playbook
 - Document onboarding (plan-first workflow, agent usage, TODO maintenance).
-- Define contribution guidelines tying PRs to Claude plans/TODO updates.
+- Define contribution guidelines tying PRs to automation plans/TODO updates.
 - Maintain `TODO.md` (or equivalent project board) as source of truth for in-flight tasks; review weekly.
 - Schedule API spec sync cadence to regenerate `openai-client-base` and queue ergonomic updates.
 

@@ -10,7 +10,7 @@ The `openai-ergonomic` project uses a unique **agent-driven development** approa
 
 ### 1. Plan First
 - **Always plan before coding**: For any significant change, create or update entries in `PLAN.md` and `TODO.md` before writing code
-- **Use any Claude agent for brainstorming**: Draft ideas in Claude.ai, then translate actionable steps to Claude Code TODOs
+- **Use the approved automation tooling for brainstorming**: Draft ideas in the planning workspace, then translate actionable steps to TODOs
 - **Document decisions**: Record notable choices in `docs/` for persistent context
 
 ### 2. Small Diffs
@@ -32,7 +32,7 @@ The `openai-ergonomic` project uses a unique **agent-driven development** approa
 
 ### Understanding Agent Roles
 
-We have specialized agents for different development aspects (see [AGENTS.md](../AGENTS.md) for complete details):
+We have specialized agents for different development aspects (see [AUTOMATION_AGENTS.md](../AUTOMATION_AGENTS.md) for complete details):
 
 1. **Scaffolder Agent**: Repository setup, config files, tooling
 2. **API Designer Agent**: Builder APIs, helper functions, constants
@@ -56,7 +56,7 @@ When contributing, consider which agent role best fits your work:
 
 1. **Review Context**: Read `PLAN.md`, `TODO.md`, and relevant files before editing
 2. **Draft Plan**: Outline steps, risks, and questions
-3. **Seek Plan Approval**: When working in Claude Code, present approach and confirm before changes
+3. **Seek Plan Approval**: When working in an automation workspace, present the approach and confirm before changes
 4. **Execute Incrementally**: Apply modifications in small chunks with frequent checks
 5. **Update Artifacts**: Mark TODOs, adjust docs/tests, summarize changes
 6. **Document Decisions**: Record choices in appropriate `docs/` files
@@ -100,12 +100,12 @@ git worktree add ../openai-ergonomic-taskA feature/task-a
 # Work in dedicated directory
 cd ../openai-ergonomic-taskA
 
-# Each Claude Code instance gets its own worktree
+# Each automation workspace gets its own worktree
 # This preserves context between sessions
 ```
 
 **Benefits of worktrees:**
-- Preserve Claude Code context between sessions
+- Preserve automation workspace context between sessions
 - Enable parallel development without conflicts
 - Allow concurrent agents to work independently
 - Maintain separate development environments
@@ -141,8 +141,8 @@ git commit -m "test(integration): add mock server tests"
 #### AI Attribution Policy
 
 **CRITICAL**: Never include AI attribution in commits:
-- ❌ "Generated with Claude Code"
-- ❌ "Co-authored-by: Claude"
+- ❌ "Generated with an AI assistant"
+- ❌ "Co-authored-by: <automation assistant>"
 - ❌ References to AI assistance in comments
 - ❌ Any indication of AI generation
 
@@ -440,7 +440,7 @@ cargo doc --verbose
 
 ### Getting Help
 
-- **Workflow Questions**: Check this document and [AGENTS.md](../AGENTS.md)
+- **Workflow Questions**: Check this document and [AUTOMATION_AGENTS.md](../AUTOMATION_AGENTS.md)
 - **Technical Issues**: Open issue with reproduction steps
 - **Planning Questions**: Review `PLAN.md` and `TODO.md` first
 - **Architecture**: See [docs/architecture.md](architecture.md)
