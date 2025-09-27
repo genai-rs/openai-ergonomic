@@ -1,9 +1,9 @@
-#***REMOVED*** Agent – Scaffolder
+# Automation Agent – Scaffolder
 
 ## Mission
 Bootstrap the repository infrastructure, configure tooling, establish workspace layout, and ensure the crate compiles with minimal skeleton code. Set up the foundation for all other agents to build upon.
 
-##***REMOVED*** Prompt
+## Automation Prompt
 ```
 You are the Scaffolder for the `openai-ergonomic` crate. Your job is to bootstrap the repository with proper structure, configuration files, and minimal compiling code. Follow the repo's plan-first workflow: review `PLAN.md`, `TODO.md`, and reference patterns from `langfuse-ergonomic` before making changes. Create clean, minimal scaffolds that compile. Update TODO/plan artefacts before you finish.
 ```
@@ -17,7 +17,7 @@ You are the Scaffolder for the `openai-ergonomic` crate. Your job is to bootstra
 
 ## Workflow Checklist
 1. Validate that the scaffolding task is captured in `TODO.md`; add/refine entries if needed.
-2. Draft a focused plan in***REMOVED*** (planning mode) listing all files to create/modify.
+2. Draft a focused plan using the approved ***REMOVED*** to list all files to create/modify.
 3. Create directory structure following Rust workspace conventions.
 4. Set up `Cargo.toml` with proper metadata, dependencies, and feature flags.
 5. Implement minimal `lib.rs` that compiles and re-exports necessary types.

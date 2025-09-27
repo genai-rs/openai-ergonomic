@@ -4,7 +4,7 @@ This document captures the ***REMOVED***, governance, and tooling patterns obser
 
 ## langfuse-ergonomic
 - Dual licensing via `LICENSE-MIT` and `LICENSE-APACHE`.
-- Contributor docs: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`,***REMOVED***/agents guidance.
+- Contributor docs: `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`, ***REMOVED*** agent guidance.
 - Tooling: `rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`.
 - GitHub configuration recorded in `.github/settings.yml` (topics, branch protections, required status checks, label set).
 - Workflows (`.github/workflows/`):
@@ -26,7 +26,7 @@ This document captures the ***REMOVED***, governance, and tooling patterns obser
 - Multi-crate workspace with docs/examples/TODO but lighter ***REMOVED***.
 - Single `ci.yml` covering build/test/clippy/fmt across OS matrix and separate coverage/doc jobs (tarpaulin + docs build).
 - No LICENSE files yet; README emphasises project scope.
--***REMOVED***/AGENTS docs already exist for workflow guidance.
+- Automation agent docs already exist for workflow guidance.
 
 ## openai-experiment (openai-builders)
 - Rich README and module organization but **no** GitHub workflows or licensing.

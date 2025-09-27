@@ -1,6 +1,6 @@
-#***REMOVED*** Agents
+# Automation Agents
 
-This directory contains ready-to-use***REMOVED*** agent briefs tailored for the `openai-ergonomic` repository. Each brief is designed to drop directly into a***REMOVED*** session so the agent can execute work autonomously while staying aligned with project rituals.
+This directory contains ready-to-use ***REMOVED*** agent briefs tailored for the `openai-ergonomic` repository. Each brief is designed to drop directly into an ***REMOVED*** workspace so the agent can execute work autonomously while staying aligned with project rituals.
 
 | Agent | Focus |
 | --- | --- |
@@ -11,4 +11,4 @@ This directory contains ready-to-use***REMOVED*** agent briefs tailored for the 
 | [Support](support.md) | Backlog curation, contributor enablement, roadmap updates |
 | [Reviewer/Driver](reviewer_driver.md) | PR reviews, plan/TODO hygiene, release readiness |
 
-Follow the prompts verbatim when spinning up a new***REMOVED*** session for the corresponding responsibility.
+Follow the prompts verbatim when spinning up a new ***REMOVED*** session for the corresponding responsibility.

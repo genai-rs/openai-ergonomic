@@ -1,6 +1,6 @@
 # OpenAI Ergonomic – TODO List
 
-> Maintain using***REMOVED***'s plan-first workflow: brainstorm with any***REMOVED*** agent, convert action items here before coding, check off via PRs.
+> Maintain using the ***REMOVED*** plan-first workflow: brainstorm with approved tooling, convert action items here before coding, check off via PRs.
 
 - [ ] Maintenance: Monitor GitHub PR backlog (last checked 2025-09-24; PR #18 "chore: release version 0.2.0" still open).
 
@@ -45,8 +45,8 @@
 ## Repository Setup
 - [x] Phase 1: Scaffold repository (licenses, README stub, CONTRIBUTING, SECURITY, CHANGELOG templates) using `langfuse-ergonomic` / `openai-client-base` patterns (completed).
 - [x] Phase 1: Port shared tooling (`rustfmt.toml`, `deny.toml`, `release-plz.toml`, `renovate.json5`, `.github/settings.yml`, CODEOWNERS, CI/security/release/dependency workflows) (completed).
-- [x] Phase 1: Author initial `CLAUDE.md` describing agent expectations and workflow rituals (AGENTS.md created).
-- [x] Phase 2: Define specialized***REMOVED*** agents and prompt templates; documented in AGENTS.md (completed 2025-09-21).
+- [x] Phase 1: Author initial `***REMOVED***` describing agent expectations and workflow rituals (AUTOMATION_AGENTS.md created).
+- [x] Phase 2: Define specialized ***REMOVED*** agents and prompt templates; documented in AUTOMATION_AGENTS.md (completed 2025-09-21).
 - [x] Phase 3: Produce API surface design spec (module map, builder naming, constants) under `docs/design/api_surface.md` (refreshed 2025-09-24).
 - [x] Phase 4: Implement core Responses API builders/helpers (initial implementation completed 2025-09-21).
 - [x] Phase 4: Implement client configuration wrapper over `openai-client-base` with error handling (initial implementation completed 2025-09-21).

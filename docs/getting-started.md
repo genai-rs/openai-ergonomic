@@ -238,6 +238,6 @@ async fn main() -> Result<()> {
 
 - Check the docs on [docs.rs](https://docs.rs/openai-ergonomic)
 - Search existing issues or open a new one on GitHub
-- Reach out on the maintainer channels listed in `AGENTS.md`
+- Reach out on the maintainer channels listed in `AUTOMATION_AGENTS.md`
 
 Happy coding with `openai-ergonomic`!
