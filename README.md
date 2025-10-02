@@ -11,16 +11,16 @@ Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder pattern
 
 ## Features
 
-- 🛡️ **Type-safe** - Full type safety with builder patterns using `bon`
-- ⚡ **Async/await** - Built on `tokio` and `reqwest` for modern async Rust
-- 🔄 **Streaming** - First-class support for streaming responses
-- 📝 **Comprehensive** - Covers all `OpenAI` API endpoints
-- 🧪 **Well-tested** - Extensive test coverage with mock support
-- 📚 **Well-documented** - Rich documentation with examples
+- **Type-safe** - full type safety with builder patterns using `bon`
+- **Async/await** - built on `tokio` and `reqwest` for modern async Rust
+- **Streaming** - first-class support for streaming responses
+- **Comprehensive** - covers all `OpenAI` API endpoints
+- **Well-tested** - extensive test coverage with mock support
+- **Well-documented** - rich documentation with examples
 
 ## Status
 
-🚧 **Under Construction** - This crate is currently being developed and is not yet ready for production use.
+**Status:** under construction. The crate is still in active development and not yet ready for production use.
 
 ## Quick Start
 
@@ -132,10 +132,10 @@ cargo run --example vision_chat
 ```
 
 Each example includes:
-- ✅ Comprehensive documentation and inline comments
-- ✅ Error handling best practices
-- ✅ Real-world use cases and patterns
-- ✅ Progressive complexity from basic to advanced usage
+- Comprehensive documentation and inline comments
+- Error handling best practices
+- Real-world use cases and patterns
+- Progressive complexity from basic to advanced usage
 
 ## Contributing
 
