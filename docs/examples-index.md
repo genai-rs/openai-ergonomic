@@ -381,10 +381,141 @@ cargo run --example models
 - Listing available models
 - Model details retrieval
 - Model capabilities
+- Ergonomic API available
 
 **Prerequisites:** `OPENAI_API_KEY`
 
-⚠️ **Note:** This example uses the base API directly. Ergonomic wrapper not yet available.
+---
+
+## Fine-tuning
+
+### [`fine_tuning.rs`](../examples/fine_tuning.rs)
+**What it demonstrates:** Comprehensive fine-tuning API features
+
+```bash
+cargo run --example fine_tuning
+```
+
+**Key concepts:**
+- Creating fine-tuning jobs
+- Listing and monitoring jobs
+- Viewing training events
+- Managing checkpoints
+- Job cancellation
+- Weights & Biases integration
+
+**Prerequisites:**
+- `OPENAI_API_KEY`
+- Training data file (JSONL format)
+
+---
+
+## Uploads
+
+### [`uploads.rs`](../examples/uploads.rs)
+**What it demonstrates:** Large file uploads with multipart support
+
+```bash
+cargo run --example uploads
+```
+
+**Key concepts:**
+- Multipart upload creation
+- Uploading file parts in chunks
+- Upload completion
+- Progress tracking
+- Error handling and retry logic
+- Best for files >512 MB
+
+**Prerequisites:**
+- `OPENAI_API_KEY`
+- Large file to upload
+
+---
+
+## Threads
+
+### [`threads.rs`](../examples/threads.rs)
+**What it demonstrates:** Conversation thread management
+
+```bash
+cargo run --example threads
+```
+
+**Key concepts:**
+- Creating conversation threads
+- Thread metadata
+- Persistent conversation state
+- Thread lifecycle management
+- Use cases for threads
+
+**Prerequisites:** `OPENAI_API_KEY`
+
+---
+
+## Completions (Legacy)
+
+### [`completions.rs`](../examples/completions.rs)
+**What it demonstrates:** Legacy completions API
+
+```bash
+cargo run --example completions
+```
+
+**Key concepts:**
+- Text completions
+- Temperature and parameters
+- Stop sequences
+- Multiple choices (n parameter)
+- Echo mode
+- Insert mode with suffix
+- Logprobs
+
+**Prerequisites:** `OPENAI_API_KEY`
+
+⚠️ **Note:** Legacy API. Use Chat Completions for new applications.
+
+---
+
+## Usage Tracking
+
+### [`usage.rs`](../examples/usage.rs)
+**What it demonstrates:** API usage and cost tracking
+
+```bash
+cargo run --example usage
+```
+
+**Key concepts:**
+- Querying usage data by time range
+- Filtering by model, project, user
+- Daily/hourly aggregation
+- Cost data retrieval
+- Usage for different endpoints (completions, embeddings, images, audio)
+
+**Prerequisites:** `OPENAI_API_KEY`
+
+---
+
+## Files
+
+### [`files.rs`](../examples/files.rs)
+**What it demonstrates:** File upload and management
+
+```bash
+cargo run --example files
+```
+
+**Key concepts:**
+- Uploading files for assistants/fine-tuning
+- Listing uploaded files
+- Retrieving file content
+- Deleting files
+- File purposes (assistants, fine-tune, batch)
+
+**Prerequisites:**
+- `OPENAI_API_KEY`
+- Files to upload
 
 ---
 
@@ -560,13 +691,19 @@ OPENAI_ORG_ID=org-...  # Optional
 | **Audio** | 2 | ✅ Complete |
 | **Images** | 1 | ✅ Complete |
 | **Embeddings** | 1 | ✅ Complete |
-| **Assistants** | 3 | ⚠️ Partial (no client methods) |
-| **Vector Stores** | 1 | ⚠️ Partial (no client methods) |
-| **Batch** | 1 | ⚠️ Partial (no client methods) |
-| **Moderations** | 1 | ⚠️ Partial (no client methods) |
-| **Models** | 1 | ⚠️ No ergonomic API |
+| **Assistants** | 3 | ✅ Complete |
+| **Vector Stores** | 1 | ✅ Complete |
+| **Batch** | 1 | ✅ Complete |
+| **Moderations** | 1 | ✅ Complete |
+| **Models** | 1 | ✅ Complete |
+| **Fine-tuning** | 1 | ✅ Complete |
+| **Uploads** | 1 | ✅ Complete |
+| **Threads** | 1 | ✅ Complete |
+| **Completions** | 1 | ✅ Complete |
+| **Usage** | 1 | ✅ Complete |
+| **Files** | 1 | ✅ Complete |
 | **Patterns** | 7 | ✅ Complete |
-| **Total** | **26** | **21% fully implemented** |
+| **Total** | **32** | **100% fully implemented** |
 
 ---
 

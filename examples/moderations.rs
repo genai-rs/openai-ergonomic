@@ -32,10 +32,25 @@ struct ModerationPolicy {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    use openai_ergonomic::Config;
+
     println!("=== Content Moderation Example ===\n");
 
     // Initialize client
-    let client = Client::from_env()?;
+    let client = if let Ok(c) = Client::from_env() {
+        c
+    } else {
+        println!("Note: OPENAI_API_KEY not found. Running in demo mode.");
+        println!("Set OPENAI_API_KEY to test real API calls.\n");
+        println!("To use the Moderations API:");
+        println!("  let client = Client::from_env()?;");
+        println!("  let builder = client.moderations().check(\"text to moderate\");");
+        println!("  let response = client.moderations().create(builder).await?;");
+        println!();
+        println!("Running demonstration examples...\n");
+        // Create a dummy client for demo purposes
+        Client::new(Config::builder().api_key("demo-key").build())?
+    };
 
     // Example 1: Basic moderation
     println!("1. Basic Moderation:");
@@ -80,10 +95,17 @@ fn basic_moderation(_client: &Client) {
         "Let's discuss this professional topic.",
     ];
 
+    println!("Basic moderation demonstrates checking multiple text inputs.");
+    println!("Note: To actually call the API, uncomment the async examples at the end of main().");
+    println!();
+
     for input in test_inputs {
         println!("Input: '{}'", input);
 
-        // In a real implementation, you'd call the moderations API
+        // You can use the client like this:
+        // let builder = client.moderations().check(input);
+        // let response = client.moderations().create(builder).await?;
+
         // For now, we'll simulate with a simple check
         let result = simulate_moderation(input);
 
@@ -422,3 +444,63 @@ fn apply_policy(result: &ModerationResult, policy: &ModerationPolicy) -> PolicyA
 
     PolicyAction::Approve
 }
+
+// ========== ACTUAL API USAGE EXAMPLES ==========
+// Uncomment and run these to test actual API calls
+// Note: Requires OPENAI_API_KEY environment variable
+
+/*
+/// Example of actual API usage with the moderations endpoint
+#[tokio::test]
+async fn example_real_moderation_api() -> Result<()> {
+    // Initialize client from environment
+    let client = Client::from_env()?;
+
+    println!("\n=== Real Moderations API Example ===\n");
+
+    // Example 1: Simple moderation check
+    println!("1. Simple moderation check:");
+    let builder = client.moderations().check("Hello, this is a friendly message!");
+    let response = client.moderations().create(builder).await?;
+
+    println!("Model: {}", response.model);
+    println!("Results count: {}", response.results.len());
+
+    if let Some(result) = response.results.first() {
+        println!("Flagged: {}", result.flagged);
+        println!("Categories:");
+        println!("  Hate: {}", result.categories.hate);
+        println!("  Harassment: {}", result.categories.harassment);
+        println!("  Violence: {}", result.categories.violence);
+        println!("  Sexual: {}", result.categories.sexual);
+        println!("  Self-harm: {}", result.categories.self_harm);
+
+        println!("\nScores:");
+        println!("  Hate: {:.6}", result.category_scores.hate);
+        println!("  Harassment: {:.6}", result.category_scores.harassment);
+        println!("  Violence: {:.6}", result.category_scores.violence);
+    }
+
+    // Example 2: Using specific model
+    println!("\n2. With specific model:");
+    let builder = client
+        .moderations()
+        .builder("Test content")
+        .model("text-moderation-stable");
+
+    let response = client.moderations().create(builder).await?;
+    println!("Using model: {}", response.model);
+
+    // Example 3: Using builder pattern
+    println!("\n3. Using builder pattern:");
+    use openai_ergonomic::builders::moderations::ModerationBuilder;
+
+    let builder = ModerationBuilder::new("Content to moderate")
+        .model("text-moderation-latest");
+
+    let response = client.moderations().create(builder).await?;
+    println!("Success! Flagged: {}", response.results[0].flagged);
+
+    Ok(())
+}
+*/
