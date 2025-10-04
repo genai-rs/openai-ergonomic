@@ -35,7 +35,7 @@ use tokio::time::Duration;
 ///     .max_retries(5)
 ///     .build();
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Config {
     api_key: String,
     api_base: String,
@@ -44,6 +44,22 @@ pub struct Config {
     timeout_seconds: u64,
     max_retries: u32,
     default_model: String,
+    http_client: Option<reqwest::Client>,
+}
+
+impl std::fmt::Debug for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("api_key", &"***")
+            .field("api_base", &self.api_base)
+            .field("organization", &self.organization)
+            .field("project", &self.project)
+            .field("timeout_seconds", &self.timeout_seconds)
+            .field("max_retries", &self.max_retries)
+            .field("default_model", &self.default_model)
+            .field("http_client", &self.http_client.as_ref().map(|_| "<reqwest::Client>"))
+            .finish()
+    }
 }
 
 impl Config {
@@ -86,6 +102,7 @@ impl Config {
             timeout_seconds,
             max_retries,
             default_model,
+            http_client: None,
         })
     }
 
@@ -151,6 +168,11 @@ impl Config {
     pub fn auth_header(&self) -> String {
         format!("Bearer {}", self.api_key)
     }
+
+    /// Get the custom HTTP client, if set.
+    pub fn http_client(&self) -> Option<&reqwest::Client> {
+        self.http_client.as_ref()
+    }
 }
 
 impl Default for Config {
@@ -163,12 +185,13 @@ impl Default for Config {
             timeout_seconds: 120,
             max_retries: 3,
             default_model: "gpt-4".to_string(),
+            http_client: None,
         }
     }
 }
 
 /// Builder for creating `OpenAI` client configuration.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct ConfigBuilder {
     api_key: Option<String>,
     api_base: Option<String>,
@@ -177,6 +200,7 @@ pub struct ConfigBuilder {
     timeout_seconds: Option<u64>,
     max_retries: Option<u32>,
     default_model: Option<String>,
+    http_client: Option<reqwest::Client>,
 }
 
 impl ConfigBuilder {
@@ -229,6 +253,33 @@ impl ConfigBuilder {
         self
     }
 
+    /// Set a custom HTTP client.
+    ///
+    /// This allows you to provide a pre-configured `reqwest::Client` with
+    /// custom settings like retry policies, connection pooling, proxies, etc.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+    /// use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
+    ///
+    /// let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    /// let client = ClientBuilder::new(reqwest::Client::new())
+    ///     .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+    ///     .build();
+    ///
+    /// let config = Config::builder()
+    ///     .api_key("sk-...")
+    ///     .http_client(client.into())
+    ///     .build();
+    /// ```
+    #[must_use]
+    pub fn http_client(mut self, client: reqwest::Client) -> Self {
+        self.http_client = Some(client);
+        self
+    }
+
     /// Build the configuration.
     #[must_use]
     pub fn build(self) -> Config {
@@ -242,6 +293,7 @@ impl ConfigBuilder {
             timeout_seconds: self.timeout_seconds.unwrap_or(120),
             max_retries: self.max_retries.unwrap_or(3),
             default_model: self.default_model.unwrap_or_else(|| "gpt-4".to_string()),
+            http_client: self.http_client,
         }
     }
 }
