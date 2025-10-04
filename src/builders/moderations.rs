@@ -186,9 +186,7 @@ impl ModerationBuilder {
     /// # Errors
     ///
     /// Returns an error if the request cannot be built.
-    pub fn build(
-        self,
-    ) -> crate::Result<openai_client_base::models::CreateModerationRequest> {
+    pub fn build(self) -> crate::Result<openai_client_base::models::CreateModerationRequest> {
         let input_string = match self.input {
             ModerationInput::Text(text) => text,
             ModerationInput::TextArray(texts) => {
@@ -208,9 +206,7 @@ impl ModerationBuilder {
 impl crate::builders::Builder<openai_client_base::models::CreateModerationRequest>
     for ModerationBuilder
 {
-    fn build(
-        self,
-    ) -> crate::Result<openai_client_base::models::CreateModerationRequest> {
+    fn build(self) -> crate::Result<openai_client_base::models::CreateModerationRequest> {
         self.build()
     }
 }

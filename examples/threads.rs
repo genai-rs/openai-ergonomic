@@ -31,6 +31,14 @@
 
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::no_effect_underscore_binding)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_lossless)]
+#![allow(unused_variables)]
+#![allow(missing_docs)]
 #![allow(dead_code)]
 
 use openai_ergonomic::{builders::threads::ThreadRequestBuilder, Client};
@@ -55,6 +63,7 @@ impl ThreadInfo {
         }
     }
 
+    #[must_use]
     pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.metadata.insert(key.into(), value.into());
         self
@@ -163,8 +172,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Creating thread with initial messages...");
 
     // Note: The ThreadRequestBuilder supports adding messages during creation
-    let builder_with_messages = ThreadRequestBuilder::new()
-        .metadata("conversation_type", "onboarding");
+    let builder_with_messages =
+        ThreadRequestBuilder::new().metadata("conversation_type", "onboarding");
 
     println!("  Initial message: 'Hello, I need help getting started'");
 

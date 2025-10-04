@@ -35,6 +35,14 @@
 
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::no_effect_underscore_binding)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_lossless)]
+#![allow(unused_variables)]
+#![allow(missing_docs)]
 #![allow(dead_code)]
 
 use openai_ergonomic::{builders::fine_tuning::FineTuningJobBuilder, Client};

@@ -42,7 +42,7 @@ use openai_client_base::{
         CreateModerationResponse, CreateTranscription200Response, CreateTranslation200Response,
         DeleteAssistantResponse, DeleteFileResponse, DeleteModelResponse,
         DeleteVectorStoreFileResponse, DeleteVectorStoreResponse, FineTuningJob, ImagesResponse,
-        ListBatchesResponse, ListAssistantsResponse, ListFilesResponse,
+        ListAssistantsResponse, ListBatchesResponse, ListFilesResponse,
         ListFineTuningJobCheckpointsResponse, ListFineTuningJobEventsResponse,
         ListMessagesResponse, ListModelsResponse, ListPaginatedFineTuningJobsResponse,
         ListRunStepsResponse, ListRunsResponse, ListVectorStoreFilesResponse,
@@ -673,7 +673,7 @@ impl ModerationsClient<'_> {
 }
 
 impl FilesClient<'_> {
-    /// Upload a file to OpenAI.
+    /// Upload a file to `OpenAI`.
     ///
     /// # Example
     ///
@@ -700,10 +700,9 @@ impl FilesClient<'_> {
         // Convert FilePurpose to openai_client_base::models::FilePurpose
         let purpose = match builder.purpose().to_string().as_str() {
             "fine-tune" => openai_client_base::models::FilePurpose::FineTune,
-            "assistants" => openai_client_base::models::FilePurpose::Assistants,
             "vision" => openai_client_base::models::FilePurpose::Vision,
             "batch" => openai_client_base::models::FilePurpose::Batch,
-            _ => openai_client_base::models::FilePurpose::Assistants,
+            _ => openai_client_base::models::FilePurpose::Assistants, // Default for "assistants" and unknown
         };
 
         let result = files_api::create_file()
@@ -789,9 +788,9 @@ impl FilesClient<'_> {
     /// # }
     /// ```
     pub async fn list(&self, builder: FileListBuilder) -> Result<ListFilesResponse> {
-        let purpose = builder.purpose_ref().map(|p| p.to_string());
+        let purpose = builder.purpose_ref().map(ToString::to_string);
         let limit = builder.limit_ref();
-        let order = builder.order_ref().map(|o| o.to_string());
+        let order = builder.order_ref().map(ToString::to_string);
 
         files_api::list_files()
             .configuration(&self.client.base_configuration)
@@ -1911,15 +1910,19 @@ impl AssistantsClient<'_> {
         // Convert Box<CreateAssistantRequestName> to Option<String> by extracting text
         request.name = request_data.name.and_then(|n| match *n {
             openai_client_base::models::CreateAssistantRequestName::Text(text) => Some(Some(text)),
-            _ => None,
+            openai_client_base::models::CreateAssistantRequestName::Null => None,
         });
         request.description = request_data.description.and_then(|d| match *d {
-            openai_client_base::models::CreateAssistantRequestDescription::Text(text) => Some(Some(text)),
-            _ => None,
+            openai_client_base::models::CreateAssistantRequestDescription::Text(text) => {
+                Some(Some(text))
+            }
+            openai_client_base::models::CreateAssistantRequestDescription::Null => None,
         });
         request.instructions = request_data.instructions.and_then(|i| match *i {
-            openai_client_base::models::CreateAssistantRequestInstructions::Text(text) => Some(Some(text)),
-            _ => None,
+            openai_client_base::models::CreateAssistantRequestInstructions::Text(text) => {
+                Some(Some(text))
+            }
+            openai_client_base::models::CreateAssistantRequestInstructions::Null => None,
         });
         request.tools = request_data.tools;
         request.metadata = request_data.metadata;
@@ -1947,10 +1950,7 @@ impl AssistantsClient<'_> {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn delete(
-        &self,
-        assistant_id: impl Into<String>,
-    ) -> Result<DeleteAssistantResponse> {
+    pub async fn delete(&self, assistant_id: impl Into<String>) -> Result<DeleteAssistantResponse> {
         let id = assistant_id.into();
         assistants_api::delete_assistant()
             .configuration(&self.client.base_configuration)
@@ -2239,6 +2239,7 @@ impl AssistantsClient<'_> {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::too_many_arguments)]
     pub async fn list_run_steps(
         &self,
         thread_id: impl Into<String>,

@@ -35,6 +35,11 @@
 
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::no_effect_underscore_binding)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::unused_async)]
+#![allow(clippy::useless_vec)]
 #![allow(dead_code)]
 
 use openai_ergonomic::Client;
@@ -247,9 +252,7 @@ async fn upload_text_file_example(_client: &Client) -> Result<String, Box<dyn st
 }
 
 /// Example 2: Upload a JSON file for batch processing
-async fn upload_json_file_example(
-    _client: &Client,
-) -> Result<String, Box<dyn std::error::Error>> {
+async fn upload_json_file_example(_client: &Client) -> Result<String, Box<dyn std::error::Error>> {
     println!("Uploading a JSON file for batch processing...");
 
     // Create a JSON file for batch processing
