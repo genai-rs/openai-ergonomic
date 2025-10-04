@@ -81,11 +81,16 @@ pub struct Client {
 impl Client {
     /// Create a new client with the given configuration.
     pub fn new(config: Config) -> Result<Self> {
-        let http_client = HttpClient::builder()
-            .timeout(Duration::from_secs(config.timeout_seconds()))
-            .user_agent(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")))
-            .build()
-            .map_err(Error::Http)?;
+        // Use custom HTTP client if provided, otherwise build a default one
+        let http_client = if let Some(client) = config.http_client() {
+            client.clone()
+        } else {
+            HttpClient::builder()
+                .timeout(Duration::from_secs(config.timeout_seconds()))
+                .user_agent(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")))
+                .build()
+                .map_err(Error::Http)?
+        };
 
         // Create openai-client-base configuration
         let mut base_configuration = Configuration::new();
