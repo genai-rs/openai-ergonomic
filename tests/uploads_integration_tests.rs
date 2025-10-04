@@ -1,4 +1,6 @@
 //! Integration tests for the Uploads API.
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::no_effect_underscore_binding)]
 
 use openai_ergonomic::UploadPurpose;
 

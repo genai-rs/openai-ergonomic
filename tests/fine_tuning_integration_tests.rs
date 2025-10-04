@@ -41,8 +41,7 @@ fn test_fine_tuning_job_builder_with_hyperparameters() {
 
 #[test]
 fn test_fine_tuning_job_builder_with_suffix() {
-    let builder =
-        FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training").suffix("my-model-v1");
+    let builder = FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training").suffix("my-model-v1");
 
     assert_eq!(builder.suffix_ref(), Some("my-model-v1"));
 }
@@ -76,7 +75,10 @@ fn test_fine_tuning_job_builder_complete() {
     assert_eq!(builder.suffix_ref(), Some("custom-model"));
     assert_eq!(builder.hyperparameters().n_epochs, Some(5));
     assert_eq!(builder.hyperparameters().batch_size, Some(32));
-    assert_eq!(builder.hyperparameters().learning_rate_multiplier, Some(0.05));
+    assert_eq!(
+        builder.hyperparameters().learning_rate_multiplier,
+        Some(0.05)
+    );
     assert_eq!(builder.integrations().len(), 1);
 }
 
@@ -105,8 +107,7 @@ fn test_fine_tune_model_helper() {
 
 #[test]
 fn test_fine_tune_with_validation_helper() {
-    let builder =
-        fine_tune_with_validation("gpt-3.5-turbo", "file-training", "file-validation");
+    let builder = fine_tune_with_validation("gpt-3.5-turbo", "file-training", "file-validation");
     assert_eq!(builder.validation_file_ref(), Some("file-validation"));
 }
 
@@ -132,8 +133,8 @@ fn test_hyperparameters_defaults() {
 #[test]
 fn test_fine_tuning_multiple_integrations() {
     // Currently only wandb is supported, but test the structure
-    let builder = FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training")
-        .with_wandb("project-1");
+    let builder =
+        FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training").with_wandb("project-1");
 
     assert_eq!(builder.integrations().len(), 1);
 
@@ -144,11 +145,17 @@ fn test_fine_tuning_multiple_integrations() {
 
 #[test]
 fn test_learning_rate_bounds() {
-    let builder1 = FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training")
-        .learning_rate_multiplier(0.01);
-    assert_eq!(builder1.hyperparameters().learning_rate_multiplier, Some(0.01));
+    let builder1 =
+        FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training").learning_rate_multiplier(0.01);
+    assert_eq!(
+        builder1.hyperparameters().learning_rate_multiplier,
+        Some(0.01)
+    );
 
-    let builder2 = FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training")
-        .learning_rate_multiplier(2.0);
-    assert_eq!(builder2.hyperparameters().learning_rate_multiplier, Some(2.0));
+    let builder2 =
+        FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training").learning_rate_multiplier(2.0);
+    assert_eq!(
+        builder2.hyperparameters().learning_rate_multiplier,
+        Some(2.0)
+    );
 }

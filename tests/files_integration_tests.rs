@@ -187,7 +187,7 @@ fn test_file_upload_builder_content_methods() {
 
     assert_eq!(builder.content_as_string(), Some(content.to_string()));
     assert_eq!(builder.content(), content.as_bytes());
-    assert_eq!(builder.content_size(), content.as_bytes().len());
+    assert_eq!(builder.content_size(), content.len());
 }
 
 // Note: These tests require API credentials and should be run with care

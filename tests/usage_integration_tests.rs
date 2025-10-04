@@ -1,6 +1,13 @@
 //! Integration tests for the Usage API.
 //!
-//! These tests verify the ergonomic wrappers around the OpenAI Usage API.
+//! These tests verify the ergonomic wrappers around the `OpenAI` Usage API.
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::ignore_without_reason)]
+#![allow(clippy::ignored_unit_patterns)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::collection_is_never_read)]
+#![allow(clippy::unreadable_literal)]
+#![allow(unused_variables)]
 
 use openai_ergonomic::{
     builders::usage::{BucketWidth, GroupBy, UsageBuilder},
@@ -158,8 +165,7 @@ async fn test_usage_with_bucket_width() -> Result<()> {
     let client = Client::from_env()?;
     let (start_time, end_time) = get_test_time_range();
 
-    let builder = UsageBuilder::new(start_time, Some(end_time))
-        .bucket_width(BucketWidth::Day);
+    let builder = UsageBuilder::new(start_time, Some(end_time)).bucket_width(BucketWidth::Day);
 
     let usage = client.usage().completions(builder).await?;
 
@@ -175,8 +181,7 @@ async fn test_usage_with_model_filter() -> Result<()> {
     let client = Client::from_env()?;
     let (start_time, end_time) = get_test_time_range();
 
-    let builder = UsageBuilder::new(start_time, Some(end_time))
-        .model("gpt-4");
+    let builder = UsageBuilder::new(start_time, Some(end_time)).model("gpt-4");
 
     let usage = client.usage().completions(builder).await?;
 
@@ -192,8 +197,7 @@ async fn test_usage_with_group_by() -> Result<()> {
     let client = Client::from_env()?;
     let (start_time, end_time) = get_test_time_range();
 
-    let builder = UsageBuilder::new(start_time, Some(end_time))
-        .group_by(GroupBy::Model);
+    let builder = UsageBuilder::new(start_time, Some(end_time)).group_by(GroupBy::Model);
 
     let usage = client.usage().completions(builder).await?;
 
@@ -209,8 +213,7 @@ async fn test_usage_with_limit() -> Result<()> {
     let client = Client::from_env()?;
     let (start_time, end_time) = get_test_time_range();
 
-    let builder = UsageBuilder::new(start_time, Some(end_time))
-        .limit(10);
+    let builder = UsageBuilder::new(start_time, Some(end_time)).limit(10);
 
     let usage = client.usage().completions(builder).await?;
 
@@ -236,8 +239,7 @@ fn test_usage_builder_with_end_time() {
 
 #[test]
 fn test_usage_builder_with_bucket_width() {
-    let builder = UsageBuilder::new(1704067200, None)
-        .bucket_width(BucketWidth::Day);
+    let builder = UsageBuilder::new(1704067200, None).bucket_width(BucketWidth::Day);
 
     assert_eq!(builder.bucket_width_ref(), Some(BucketWidth::Day));
     assert_eq!(builder.bucket_width_str(), Some("1d"));

@@ -1,4 +1,6 @@
 #![allow(clippy::uninlined_format_args)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::useless_vec)]
 //! Completions API example.
 //!
 //! This example demonstrates:
@@ -11,7 +13,7 @@
 //!
 //! Run with: `cargo run --example completions`
 
-use openai_ergonomic::{Builder, Client, Result};
+use openai_ergonomic::{Client, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
