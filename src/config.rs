@@ -341,7 +341,7 @@ mod tests {
 
         let config = Config::builder()
             .api_key("test-key")
-            .http_client(http_client.clone())
+            .http_client(http_client)
             .build();
 
         assert!(config.http_client().is_some());
@@ -356,11 +356,9 @@ mod tests {
 
     #[test]
     fn test_config_debug_hides_sensitive_data() {
-        let config = Config::builder()
-            .api_key("secret-key-12345")
-            .build();
+        let config = Config::builder().api_key("secret-key-12345").build();
 
-        let debug_output = format!("{:?}", config);
+        let debug_output = format!("{config:?}");
 
         // Should not contain the actual API key
         assert!(!debug_output.contains("secret-key-12345"));
@@ -376,7 +374,7 @@ mod tests {
             .http_client(http_client)
             .build();
 
-        let debug_output = format!("{:?}", config);
+        let debug_output = format!("{config:?}");
 
         // Should show placeholder for HTTP client
         assert!(debug_output.contains("<reqwest::Client>"));
