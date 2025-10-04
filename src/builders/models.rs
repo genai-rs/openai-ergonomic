@@ -1,6 +1,6 @@
 //! Models API builders.
 //!
-//! Provides high-level builders for working with OpenAI models, including
+//! Provides high-level builders for working with `OpenAI` models, including
 //! listing available models, retrieving model details, and deleting fine-tuned models.
 
 /// Builder for retrieving a specific model by ID.

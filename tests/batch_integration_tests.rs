@@ -1,8 +1,11 @@
 //! Integration tests for the Batch API.
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::collection_is_never_read)]
 
 use openai_ergonomic::builders::batch::{
-    batch_chat_completions, batch_completions, batch_embeddings, BatchEndpoint,
-    BatchJobBuilder, BatchJobListBuilder,
+    batch_chat_completions, batch_completions, batch_embeddings, BatchEndpoint, BatchJobBuilder,
+    BatchJobListBuilder,
 };
 use std::collections::HashMap;
 
@@ -117,8 +120,14 @@ fn test_batch_builder_metadata_multiple() {
         .metadata("key2", "value2");
 
     assert_eq!(builder.metadata_ref().len(), 2);
-    assert_eq!(builder.metadata_ref().get("key1"), Some(&"value1".to_string()));
-    assert_eq!(builder.metadata_ref().get("key2"), Some(&"value2".to_string()));
+    assert_eq!(
+        builder.metadata_ref().get("key1"),
+        Some(&"value1".to_string())
+    );
+    assert_eq!(
+        builder.metadata_ref().get("key2"),
+        Some(&"value2".to_string())
+    );
 }
 
 #[test]

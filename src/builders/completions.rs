@@ -3,7 +3,9 @@
 //! Provides high-level builders for creating text completion requests using
 //! the legacy Completions API. For chat-based completions, use the Chat API instead.
 
-use openai_client_base::models::{ChatCompletionStreamOptions, CreateCompletionRequest, StopConfiguration};
+use openai_client_base::models::{
+    ChatCompletionStreamOptions, CreateCompletionRequest, StopConfiguration,
+};
 
 use crate::{Builder, Error, Result};
 
@@ -227,7 +229,9 @@ impl Builder<CreateCompletionRequest> for CompletionsBuilder {
         request.seed = self.seed;
         request.stop = self.stop.map(|stops| {
             if stops.len() == 1 {
-                Box::new(StopConfiguration::new_text(stops.into_iter().next().unwrap()))
+                Box::new(StopConfiguration::new_text(
+                    stops.into_iter().next().unwrap(),
+                ))
             } else {
                 Box::new(StopConfiguration::new_arrayofstrings(stops))
             }

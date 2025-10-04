@@ -1,6 +1,12 @@
 //! Integration tests for the Models API.
 //!
-//! These tests verify the ergonomic wrappers around the OpenAI Models API.
+//! These tests verify the ergonomic wrappers around the `OpenAI` Models API.
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::ignored_unit_patterns)]
+#![allow(clippy::ignore_without_reason)]
+#![allow(clippy::useless_vec)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 
 use openai_ergonomic::{builders::models::*, Client, Result};
 
@@ -133,7 +139,6 @@ async fn test_get_embedding_model() -> Result<()> {
     let model = client.models().get("text-embedding-3-small").await?;
 
     assert!(model.id.contains("text-embedding"));
-    
 
     Ok(())
 }
@@ -146,7 +151,6 @@ async fn test_get_whisper_model() -> Result<()> {
     let model = client.models().get("whisper-1").await?;
 
     assert!(model.id.contains("whisper"));
-    
 
     Ok(())
 }

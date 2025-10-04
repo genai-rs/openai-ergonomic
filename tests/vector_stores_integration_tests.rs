@@ -117,7 +117,10 @@ fn test_simple_vector_store_helper() {
 
     assert_eq!(builder.name_ref(), Some("Simple Store"));
     assert!(builder.has_files());
-    assert_eq!(builder.metadata_ref().get("type"), Some(&"simple".to_string()));
+    assert_eq!(
+        builder.metadata_ref().get("type"),
+        Some(&"simple".to_string())
+    );
 }
 
 #[test]
