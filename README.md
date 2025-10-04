@@ -84,6 +84,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Custom HTTP Client with Retry Logic
+
+You can provide your own `reqwest::Client` with custom retry, timeout, and middleware configuration:
+
+```rust,ignore
+use openai_ergonomic::{Client, Config};
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a retry policy with exponential backoff
+    let retry_policy = ExponentialBackoff::builder()
+        .build_with_max_retries(3);
+
+    // Build a client with retry middleware
+    let http_client = ClientBuilder::new(reqwest::Client::new())
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build();
+
+    // Create OpenAI client with custom HTTP client
+    let config = Config::builder()
+        .api_key("your-api-key")
+        .http_client(http_client.into())
+        .build();
+
+    let client = Client::new(config)?;
+
+    // Use the client normally - retries are handled automatically
+    let response = client.chat_simple("Hello!").await?;
+    println!("{}", response);
+    Ok(())
+}
+```
+
 ## Documentation
 
 - [Getting Started Guide](docs/getting-started.md)
