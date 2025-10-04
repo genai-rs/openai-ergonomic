@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.1.0...v0.2.0) - 2025-10-04
+
+### Added
+
+- complete all Phase 1 & 2 API implementations
+
+### Fixed
+
+- resolve all clippy warnings and formatting issues
+- update release-plz workflow to use GitHub App token
+
+### Other
+
+- Fix clippy warnings
+- Add tests and fix formatting for custom HTTP client feature
+- Add support for custom HTTP client configuration
+- fix rustdoc warnings for generic type parameters
+- add API coverage tracking and examples index
+- update openai-client-base to 0.4
+- Disable required PR reviews in branch protection
+- remove decorative README emoji
+- migrate workflow instructions to automation terminology
+
 ### Added
 - Initial project scaffolding with Cargo.toml configuration
 - Basic library structure with error handling foundation
