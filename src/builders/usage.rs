@@ -279,7 +279,7 @@ impl UsageBuilder {
         self.page.as_deref()
     }
 
-    /// Convert project IDs to Option<Vec<String>>.
+    /// Convert project IDs to `Option<Vec<String>>`.
     #[must_use]
     pub fn project_ids_option(&self) -> Option<Vec<String>> {
         if self.project_ids.is_empty() {
@@ -289,7 +289,7 @@ impl UsageBuilder {
         }
     }
 
-    /// Convert user IDs to Option<Vec<String>>.
+    /// Convert user IDs to `Option<Vec<String>>`.
     #[must_use]
     pub fn user_ids_option(&self) -> Option<Vec<String>> {
         if self.user_ids.is_empty() {
@@ -299,7 +299,7 @@ impl UsageBuilder {
         }
     }
 
-    /// Convert API key IDs to Option<Vec<String>>.
+    /// Convert API key IDs to `Option<Vec<String>>`.
     #[must_use]
     pub fn api_key_ids_option(&self) -> Option<Vec<String>> {
         if self.api_key_ids.is_empty() {
@@ -309,7 +309,7 @@ impl UsageBuilder {
         }
     }
 
-    /// Convert models to Option<Vec<String>>.
+    /// Convert models to `Option<Vec<String>>`.
     #[must_use]
     pub fn models_option(&self) -> Option<Vec<String>> {
         if self.models.is_empty() {
@@ -319,7 +319,7 @@ impl UsageBuilder {
         }
     }
 
-    /// Convert group by fields to Option<Vec<String>>.
+    /// Convert group by fields to `Option<Vec<String>>`.
     #[must_use]
     pub fn group_by_option(&self) -> Option<Vec<String>> {
         if self.group_by.is_empty() {
@@ -329,7 +329,7 @@ impl UsageBuilder {
         }
     }
 
-    /// Get bucket width as Option<&str>.
+    /// Get bucket width as `Option<&str>`.
     #[must_use]
     pub fn bucket_width_str(&self) -> Option<&str> {
         self.bucket_width.as_ref().map(BucketWidth::as_str)
