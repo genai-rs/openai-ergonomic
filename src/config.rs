@@ -57,7 +57,10 @@ impl std::fmt::Debug for Config {
             .field("timeout_seconds", &self.timeout_seconds)
             .field("max_retries", &self.max_retries)
             .field("default_model", &self.default_model)
-            .field("http_client", &self.http_client.as_ref().map(|_| "<reqwest::Client>"))
+            .field(
+                "http_client",
+                &self.http_client.as_ref().map(|_| "<reqwest::Client>"),
+            )
             .finish()
     }
 }
@@ -327,5 +330,55 @@ mod tests {
         assert_eq!(config.timeout_seconds(), 120);
         assert_eq!(config.max_retries(), 3);
         assert_eq!(config.default_model(), Some("gpt-4"));
+    }
+
+    #[test]
+    fn test_config_with_custom_http_client() {
+        let http_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .unwrap();
+
+        let config = Config::builder()
+            .api_key("test-key")
+            .http_client(http_client.clone())
+            .build();
+
+        assert!(config.http_client().is_some());
+    }
+
+    #[test]
+    fn test_config_without_custom_http_client() {
+        let config = Config::builder().api_key("test-key").build();
+
+        assert!(config.http_client().is_none());
+    }
+
+    #[test]
+    fn test_config_debug_hides_sensitive_data() {
+        let config = Config::builder()
+            .api_key("secret-key-12345")
+            .build();
+
+        let debug_output = format!("{:?}", config);
+
+        // Should not contain the actual API key
+        assert!(!debug_output.contains("secret-key-12345"));
+        // Should contain the masked version
+        assert!(debug_output.contains("***"));
+    }
+
+    #[test]
+    fn test_config_debug_with_http_client() {
+        let http_client = reqwest::Client::new();
+        let config = Config::builder()
+            .api_key("test-key")
+            .http_client(http_client)
+            .build();
+
+        let debug_output = format!("{:?}", config);
+
+        // Should show placeholder for HTTP client
+        assert!(debug_output.contains("<reqwest::Client>"));
     }
 }
