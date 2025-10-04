@@ -15,14 +15,17 @@ pub mod assistants;
 pub mod audio;
 pub mod batch;
 pub mod chat;
+pub mod completions;
 pub mod embeddings;
 pub mod files;
 pub mod fine_tuning;
 pub mod images;
+pub mod models;
 pub mod moderations;
 pub mod responses;
 pub mod threads;
 pub mod uploads;
+pub mod usage;
 pub mod vector_stores;
 
 // Re-export common builder types for convenience
@@ -38,14 +41,17 @@ pub use chat::{
     image_base64_part, image_base64_part_with_detail, image_url_part, image_url_part_with_detail,
     system_user, text_part, tool_web_search, user_message, ChatCompletionBuilder,
 };
+pub use completions::*;
 pub use embeddings::*;
 pub use files::*;
 pub use fine_tuning::*;
 pub use images::*;
+pub use models::*;
 pub use moderations::*;
 pub use responses::*;
 pub use threads::*;
 pub use uploads::*;
+pub use usage::*;
 pub use vector_stores::*;
 
 /// Common trait for all builders to provide consistent APIs.

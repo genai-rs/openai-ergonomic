@@ -5,6 +5,8 @@
 //!
 //! Note: This is a simplified implementation focusing on the most commonly used features.
 
+use crate::Result;
+use openai_client_base::models;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -131,6 +133,56 @@ impl AssistantBuilder {
     pub fn metadata_ref(&self) -> &HashMap<String, String> {
         &self.metadata
     }
+
+    /// Build a CreateAssistantRequest from this builder.
+    pub fn build(self) -> Result<models::CreateAssistantRequest> {
+        let mut request = models::CreateAssistantRequest::new(self.model.clone());
+
+        request.name = self.name.map(|n| Box::new(models::CreateAssistantRequestName::new_text(n)));
+        request.description = self.description.map(|d| Box::new(models::CreateAssistantRequestDescription::new_text(d)));
+        request.instructions = self.instructions.map(|i| Box::new(models::CreateAssistantRequestInstructions::new_text(i)));
+
+        if !self.tools.is_empty() {
+            let tools: Result<Vec<_>> = self.tools.into_iter().map(|tool| {
+                match tool {
+                    AssistantTool::CodeInterpreter => {
+                        Ok(models::AssistantTool::SCode(Box::new(
+                            models::AssistantToolsCode::new(models::assistant_tools_code::Type::CodeInterpreter)
+                        )))
+                    }
+                    AssistantTool::FileSearch => {
+                        Ok(models::AssistantTool::SFileSearch(Box::new(
+                            models::AssistantToolsFileSearch::new(models::assistant_tools_file_search::Type::FileSearch)
+                        )))
+                    }
+                    AssistantTool::Function { name, description, parameters } => {
+                        let mut function_obj = models::FunctionObject::new(name);
+                        function_obj.description = Some(description);
+                        // Parameters is expected to be a JSON object, so convert it
+                        if let Value::Object(map) = parameters {
+                            let params_map: HashMap<String, Value> = map.into_iter().collect();
+                            function_obj.parameters = Some(params_map);
+                        }
+
+                        let func = models::AssistantToolsFunction::new(
+                            models::assistant_tools_function::Type::Function,
+                            function_obj
+                        );
+                        Ok(models::AssistantTool::SFunction(Box::new(func)))
+                    }
+                }
+            }).collect();
+            request.tools = Some(tools?);
+        }
+
+        if !self.metadata.is_empty() {
+            request.metadata = Some(Some(
+                self.metadata.into_iter().collect()
+            ));
+        }
+
+        Ok(request)
+    }
 }
 
 /// Represents a tool that can be used by an assistant.
@@ -175,6 +227,99 @@ impl ThreadBuilder {
     #[must_use]
     pub fn metadata_ref(&self) -> &HashMap<String, String> {
         &self.metadata
+    }
+}
+
+/// Builder for creating a message.
+#[derive(Debug, Clone)]
+pub struct MessageBuilder {
+    role: String,
+    content: String,
+    attachments: Vec<String>,
+    metadata: HashMap<String, String>,
+}
+
+impl MessageBuilder {
+    /// Create a new message builder with role and content.
+    #[must_use]
+    pub fn new(role: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            role: role.into(),
+            content: content.into(),
+            attachments: Vec::new(),
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// Add an attachment (file ID) to the message.
+    #[must_use]
+    pub fn add_attachment(mut self, file_id: impl Into<String>) -> Self {
+        self.attachments.push(file_id.into());
+        self
+    }
+
+    /// Add metadata to the message.
+    #[must_use]
+    pub fn metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.metadata.insert(key.into(), value.into());
+        self
+    }
+
+    /// Get the role for this message.
+    #[must_use]
+    pub fn role_ref(&self) -> &str {
+        &self.role
+    }
+
+    /// Get the content for this message.
+    #[must_use]
+    pub fn content_ref(&self) -> &str {
+        &self.content
+    }
+
+    /// Get the attachments for this message.
+    #[must_use]
+    pub fn attachments_ref(&self) -> &[String] {
+        &self.attachments
+    }
+
+    /// Get the metadata for this message.
+    #[must_use]
+    pub fn metadata_ref(&self) -> &HashMap<String, String> {
+        &self.metadata
+    }
+
+    /// Build a CreateMessageRequest from this builder.
+    pub fn build(self) -> Result<models::CreateMessageRequest> {
+        use serde_json::json;
+
+        let role = match self.role.as_str() {
+            "user" => models::create_message_request::Role::User,
+            "assistant" => models::create_message_request::Role::Assistant,
+            _ => models::create_message_request::Role::User,
+        };
+
+        let mut request = models::CreateMessageRequest::new(
+            role,
+            json!(self.content),
+        );
+
+        if !self.attachments.is_empty() {
+            let attachments: Vec<_> = self.attachments.into_iter().map(|file_id| {
+                let mut att = models::CreateMessageRequestAttachmentsInner::new();
+                att.file_id = Some(file_id);
+                att
+            }).collect();
+            request.attachments = Some(Some(attachments));
+        }
+
+        if !self.metadata.is_empty() {
+            request.metadata = Some(Some(
+                self.metadata.into_iter().collect()
+            ));
+        }
+
+        Ok(request)
     }
 }
 
@@ -272,6 +417,24 @@ impl RunBuilder {
     #[must_use]
     pub fn metadata_ref(&self) -> &HashMap<String, String> {
         &self.metadata
+    }
+
+    /// Build a CreateRunRequest from this builder.
+    pub fn build(self) -> Result<models::CreateRunRequest> {
+        let mut request = models::CreateRunRequest::new(self.assistant_id);
+
+        request.model = self.model.map(Into::into);
+        request.instructions = self.instructions.map(Into::into);
+        request.temperature = self.temperature;
+        request.stream = Some(self.stream);
+
+        if !self.metadata.is_empty() {
+            request.metadata = Some(Some(
+                self.metadata.into_iter().collect()
+            ));
+        }
+
+        Ok(request)
     }
 }
 
