@@ -1,6 +1,6 @@
 //! Usage API builders.
 //!
-//! Provides high-level builders for querying usage and cost data from the OpenAI API.
+//! Provides high-level builders for querying usage and cost data from the `OpenAI` API.
 //! Supports filtering by date range, aggregation buckets, projects, users, API keys, and models.
 
 /// Bucket width for aggregating usage data.
@@ -61,7 +61,7 @@ impl std::fmt::Display for GroupBy {
     }
 }
 
-/// Builder for querying usage data from the OpenAI API.
+/// Builder for querying usage data from the `OpenAI` API.
 ///
 /// # Examples
 ///
@@ -325,7 +325,7 @@ impl UsageBuilder {
         if self.group_by.is_empty() {
             None
         } else {
-            Some(self.group_by.iter().map(|g| g.to_string()).collect())
+            Some(self.group_by.iter().map(ToString::to_string).collect())
         }
     }
 
@@ -342,28 +342,28 @@ mod tests {
 
     #[test]
     fn test_usage_builder_basic() {
-        let builder = UsageBuilder::new(1704067200, None);
-        assert_eq!(builder.start_time(), 1704067200);
+        let builder = UsageBuilder::new(1_704_067_200, None);
+        assert_eq!(builder.start_time(), 1_704_067_200);
         assert_eq!(builder.end_time(), None);
     }
 
     #[test]
     fn test_usage_builder_with_end_time() {
-        let builder = UsageBuilder::new(1704067200, Some(1704153600));
-        assert_eq!(builder.start_time(), 1704067200);
-        assert_eq!(builder.end_time(), Some(1704153600));
+        let builder = UsageBuilder::new(1_704_067_200, Some(1_704_153_600));
+        assert_eq!(builder.start_time(), 1_704_067_200);
+        assert_eq!(builder.end_time(), Some(1_704_153_600));
     }
 
     #[test]
     fn test_usage_builder_with_bucket_width() {
-        let builder = UsageBuilder::new(1704067200, None).bucket_width(BucketWidth::Day);
+        let builder = UsageBuilder::new(1_704_067_200, None).bucket_width(BucketWidth::Day);
         assert_eq!(builder.bucket_width_ref(), Some(BucketWidth::Day));
         assert_eq!(builder.bucket_width_str(), Some("1d"));
     }
 
     #[test]
     fn test_usage_builder_with_filters() {
-        let builder = UsageBuilder::new(1704067200, None)
+        let builder = UsageBuilder::new(1_704_067_200, None)
             .project_id("proj_123")
             .user_id("user_456")
             .model("gpt-4");
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_usage_builder_with_multiple_filters() {
-        let builder = UsageBuilder::new(1704067200, None)
+        let builder = UsageBuilder::new(1_704_067_200, None)
             .project_ids(vec!["proj_1", "proj_2"])
             .user_ids(vec!["user_1", "user_2"])
             .models(vec!["gpt-4", "gpt-3.5-turbo"]);
@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_usage_builder_with_group_by() {
-        let builder = UsageBuilder::new(1704067200, None)
+        let builder = UsageBuilder::new(1_704_067_200, None)
             .group_by(GroupBy::ProjectId)
             .group_by(GroupBy::Model);
 
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_usage_builder_with_pagination() {
-        let builder = UsageBuilder::new(1704067200, None)
+        let builder = UsageBuilder::new(1_704_067_200, None)
             .limit(50)
             .page("next_page_token");
 
@@ -422,7 +422,7 @@ mod tests {
 
     #[test]
     fn test_empty_vectors_to_none() {
-        let builder = UsageBuilder::new(1704067200, None);
+        let builder = UsageBuilder::new(1_704_067_200, None);
         assert!(builder.project_ids_option().is_none());
         assert!(builder.user_ids_option().is_none());
         assert!(builder.api_key_ids_option().is_none());

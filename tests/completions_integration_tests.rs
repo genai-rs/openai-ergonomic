@@ -1,6 +1,9 @@
 //! Integration tests for the Completions API.
 //!
-//! These tests verify the ergonomic wrappers around the OpenAI Completions API.
+//! These tests verify the ergonomic wrappers around the `OpenAI` Completions API.
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::ignored_unit_patterns)]
+#![allow(clippy::ignore_without_reason)]
 
 use openai_ergonomic::{builders::completions::CompletionsBuilder, Builder, Client, Result};
 

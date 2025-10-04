@@ -31,6 +31,19 @@
 
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::no_effect_underscore_binding)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::missing_docs_in_private_items)]
+#![allow(clippy::unused_async)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_lossless)]
+#![allow(clippy::items_after_statements)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+#![allow(missing_docs)]
 #![allow(dead_code)]
 
 use openai_ergonomic::{builders::uploads::UploadBuilder, Client, UploadPurpose};
@@ -65,7 +78,11 @@ impl UploadInfo {
     pub fn display(&self) {
         println!("  Upload ID: {}", self.id);
         println!("  Filename: {}", self.filename);
-        println!("  Size: {} bytes ({:.2} MB)", self.bytes, self.bytes as f64 / (1024.0 * 1024.0));
+        println!(
+            "  Size: {} bytes ({:.2} MB)",
+            self.bytes,
+            self.bytes as f64 / (1024.0 * 1024.0)
+        );
         println!("  Purpose: {}", self.purpose);
         println!("  Status: {}", self.status);
     }
@@ -119,9 +136,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Purpose: fine-tune");
     println!("  MIME Type: {}", mime_type);
 
-    let builder = client
-        .uploads()
-        .builder(filename, UploadPurpose::FineTune, file_size_bytes, mime_type);
+    let builder = client.uploads().builder(
+        filename,
+        UploadPurpose::FineTune,
+        file_size_bytes,
+        mime_type,
+    );
 
     println!("\n💡 Note: This would create a real multipart upload session.");
     println!("   Commented out to avoid accidental API calls.\n");
@@ -159,13 +179,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let part_size_mb = 64; // Upload in 64 MB chunks
     let total_parts = (file_size_mb + part_size_mb - 1) / part_size_mb; // Ceiling division
 
-    println!("Uploading {} parts ({} MB each)...\n", total_parts, part_size_mb);
+    println!(
+        "Uploading {} parts ({} MB each)...\n",
+        total_parts, part_size_mb
+    );
 
     for part_num in 1..=total_parts {
         let progress_percent = (part_num as f64 / total_parts as f64) * 100.0;
 
-        println!("📤 Uploading part {}/{} ({:.1}% complete)",
-                 part_num, total_parts, progress_percent);
+        println!(
+            "📤 Uploading part {}/{} ({:.1}% complete)",
+            part_num, total_parts, progress_percent
+        );
 
         // In a real implementation, you would:
         // 1. Read the file chunk from disk
@@ -316,7 +341,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let progress = UploadProgress {
         total_bytes: file_size_bytes,
         uploaded_bytes: (file_size_bytes as f64 * 0.65) as i32,
-        total_parts: total_parts,
+        total_parts,
         uploaded_parts: (total_parts as f64 * 0.65) as i32,
     };
 
