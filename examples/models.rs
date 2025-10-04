@@ -35,6 +35,10 @@ async fn main() -> Result<()> {
     // Initialize client
     let client = Client::from_env()?;
 
+    // Example 0: List models from API (commented out to avoid API calls)
+    // println!("0. Fetching Models from API:");
+    // fetch_models_from_api(&client).await?;
+
     // Example 1: List available models
     println!("1. Available Models:");
     list_models(&client);
@@ -66,9 +70,33 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+async fn fetch_models_from_api(client: &Client) -> Result<()> {
+    // Example of using the ergonomic API to list models
+    let response = client.models().list().await?;
+
+    println!("Fetched {} models from API:", response.data.len());
+    for model in response.data.iter().take(10) {
+        println!("  - {} (owned by: {})", model.id, model.owned_by);
+    }
+    println!();
+
+    // Example of getting a specific model
+    if !response.data.is_empty() {
+        let model_id = &response.data[0].id;
+        let model = client.models().get(model_id).await?;
+        println!("Model details for {}:", model.id);
+        println!("  Owned by: {}", model.owned_by);
+        println!("  Created: {}", model.created);
+        println!();
+    }
+
+    Ok(())
+}
+
 fn list_models(_client: &Client) {
-    // In a real implementation, you'd call the models API endpoint
-    // For now, we'll use a hardcoded list of current models
+    // Note: In this example we use a hardcoded registry for demonstration.
+    // To actually list models from the API, you would call:
+    // let response = client.models().list().await?;
 
     let models = get_model_registry();
 

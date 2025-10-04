@@ -180,6 +180,39 @@ impl ModerationBuilder {
             }
         }
     }
+
+    /// Build the moderation request.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the request cannot be built.
+    pub fn build(
+        self,
+    ) -> crate::Result<openai_client_base::models::CreateModerationRequest> {
+        let input_string = match self.input {
+            ModerationInput::Text(text) => text,
+            ModerationInput::TextArray(texts) => {
+                // For array inputs, join with newlines for now
+                // The base API expects a single string
+                texts.join("\n")
+            }
+        };
+
+        Ok(openai_client_base::models::CreateModerationRequest {
+            input: input_string,
+            model: self.model,
+        })
+    }
+}
+
+impl crate::builders::Builder<openai_client_base::models::CreateModerationRequest>
+    for ModerationBuilder
+{
+    fn build(
+        self,
+    ) -> crate::Result<openai_client_base::models::CreateModerationRequest> {
+        self.build()
+    }
 }
 
 impl ModerationCategories {
