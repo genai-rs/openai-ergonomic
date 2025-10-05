@@ -140,6 +140,10 @@ pub mod config;
 pub mod errors;
 pub mod responses;
 
+// Optional telemetry support
+#[cfg(feature = "telemetry")]
+pub mod telemetry;
+
 // Re-export commonly used types
 pub use client::Client;
 pub use config::{Config, ConfigBuilder};
@@ -176,6 +180,10 @@ pub use responses::chat::{
 };
 pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrapper};
 pub use responses::{Response, Tool, ToolChoice, Usage};
+
+// Telemetry (feature-gated)
+#[cfg(feature = "telemetry")]
+pub use telemetry::TelemetryContext;
 
 // Test utilities (feature-gated)
 #[cfg(feature = "test-utils")]

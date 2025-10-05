@@ -43,6 +43,8 @@ pub struct ChatCompletionBuilder {
     top_p: Option<f64>,
     user: Option<String>,
     seed: Option<i32>,
+    #[cfg(feature = "telemetry")]
+    pub(crate) telemetry_context: Option<crate::telemetry::TelemetryContext>,
 }
 
 impl ChatCompletionBuilder {
@@ -66,7 +68,59 @@ impl ChatCompletionBuilder {
             top_p: None,
             user: None,
             seed: None,
+            #[cfg(feature = "telemetry")]
+            telemetry_context: None,
         }
+    }
+
+    /// Set telemetry context for observability.
+    ///
+    /// This allows you to attach custom attributes like user ID, session ID, and tags
+    /// to the OpenTelemetry spans created for this request.
+    #[cfg(feature = "telemetry")]
+    #[must_use]
+    pub fn with_telemetry_context(mut self, context: crate::telemetry::TelemetryContext) -> Self {
+        self.telemetry_context = Some(context);
+        self
+    }
+
+    /// Set user ID for telemetry (convenience method).
+    #[cfg(feature = "telemetry")]
+    #[must_use]
+    pub fn with_user_id(mut self, user_id: impl Into<String>) -> Self {
+        let ctx = self
+            .telemetry_context
+            .take()
+            .unwrap_or_default()
+            .with_user_id(user_id);
+        self.telemetry_context = Some(ctx);
+        self
+    }
+
+    /// Set session ID for telemetry (convenience method).
+    #[cfg(feature = "telemetry")]
+    #[must_use]
+    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
+        let ctx = self
+            .telemetry_context
+            .take()
+            .unwrap_or_default()
+            .with_session_id(session_id);
+        self.telemetry_context = Some(ctx);
+        self
+    }
+
+    /// Add a tag for telemetry (convenience method).
+    #[cfg(feature = "telemetry")]
+    #[must_use]
+    pub fn with_tag(mut self, tag: impl Into<String>) -> Self {
+        let ctx = self
+            .telemetry_context
+            .take()
+            .unwrap_or_default()
+            .with_tag(tag);
+        self.telemetry_context = Some(ctx);
+        self
     }
 
     /// Add a system message to the conversation.

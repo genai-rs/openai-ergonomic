@@ -17,6 +17,7 @@ Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder pattern
 - **Comprehensive** - covers all `OpenAI` API endpoints
 - **Well-tested** - extensive test coverage with mock support
 - **Well-documented** - rich documentation with examples
+- **Observable** - optional OpenTelemetry instrumentation with Langfuse support
 
 ## Status
 
@@ -119,6 +120,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### OpenTelemetry Observability with Langfuse
+
+Track and monitor your OpenAI API calls with OpenTelemetry and Langfuse:
+
+```rust,ignore
+use openai_ergonomic::{Client, TelemetryContext};
+use opentelemetry::global;
+use opentelemetry_langfuse::ExporterBuilder;
+use opentelemetry_sdk::trace::TracerProvider;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Setup OpenTelemetry with Langfuse
+    let exporter = ExporterBuilder::from_env()?.build()?;
+    let provider = TracerProvider::builder()
+        .with_batch_exporter(exporter)
+        .build();
+    global::set_tracer_provider(provider);
+
+    // Use the client with telemetry context
+    let client = Client::from_env()?;
+
+    let response = client
+        .chat()
+        .model("gpt-4o-mini")
+        .user("Hello, world!")
+        .with_user_id("user-123")           // Track by user
+        .with_session_id("session-456")     // Group by session
+        .with_tag("production")              // Add tags
+        .send()
+        .await?;
+
+    println!("{}", response.content());
+
+    // Flush telemetry
+    global::shutdown_tracer_provider();
+    Ok(())
+}
+```
+
+Enable the `telemetry` feature:
+
+```toml
+[dependencies]
+openai-ergonomic = { version = "0.1", features = ["telemetry"] }
+opentelemetry-langfuse = "0.5"
+opentelemetry_sdk = { version = "0.31", features = ["trace", "rt-tokio"] }
+```
+
+See the [telemetry example](examples/telemetry_langfuse.rs) for a complete demonstration.
+
 ## Documentation
 
 - [Getting Started Guide](docs/getting-started.md)
@@ -154,6 +206,10 @@ The `examples/` directory contains comprehensive examples for all major `OpenAI`
 ### Advanced APIs
 
 - [**assistants_basic.rs**](examples/assistants_basic.rs) - Introduction to the Assistants API with threads and tools
+
+### Observability & Monitoring
+
+- [**telemetry_langfuse.rs**](examples/telemetry_langfuse.rs) - OpenTelemetry instrumentation with Langfuse for tracking API calls
 
 Run any example with:
 

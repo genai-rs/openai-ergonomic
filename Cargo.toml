@@ -29,6 +29,10 @@ bytes = "1.5"
 tokio-stream = { version = "0.1", features = ["io-util"] }
 mockito = { version = "1.2", optional = true }
 
+# OpenTelemetry (optional)
+opentelemetry = { version = "0.31", optional = true }
+opentelemetry-semantic-conventions = { version = "0.31", optional = true }
+
 [dev-dependencies]
 tokio-test = "0.4"
 mockito = "1.2"
@@ -37,12 +41,15 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 regex = "1.5"
 tempfile = "3.10"
 rand = "0.8"
+opentelemetry_sdk = { version = "0.31", features = ["trace", "rt-tokio", "testing", "experimental_trace_batch_span_processor_with_async_runtime"] }
+opentelemetry-langfuse = "0.5"
 
 [features]
 default = ["rustls-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
 native-tls = ["reqwest/native-tls-vendored"]
 test-utils = ["mockito"]
+telemetry = ["opentelemetry", "opentelemetry-semantic-conventions"]
 
 [profile.dev]
 opt-level = 0

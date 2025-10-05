@@ -176,8 +176,105 @@ impl Client {
         &self,
         builder: ChatCompletionBuilder,
     ) -> Result<ChatCompletionResponseWrapper> {
+        #[cfg(feature = "telemetry")]
+        let telemetry_ctx = builder.telemetry_context.clone();
+
         let request = builder.build()?;
+
+        #[cfg(feature = "telemetry")]
+        return self.execute_chat_with_telemetry(request, telemetry_ctx).await;
+
+        #[cfg(not(feature = "telemetry"))]
         self.execute_chat(request).await
+    }
+
+    #[cfg(feature = "telemetry")]
+    async fn execute_chat_with_telemetry(
+        &self,
+        request: CreateChatCompletionRequest,
+        telemetry_ctx: Option<crate::telemetry::TelemetryContext>,
+    ) -> Result<ChatCompletionResponseWrapper> {
+        use crate::telemetry::{record_error, record_token_usage, SpanBuilder};
+
+        let model = request.model.clone();
+
+        let mut span_builder = SpanBuilder::new("chat").model(&model);
+
+        // Add request parameters as attributes
+        if let Some(temp) = request.temperature {
+            span_builder = span_builder.attribute_f64("gen_ai.request.temperature", temp);
+        }
+        if let Some(max_tokens) = request.max_tokens {
+            span_builder =
+                span_builder.attribute_i64("gen_ai.request.max_tokens", i64::from(max_tokens));
+        }
+        if let Some(max_completion_tokens) = request.max_completion_tokens {
+            span_builder = span_builder.attribute_i64(
+                "gen_ai.request.max_completion_tokens",
+                i64::from(max_completion_tokens),
+            );
+        }
+        if let Some(top_p) = request.top_p {
+            span_builder = span_builder.attribute_f64("gen_ai.request.top_p", top_p);
+        }
+        if let Some(presence_penalty) = request.presence_penalty {
+            span_builder =
+                span_builder.attribute_f64("gen_ai.request.presence_penalty", presence_penalty);
+        }
+        if let Some(frequency_penalty) = request.frequency_penalty {
+            span_builder =
+                span_builder.attribute_f64("gen_ai.request.frequency_penalty", frequency_penalty);
+        }
+
+        // Add telemetry context if provided
+        if let Some(ctx) = &telemetry_ctx {
+            span_builder = span_builder.context(ctx);
+        }
+
+        let mut span = span_builder.start();
+
+        // Execute the request
+        let result = async {
+            let response = chat_api::create_chat_completion()
+                .configuration(&self.base_configuration)
+                .create_chat_completion_request(request)
+                .call()
+                .await
+                .map_err(|e| Error::Api {
+                    status: 0,
+                    message: e.to_string(),
+                    error_type: None,
+                    error_code: None,
+                })?;
+
+            Ok(ChatCompletionResponseWrapper::new(response))
+        }
+        .await;
+
+        // Record token usage and errors
+        match &result {
+            Ok(response) => {
+                if let Some(usage) = response.inner().usage.as_ref() {
+                    let prompt_tokens = Some(i64::from(usage.prompt_tokens));
+                    let completion_tokens = Some(i64::from(usage.completion_tokens));
+                    record_token_usage(&mut span, prompt_tokens, completion_tokens);
+                }
+
+                // Record system fingerprint if available
+                if let Some(fingerprint) = &response.inner().system_fingerprint {
+                    use opentelemetry::trace::Span as _;
+                    span.set_attribute(opentelemetry::KeyValue::new(
+                        "openai.response.system_fingerprint",
+                        fingerprint.clone(),
+                    ));
+                }
+            }
+            Err(e) => {
+                record_error(&mut span, e);
+            }
+        }
+
+        result
     }
 }
 
