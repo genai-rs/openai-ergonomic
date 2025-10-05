@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set the global tracer provider
     global::set_tracer_provider(provider.clone());
 
-    println!("✓ OpenTelemetry configured with Langfuse");
+    println!("OpenTelemetry configured with Langfuse");
 
     // Create OpenAI client
     let client = Client::from_env()?;
@@ -121,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Ensure all telemetry data is exported before exiting
     provider.shutdown()?;
 
-    println!("✓ All telemetry data flushed to Langfuse");
+    println!("All telemetry data flushed to Langfuse");
     println!("\nCheck your Langfuse dashboard at https://cloud.langfuse.com to see the traces!");
     println!("You should see:");
     println!("- User IDs and session IDs for grouping");
