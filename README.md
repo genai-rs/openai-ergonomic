@@ -122,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### OpenTelemetry Observability with Langfuse
 
-Track and monitor your OpenAI API calls with OpenTelemetry and Langfuse:
+Track and monitor your `OpenAI` API calls with OpenTelemetry and Langfuse:
 
 ```rust,ignore
 use openai_ergonomic::{Client, TelemetryContext};

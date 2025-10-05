@@ -261,7 +261,10 @@ async fn test_request_parameters_recorded() {
         "Should have gen_ai.request.temperature"
     );
     assert_eq!(
-        attributes.get("gen_ai.request.temperature").unwrap().as_f64(),
+        attributes
+            .get("gen_ai.request.temperature")
+            .unwrap()
+            .as_f64(),
         0.7
     );
 
@@ -270,7 +273,10 @@ async fn test_request_parameters_recorded() {
         "Should have gen_ai.request.max_tokens"
     );
     assert_eq!(
-        attributes.get("gen_ai.request.max_tokens").unwrap().as_i64(),
+        attributes
+            .get("gen_ai.request.max_tokens")
+            .unwrap()
+            .as_i64(),
         100
     );
 
@@ -278,7 +284,10 @@ async fn test_request_parameters_recorded() {
         attributes.contains_key("gen_ai.request.top_p"),
         "Should have gen_ai.request.top_p"
     );
-    assert_eq!(attributes.get("gen_ai.request.top_p").unwrap().as_f64(), 0.9);
+    assert_eq!(
+        attributes.get("gen_ai.request.top_p").unwrap().as_f64(),
+        0.9
+    );
 }
 
 #[tokio::test]
@@ -314,6 +323,6 @@ async fn test_real_langfuse_integration() {
     // Flush to Langfuse
     let _ = provider.shutdown();
 
-    println!("✓ Successfully sent trace to Langfuse");
+    println!("Successfully sent trace to Langfuse");
     println!("Check your Langfuse dashboard to verify the trace was received");
 }

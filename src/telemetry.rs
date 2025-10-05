@@ -1,6 +1,6 @@
-//! OpenTelemetry instrumentation for OpenAI API calls.
+//! OpenTelemetry instrumentation for `OpenAI` API calls.
 //!
-//! This module provides span creation utilities following the OpenAI semantic conventions
+//! This module provides span creation utilities following the `OpenAI` semantic conventions
 //! as specified at: <https://opentelemetry.io/docs/specs/semconv/gen-ai/openai/>
 //!
 //! # Architecture
@@ -116,14 +116,17 @@ impl TelemetryContext {
         }
 
         for (key, value) in &self.metadata {
-            attrs.push(KeyValue::new(format!("langfuse.metadata.{key}"), value.clone()));
+            attrs.push(KeyValue::new(
+                format!("langfuse.metadata.{key}"),
+                value.clone(),
+            ));
         }
 
         attrs
     }
 }
 
-/// Helper to create a span for OpenAI API operations.
+/// Helper to create a span for `OpenAI` API operations.
 ///
 /// This follows the semantic conventions specified at:
 /// <https://opentelemetry.io/docs/specs/semconv/gen-ai/openai/>
@@ -153,6 +156,7 @@ impl SpanBuilder {
     }
 
     /// Add a custom attribute.
+    #[allow(dead_code)]
     pub fn attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.attributes
             .push(KeyValue::new(key.into(), value.into()));
@@ -264,9 +268,7 @@ mod tests {
         let attrs = ctx.to_attributes();
 
         // Verify attributes are created
-        assert!(attrs
-            .iter()
-            .any(|kv| kv.key.as_str() == "langfuse.userId"));
+        assert!(attrs.iter().any(|kv| kv.key.as_str() == "langfuse.userId"));
         assert!(attrs
             .iter()
             .any(|kv| kv.key.as_str() == "langfuse.sessionId"));

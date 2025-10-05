@@ -182,7 +182,9 @@ impl Client {
         let request = builder.build()?;
 
         #[cfg(feature = "telemetry")]
-        return self.execute_chat_with_telemetry(request, telemetry_ctx).await;
+        return self
+            .execute_chat_with_telemetry(request, telemetry_ctx)
+            .await;
 
         #[cfg(not(feature = "telemetry"))]
         self.execute_chat(request).await
