@@ -44,7 +44,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create Langfuse exporter from environment variables
     let exporter = ExporterBuilder::from_env()?.build()?;
 
-    // Create tracer provider with resource attributes
+    // Create tracer provider with resource attributes and batch exporter
+    // The batch exporter uses the Tokio runtime for async export
     let provider = SdkTracerProvider::builder()
         .with_resource(
             Resource::builder()
@@ -119,7 +120,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n--- Flushing telemetry data ---");
 
     // Ensure all telemetry data is exported before exiting
-    provider.shutdown()?;
+    // Dropping the provider will flush remaining spans
+    drop(provider);
 
     println!("All telemetry data flushed to Langfuse");
     println!("\nCheck your Langfuse dashboard at https://cloud.langfuse.com to see the traces!");
