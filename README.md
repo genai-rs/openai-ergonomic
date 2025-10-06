@@ -166,8 +166,9 @@ Enable the `telemetry` feature:
 [dependencies]
 openai-ergonomic = { version = "0.1", features = ["telemetry"] }
 opentelemetry-langfuse = "0.5"
-opentelemetry_sdk = { version = "0.31", features = ["trace", "rt-tokio"] }
 ```
+
+The `telemetry` feature includes `opentelemetry_sdk` with async runtime support for efficient batch exporting.
 
 See the [telemetry example](examples/telemetry_langfuse.rs) for a complete demonstration.
 
