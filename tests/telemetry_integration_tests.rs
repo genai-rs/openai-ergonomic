@@ -309,7 +309,8 @@ async fn test_real_langfuse_integration() {
         .expect("API call should succeed");
 
     // Flush to Langfuse
-    let _ = provider.shutdown();
+    // Dropping the provider will flush remaining spans
+    drop(provider);
 
     println!("Successfully sent trace to Langfuse");
     println!("Check your Langfuse dashboard to verify the trace was received");
