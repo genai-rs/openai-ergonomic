@@ -28,20 +28,16 @@
 //! - Token usage metrics
 //! - Full request/response data
 //!
-//! # Production Usage
+//! # Batch Exporting
 //!
-//! For production applications with high throughput, consider using `with_batch_exporter`
-//! instead of `with_simple_exporter`. You'll need to enable the
-//! `experimental_trace_batch_span_processor_with_async_runtime` feature in `opentelemetry_sdk`.
+//! This example uses `with_batch_exporter` for production-ready async span export.
+//! The batch exporter provides:
+//! - Non-blocking async exports using the Tokio runtime
+//! - Efficient batching of spans to reduce network overhead
+//! - Better performance for high-throughput applications
 //!
-//! ```toml
-//! [dependencies]
-//! opentelemetry_sdk = { version = "0.31", features = [
-//!     "trace",
-//!     "rt-tokio",
-//!     "experimental_trace_batch_span_processor_with_async_runtime"
-//! ]}
-//! ```
+//! The `telemetry` feature includes the necessary `opentelemetry_sdk` with
+//! async runtime support automatically.
 
 use openai_ergonomic::{Client, TelemetryContext};
 use opentelemetry::global;
@@ -59,9 +55,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create Langfuse exporter from environment variables
     let exporter = ExporterBuilder::from_env()?.build()?;
 
-    // Create tracer provider with resource attributes
-    // Using simple exporter for ease of use in examples
-    // For production, consider using with_batch_exporter with proper async runtime setup
+    // Create tracer provider with batch exporter for production use
+    // The batch exporter uses Tokio runtime for async, non-blocking exports
     let provider = SdkTracerProvider::builder()
         .with_resource(
             Resource::builder()
@@ -71,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ])
                 .build(),
         )
-        .with_simple_exporter(exporter)
+        .with_batch_exporter(exporter)
         .build();
 
     // Set the global tracer provider
