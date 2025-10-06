@@ -143,6 +143,10 @@ pub mod responses;
 
 // Optional telemetry support
 #[cfg(feature = "telemetry")]
+pub mod langfuse_interceptor;
+#[cfg(feature = "telemetry")]
+pub mod opentelemetry_interceptor;
+#[cfg(feature = "telemetry")]
 pub mod telemetry;
 #[cfg(feature = "telemetry")]
 pub mod telemetry_interceptor;
@@ -189,6 +193,10 @@ pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrappe
 pub use responses::{Response, Tool, ToolChoice, Usage};
 
 // Telemetry (feature-gated)
+#[cfg(feature = "telemetry")]
+pub use langfuse_interceptor::LangfuseInterceptor;
+#[cfg(feature = "telemetry")]
+pub use opentelemetry_interceptor::OpenTelemetryInterceptor;
 #[cfg(feature = "telemetry")]
 pub use telemetry::TelemetryContext;
 #[cfg(feature = "telemetry")]

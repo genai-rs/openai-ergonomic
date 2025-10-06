@@ -1,11 +1,14 @@
 //! Tests for the interceptor system.
 
+#![allow(clippy::significant_drop_tightening)]
+
 use openai_ergonomic::{
     AfterResponseContext, BeforeRequestContext, Client, ErrorContext, Interceptor,
 };
 use std::sync::{Arc, Mutex};
 
 /// Test interceptor that tracks calls.
+#[allow(clippy::struct_field_names)]
 #[derive(Clone)]
 struct TestInterceptor {
     before_calls: Arc<Mutex<Vec<String>>>,
@@ -70,9 +73,11 @@ async fn test_interceptor_called() {
     let result = client.send_chat(client.chat_simple("test")).await;
 
     // Check interceptors were called
-    let before_calls = interceptor_clone.before_calls.lock().unwrap();
-    assert!(!before_calls.is_empty(), "before_request should be called");
-    assert_eq!(before_calls[0], "chat");
+    {
+        let before_calls = interceptor_clone.before_calls.lock().unwrap();
+        assert!(!before_calls.is_empty(), "before_request should be called");
+        assert_eq!(before_calls[0], "chat");
+    }
 
     if result.is_ok() {
         let after_calls = interceptor_clone.after_calls.lock().unwrap();
@@ -111,11 +116,15 @@ async fn test_multiple_interceptors() {
     let _ = client.send_chat(client.chat_simple("test")).await;
 
     // Both interceptors should be called
-    let before_calls1 = interceptor1_clone.before_calls.lock().unwrap();
-    let before_calls2 = interceptor2_clone.before_calls.lock().unwrap();
+    {
+        let before_calls1 = interceptor1_clone.before_calls.lock().unwrap();
+        assert!(!before_calls1.is_empty(), "interceptor1 should be called");
+    }
 
-    assert!(!before_calls1.is_empty(), "interceptor1 should be called");
-    assert!(!before_calls2.is_empty(), "interceptor2 should be called");
+    {
+        let before_calls2 = interceptor2_clone.before_calls.lock().unwrap();
+        assert!(!before_calls2.is_empty(), "interceptor2 should be called");
+    }
 }
 
 #[test]

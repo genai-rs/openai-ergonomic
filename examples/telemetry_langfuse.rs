@@ -39,7 +39,7 @@
 //! The `telemetry` feature includes `opentelemetry_sdk` with the
 //! `experimental_trace_batch_span_processor_with_async_runtime` feature enabled.
 
-use openai_ergonomic::{Client, TelemetryContext, TelemetryInterceptor};
+use openai_ergonomic::{Client, LangfuseInterceptor, TelemetryContext};
 use opentelemetry::global;
 use opentelemetry_langfuse::ExporterBuilder;
 use opentelemetry_sdk::runtime::Tokio;
@@ -77,9 +77,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("OpenTelemetry configured with Langfuse");
 
-    // Create OpenAI client with telemetry interceptor
-    // This automatically creates spans for all API calls
-    let client = Client::from_env()?.with_interceptor(Box::new(TelemetryInterceptor::new()));
+    // Create OpenAI client with Langfuse interceptor
+    // This automatically creates spans for all API calls with Langfuse attributes
+    let client = Client::from_env()?.with_interceptor(Box::new(LangfuseInterceptor::new()));
 
     println!("\n--- Example 1: Simple chat ---");
 
@@ -114,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Fact #{i}: {}", response.content().unwrap_or("No content"));
     }
 
-    println!("\n--- Example 4: Using TelemetryInterceptor with context ---");
+    println!("\n--- Example 4: Using LangfuseInterceptor with context ---");
 
     // You can also create a client with context-specific interceptor
     let telemetry_ctx = TelemetryContext::new()
@@ -124,7 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_metadata("region", "us-east-1");
 
     let client_with_context = Client::from_env()?
-        .with_interceptor(Box::new(TelemetryInterceptor::with_context(telemetry_ctx)));
+        .with_interceptor(Box::new(LangfuseInterceptor::with_context(telemetry_ctx)));
 
     let response = client_with_context
         .send_chat(client_with_context.chat_simple("Hello with user context!"))

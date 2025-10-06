@@ -182,7 +182,10 @@ impl Interceptor for TelemetryInterceptor {
             KeyValue::new("gen_ai.system", "openai"),
             KeyValue::new("gen_ai.request.model", ctx.model.to_string()),
             KeyValue::new("langfuse.observation.input", ctx.request_json.to_string()),
-            KeyValue::new("stream.total_chunks", ctx.total_chunks as i64),
+            KeyValue::new(
+                "stream.total_chunks",
+                i64::try_from(ctx.total_chunks).unwrap_or(i64::MAX),
+            ),
         ];
 
         if let Some(input_tokens) = ctx.input_tokens {
