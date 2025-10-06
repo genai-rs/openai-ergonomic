@@ -188,7 +188,7 @@ export LANGFUSE_HOST="https://cloud.langfuse.com"  # optional, this is the defau
 The `telemetry` feature includes `opentelemetry_sdk` with the `experimental_trace_batch_span_processor_with_async_runtime` feature enabled for production-ready, efficient batch exporting with proper Tokio runtime support.
 
 **Features provided:**
-- Automatic span creation following OpenAI semantic conventions
+- Automatic span creation following `OpenAI` semantic conventions
 - User ID and session ID tracking for grouping traces
 - Custom tags and metadata
 - Token usage metrics
