@@ -28,14 +28,11 @@
 //! - Token usage metrics
 //! - Full request/response data
 //!
-//! # Note on Batch Exporting
+//! # Exporting Strategy
 //!
-//! This example uses `with_simple_exporter` for reliability and simplicity.
-//! For production applications with high throughput, you can use `with_batch_exporter`
-//! which provides async batching, but it requires careful runtime management.
-//!
-//! The `telemetry` feature includes `opentelemetry_sdk` with async runtime support
-//! for users who want to configure batch exporting in their applications.
+//! This example uses `with_simple_exporter` which exports spans synchronously and immediately.
+//! This is reliable and works well for most applications. The `telemetry` feature includes
+//! `opentelemetry_sdk` for users who want to configure custom export strategies.
 
 use openai_ergonomic::{Client, TelemetryContext};
 use opentelemetry::global;
@@ -54,8 +51,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let exporter = ExporterBuilder::from_env()?.build()?;
 
     // Create tracer provider with simple exporter
-    // Simple exporter is synchronous but reliable for examples
-    // For production with high throughput, consider using batch exporter with proper runtime setup
+    // Simple exporter is synchronous and reliable - exports happen immediately
+    // For production with very high throughput, batch exporter can be used but requires
+    // careful runtime management (the batch processor spawns OS threads without Tokio runtime)
     let provider = SdkTracerProvider::builder()
         .with_resource(
             Resource::builder()
