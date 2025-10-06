@@ -290,7 +290,7 @@ async fn test_real_langfuse_integration() {
         .expect("Failed to build exporter");
 
     let provider = SdkTracerProvider::builder()
-        .with_simple_exporter(exporter)
+        .with_batch_exporter(exporter)
         .build();
 
     global::set_tracer_provider(provider.clone());
