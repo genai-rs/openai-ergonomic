@@ -39,7 +39,7 @@
 //! The `telemetry` feature includes `opentelemetry_sdk` with the
 //! `experimental_trace_batch_span_processor_with_async_runtime` feature enabled.
 
-use openai_ergonomic::{Client, TelemetryContext};
+use openai_ergonomic::{Client, TelemetryContext, TelemetryInterceptor};
 use opentelemetry::global;
 use opentelemetry_langfuse::ExporterBuilder;
 use opentelemetry_sdk::runtime::Tokio;
@@ -77,59 +77,59 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("OpenTelemetry configured with Langfuse");
 
-    // Create OpenAI client
-    let client = Client::from_env()?;
+    // Create OpenAI client with telemetry interceptor
+    // This automatically creates spans for all API calls
+    let client = Client::from_env()?.with_interceptor(Box::new(TelemetryInterceptor::new()));
 
-    println!("\n--- Example 1: Simple chat with telemetry context ---");
+    println!("\n--- Example 1: Simple chat ---");
 
-    // Create telemetry context with user and session information
+    // With the interceptor, telemetry is automatic for all requests
+    let response = client
+        .send_chat(
+            client
+                .chat()
+                .system("You are a helpful assistant.")
+                .user("What is the capital of France?")
+                .temperature(0.7),
+        )
+        .await?;
+
+    println!("Response: {}", response.content().unwrap_or("No content"));
+
+    println!("\n--- Example 2: Another request ---");
+
+    let response2 = client
+        .send_chat(client.chat_simple("What is 2 + 2?"))
+        .await?;
+
+    println!("Response: {}", response2.content().unwrap_or("No content"));
+
+    println!("\n--- Example 3: Multiple requests (simulating a conversation) ---");
+
+    // All requests are automatically traced with the interceptor
+    for i in 1..=3 {
+        let response = client
+            .send_chat(client.chat_simple(format!("Tell me fact #{i} about Rust programming")))
+            .await?;
+        println!("Fact #{i}: {}", response.content().unwrap_or("No content"));
+    }
+
+    println!("\n--- Example 4: Using TelemetryInterceptor with context ---");
+
+    // You can also create a client with context-specific interceptor
     let telemetry_ctx = TelemetryContext::new()
         .with_user_id("user-12345")
         .with_session_id("session-abc-789")
         .with_tag("production")
-        .with_tag("chatbot")
-        .with_metadata("region", "us-east-1")
-        .with_metadata("experiment", "temperature-test");
+        .with_metadata("region", "us-east-1");
 
-    let builder = client
-        .chat()
-        .system("You are a helpful assistant.")
-        .user("What is the capital of France?")
-        .temperature(0.7)
-        .with_telemetry_context(telemetry_ctx);
+    let client_with_context = Client::from_env()?
+        .with_interceptor(Box::new(TelemetryInterceptor::with_context(telemetry_ctx)));
 
-    let response = client.send_chat(builder).await?;
-
+    let response = client_with_context
+        .send_chat(client_with_context.chat_simple("Hello with user context!"))
+        .await?;
     println!("Response: {}", response.content().unwrap_or("No content"));
-
-    println!("\n--- Example 2: Using convenience methods ---");
-
-    // You can also use convenience methods to set context directly
-    let builder2 = client
-        .chat()
-        .user("What is 2 + 2?")
-        .with_user_id("user-67890")
-        .with_session_id("session-xyz-123")
-        .with_tag("math");
-
-    let response2 = client.send_chat(builder2).await?;
-
-    println!("Response: {}", response2.content().unwrap_or("No content"));
-
-    println!("\n--- Example 3: Multiple requests in same session ---");
-
-    // Simulate a conversation
-    for i in 1..=3 {
-        let builder = client
-            .chat()
-            .user(format!("Tell me fact #{i} about Rust programming"))
-            .with_user_id("user-conversation")
-            .with_session_id("session-rust-facts")
-            .with_tag("conversation");
-
-        let response = client.send_chat(builder).await?;
-        println!("Fact #{i}: {}", response.content().unwrap_or("No content"));
-    }
 
     println!("\n--- Flushing telemetry data ---");
 
