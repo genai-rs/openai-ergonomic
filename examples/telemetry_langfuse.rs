@@ -1,7 +1,7 @@
 //! Example demonstrating OpenTelemetry instrumentation with Langfuse.
 //!
 //! This example shows how to set up OpenTelemetry tracing with Langfuse as the backend
-//! to observe and monitor OpenAI API calls with full context including user IDs, session IDs,
+//! to observe and monitor `OpenAI` API calls with full context including user IDs, session IDs,
 //! and custom tags.
 //!
 //! # Setup
