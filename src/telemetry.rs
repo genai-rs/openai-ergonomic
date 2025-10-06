@@ -156,7 +156,6 @@ impl SpanBuilder {
     }
 
     /// Add a custom attribute.
-    #[allow(dead_code)]
     pub fn attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.attributes
             .push(KeyValue::new(key.into(), value.into()));

@@ -202,6 +202,11 @@ impl Client {
 
         let mut span_builder = SpanBuilder::new("chat").model(&model);
 
+        // Serialize request as input for Langfuse
+        if let Ok(input_json) = serde_json::to_string(&request) {
+            span_builder = span_builder.attribute("langfuse.observation.input", input_json);
+        }
+
         // Add request parameters as attributes
         if let Some(temp) = request.temperature {
             span_builder = span_builder.attribute_f64("gen_ai.request.temperature", temp);
@@ -256,6 +261,15 @@ impl Client {
         // Record token usage and errors
         match &result {
             Ok(response) => {
+                // Serialize response as output for Langfuse
+                if let Ok(output_json) = serde_json::to_string(response.inner()) {
+                    use opentelemetry::trace::Span as _;
+                    span.set_attribute(opentelemetry::KeyValue::new(
+                        "langfuse.observation.output",
+                        output_json,
+                    ));
+                }
+
                 if let Some(usage) = response.inner().usage.as_ref() {
                     let prompt_tokens = Some(i64::from(usage.prompt_tokens));
                     let completion_tokens = Some(i64::from(usage.completion_tokens));
