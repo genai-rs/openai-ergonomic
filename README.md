@@ -128,16 +128,26 @@ Track and monitor your `OpenAI` API calls with OpenTelemetry and Langfuse:
 use openai_ergonomic::{Client, TelemetryContext};
 use opentelemetry::global;
 use opentelemetry_langfuse::ExporterBuilder;
-use opentelemetry_sdk::trace::TracerProvider;
+use opentelemetry_sdk::runtime::Tokio;
+use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::Resource;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup OpenTelemetry with Langfuse
     let exporter = ExporterBuilder::from_env()?.build()?;
-    let provider = TracerProvider::builder()
-        .with_batch_exporter(exporter)
+    let provider = SdkTracerProvider::builder()
+        .with_resource(
+            Resource::builder()
+                .with_attributes([
+                    opentelemetry::KeyValue::new("service.name", "my-app"),
+                ])
+                .build(),
+        )
+        .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
         .build();
-    global::set_tracer_provider(provider);
+    global::set_tracer_provider(provider.clone());
 
     // Use the client with telemetry context
     let client = Client::from_env()?;
@@ -152,15 +162,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .send()
         .await?;
 
-    println!("{}", response.content());
+    println!("{}", response.content().unwrap_or("No content"));
 
     // Flush telemetry
-    global::shutdown_tracer_provider();
+    provider.shutdown()?;
     Ok(())
 }
 ```
 
-Enable the `telemetry` feature:
+Enable the `telemetry` feature and set environment variables:
 
 ```toml
 [dependencies]
@@ -168,9 +178,24 @@ openai-ergonomic = { version = "0.1", features = ["telemetry"] }
 opentelemetry-langfuse = "0.5"
 ```
 
-The `telemetry` feature includes `opentelemetry_sdk` with async runtime support for efficient batch exporting.
+```bash
+export OPENAI_API_KEY="sk-..."
+export LANGFUSE_PUBLIC_KEY="pk-lf-..."
+export LANGFUSE_SECRET_KEY="sk-lf-..."
+export LANGFUSE_HOST="https://cloud.langfuse.com"  # optional, this is the default
+```
 
-See the [telemetry example](examples/telemetry_langfuse.rs) for a complete demonstration.
+The `telemetry` feature includes `opentelemetry_sdk` with the `experimental_trace_batch_span_processor_with_async_runtime` feature enabled for production-ready, efficient batch exporting with proper Tokio runtime support.
+
+**Features provided:**
+- Automatic span creation following OpenAI semantic conventions
+- User ID and session ID tracking for grouping traces
+- Custom tags and metadata
+- Token usage metrics
+- Model parameters tracking
+- Non-blocking async batch export to Langfuse
+
+See the [telemetry example](examples/telemetry_langfuse.rs) for a complete demonstration with multiple API calls and detailed usage patterns.
 
 ## Documentation
 
