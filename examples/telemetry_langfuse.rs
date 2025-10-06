@@ -32,7 +32,7 @@
 //!
 //! For production applications with high throughput, consider using `with_batch_exporter`
 //! instead of `with_simple_exporter`. You'll need to enable the
-//! `experimental_trace_batch_span_processor_with_async_runtime` feature in opentelemetry_sdk.
+//! `experimental_trace_batch_span_processor_with_async_runtime` feature in `opentelemetry_sdk`.
 //!
 //! ```toml
 //! [dependencies]
