@@ -71,11 +71,24 @@ use tokio::time::Duration;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Client {
     config: Arc<Config>,
     http: HttpClient,
     base_configuration: Configuration,
+    interceptors: Arc<crate::interceptor::InterceptorChain>,
+}
+
+// Custom Debug implementation since InterceptorChain doesn't implement Debug
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client")
+            .field("config", &self.config)
+            .field("http", &"<HttpClient>")
+            .field("base_configuration", &"<Configuration>")
+            .field("interceptors", &"<InterceptorChain>")
+            .finish()
+    }
 }
 
 impl Client {
@@ -110,7 +123,43 @@ impl Client {
             config: Arc::new(config),
             http: http_client,
             base_configuration,
+            interceptors: Arc::new(crate::interceptor::InterceptorChain::default()),
         })
+    }
+
+    /// Add an interceptor to the client.
+    ///
+    /// Interceptors are called in the order they are added.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use openai_ergonomic::{Client, Interceptor, BeforeRequestContext};
+    ///
+    /// struct LoggingInterceptor;
+    ///
+    /// #[async_trait::async_trait]
+    /// impl Interceptor for LoggingInterceptor {
+    ///     async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
+    ///         println!("Calling {}", ctx.operation);
+    ///         Ok(())
+    ///     }
+    /// }
+    ///
+    /// let mut client = Client::from_env()?;
+    /// client.with_interceptor(Box::new(LoggingInterceptor));
+    /// ```
+    #[must_use]
+    pub fn with_interceptor(
+        mut self,
+        interceptor: Box<dyn crate::interceptor::Interceptor>,
+    ) -> Self {
+        // Create new interceptor chain with the added interceptor
+        let mut interceptors =
+            Arc::try_unwrap(self.interceptors).unwrap_or_else(|arc| (*arc).clone());
+        interceptors.interceptors.push(interceptor);
+        self.interceptors = Arc::new(interceptors);
+        self
     }
 
     /// Create a new client with default configuration from environment variables.
@@ -151,24 +200,114 @@ impl Client {
         self.chat().system(system).user(user)
     }
 
-    /// Execute a chat completion request.
+    /// Execute a chat completion request with interceptors.
     pub async fn execute_chat(
         &self,
         request: CreateChatCompletionRequest,
     ) -> Result<ChatCompletionResponseWrapper> {
-        let response = chat_api::create_chat_completion()
+        use std::time::Instant;
+
+        let start = Instant::now();
+        let model = request.model.clone();
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Create before request context
+        let mut before_ctx = crate::interceptor::BeforeRequestContext {
+            operation: "chat",
+            model: &model,
+            request_json: &request_json,
+            metadata: std::collections::HashMap::new(),
+        };
+
+        // Call before_request interceptors
+        if let Err(e) = self.interceptors.before_request(&mut before_ctx).await {
+            // Call error interceptors
+            let error_ctx = crate::interceptor::ErrorContext {
+                operation: "chat",
+                model: Some(&model),
+                request_json: Some(&request_json),
+                error: &e.to_string(),
+                duration: start.elapsed(),
+                metadata: Some(&before_ctx.metadata),
+            };
+            self.interceptors.on_error(&error_ctx).await;
+            return Err(e);
+        }
+
+        // Execute the actual request
+        let result = chat_api::create_chat_completion()
             .configuration(&self.base_configuration)
             .create_chat_completion_request(request)
             .call()
-            .await
-            .map_err(|e| Error::Api {
-                status: 0,
-                message: e.to_string(),
-                error_type: None,
-                error_code: None,
-            })?;
+            .await;
 
-        Ok(ChatCompletionResponseWrapper::new(response))
+        match result {
+            Ok(response) => {
+                let duration = start.elapsed();
+                let response_wrapper = ChatCompletionResponseWrapper::new(response);
+                let response_json =
+                    serde_json::to_string(response_wrapper.inner()).unwrap_or_default();
+
+                // Extract token usage
+                let (input_tokens, output_tokens) =
+                    response_wrapper
+                        .inner()
+                        .usage
+                        .as_ref()
+                        .map_or((None, None), |u| {
+                            (
+                                Some(i64::from(u.prompt_tokens)),
+                                Some(i64::from(u.completion_tokens)),
+                            )
+                        });
+
+                // Call after_response interceptors
+                let after_ctx = crate::interceptor::AfterResponseContext {
+                    operation: "chat",
+                    model: &model,
+                    request_json: &request_json,
+                    response_json: &response_json,
+                    duration,
+                    input_tokens,
+                    output_tokens,
+                    metadata: &before_ctx.metadata,
+                };
+
+                if let Err(e) = self.interceptors.after_response(&after_ctx).await {
+                    let error_ctx = crate::interceptor::ErrorContext {
+                        operation: "chat",
+                        model: Some(&model),
+                        request_json: Some(&request_json),
+                        error: &e.to_string(),
+                        duration: start.elapsed(),
+                        metadata: Some(&before_ctx.metadata),
+                    };
+                    self.interceptors.on_error(&error_ctx).await;
+                    return Err(e);
+                }
+
+                Ok(response_wrapper)
+            }
+            Err(e) => {
+                let error_message = e.to_string();
+                let error_ctx = crate::interceptor::ErrorContext {
+                    operation: "chat",
+                    model: Some(&model),
+                    request_json: Some(&request_json),
+                    error: &error_message,
+                    duration: start.elapsed(),
+                    metadata: Some(&before_ctx.metadata),
+                };
+                self.interceptors.on_error(&error_ctx).await;
+
+                Err(Error::Api {
+                    status: 0,
+                    message: error_message,
+                    error_type: None,
+                    error_code: None,
+                })
+            }
+        }
     }
 
     /// Execute a chat completion builder.
