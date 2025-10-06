@@ -28,15 +28,22 @@
 //! - Token usage metrics
 //! - Full request/response data
 //!
-//! # Exporting Strategy
+//! # Batch Exporting
 //!
-//! This example uses `with_simple_exporter` which exports spans synchronously and immediately.
-//! This is reliable and works well for most applications. The `telemetry` feature includes
-//! `opentelemetry_sdk` for users who want to configure custom export strategies.
+//! This example uses `with_batch_exporter` for production-ready async span export.
+//! `BatchSpanProcessor` provides:
+//! - Non-blocking span export
+//! - Efficient batching for reduced network overhead
+//! - Better performance for high-throughput applications
+//!
+//! The `telemetry` feature includes `opentelemetry_sdk` with the
+//! `experimental_trace_batch_span_processor_with_async_runtime` feature enabled.
 
 use openai_ergonomic::{Client, TelemetryContext};
 use opentelemetry::global;
 use opentelemetry_langfuse::ExporterBuilder;
+use opentelemetry_sdk::runtime::Tokio;
+use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
 
@@ -50,10 +57,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create Langfuse exporter from environment variables
     let exporter = ExporterBuilder::from_env()?.build()?;
 
-    // Create tracer provider with simple exporter
-    // Simple exporter is synchronous and reliable - exports happen immediately
-    // For production with very high throughput, batch exporter can be used but requires
-    // careful runtime management (the batch processor spawns OS threads without Tokio runtime)
+    // Create tracer provider with batch exporter for production use
+    // BatchSpanProcessor batches spans for efficient network usage
+    // IMPORTANT: We must provide the Tokio runtime to the BatchSpanProcessor
     let provider = SdkTracerProvider::builder()
         .with_resource(
             Resource::builder()
@@ -63,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ])
                 .build(),
         )
-        .with_simple_exporter(exporter)
+        .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
         .build();
 
     // Set the global tracer provider
@@ -127,8 +133,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n--- Flushing telemetry data ---");
 
-    // Drop the provider to flush remaining spans
-    drop(provider);
+    // Wait for batch export
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    // Shutdown to ensure all spans are flushed
+    provider.shutdown()?;
 
     println!("All telemetry data flushed to Langfuse");
     println!("\nCheck your Langfuse dashboard at https://cloud.langfuse.com to see the traces!");

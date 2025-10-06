@@ -282,6 +282,8 @@ async fn test_request_parameters_recorded() {
 #[ignore = "Requires OPENAI_API_KEY and LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY"]
 async fn test_real_langfuse_integration() {
     use opentelemetry_langfuse::ExporterBuilder;
+    use opentelemetry_sdk::runtime::Tokio;
+    use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 
     // Create Langfuse exporter from environment
     let exporter = ExporterBuilder::from_env()
@@ -290,7 +292,7 @@ async fn test_real_langfuse_integration() {
         .expect("Failed to build exporter");
 
     let provider = SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
+        .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
         .build();
 
     global::set_tracer_provider(provider.clone());
