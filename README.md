@@ -120,82 +120,105 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### OpenTelemetry Observability with Langfuse
+### Observability with Interceptors
 
-Track and monitor your `OpenAI` API calls with OpenTelemetry and Langfuse:
+Track and monitor your `OpenAI` API calls using interceptors with OpenTelemetry support.
+
+#### Standard OpenTelemetry
+
+Use the `OpenTelemetryInterceptor` with any OpenTelemetry-compatible backend (Jaeger, Zipkin, OTLP, etc.):
 
 ```rust,ignore
-use openai_ergonomic::{Client, TelemetryContext};
+use openai_ergonomic::{Client, OpenTelemetryInterceptor};
+use opentelemetry::global;
+use opentelemetry_sdk::trace::SdkTracerProvider;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Setup OpenTelemetry with your preferred exporter
+    let provider = SdkTracerProvider::builder()
+        .with_simple_exporter(/* your exporter */)
+        .build();
+    global::set_tracer_provider(provider.clone());
+
+    // Create client with OpenTelemetry interceptor
+    let client = Client::from_env()?
+        .with_interceptor(Box::new(OpenTelemetryInterceptor::new()));
+
+    let response = client.send_chat(client.chat_simple("Hello!")).await?;
+    println!("{}", response.content().unwrap_or("No content"));
+
+    provider.shutdown()?;
+    Ok(())
+}
+```
+
+#### Langfuse Integration
+
+Use the `LangfuseInterceptor` for enhanced observability with user/session tracking:
+
+```rust,ignore
+use openai_ergonomic::{Client, LangfuseInterceptor, TelemetryContext};
 use opentelemetry::global;
 use opentelemetry_langfuse::ExporterBuilder;
 use opentelemetry_sdk::runtime::Tokio;
 use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
-use opentelemetry_sdk::Resource;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup OpenTelemetry with Langfuse
     let exporter = ExporterBuilder::from_env()?.build()?;
     let provider = SdkTracerProvider::builder()
-        .with_resource(
-            Resource::builder()
-                .with_attributes([
-                    opentelemetry::KeyValue::new("service.name", "my-app"),
-                ])
-                .build(),
-        )
         .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
         .build();
     global::set_tracer_provider(provider.clone());
 
-    // Use the client with telemetry context
-    let client = Client::from_env()?;
+    // Create context with user/session tracking
+    let context = TelemetryContext::new()
+        .with_user_id("user-123")
+        .with_session_id("session-456")
+        .with_tag("production")
+        .with_metadata("region", "us-east-1");
 
-    let response = client
-        .chat()
-        .model("gpt-4o-mini")
-        .user("Hello, world!")
-        .with_user_id("user-123")           // Track by user
-        .with_session_id("session-456")     // Group by session
-        .with_tag("production")              // Add tags
-        .send()
-        .await?;
+    // Create client with Langfuse interceptor
+    let client = Client::from_env()?
+        .with_interceptor(Box::new(LangfuseInterceptor::with_context(context)));
 
+    let response = client.send_chat(client.chat_simple("Hello!")).await?;
     println!("{}", response.content().unwrap_or("No content"));
 
-    // Flush telemetry
     provider.shutdown()?;
     Ok(())
 }
 ```
 
-Enable the `telemetry` feature and set environment variables:
+Enable the `telemetry` feature:
 
 ```toml
 [dependencies]
 openai-ergonomic = { version = "0.1", features = ["telemetry"] }
+# For Langfuse:
 opentelemetry-langfuse = "0.5"
 ```
+
+Set environment variables for Langfuse:
 
 ```bash
 export OPENAI_API_KEY="sk-..."
 export LANGFUSE_PUBLIC_KEY="pk-lf-..."
 export LANGFUSE_SECRET_KEY="sk-lf-..."
-export LANGFUSE_HOST="https://cloud.langfuse.com"  # optional, this is the default
+export LANGFUSE_HOST="https://cloud.langfuse.com"  # optional
 ```
 
-The `telemetry` feature includes `opentelemetry_sdk` with the `experimental_trace_batch_span_processor_with_async_runtime` feature enabled for production-ready, efficient batch exporting with proper Tokio runtime support.
+**Interceptor Features:**
+- **OpenTelemetryInterceptor**: Standard semantic conventions (`gen_ai.*` attributes)
+- **LangfuseInterceptor**: Enhanced with user/session tracking, tags, metadata, and full request/response capture
+- Production-ready async batch exporting with Tokio runtime support
+- Token usage metrics and model parameters tracking
+- Composable middleware pattern (chain multiple interceptors)
 
-**Features provided:**
-- Automatic span creation following `OpenAI` semantic conventions
-- User ID and session ID tracking for grouping traces
-- Custom tags and metadata
-- Token usage metrics
-- Model parameters tracking
-- Non-blocking async batch export to Langfuse
-
-See the [telemetry example](examples/telemetry_langfuse.rs) for a complete demonstration with multiple API calls and detailed usage patterns.
+See [telemetry_langfuse.rs](examples/telemetry_langfuse.rs) and [opentelemetry_standard.rs](examples/opentelemetry_standard.rs) for complete examples.
 
 ## Documentation
 
@@ -235,7 +258,9 @@ The `examples/` directory contains comprehensive examples for all major `OpenAI`
 
 ### Observability & Monitoring
 
-- [**telemetry_langfuse.rs**](examples/telemetry_langfuse.rs) - OpenTelemetry instrumentation with Langfuse for tracking API calls
+- [**opentelemetry_standard.rs**](examples/opentelemetry_standard.rs) - Standard OpenTelemetry interceptor with any backend (Jaeger, Zipkin, OTLP, etc.)
+- [**telemetry_langfuse.rs**](examples/telemetry_langfuse.rs) - Langfuse interceptor with user/session tracking and enhanced observability
+- [**interceptor_logging.rs**](examples/interceptor_logging.rs) - Custom interceptors for logging and metrics collection
 
 Run any example with:
 

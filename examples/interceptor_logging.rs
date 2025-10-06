@@ -95,10 +95,9 @@ impl Interceptor for MetricsInterceptor {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         if let (Some(input), Some(output)) = (ctx.input_tokens, ctx.output_tokens) {
-            self.total_tokens.fetch_add(
-                (input + output) as u64,
-                std::sync::atomic::Ordering::Relaxed,
-            );
+            let total = u64::try_from(input + output).unwrap_or(0);
+            self.total_tokens
+                .fetch_add(total, std::sync::atomic::Ordering::Relaxed);
         }
 
         Ok(())

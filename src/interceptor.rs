@@ -173,6 +173,7 @@ impl Clone for InterceptorChain {
 }
 
 impl InterceptorChain {
+    #[allow(dead_code)] // Will be used for streaming support
     pub fn new(interceptors: Vec<Box<dyn Interceptor>>) -> Self {
         Self { interceptors }
     }
@@ -191,6 +192,7 @@ impl InterceptorChain {
         Ok(())
     }
 
+    #[allow(dead_code)] // Will be used for streaming support
     pub async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.on_stream_chunk(ctx).await?;
@@ -198,6 +200,7 @@ impl InterceptorChain {
         Ok(())
     }
 
+    #[allow(dead_code)] // Will be used for streaming support
     pub async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.on_stream_end(ctx).await?;
