@@ -1,43 +1,40 @@
 //! Integration tests for OpenTelemetry instrumentation.
 //!
 //! These tests verify that spans are created with correct semantic conventions
-//! following the OpenAI semantic conventions spec.
+//! following the `OpenAI` semantic conventions spec.
 
 #![cfg(feature = "telemetry")]
 
 use openai_ergonomic::{Client, TelemetryContext};
 use opentelemetry::global;
-use opentelemetry_sdk::testing::trace::InMemorySpanExporter;
+use opentelemetry_sdk::trace::InMemorySpanExporter;
 use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
 use std::sync::Arc;
 
 /// Setup function that creates a tracer provider with an in-memory exporter for testing.
 fn setup_telemetry() -> (SdkTracerProvider, Arc<InMemorySpanExporter>) {
-    let exporter = InMemorySpanExporter::default();
-    let exporter_arc = Arc::new(exporter);
+    let exporter = Arc::new(InMemorySpanExporter::default());
 
     let provider = SdkTracerProvider::builder()
-        .with_simple_exporter(exporter_arc.clone())
+        .with_simple_exporter(InMemorySpanExporter::default())
         .with_sampler(Sampler::AlwaysOn)
         .build();
 
     global::set_tracer_provider(provider.clone());
 
-    (provider, exporter_arc)
+    (provider, exporter)
 }
 
 #[tokio::test]
-#[ignore] // Requires OPENAI_API_KEY
+#[ignore = "Requires OPENAI_API_KEY"]
 async fn test_chat_completion_creates_span() {
-    let (_provider, exporter) = setup_telemetry();
+    let (provider, exporter) = setup_telemetry();
 
     let client = Client::from_env().expect("OPENAI_API_KEY must be set");
 
+    let builder = client.chat().user("Hello, world!");
     let _response = client
-        .chat()
-        .model("gpt-4o-mini")
-        .user("Hello, world!")
-        .send()
+        .send_chat(builder)
         .await
         .expect("API call should succeed");
 
@@ -80,16 +77,12 @@ async fn test_chat_completion_creates_span() {
         attributes.contains_key("gen_ai.request.model"),
         "Should have gen_ai.request.model"
     );
-    assert_eq!(
-        attributes.get("gen_ai.request.model").unwrap().as_str(),
-        "gpt-4o-mini"
-    );
 }
 
 #[tokio::test]
-#[ignore] // Requires OPENAI_API_KEY
+#[ignore = "Requires OPENAI_API_KEY"]
 async fn test_telemetry_context_attributes() {
-    let (_provider, exporter) = setup_telemetry();
+    let (provider, exporter) = setup_telemetry();
 
     let client = Client::from_env().expect("OPENAI_API_KEY must be set");
 
@@ -100,12 +93,12 @@ async fn test_telemetry_context_attributes() {
         .with_tag("integration")
         .with_metadata("test_key", "test_value");
 
-    let _response = client
+    let builder = client
         .chat()
-        .model("gpt-4o-mini")
         .user("Test message")
-        .with_telemetry_context(telemetry_ctx)
-        .send()
+        .with_telemetry_context(telemetry_ctx);
+    let _response = client
+        .send_chat(builder)
         .await
         .expect("API call should succeed");
 
@@ -167,17 +160,15 @@ async fn test_telemetry_context_attributes() {
 }
 
 #[tokio::test]
-#[ignore] // Requires OPENAI_API_KEY
+#[ignore = "Requires OPENAI_API_KEY"]
 async fn test_token_usage_recorded() {
-    let (_provider, exporter) = setup_telemetry();
+    let (provider, exporter) = setup_telemetry();
 
     let client = Client::from_env().expect("OPENAI_API_KEY must be set");
 
+    let builder = client.chat().user("Count to 5");
     let _response = client
-        .chat()
-        .model("gpt-4o-mini")
-        .user("Count to 5")
-        .send()
+        .send_chat(builder)
         .await
         .expect("API call should succeed");
 
@@ -208,34 +199,34 @@ async fn test_token_usage_recorded() {
     );
 
     // Tokens should be positive integers
-    let input_tokens = attributes
-        .get("gen_ai.usage.input_tokens")
-        .unwrap()
-        .as_i64();
-    let output_tokens = attributes
-        .get("gen_ai.usage.output_tokens")
-        .unwrap()
-        .as_i64();
+    let input_tokens = match attributes.get("gen_ai.usage.input_tokens").unwrap() {
+        opentelemetry::Value::I64(v) => *v,
+        _ => panic!("Expected I64 value for input_tokens"),
+    };
+    let output_tokens = match attributes.get("gen_ai.usage.output_tokens").unwrap() {
+        opentelemetry::Value::I64(v) => *v,
+        _ => panic!("Expected I64 value for output_tokens"),
+    };
 
     assert!(input_tokens > 0, "Input tokens should be positive");
     assert!(output_tokens > 0, "Output tokens should be positive");
 }
 
 #[tokio::test]
-#[ignore] // Requires OPENAI_API_KEY
+#[ignore = "Requires OPENAI_API_KEY"]
 async fn test_request_parameters_recorded() {
-    let (_provider, exporter) = setup_telemetry();
+    let (provider, exporter) = setup_telemetry();
 
     let client = Client::from_env().expect("OPENAI_API_KEY must be set");
 
-    let _response = client
+    let builder = client
         .chat()
-        .model("gpt-4o-mini")
         .user("Test")
         .temperature(0.7)
         .max_tokens(100)
-        .top_p(0.9)
-        .send()
+        .top_p(0.9);
+    let _response = client
+        .send_chat(builder)
         .await
         .expect("API call should succeed");
 
@@ -260,38 +251,35 @@ async fn test_request_parameters_recorded() {
         attributes.contains_key("gen_ai.request.temperature"),
         "Should have gen_ai.request.temperature"
     );
-    assert_eq!(
-        attributes
-            .get("gen_ai.request.temperature")
-            .unwrap()
-            .as_f64(),
-        0.7
-    );
+    let temp = match attributes.get("gen_ai.request.temperature").unwrap() {
+        opentelemetry::Value::F64(v) => *v,
+        _ => panic!("Expected F64 value for temperature"),
+    };
+    assert!((temp - 0.7).abs() < f64::EPSILON);
 
     assert!(
         attributes.contains_key("gen_ai.request.max_tokens"),
         "Should have gen_ai.request.max_tokens"
     );
-    assert_eq!(
-        attributes
-            .get("gen_ai.request.max_tokens")
-            .unwrap()
-            .as_i64(),
-        100
-    );
+    let max_tokens = match attributes.get("gen_ai.request.max_tokens").unwrap() {
+        opentelemetry::Value::I64(v) => *v,
+        _ => panic!("Expected I64 value for max_tokens"),
+    };
+    assert_eq!(max_tokens, 100);
 
     assert!(
         attributes.contains_key("gen_ai.request.top_p"),
         "Should have gen_ai.request.top_p"
     );
-    assert_eq!(
-        attributes.get("gen_ai.request.top_p").unwrap().as_f64(),
-        0.9
-    );
+    let top_p = match attributes.get("gen_ai.request.top_p").unwrap() {
+        opentelemetry::Value::F64(v) => *v,
+        _ => panic!("Expected F64 value for top_p"),
+    };
+    assert!((top_p - 0.9).abs() < f64::EPSILON);
 }
 
 #[tokio::test]
-#[ignore] // Requires OPENAI_API_KEY and LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY
+#[ignore = "Requires OPENAI_API_KEY and LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY"]
 async fn test_real_langfuse_integration() {
     use opentelemetry_langfuse::ExporterBuilder;
 
@@ -309,14 +297,14 @@ async fn test_real_langfuse_integration() {
 
     let client = Client::from_env().expect("OPENAI_API_KEY must be set");
 
-    let _response = client
+    let builder = client
         .chat()
-        .model("gpt-4o-mini")
         .user("Integration test message")
         .with_user_id("test-integration-user")
         .with_session_id("test-integration-session")
-        .with_tag("integration-test")
-        .send()
+        .with_tag("integration-test");
+    let _response = client
+        .send_chat(builder)
         .await
         .expect("API call should succeed");
 
