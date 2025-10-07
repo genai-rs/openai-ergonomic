@@ -3,7 +3,9 @@
 //! This module provides a high-level client that wraps the base `OpenAI` client
 //! with ergonomic builders and response handling.
 
-use crate::interceptor::InterceptorChain;
+use crate::interceptor::{
+    AfterResponseContext, BeforeRequestContext, ErrorContext, InterceptorChain,
+};
 use crate::{
     builders::{
         assistants::{AssistantBuilder, MessageBuilder, RunBuilder},
@@ -53,7 +55,9 @@ use openai_client_base::{
     },
 };
 use reqwest::Client as HttpClient;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+use std::time::Instant;
 use tokio::time::Duration;
 
 /// Main client for interacting with the `OpenAI` API.
@@ -212,17 +216,94 @@ impl Client {
         &self,
         request: CreateChatCompletionRequest,
     ) -> Result<ChatCompletionResponseWrapper> {
-        let response = chat_api::create_chat_completion()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "chat";
+        let model = request.model.clone();
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        if let Ok(chain) = self.interceptors.read() {
+            if !chain.is_empty() {
+                let mut ctx = BeforeRequestContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    metadata: &mut metadata,
+                };
+                if let Err(e) = chain.before_request(&mut ctx).await {
+                    // If before_request fails, call error hook and return error
+                    let error_ctx = ErrorContext {
+                        operation,
+                        model: Some(&model),
+                        request_json: Some(&request_json),
+                        error: &e,
+                        metadata: Some(&metadata),
+                    };
+                    chain.on_error(&error_ctx).await;
+                    return Err(e);
+                }
+            }
+        }
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match chat_api::create_chat_completion()
             .configuration(&self.base_configuration)
             .create_chat_completion_request(request)
             .call()
             .await
-            .map_err(|e| Error::Api {
-                status: 0,
-                message: e.to_string(),
-                error_type: None,
-                error_code: None,
-            })?;
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = Error::Api {
+                    status: 0,
+                    message: e.to_string(),
+                    error_type: None,
+                    error_code: None,
+                };
+
+                // Call error hook
+                if let Ok(chain) = self.interceptors.read() {
+                    if !chain.is_empty() {
+                        let error_ctx = ErrorContext {
+                            operation,
+                            model: Some(&model),
+                            request_json: Some(&request_json),
+                            error: &error,
+                            metadata: Some(&metadata),
+                        };
+                        chain.on_error(&error_ctx).await;
+                    }
+                }
+
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        if let Ok(chain) = self.interceptors.read() {
+            if !chain.is_empty() {
+                let response_json = serde_json::to_string(&response).unwrap_or_default();
+                let ctx = AfterResponseContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    response_json: &response_json,
+                    duration,
+                    input_tokens: response.usage.as_ref().map(|u| u.prompt_tokens as i64),
+                    output_tokens: response.usage.as_ref().map(|u| u.completion_tokens as i64),
+                    metadata: &metadata,
+                };
+                if let Err(e) = chain.after_response(&ctx).await {
+                    // If after_response fails, we still return the response but log the error
+                    tracing::warn!("Interceptor after_response failed: {}", e);
+                }
+            }
+        }
 
         Ok(ChatCompletionResponseWrapper::new(response))
     }
@@ -371,13 +452,92 @@ impl AudioClient<'_> {
     /// Submit a speech synthesis request and return binary audio data.
     pub async fn create_speech(&self, builder: SpeechBuilder) -> Result<Vec<u8>> {
         let request = builder.build()?;
-        let response = audio_api::create_speech()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "audio_speech";
+        let model = request.model.clone();
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let mut ctx = BeforeRequestContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    metadata: &mut metadata,
+                };
+                if let Err(e) = chain.before_request(&mut ctx).await {
+                    // If before_request fails, call error hook and return error
+                    let error_ctx = ErrorContext {
+                        operation,
+                        model: Some(&model),
+                        request_json: Some(&request_json),
+                        error: &e,
+                        metadata: Some(&metadata),
+                    };
+                    chain.on_error(&error_ctx).await;
+                    return Err(e);
+                }
+            }
+        }
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match audio_api::create_speech()
             .configuration(&self.client.base_configuration)
             .create_speech_request(request)
             .call()
             .await
-            .map_err(map_api_error)?;
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = map_api_error(e);
+
+                // Call error hook
+                if let Ok(chain) = self.client.interceptors.read() {
+                    if !chain.is_empty() {
+                        let error_ctx = ErrorContext {
+                            operation,
+                            model: Some(&model),
+                            request_json: Some(&request_json),
+                            error: &error,
+                            metadata: Some(&metadata),
+                        };
+                        chain.on_error(&error_ctx).await;
+                    }
+                }
+
+                return Err(error);
+            }
+        };
+
         let bytes = response.bytes().await.map_err(Error::Http)?;
+        let duration = start_time.elapsed();
+
+        // Call after_response hook (note: no JSON response for audio)
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let response_json = format!("{{\"size\": {}}}", bytes.len());
+                let ctx = AfterResponseContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    response_json: &response_json,
+                    duration,
+                    input_tokens: None,
+                    output_tokens: None,
+                    metadata: &metadata,
+                };
+                if let Err(e) = chain.after_response(&ctx).await {
+                    // If after_response fails, we still return the response but log the error
+                    tracing::warn!("Interceptor after_response failed: {}", e);
+                }
+            }
+        }
+
         Ok(bytes.to_vec())
     }
 
@@ -396,6 +556,42 @@ impl AudioClient<'_> {
         &self,
         builder: TranscriptionBuilder,
     ) -> Result<CreateTranscription200Response> {
+        let request = builder.build()?;
+        let model_str = request.model.clone();
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "audio_transcription";
+        // TranscriptionRequest doesn't implement Serialize, so we'll create a simple JSON representation
+        let request_json = format!(
+            r#"{{"model":"{}","file":"<audio_file>"}}"#,
+            model_str
+        );
+
+        // Call before_request hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let mut ctx = BeforeRequestContext {
+                    operation,
+                    model: &model_str,
+                    request_json: &request_json,
+                    metadata: &mut metadata,
+                };
+                if let Err(e) = chain.before_request(&mut ctx).await {
+                    // If before_request fails, call error hook and return error
+                    let error_ctx = ErrorContext {
+                        operation,
+                        model: Some(&model_str),
+                        request_json: Some(&request_json),
+                        error: &e,
+                        metadata: Some(&metadata),
+                    };
+                    chain.on_error(&error_ctx).await;
+                    return Err(e);
+                }
+            }
+        }
+
         let TranscriptionRequest {
             file,
             model,
@@ -407,7 +603,7 @@ impl AudioClient<'_> {
             chunking_strategy,
             timestamp_granularities,
             include,
-        } = builder.build()?;
+        } = request;
 
         let timestamp_strings = timestamp_granularities.as_ref().map(|values| {
             values
@@ -416,7 +612,10 @@ impl AudioClient<'_> {
                 .collect::<Vec<_>>()
         });
 
-        let request_builder = audio_api::create_transcription()
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match audio_api::create_transcription()
             .configuration(&self.client.base_configuration)
             .file(file)
             .model(&model)
@@ -427,9 +626,56 @@ impl AudioClient<'_> {
             .maybe_stream(stream)
             .maybe_chunking_strategy(chunking_strategy)
             .maybe_timestamp_granularities(timestamp_strings)
-            .maybe_include(include);
+            .maybe_include(include)
+            .call()
+            .await
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = map_api_error(e);
 
-        request_builder.call().await.map_err(map_api_error)
+                // Call error hook
+                if let Ok(chain) = self.client.interceptors.read() {
+                    if !chain.is_empty() {
+                        let error_ctx = ErrorContext {
+                            operation,
+                            model: Some(&model_str),
+                            request_json: Some(&request_json),
+                            error: &error,
+                            metadata: Some(&metadata),
+                        };
+                        chain.on_error(&error_ctx).await;
+                    }
+                }
+
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let response_json = serde_json::to_string(&response).unwrap_or_default();
+                let ctx = AfterResponseContext {
+                    operation,
+                    model: &model_str,
+                    request_json: &request_json,
+                    response_json: &response_json,
+                    duration,
+                    input_tokens: None,
+                    output_tokens: None,
+                    metadata: &metadata,
+                };
+                if let Err(e) = chain.after_response(&ctx).await {
+                    // If after_response fails, we still return the response but log the error
+                    tracing::warn!("Interceptor after_response failed: {}", e);
+                }
+            }
+        }
+
+        Ok(response)
     }
 
     /// Create a translation builder for audio-to-English translation.
@@ -494,12 +740,92 @@ impl EmbeddingsClient<'_> {
     /// Execute an embeddings request built with [`EmbeddingsBuilder`].
     pub async fn create(&self, builder: EmbeddingsBuilder) -> Result<CreateEmbeddingResponse> {
         let request = builder.build()?;
-        embeddings_api::create_embedding()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "embedding";
+        let model = request.model.clone();
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let mut ctx = BeforeRequestContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    metadata: &mut metadata,
+                };
+                if let Err(e) = chain.before_request(&mut ctx).await {
+                    // If before_request fails, call error hook and return error
+                    let error_ctx = ErrorContext {
+                        operation,
+                        model: Some(&model),
+                        request_json: Some(&request_json),
+                        error: &e,
+                        metadata: Some(&metadata),
+                    };
+                    chain.on_error(&error_ctx).await;
+                    return Err(e);
+                }
+            }
+        }
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match embeddings_api::create_embedding()
             .configuration(&self.client.base_configuration)
             .create_embedding_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = map_api_error(e);
+
+                // Call error hook
+                if let Ok(chain) = self.client.interceptors.read() {
+                    if !chain.is_empty() {
+                        let error_ctx = ErrorContext {
+                            operation,
+                            model: Some(&model),
+                            request_json: Some(&request_json),
+                            error: &error,
+                            metadata: Some(&metadata),
+                        };
+                        chain.on_error(&error_ctx).await;
+                    }
+                }
+
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let response_json = serde_json::to_string(&response).unwrap_or_default();
+                let ctx = AfterResponseContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    response_json: &response_json,
+                    duration,
+                    input_tokens: Some(response.usage.prompt_tokens as i64),
+                    output_tokens: Some(response.usage.total_tokens as i64),
+                    metadata: &metadata,
+                };
+                if let Err(e) = chain.after_response(&ctx).await {
+                    // If after_response fails, we still return the response but log the error
+                    tracing::warn!("Interceptor after_response failed: {}", e);
+                }
+            }
+        }
+
+        Ok(response)
     }
 }
 
@@ -513,12 +839,92 @@ impl ImagesClient<'_> {
     /// Execute an image generation request.
     pub async fn create(&self, builder: ImageGenerationBuilder) -> Result<ImagesResponse> {
         let request = builder.build()?;
-        images_api::create_image()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "image_generation";
+        let model = request.model.as_ref().map(|m| m.to_string()).unwrap_or_else(|| "dall-e-2".to_string());
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let mut ctx = BeforeRequestContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    metadata: &mut metadata,
+                };
+                if let Err(e) = chain.before_request(&mut ctx).await {
+                    // If before_request fails, call error hook and return error
+                    let error_ctx = ErrorContext {
+                        operation,
+                        model: Some(&model),
+                        request_json: Some(&request_json),
+                        error: &e,
+                        metadata: Some(&metadata),
+                    };
+                    chain.on_error(&error_ctx).await;
+                    return Err(e);
+                }
+            }
+        }
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match images_api::create_image()
             .configuration(&self.client.base_configuration)
             .create_image_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = map_api_error(e);
+
+                // Call error hook
+                if let Ok(chain) = self.client.interceptors.read() {
+                    if !chain.is_empty() {
+                        let error_ctx = ErrorContext {
+                            operation,
+                            model: Some(&model),
+                            request_json: Some(&request_json),
+                            error: &error,
+                            metadata: Some(&metadata),
+                        };
+                        chain.on_error(&error_ctx).await;
+                    }
+                }
+
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let response_json = serde_json::to_string(&response).unwrap_or_default();
+                let ctx = AfterResponseContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    response_json: &response_json,
+                    duration,
+                    input_tokens: None,
+                    output_tokens: None,
+                    metadata: &metadata,
+                };
+                if let Err(e) = chain.after_response(&ctx).await {
+                    // If after_response fails, we still return the response but log the error
+                    tracing::warn!("Interceptor after_response failed: {}", e);
+                }
+            }
+        }
+
+        Ok(response)
     }
 
     /// Create an image edit builder using a base image and prompt.
@@ -724,12 +1130,92 @@ impl ModerationsClient<'_> {
     /// Returns an error if the API request fails or the response cannot be parsed.
     pub async fn create(&self, builder: ModerationBuilder) -> Result<CreateModerationResponse> {
         let request = builder.build()?;
-        moderations_api::create_moderation()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "moderation";
+        let model = request.model.as_ref().map(|m| m.to_string()).unwrap_or_else(|| "text-moderation-latest".to_string());
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let mut ctx = BeforeRequestContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    metadata: &mut metadata,
+                };
+                if let Err(e) = chain.before_request(&mut ctx).await {
+                    // If before_request fails, call error hook and return error
+                    let error_ctx = ErrorContext {
+                        operation,
+                        model: Some(&model),
+                        request_json: Some(&request_json),
+                        error: &e,
+                        metadata: Some(&metadata),
+                    };
+                    chain.on_error(&error_ctx).await;
+                    return Err(e);
+                }
+            }
+        }
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match moderations_api::create_moderation()
             .configuration(&self.client.base_configuration)
             .create_moderation_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = map_api_error(e);
+
+                // Call error hook
+                if let Ok(chain) = self.client.interceptors.read() {
+                    if !chain.is_empty() {
+                        let error_ctx = ErrorContext {
+                            operation,
+                            model: Some(&model),
+                            request_json: Some(&request_json),
+                            error: &error,
+                            metadata: Some(&metadata),
+                        };
+                        chain.on_error(&error_ctx).await;
+                    }
+                }
+
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        if let Ok(chain) = self.client.interceptors.read() {
+            if !chain.is_empty() {
+                let response_json = serde_json::to_string(&response).unwrap_or_default();
+                let ctx = AfterResponseContext {
+                    operation,
+                    model: &model,
+                    request_json: &request_json,
+                    response_json: &response_json,
+                    duration,
+                    input_tokens: None,
+                    output_tokens: None,
+                    metadata: &metadata,
+                };
+                if let Err(e) = chain.after_response(&ctx).await {
+                    // If after_response fails, we still return the response but log the error
+                    tracing::warn!("Interceptor after_response failed: {}", e);
+                }
+            }
+        }
+
+        Ok(response)
     }
 }
 
