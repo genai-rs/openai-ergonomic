@@ -3,6 +3,13 @@
 //! This module provides a high-level client that wraps the base `OpenAI` client
 //! with ergonomic builders and response handling.
 
+// Allow these lints at module level for interceptor implementation
+// The interceptor design requires holding RwLock guards across await points
+// which triggers these warnings. This is a known limitation of the current design.
+#![allow(clippy::future_not_send)]
+#![allow(clippy::await_holding_lock)]
+#![allow(clippy::too_many_arguments)]
+
 use crate::interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, InterceptorChain,
 };
@@ -458,8 +465,11 @@ impl Client {
             &request_json,
             &metadata,
             duration,
-            response.usage.as_ref().map(|u| u.prompt_tokens as i64),
-            response.usage.as_ref().map(|u| u.completion_tokens as i64),
+            response.usage.as_ref().map(|u| i64::from(u.prompt_tokens)),
+            response
+                .usage
+                .as_ref()
+                .map(|u| i64::from(u.completion_tokens)),
         )
         .await;
 
@@ -677,7 +687,7 @@ impl AudioClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "audio_transcription";
         // TranscriptionRequest doesn't implement Serialize, so we'll create a simple JSON representation
-        let request_json = format!(r#"{{"model":"{}","file":"<audio_file>"}}"#, model_str);
+        let request_json = format!(r#"{{"model":"{model_str}","file":"<audio_file>"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, &model_str, &request_json, &mut metadata)
@@ -769,7 +779,7 @@ impl AudioClient<'_> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "audio_translation";
-        let request_json = format!(r#"{{"model":"{}","file":"<audio_file>"}}"#, model_str);
+        let request_json = format!(r#"{{"model":"{model_str}","file":"<audio_file>"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, &model_str, &request_json, &mut metadata)
@@ -890,8 +900,8 @@ impl EmbeddingsClient<'_> {
             &request_json,
             &metadata,
             duration,
-            Some(response.usage.prompt_tokens as i64),
-            Some(response.usage.total_tokens as i64),
+            Some(i64::from(response.usage.prompt_tokens)),
+            Some(i64::from(response.usage.total_tokens)),
         )
         .await;
 
@@ -916,8 +926,7 @@ impl ImagesClient<'_> {
         let model = request
             .model
             .as_ref()
-            .map(|m| m.to_string())
-            .unwrap_or_else(|| "dall-e-2".to_string());
+            .map_or_else(|| "dall-e-2".to_string(), ToString::to_string);
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -976,8 +985,7 @@ impl ImagesClient<'_> {
         let model_str = request
             .model
             .as_ref()
-            .map(|m| m.to_string())
-            .unwrap_or_else(|| "dall-e-2".to_string());
+            .map_or_else(|| "dall-e-2".to_string(), ToString::to_string);
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
@@ -1071,13 +1079,12 @@ impl ImagesClient<'_> {
         let model_str = request
             .model
             .as_ref()
-            .map(|m| m.to_string())
-            .unwrap_or_else(|| "dall-e-2".to_string());
+            .map_or_else(|| "dall-e-2".to_string(), ToString::to_string);
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "image_variation";
-        let request_json = format!(r#"{{"model":"{}"}}"#, model_str);
+        let request_json = format!(r#"{{"model":"{model_str}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, &model_str, &request_json, &mut metadata)
@@ -1339,8 +1346,7 @@ impl ModerationsClient<'_> {
         let model = request
             .model
             .as_ref()
-            .map(|m| m.to_string())
-            .unwrap_or_else(|| "text-moderation-latest".to_string());
+            .map_or_else(|| "text-moderation-latest".to_string(), ToString::to_string);
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -1633,7 +1639,7 @@ impl FilesClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "file_retrieve";
         let model = "files";
-        let request_json = format!(r#"{{"file_id":"{}"}}"#, file_id);
+        let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -1701,7 +1707,7 @@ impl FilesClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "file_download";
         let model = "files";
-        let request_json = format!(r#"{{"file_id":"{}"}}"#, file_id);
+        let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -1771,7 +1777,7 @@ impl FilesClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "file_delete";
         let model = "files";
-        let request_json = format!(r#"{{"file_id":"{}"}}"#, file_id);
+        let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2005,7 +2011,7 @@ impl VectorStoresClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "vector_store_get";
         let model = "vector-store";
-        let request_json = format!(r#"{{"vector_store_id":"{}"}}"#, id);
+        let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2159,7 +2165,7 @@ impl VectorStoresClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "vector_store_delete";
         let model = "vector-store";
-        let request_json = format!(r#"{{"vector_store_id":"{}"}}"#, id);
+        let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2230,7 +2236,7 @@ impl VectorStoresClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "vector_store_add_file";
         let model = "vector-store";
-        let request_json = format!(r#"{{"vector_store_id":"{}","file_id":"{}"}}"#, vs_id, f_id);
+        let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2302,7 +2308,7 @@ impl VectorStoresClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "vector_store_list_files";
         let model = "vector-store";
-        let request_json = format!(r#"{{"vector_store_id":"{}"}}"#, id);
+        let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2375,7 +2381,7 @@ impl VectorStoresClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "vector_store_get_file";
         let model = "vector-store";
-        let request_json = format!(r#"{{"vector_store_id":"{}","file_id":"{}"}}"#, vs_id, f_id);
+        let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2444,7 +2450,7 @@ impl VectorStoresClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "vector_store_delete_file";
         let model = "vector-store";
-        let request_json = format!(r#"{{"vector_store_id":"{}","file_id":"{}"}}"#, vs_id, f_id);
+        let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2678,7 +2684,7 @@ impl BatchClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "batch_list";
         let model = "batch";
-        let request_json = format!("{{\"after\":{:?},\"limit\":{:?}}}", after, limit);
+        let request_json = format!("{{\"after\":{after:?},\"limit\":{limit:?}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2742,7 +2748,7 @@ impl BatchClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "batch_get";
         let model = "batch";
-        let request_json = format!("{{\"batch_id\":\"{}\"}}", id);
+        let request_json = format!("{{\"batch_id\":\"{id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2805,7 +2811,7 @@ impl BatchClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "batch_cancel";
         let model = "batch";
-        let request_json = format!("{{\"batch_id\":\"{}\"}}", id);
+        let request_json = format!("{{\"batch_id\":\"{id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2956,7 +2962,7 @@ impl FineTuningClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "fine_tuning_list_jobs";
         let model = "fine-tuning";
-        let request_json = format!("{{\"after\":{:?},\"limit\":{:?}}}", after, limit);
+        let request_json = format!("{{\"after\":{after:?},\"limit\":{limit:?}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3020,7 +3026,7 @@ impl FineTuningClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "fine_tuning_get_job";
         let model = "fine-tuning";
-        let request_json = format!("{{\"job_id\":\"{}\"}}", id);
+        let request_json = format!("{{\"job_id\":\"{id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3083,7 +3089,7 @@ impl FineTuningClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "fine_tuning_cancel_job";
         let model = "fine-tuning";
-        let request_json = format!("{{\"job_id\":\"{}\"}}", id);
+        let request_json = format!("{{\"job_id\":\"{id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3661,7 +3667,7 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "assistants_get";
         let model = "assistants";
-        let request_json = format!("{{\"assistant_id\":\"{}\"}}", id);
+        let request_json = format!("{{\"assistant_id\":\"{id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3760,8 +3766,7 @@ impl AssistantsClient<'_> {
         let model = request
             .model
             .as_ref()
-            .map(|m| m.clone())
-            .unwrap_or_else(|| "assistants".to_string());
+            .map_or_else(|| "assistants".to_string(), Clone::clone);
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -3826,7 +3831,7 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "assistants_delete";
         let model = "assistants";
-        let request_json = format!("{{\"assistant_id\":\"{}\"}}", id);
+        let request_json = format!("{{\"assistant_id\":\"{id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -4804,7 +4809,7 @@ impl ModelsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "models_get";
         let model = "models";
-        let request_json = format!("{{\"model_id\":\"{}\"}}", id);
+        let request_json = format!("{{\"model_id\":\"{id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -4874,7 +4879,7 @@ impl ModelsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "models_delete";
         let model = "models";
-        let request_json = format!("{{\"model_id\":\"{}\"}}", id);
+        let request_json = format!("{{\"model_id\":\"{id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5000,8 +5005,11 @@ impl CompletionsClient<'_> {
             &request_json,
             &metadata,
             duration,
-            response.usage.as_ref().map(|u| u.prompt_tokens as i64),
-            response.usage.as_ref().map(|u| u.completion_tokens as i64),
+            response.usage.as_ref().map(|u| i64::from(u.prompt_tokens)),
+            response
+                .usage
+                .as_ref()
+                .map(|u| i64::from(u.completion_tokens)),
         )
         .await;
 
