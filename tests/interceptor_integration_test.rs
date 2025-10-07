@@ -70,23 +70,31 @@ mod tests {
             .with_interceptor(Box::new(interceptor));
 
         // Make a simple request
-        let result = client.send_chat(client.chat_simple("Say 'test' and nothing else")).await;
+        let result = client
+            .send_chat(client.chat_simple("Say 'test' and nothing else"))
+            .await;
 
         // Even if the request fails (e.g., rate limit), before_request should be called
-        assert_eq!(before_count.load(Ordering::SeqCst), 1, "before_request should be called once");
+        assert_eq!(
+            before_count.load(Ordering::SeqCst),
+            1,
+            "before_request should be called once"
+        );
 
         // after_response should be called only on success
         if result.is_ok() {
-            assert_eq!(after_count.load(Ordering::SeqCst), 1, "after_response should be called once on success");
+            assert_eq!(
+                after_count.load(Ordering::SeqCst),
+                1,
+                "after_response should be called once on success"
+            );
         }
     }
 
     #[tokio::test]
     async fn test_interceptor_error_handling() {
         // Use an invalid API key to trigger an error
-        let config = Config::builder()
-            .api_key("invalid-key")
-            .build();
+        let config = Config::builder().api_key("invalid-key").build();
 
         let (interceptor, before_count, _after_count, error_count) = CountingInterceptor::new();
 
@@ -98,8 +106,16 @@ mod tests {
         let result = client.send_chat(client.chat_simple("test")).await;
 
         assert!(result.is_err(), "Request should fail with invalid API key");
-        assert_eq!(before_count.load(Ordering::SeqCst), 1, "before_request should be called");
-        assert_eq!(error_count.load(Ordering::SeqCst), 1, "on_error should be called");
+        assert_eq!(
+            before_count.load(Ordering::SeqCst),
+            1,
+            "before_request should be called"
+        );
+        assert_eq!(
+            error_count.load(Ordering::SeqCst),
+            1,
+            "on_error should be called"
+        );
     }
 
     #[tokio::test]
@@ -123,7 +139,15 @@ mod tests {
         let _ = client.send_chat(client.chat_simple("Say 'test'")).await;
 
         // Both interceptors should be called
-        assert_eq!(before1.load(Ordering::SeqCst), 1, "First interceptor should be called");
-        assert_eq!(before2.load(Ordering::SeqCst), 1, "Second interceptor should be called");
+        assert_eq!(
+            before1.load(Ordering::SeqCst),
+            1,
+            "First interceptor should be called"
+        );
+        assert_eq!(
+            before2.load(Ordering::SeqCst),
+            1,
+            "Second interceptor should be called"
+        );
     }
 }
