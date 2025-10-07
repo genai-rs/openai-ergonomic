@@ -3,6 +3,7 @@
 //! This module provides a high-level client that wraps the base `OpenAI` client
 //! with ergonomic builders and response handling.
 
+use crate::interceptor::InterceptorChain;
 use crate::{
     builders::{
         assistants::{AssistantBuilder, MessageBuilder, RunBuilder},
@@ -51,7 +52,6 @@ use openai_client_base::{
         VectorStoreFileObject, VectorStoreObject, VectorStoreSearchResultsPage,
     },
 };
-use crate::interceptor::InterceptorChain;
 use reqwest::Client as HttpClient;
 use std::sync::{Arc, RwLock};
 use tokio::time::Duration;
@@ -158,6 +158,7 @@ impl Client {
     /// let client = Client::from_env()?
     ///     .with_interceptor(Box::new(LoggingInterceptor));
     /// ```
+    #[must_use]
     pub fn with_interceptor(self, interceptor: Box<dyn crate::interceptor::Interceptor>) -> Self {
         if let Ok(mut chain) = self.interceptors.write() {
             chain.add(interceptor);
@@ -178,6 +179,7 @@ impl Client {
     /// Get a reference to the interceptor chain.
     ///
     /// This is primarily for internal use when executing requests.
+    #[allow(dead_code)]
     pub(crate) fn interceptors(&self) -> &Arc<RwLock<InterceptorChain>> {
         &self.interceptors
     }
