@@ -274,6 +274,7 @@ mod tests {
     use std::sync::Arc;
 
     /// A test interceptor that tracks how many times each method was called.
+    #[allow(clippy::struct_field_names)]
     struct TestInterceptor {
         before_request_count: Arc<AtomicUsize>,
         after_response_count: Arc<AtomicUsize>,
