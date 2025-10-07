@@ -4406,9 +4406,8 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "messages_get";
         let model = "messages";
-        let request_json = format!(
-            "{{\"thread_id\":\"{thread_id}\",\"message_id\":\"{message_id}\"}}"
-        );
+        let request_json =
+            format!("{{\"thread_id\":\"{thread_id}\",\"message_id\":\"{message_id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
