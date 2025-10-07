@@ -60,6 +60,106 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use tokio::time::Duration;
 
+// Helper macro to generate interceptor helper methods for sub-clients
+macro_rules! impl_interceptor_helpers {
+    ($client_type:ty) => {
+        impl $client_type {
+            /// Helper to call before_request hooks
+            async fn call_before_request(
+                &self,
+                operation: &str,
+                model: &str,
+                request_json: &str,
+                metadata: &mut HashMap<String, String>,
+            ) -> Result<()> {
+                if let Ok(chain) = self.client.interceptors.read() {
+                    if !chain.is_empty() {
+                        let mut ctx = BeforeRequestContext {
+                            operation,
+                            model,
+                            request_json,
+                            metadata,
+                        };
+                        if let Err(e) = chain.before_request(&mut ctx).await {
+                            let error_ctx = ErrorContext {
+                                operation,
+                                model: Some(model),
+                                request_json: Some(request_json),
+                                error: &e,
+                                metadata: Some(metadata),
+                            };
+                            chain.on_error(&error_ctx).await;
+                            return Err(e);
+                        }
+                    }
+                }
+                Ok(())
+            }
+
+            /// Helper to handle API errors with interceptor hooks
+            async fn handle_api_error<T>(
+                &self,
+                error: openai_client_base::apis::Error<T>,
+                operation: &str,
+                model: &str,
+                request_json: &str,
+                metadata: &HashMap<String, String>,
+            ) -> Error {
+                let error = map_api_error(error);
+
+                if let Ok(chain) = self.client.interceptors.read() {
+                    if !chain.is_empty() {
+                        let error_ctx = ErrorContext {
+                            operation,
+                            model: Some(model),
+                            request_json: Some(request_json),
+                            error: &error,
+                            metadata: Some(metadata),
+                        };
+                        chain.on_error(&error_ctx).await;
+                    }
+                }
+
+                error
+            }
+
+            /// Helper to call after_response hooks
+            async fn call_after_response<T>(
+                &self,
+                response: &T,
+                operation: &str,
+                model: &str,
+                request_json: &str,
+                metadata: &HashMap<String, String>,
+                duration: std::time::Duration,
+                input_tokens: Option<i64>,
+                output_tokens: Option<i64>,
+            ) where
+                T: serde::Serialize,
+            {
+                if let Ok(chain) = self.client.interceptors.read() {
+                    if !chain.is_empty() {
+                        let response_json = serde_json::to_string(response).unwrap_or_default();
+                        let ctx = AfterResponseContext {
+                            operation,
+                            model,
+                            request_json,
+                            response_json: &response_json,
+                            duration,
+                            input_tokens,
+                            output_tokens,
+                            metadata,
+                        };
+                        if let Err(e) = chain.after_response(&ctx).await {
+                            tracing::warn!("Interceptor after_response failed: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+    };
+}
+
 /// Main client for interacting with the `OpenAI` API.
 ///
 /// The client provides ergonomic methods for all `OpenAI` API endpoints,
@@ -189,6 +289,105 @@ impl Client {
     }
 }
 
+// Interceptor helper methods
+impl Client {
+    /// Helper to call before_request hooks
+    async fn call_before_request(
+        &self,
+        operation: &str,
+        model: &str,
+        request_json: &str,
+        metadata: &mut HashMap<String, String>,
+    ) -> Result<()> {
+        if let Ok(chain) = self.interceptors.read() {
+            if !chain.is_empty() {
+                let mut ctx = BeforeRequestContext {
+                    operation,
+                    model,
+                    request_json,
+                    metadata,
+                };
+                if let Err(e) = chain.before_request(&mut ctx).await {
+                    // If before_request fails, call error hook and return error
+                    let error_ctx = ErrorContext {
+                        operation,
+                        model: Some(model),
+                        request_json: Some(request_json),
+                        error: &e,
+                        metadata: Some(metadata),
+                    };
+                    chain.on_error(&error_ctx).await;
+                    return Err(e);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Helper to handle API errors with interceptor hooks
+    async fn handle_api_error<T>(
+        &self,
+        error: openai_client_base::apis::Error<T>,
+        operation: &str,
+        model: &str,
+        request_json: &str,
+        metadata: &HashMap<String, String>,
+    ) -> Error {
+        let error = map_api_error(error);
+
+        // Call error hook
+        if let Ok(chain) = self.interceptors.read() {
+            if !chain.is_empty() {
+                let error_ctx = ErrorContext {
+                    operation,
+                    model: Some(model),
+                    request_json: Some(request_json),
+                    error: &error,
+                    metadata: Some(metadata),
+                };
+                chain.on_error(&error_ctx).await;
+            }
+        }
+
+        error
+    }
+
+    /// Helper to call after_response hooks
+    async fn call_after_response<T>(
+        &self,
+        response: &T,
+        operation: &str,
+        model: &str,
+        request_json: &str,
+        metadata: &HashMap<String, String>,
+        duration: std::time::Duration,
+        input_tokens: Option<i64>,
+        output_tokens: Option<i64>,
+    ) where
+        T: serde::Serialize,
+    {
+        if let Ok(chain) = self.interceptors.read() {
+            if !chain.is_empty() {
+                let response_json = serde_json::to_string(response).unwrap_or_default();
+                let ctx = AfterResponseContext {
+                    operation,
+                    model,
+                    request_json,
+                    response_json: &response_json,
+                    duration,
+                    input_tokens,
+                    output_tokens,
+                    metadata,
+                };
+                if let Err(e) = chain.after_response(&ctx).await {
+                    // If after_response fails, we still return the response but log the error
+                    tracing::warn!("Interceptor after_response failed: {}", e);
+                }
+            }
+        }
+    }
+}
+
 // Chat API methods
 impl Client {
     /// Create a chat completion builder.
@@ -216,35 +415,14 @@ impl Client {
         &self,
         request: CreateChatCompletionRequest,
     ) -> Result<ChatCompletionResponseWrapper> {
-        // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "chat";
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        if let Ok(chain) = self.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
 
         let start_time = Instant::now();
 
@@ -257,27 +435,7 @@ impl Client {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = Error::Api {
-                    status: 0,
-                    message: e.to_string(),
-                    error_type: None,
-                    error_code: None,
-                };
-
-                // Call error hook
-                if let Ok(chain) = self.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
                 return Err(error);
             }
         };
@@ -285,25 +443,17 @@ impl Client {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: response.usage.as_ref().map(|u| u.prompt_tokens as i64),
-                    output_tokens: response.usage.as_ref().map(|u| u.completion_tokens as i64),
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            response.usage.as_ref().map(|u| u.prompt_tokens as i64),
+            response.usage.as_ref().map(|u| u.completion_tokens as i64),
+        )
+        .await;
 
         Ok(ChatCompletionResponseWrapper::new(response))
     }
@@ -452,36 +602,14 @@ impl AudioClient<'_> {
     /// Submit a speech synthesis request and return binary audio data.
     pub async fn create_speech(&self, builder: SpeechBuilder) -> Result<Vec<u8>> {
         let request = builder.build()?;
-
-        // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "audio_speech";
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
 
         let start_time = Instant::now();
 
@@ -494,22 +622,7 @@ impl AudioClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
                 return Err(error);
             }
         };
@@ -518,25 +631,18 @@ impl AudioClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook (note: no JSON response for audio)
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = format!("{{\"size\": {}}}", bytes.len());
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        let response_json = format!("{{\"size\": {}}}", bytes.len());
+        self.call_after_response(
+            &response_json,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(bytes.to_vec())
     }
@@ -558,8 +664,6 @@ impl AudioClient<'_> {
     ) -> Result<CreateTranscription200Response> {
         let request = builder.build()?;
         let model_str = request.model.clone();
-
-        // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "audio_transcription";
         // TranscriptionRequest doesn't implement Serialize, so we'll create a simple JSON representation
@@ -569,28 +673,8 @@ impl AudioClient<'_> {
         );
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model_str,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model_str),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model_str, &request_json, &mut metadata)
+            .await?;
 
         let TranscriptionRequest {
             file,
@@ -632,22 +716,7 @@ impl AudioClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model_str),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self.handle_api_error(e, operation, &model_str, &request_json, &metadata).await;
                 return Err(error);
             }
         };
@@ -655,25 +724,17 @@ impl AudioClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model_str,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model_str,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(response)
     }
@@ -705,28 +766,8 @@ impl AudioClient<'_> {
         );
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model_str,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model_str),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model_str, &request_json, &mut metadata)
+            .await?;
 
         let TranslationRequest {
             file,
@@ -753,22 +794,9 @@ impl AudioClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model_str),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self
+                    .handle_api_error(e, operation, &model_str, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -776,25 +804,17 @@ impl AudioClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model_str,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model_str,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(response)
     }
@@ -833,28 +853,8 @@ impl EmbeddingsClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
 
         let start_time = Instant::now();
 
@@ -867,22 +867,9 @@ impl EmbeddingsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -890,25 +877,17 @@ impl EmbeddingsClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: Some(response.usage.prompt_tokens as i64),
-                    output_tokens: Some(response.usage.total_tokens as i64),
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            Some(response.usage.prompt_tokens as i64),
+            Some(response.usage.total_tokens as i64),
+        )
+        .await;
 
         Ok(response)
     }
@@ -932,28 +911,8 @@ impl ImagesClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
 
         let start_time = Instant::now();
 
@@ -966,22 +925,9 @@ impl ImagesClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -989,25 +935,17 @@ impl ImagesClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(response)
     }
@@ -1036,28 +974,8 @@ impl ImagesClient<'_> {
         );
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model_str,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model_str),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model_str, &request_json, &mut metadata)
+            .await?;
 
         let ImageEditRequest {
             image,
@@ -1102,22 +1020,9 @@ impl ImagesClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model_str),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self
+                    .handle_api_error(e, operation, &model_str, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1125,25 +1030,17 @@ impl ImagesClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model_str,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model_str,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(response)
     }
@@ -1165,28 +1062,8 @@ impl ImagesClient<'_> {
         let request_json = format!(r#"{{"model":"{}"}}"#, model_str);
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model_str,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model_str),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model_str, &request_json, &mut metadata)
+            .await?;
 
         let ImageVariationRequest {
             image,
@@ -1213,22 +1090,9 @@ impl ImagesClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model_str),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self
+                    .handle_api_error(e, operation, &model_str, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1236,25 +1100,17 @@ impl ImagesClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model_str,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model_str,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(response)
     }
@@ -1278,28 +1134,8 @@ impl ThreadsClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
 
         let start_time = Instant::now();
 
@@ -1312,22 +1148,7 @@ impl ThreadsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
                 return Err(error);
             }
         };
@@ -1335,25 +1156,17 @@ impl ThreadsClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(response)
     }
@@ -1383,28 +1196,8 @@ impl UploadsClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
 
         let start_time = Instant::now();
 
@@ -1417,22 +1210,7 @@ impl UploadsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
                 return Err(error);
             }
         };
@@ -1440,25 +1218,17 @@ impl UploadsClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(response)
     }
@@ -1548,28 +1318,8 @@ impl ModerationsClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
 
         let start_time = Instant::now();
 
@@ -1582,22 +1332,7 @@ impl ModerationsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
                 return Err(error);
             }
         };
@@ -1605,25 +1340,17 @@ impl ModerationsClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(response)
     }
@@ -1674,29 +1401,10 @@ impl FilesClient<'_> {
         );
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // Clean up temp file before returning
-                    let _ = std::fs::remove_file(&temp_file_path);
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
+        if let Err(e) = self.call_before_request(operation, model, &request_json, &mut metadata).await {
+            // Clean up temp file before returning
+            let _ = std::fs::remove_file(&temp_file_path);
+            return Err(e);
         }
 
         let start_time = Instant::now();
@@ -1711,24 +1419,9 @@ impl FilesClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
                 // Clean up temp file
                 let _ = std::fs::remove_file(&temp_file_path);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
                 return Err(error);
             }
         };
@@ -1739,25 +1432,17 @@ impl FilesClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&result).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: None,
-                    output_tokens: None,
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &result,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
 
         Ok(result)
     }
@@ -1835,14 +1520,55 @@ impl FilesClient<'_> {
         let limit = builder.limit_ref();
         let order = builder.order_ref().map(ToString::to_string);
 
-        files_api::list_files()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "file_list";
+        let model = "files";
+        let request_json = format!(
+            r#"{{"purpose":"{}","limit":{},"order":"{}"}}"#,
+            purpose.as_deref().unwrap_or(""),
+            limit.unwrap_or(10000),
+            order.as_deref().unwrap_or("desc")
+        );
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match files_api::list_files()
             .configuration(&self.client.base_configuration)
             .maybe_purpose(purpose.as_deref())
             .maybe_limit(limit)
             .maybe_order(order.as_deref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Create a list files builder.
@@ -1867,12 +1593,49 @@ impl FilesClient<'_> {
     /// ```
     pub async fn retrieve(&self, file_id: impl Into<String>) -> Result<OpenAiFile> {
         let file_id = file_id.into();
-        files_api::retrieve_file()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "file_retrieve";
+        let model = "files";
+        let request_json = format!(r#"{{"file_id":"{}"}}"#, file_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match files_api::retrieve_file()
             .configuration(&self.client.base_configuration)
             .file_id(&file_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Retrieve information about a file using a builder.
@@ -1896,12 +1659,50 @@ impl FilesClient<'_> {
     /// ```
     pub async fn download(&self, file_id: impl Into<String>) -> Result<String> {
         let file_id = file_id.into();
-        files_api::download_file()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "file_download";
+        let model = "files";
+        let request_json = format!(r#"{{"file_id":"{}"}}"#, file_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match files_api::download_file()
             .configuration(&self.client.base_configuration)
             .file_id(&file_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        let response_size = format!(r#"{{"size":{}}}"#, response.len());
+        self.call_after_response(
+            &response_size,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Download file content as bytes.
@@ -1926,12 +1727,49 @@ impl FilesClient<'_> {
     /// ```
     pub async fn delete(&self, file_id: impl Into<String>) -> Result<DeleteFileResponse> {
         let file_id = file_id.into();
-        files_api::delete_file()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "file_delete";
+        let model = "files";
+        let request_json = format!(r#"{{"file_id":"{}"}}"#, file_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match files_api::delete_file()
             .configuration(&self.client.base_configuration)
             .file_id(&file_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Delete a file using a builder.
@@ -1985,12 +1823,48 @@ impl VectorStoresClient<'_> {
             request.metadata = Some(Some(builder.metadata_ref().clone()));
         }
 
-        vector_stores_api::create_vector_store()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_create";
+        let model = "vector-store";
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::create_vector_store()
             .configuration(&self.client.base_configuration)
             .create_vector_store_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List vector stores.
@@ -2014,7 +1888,24 @@ impl VectorStoresClient<'_> {
         after: Option<&str>,
         before: Option<&str>,
     ) -> Result<ListVectorStoresResponse> {
-        vector_stores_api::list_vector_stores()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_list";
+        let model = "vector-store";
+        let request_json = format!(
+            r#"{{"limit":{},"order":"{}"}}"#,
+            limit.unwrap_or(20),
+            order.unwrap_or("desc")
+        );
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::list_vector_stores()
             .configuration(&self.client.base_configuration)
             .maybe_limit(limit)
             .maybe_order(order)
@@ -2022,7 +1913,30 @@ impl VectorStoresClient<'_> {
             .maybe_before(before)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get a specific vector store by ID.
@@ -2041,12 +1955,49 @@ impl VectorStoresClient<'_> {
     /// ```
     pub async fn get(&self, vector_store_id: impl Into<String>) -> Result<VectorStoreObject> {
         let id = vector_store_id.into();
-        vector_stores_api::get_vector_store()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_get";
+        let model = "vector-store";
+        let request_json = format!(r#"{{"vector_store_id":"{}"}}"#, id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::get_vector_store()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Update a vector store.
@@ -2090,13 +2041,49 @@ impl VectorStoresClient<'_> {
             request.metadata = Some(Some(builder.metadata_ref().clone()));
         }
 
-        vector_stores_api::modify_vector_store()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_update";
+        let model = "vector-store";
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::modify_vector_store()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&id)
             .update_vector_store_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Delete a vector store.
@@ -2118,12 +2105,49 @@ impl VectorStoresClient<'_> {
         vector_store_id: impl Into<String>,
     ) -> Result<DeleteVectorStoreResponse> {
         let id = vector_store_id.into();
-        vector_stores_api::delete_vector_store()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_delete";
+        let model = "vector-store";
+        let request_json = format!(r#"{{"vector_store_id":"{}"}}"#, id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::delete_vector_store()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Add a file to a vector store.
@@ -2149,15 +2173,51 @@ impl VectorStoresClient<'_> {
 
         let vs_id = vector_store_id.into();
         let f_id = file_id.into();
-        let request = CreateVectorStoreFileRequest::new(f_id);
+        let request = CreateVectorStoreFileRequest::new(f_id.clone());
 
-        vector_stores_api::create_vector_store_file()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_add_file";
+        let model = "vector-store";
+        let request_json = format!(r#"{{"vector_store_id":"{}","file_id":"{}"}}"#, vs_id, f_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::create_vector_store_file()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&vs_id)
             .create_vector_store_file_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List files in a vector store.
@@ -2184,7 +2244,21 @@ impl VectorStoresClient<'_> {
         filter: Option<&str>,
     ) -> Result<ListVectorStoreFilesResponse> {
         let id = vector_store_id.into();
-        vector_stores_api::list_vector_store_files()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_list_files";
+        let model = "vector-store";
+        let request_json = format!(r#"{{"vector_store_id":"{}"}}"#, id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::list_vector_store_files()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&id)
             .maybe_limit(limit)
@@ -2194,7 +2268,30 @@ impl VectorStoresClient<'_> {
             .maybe_filter(filter)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get a file from a vector store.
@@ -2218,13 +2315,50 @@ impl VectorStoresClient<'_> {
     ) -> Result<VectorStoreFileObject> {
         let vs_id = vector_store_id.into();
         let f_id = file_id.into();
-        vector_stores_api::get_vector_store_file()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_get_file";
+        let model = "vector-store";
+        let request_json = format!(r#"{{"vector_store_id":"{}","file_id":"{}"}}"#, vs_id, f_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::get_vector_store_file()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&vs_id)
             .file_id(&f_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Delete a file from a vector store.
@@ -2248,13 +2382,50 @@ impl VectorStoresClient<'_> {
     ) -> Result<DeleteVectorStoreFileResponse> {
         let vs_id = vector_store_id.into();
         let f_id = file_id.into();
-        vector_stores_api::delete_vector_store_file()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_delete_file";
+        let model = "vector-store";
+        let request_json = format!(r#"{{"vector_store_id":"{}","file_id":"{}"}}"#, vs_id, f_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::delete_vector_store_file()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&vs_id)
             .file_id(&f_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Search a vector store.
@@ -2287,13 +2458,50 @@ impl VectorStoresClient<'_> {
         }
 
         let vs_id = builder.vector_store_id().to_string();
-        vector_stores_api::search_vector_store()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "vector_store_search";
+        let model = "vector-store";
+        let request_json = format!(r#"{{"vector_store_id":"{}","query":"{}"}}"#, vs_id, builder.query());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match vector_stores_api::search_vector_store()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&vs_id)
             .vector_store_search_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 }
 
@@ -2336,12 +2544,48 @@ impl BatchClient<'_> {
             request.metadata = Some(Some(builder.metadata_ref().clone()));
         }
 
-        batch_api::create_batch()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "batch_create";
+        let model = "batch";
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match batch_api::create_batch()
             .configuration(&self.client.base_configuration)
             .create_batch_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List batch jobs.
@@ -2363,13 +2607,49 @@ impl BatchClient<'_> {
         after: Option<&str>,
         limit: Option<i32>,
     ) -> Result<ListBatchesResponse> {
-        batch_api::list_batches()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "batch_list";
+        let model = "batch";
+        let request_json = format!("{{\"after\":{:?},\"limit\":{:?}}}", after, limit);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match batch_api::list_batches()
             .configuration(&self.client.base_configuration)
             .maybe_after(after)
             .maybe_limit(limit)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get a specific batch job.
@@ -2388,12 +2668,49 @@ impl BatchClient<'_> {
     /// ```
     pub async fn get(&self, batch_id: impl Into<String>) -> Result<Batch> {
         let id = batch_id.into();
-        batch_api::retrieve_batch()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "batch_get";
+        let model = "batch";
+        let request_json = format!("{{\"batch_id\":\"{}\"}}", id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match batch_api::retrieve_batch()
             .configuration(&self.client.base_configuration)
             .batch_id(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Cancel a batch job.
@@ -2412,12 +2729,49 @@ impl BatchClient<'_> {
     /// ```
     pub async fn cancel(&self, batch_id: impl Into<String>) -> Result<Batch> {
         let id = batch_id.into();
-        batch_api::cancel_batch()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "batch_cancel";
+        let model = "batch";
+        let request_json = format!("{{\"batch_id\":\"{}\"}}", id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match batch_api::cancel_batch()
             .configuration(&self.client.base_configuration)
             .batch_id(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 }
 
@@ -2460,12 +2814,48 @@ impl FineTuningClient<'_> {
         // For now, we skip hyperparameters configuration
         // TODO: Update when openai-client-base fixes hyperparameters types
 
-        fine_tuning_api::create_fine_tuning_job()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "fine_tuning_create_job";
+        let model = builder.model();
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match fine_tuning_api::create_fine_tuning_job()
             .configuration(&self.client.base_configuration)
             .create_fine_tuning_job_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List fine-tuning jobs.
@@ -2487,13 +2877,49 @@ impl FineTuningClient<'_> {
         after: Option<&str>,
         limit: Option<i32>,
     ) -> Result<ListPaginatedFineTuningJobsResponse> {
-        fine_tuning_api::list_paginated_fine_tuning_jobs()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "fine_tuning_list_jobs";
+        let model = "fine-tuning";
+        let request_json = format!("{{\"after\":{:?},\"limit\":{:?}}}", after, limit);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match fine_tuning_api::list_paginated_fine_tuning_jobs()
             .configuration(&self.client.base_configuration)
             .maybe_after(after)
             .maybe_limit(limit)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get a specific fine-tuning job.
@@ -2512,12 +2938,49 @@ impl FineTuningClient<'_> {
     /// ```
     pub async fn get_job(&self, job_id: impl Into<String>) -> Result<FineTuningJob> {
         let id = job_id.into();
-        fine_tuning_api::retrieve_fine_tuning_job()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "fine_tuning_get_job";
+        let model = "fine-tuning";
+        let request_json = format!("{{\"job_id\":\"{}\"}}", id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match fine_tuning_api::retrieve_fine_tuning_job()
             .configuration(&self.client.base_configuration)
             .fine_tuning_job_id(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Cancel a fine-tuning job.
@@ -2536,12 +2999,49 @@ impl FineTuningClient<'_> {
     /// ```
     pub async fn cancel_job(&self, job_id: impl Into<String>) -> Result<FineTuningJob> {
         let id = job_id.into();
-        fine_tuning_api::cancel_fine_tuning_job()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "fine_tuning_cancel_job";
+        let model = "fine-tuning";
+        let request_json = format!("{{\"job_id\":\"{}\"}}", id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match fine_tuning_api::cancel_fine_tuning_job()
             .configuration(&self.client.base_configuration)
             .fine_tuning_job_id(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List events for a fine-tuning job.
@@ -2565,14 +3065,51 @@ impl FineTuningClient<'_> {
         limit: Option<i32>,
     ) -> Result<ListFineTuningJobEventsResponse> {
         let id = job_id.into();
-        fine_tuning_api::list_fine_tuning_events()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "fine_tuning_list_events";
+        let model = "fine-tuning";
+        let request_json = format!("{{\"job_id\":\"{}\",\"after\":{:?},\"limit\":{:?}}}", id, after, limit);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match fine_tuning_api::list_fine_tuning_events()
             .configuration(&self.client.base_configuration)
             .fine_tuning_job_id(&id)
             .maybe_after(after)
             .maybe_limit(limit)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List checkpoints for a fine-tuning job.
@@ -2596,14 +3133,51 @@ impl FineTuningClient<'_> {
         limit: Option<i32>,
     ) -> Result<ListFineTuningJobCheckpointsResponse> {
         let id = job_id.into();
-        fine_tuning_api::list_fine_tuning_job_checkpoints()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "fine_tuning_list_checkpoints";
+        let model = "fine-tuning";
+        let request_json = format!("{{\"job_id\":\"{}\",\"after\":{:?},\"limit\":{:?}}}", id, after, limit);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match fine_tuning_api::list_fine_tuning_job_checkpoints()
             .configuration(&self.client.base_configuration)
             .fine_tuning_job_id(&id)
             .maybe_after(after)
             .maybe_limit(limit)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 }
 
@@ -2855,12 +3429,49 @@ impl AssistantsClient<'_> {
     /// ```
     pub async fn create(&self, builder: AssistantBuilder) -> Result<AssistantObject> {
         let request = builder.build()?;
-        assistants_api::create_assistant()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "assistants_create";
+        let model = request.model.clone();
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::create_assistant()
             .configuration(&self.client.base_configuration)
             .create_assistant_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List assistants with pagination.
@@ -2884,7 +3495,20 @@ impl AssistantsClient<'_> {
         after: Option<&str>,
         before: Option<&str>,
     ) -> Result<ListAssistantsResponse> {
-        assistants_api::list_assistants()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "assistants_list";
+        let model = "assistants";
+        let request_json = format!("{{\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?}}}", limit, order, after, before);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::list_assistants()
             .configuration(&self.client.base_configuration)
             .maybe_limit(limit)
             .maybe_order(order)
@@ -2892,7 +3516,30 @@ impl AssistantsClient<'_> {
             .maybe_before(before)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get an assistant by ID.
@@ -2911,12 +3558,49 @@ impl AssistantsClient<'_> {
     /// ```
     pub async fn get(&self, assistant_id: impl Into<String>) -> Result<AssistantObject> {
         let id = assistant_id.into();
-        assistants_api::get_assistant()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "assistants_get";
+        let model = "assistants";
+        let request_json = format!("{{\"assistant_id\":\"{}\"}}", id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::get_assistant()
             .configuration(&self.client.base_configuration)
             .assistant_id(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Update an assistant.
@@ -2970,13 +3654,49 @@ impl AssistantsClient<'_> {
         request.tools = request_data.tools;
         request.metadata = request_data.metadata;
 
-        assistants_api::modify_assistant()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "assistants_update";
+        let model = request.model.as_ref().map(|m| m.clone()).unwrap_or_else(|| "assistants".to_string());
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::modify_assistant()
             .configuration(&self.client.base_configuration)
             .assistant_id(&id)
             .modify_assistant_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Delete an assistant.
@@ -2995,12 +3715,49 @@ impl AssistantsClient<'_> {
     /// ```
     pub async fn delete(&self, assistant_id: impl Into<String>) -> Result<DeleteAssistantResponse> {
         let id = assistant_id.into();
-        assistants_api::delete_assistant()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "assistants_delete";
+        let model = "assistants";
+        let request_json = format!("{{\"assistant_id\":\"{}\"}}", id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::delete_assistant()
             .configuration(&self.client.base_configuration)
             .assistant_id(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Create a run on a thread.
@@ -3026,13 +3783,50 @@ impl AssistantsClient<'_> {
     ) -> Result<RunObject> {
         let thread_id = thread_id.into();
         let request = builder.build()?;
-        assistants_api::create_run()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "runs_create";
+        let model = request.model.as_ref().map(|m| m.clone()).unwrap_or_else(|| "runs".to_string());
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::create_run()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .create_run_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List runs on a thread.
@@ -3058,7 +3852,21 @@ impl AssistantsClient<'_> {
         before: Option<&str>,
     ) -> Result<ListRunsResponse> {
         let thread_id = thread_id.into();
-        assistants_api::list_runs()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "runs_list";
+        let model = "runs";
+        let request_json = format!("{{\"thread_id\":\"{}\",\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?}}}", thread_id, limit, order, after, before);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::list_runs()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .maybe_limit(limit)
@@ -3067,7 +3875,30 @@ impl AssistantsClient<'_> {
             .maybe_before(before)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get a run.
@@ -3091,13 +3922,50 @@ impl AssistantsClient<'_> {
     ) -> Result<RunObject> {
         let thread_id = thread_id.into();
         let run_id = run_id.into();
-        assistants_api::get_run()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "runs_get";
+        let model = "runs";
+        let request_json = format!("{{\"thread_id\":\"{}\",\"run_id\":\"{}\"}}", thread_id, run_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::get_run()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .run_id(&run_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Cancel a run.
@@ -3121,13 +3989,50 @@ impl AssistantsClient<'_> {
     ) -> Result<RunObject> {
         let thread_id = thread_id.into();
         let run_id = run_id.into();
-        assistants_api::cancel_run()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "runs_cancel";
+        let model = "runs";
+        let request_json = format!("{{\"thread_id\":\"{}\",\"run_id\":\"{}\"}}", thread_id, run_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::cancel_run()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .run_id(&run_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Submit tool outputs to a run.
@@ -3159,14 +4064,50 @@ impl AssistantsClient<'_> {
         let run_id = run_id.into();
         let request = SubmitToolOutputsRunRequest::new(tool_outputs);
 
-        assistants_api::submit_tool_ouputs_to_run()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "runs_submit_tool_outputs";
+        let model = "runs";
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::submit_tool_ouputs_to_run()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .run_id(&run_id)
             .submit_tool_outputs_run_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Create a message on a thread.
@@ -3192,13 +4133,50 @@ impl AssistantsClient<'_> {
     ) -> Result<MessageObject> {
         let thread_id = thread_id.into();
         let request = builder.build()?;
-        assistants_api::create_message()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "messages_create";
+        let model = "messages";
+        let request_json = serde_json::to_string(&request).unwrap_or_default();
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::create_message()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .create_message_request(request)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List messages on a thread.
@@ -3225,7 +4203,21 @@ impl AssistantsClient<'_> {
         run_id: Option<&str>,
     ) -> Result<ListMessagesResponse> {
         let thread_id = thread_id.into();
-        assistants_api::list_messages()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "messages_list";
+        let model = "messages";
+        let request_json = format!("{{\"thread_id\":\"{}\",\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?},\"run_id\":{:?}}}", thread_id, limit, order, after, before, run_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::list_messages()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .maybe_limit(limit)
@@ -3235,7 +4227,30 @@ impl AssistantsClient<'_> {
             .maybe_run_id(run_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get a message.
@@ -3259,13 +4274,50 @@ impl AssistantsClient<'_> {
     ) -> Result<MessageObject> {
         let thread_id = thread_id.into();
         let message_id = message_id.into();
-        assistants_api::get_message()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "messages_get";
+        let model = "messages";
+        let request_json = format!("{{\"thread_id\":\"{}\",\"message_id\":\"{}\"}}", thread_id, message_id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::get_message()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .message_id(&message_id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// List run steps.
@@ -3295,7 +4347,21 @@ impl AssistantsClient<'_> {
     ) -> Result<ListRunStepsResponse> {
         let thread_id = thread_id.into();
         let run_id = run_id.into();
-        assistants_api::list_run_steps()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "run_steps_list";
+        let model = "run_steps";
+        let request_json = format!("{{\"thread_id\":\"{}\",\"run_id\":\"{}\",\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?},\"include\":{:?}}}", thread_id, run_id, limit, order, after, before, include);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::list_run_steps()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .run_id(&run_id)
@@ -3306,7 +4372,30 @@ impl AssistantsClient<'_> {
             .maybe_include_left_square_bracket_right_square_bracket(include)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get a run step.
@@ -3333,7 +4422,21 @@ impl AssistantsClient<'_> {
         let thread_id = thread_id.into();
         let run_id = run_id.into();
         let step_id = step_id.into();
-        assistants_api::get_run_step()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "run_steps_get";
+        let model = "run_steps";
+        let request_json = format!("{{\"thread_id\":\"{}\",\"run_id\":\"{}\",\"step_id\":\"{}\",\"include\":{:?}}}", thread_id, run_id, step_id, include);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match assistants_api::get_run_step()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .run_id(&run_id)
@@ -3341,7 +4444,30 @@ impl AssistantsClient<'_> {
             .maybe_include_left_square_bracket_right_square_bracket(include)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 }
 
@@ -3433,6 +4559,22 @@ pub struct UsageClient<'a> {
     client: &'a Client,
 }
 
+// Apply interceptor helper methods to all sub-clients
+impl_interceptor_helpers!(AssistantsClient<'_>);
+impl_interceptor_helpers!(AudioClient<'_>);
+impl_interceptor_helpers!(EmbeddingsClient<'_>);
+impl_interceptor_helpers!(ImagesClient<'_>);
+impl_interceptor_helpers!(FilesClient<'_>);
+impl_interceptor_helpers!(FineTuningClient<'_>);
+impl_interceptor_helpers!(BatchClient<'_>);
+impl_interceptor_helpers!(VectorStoresClient<'_>);
+impl_interceptor_helpers!(ModerationsClient<'_>);
+impl_interceptor_helpers!(ThreadsClient<'_>);
+impl_interceptor_helpers!(UploadsClient<'_>);
+impl_interceptor_helpers!(ModelsClient<'_>);
+impl_interceptor_helpers!(CompletionsClient<'_>);
+impl_interceptor_helpers!(UsageClient<'_>);
+
 impl ModelsClient<'_> {
     /// List all available models.
     ///
@@ -3449,11 +4591,47 @@ impl ModelsClient<'_> {
     /// # }
     /// ```
     pub async fn list(&self) -> Result<ListModelsResponse> {
-        models_api::list_models()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "models_list";
+        let model = "models";
+        let request_json = "{}".to_string();
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match models_api::list_models()
             .configuration(&self.client.base_configuration)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Retrieve information about a specific model.
@@ -3472,12 +4650,49 @@ impl ModelsClient<'_> {
     /// ```
     pub async fn get(&self, model_id: impl Into<String>) -> Result<Model> {
         let id = model_id.into();
-        models_api::retrieve_model()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "models_get";
+        let model = "models";
+        let request_json = format!("{{\"model_id\":\"{}\"}}", id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match models_api::retrieve_model()
             .configuration(&self.client.base_configuration)
             .model(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Retrieve information about a model using a builder.
@@ -3503,12 +4718,49 @@ impl ModelsClient<'_> {
     /// ```
     pub async fn delete(&self, model_id: impl Into<String>) -> Result<DeleteModelResponse> {
         let id = model_id.into();
-        models_api::delete_model()
+
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "models_delete";
+        let model = "models";
+        let request_json = format!("{{\"model_id\":\"{}\"}}", id);
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match models_api::delete_model()
             .configuration(&self.client.base_configuration)
             .model(&id)
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Delete a fine-tuned model using a builder.
@@ -3663,7 +4915,20 @@ impl UsageClient<'_> {
     /// # }
     /// ```
     pub async fn audio_speeches(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_audio_speeches()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_audio_speeches";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_audio_speeches()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3677,12 +4942,48 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get usage data for audio transcriptions.
     pub async fn audio_transcriptions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_audio_transcriptions()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_audio_transcriptions";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_audio_transcriptions()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3696,12 +4997,48 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get usage data for code interpreter sessions.
     pub async fn code_interpreter_sessions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_code_interpreter_sessions()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_code_interpreter_sessions";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_code_interpreter_sessions()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3712,12 +5049,48 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get usage data for completions.
     pub async fn completions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_completions()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_completions";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_completions()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3731,12 +5104,48 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get usage data for embeddings.
     pub async fn embeddings(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_embeddings()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_embeddings";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_embeddings()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3750,12 +5159,48 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get usage data for images.
     pub async fn images(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_images()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_images";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_images()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3769,12 +5214,48 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get usage data for moderations.
     pub async fn moderations(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_moderations()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_moderations";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_moderations()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3788,12 +5269,48 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get usage data for vector stores.
     pub async fn vector_stores(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_vector_stores()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_vector_stores";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_vector_stores()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3804,12 +5321,48 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 
     /// Get cost data.
     pub async fn costs(&self, builder: UsageBuilder) -> Result<UsageResponse> {
-        usage_api::usage_costs()
+        // Prepare interceptor context
+        let mut metadata = HashMap::new();
+        let operation = "usage_costs";
+        let model = "usage";
+        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+
+        // Call before_request hook
+        self.call_before_request(operation, model, &request_json, &mut metadata)
+            .await?;
+
+        let start_time = Instant::now();
+
+        // Make the API call
+        let response = match usage_api::usage_costs()
             .configuration(&self.client.base_configuration)
             .start_time(builder.start_time())
             .maybe_end_time(builder.end_time())
@@ -3820,6 +5373,29 @@ impl UsageClient<'_> {
             .maybe_page(builder.page_ref())
             .call()
             .await
-            .map_err(map_api_error)
+        {
+            Ok(resp) => resp,
+            Err(e) => {
+                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                return Err(error);
+            }
+        };
+
+        let duration = start_time.elapsed();
+
+        // Call after_response hook
+        self.call_after_response(
+            &response,
+            operation,
+            model,
+            &request_json,
+            &metadata,
+            duration,
+            None,
+            None,
+        )
+        .await;
+
+        Ok(response)
     }
 }
