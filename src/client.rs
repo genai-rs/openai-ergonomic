@@ -51,14 +51,16 @@ use openai_client_base::{
         VectorStoreFileObject, VectorStoreObject, VectorStoreSearchResultsPage,
     },
 };
+use crate::interceptor::InterceptorChain;
 use reqwest::Client as HttpClient;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tokio::time::Duration;
 
 /// Main client for interacting with the `OpenAI` API.
 ///
 /// The client provides ergonomic methods for all `OpenAI` API endpoints,
-/// with built-in retry logic, rate limiting, and error handling.
+/// with built-in retry logic, rate limiting, error handling, and support
+/// for middleware through interceptors.
 ///
 /// # Example
 ///
@@ -71,11 +73,24 @@ use tokio::time::Duration;
 /// # Ok(())
 /// # }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Client {
     config: Arc<Config>,
     http: HttpClient,
     base_configuration: Configuration,
+    interceptors: Arc<RwLock<InterceptorChain>>,
+}
+
+// Custom Debug implementation since InterceptorChain doesn't implement Debug
+impl std::fmt::Debug for Client {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client")
+            .field("config", &self.config)
+            .field("http", &"<HttpClient>")
+            .field("base_configuration", &"<Configuration>")
+            .field("interceptors", &"<InterceptorChain>")
+            .finish()
+    }
 }
 
 impl Client {
@@ -110,12 +125,44 @@ impl Client {
             config: Arc::new(config),
             http: http_client,
             base_configuration,
+            interceptors: Arc::new(RwLock::new(InterceptorChain::new())),
         })
     }
 
     /// Create a new client with default configuration from environment variables.
     pub fn from_env() -> Result<Self> {
         Self::new(Config::from_env()?)
+    }
+
+    /// Add an interceptor to the client.
+    ///
+    /// Interceptors are executed in the order they are added. They provide hooks
+    /// into the request/response lifecycle for observability, logging, and custom
+    /// processing.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use openai_ergonomic::{Client, Interceptor, BeforeRequestContext};
+    ///
+    /// struct LoggingInterceptor;
+    ///
+    /// #[async_trait::async_trait]
+    /// impl Interceptor for LoggingInterceptor {
+    ///     async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
+    ///         println!("Calling {}", ctx.operation);
+    ///         Ok(())
+    ///     }
+    /// }
+    ///
+    /// let client = Client::from_env()?
+    ///     .with_interceptor(Box::new(LoggingInterceptor));
+    /// ```
+    pub fn with_interceptor(self, interceptor: Box<dyn crate::interceptor::Interceptor>) -> Self {
+        if let Ok(mut chain) = self.interceptors.write() {
+            chain.add(interceptor);
+        }
+        self
     }
 
     /// Get a reference to the client configuration.
@@ -126,6 +173,13 @@ impl Client {
     /// Get a reference to the HTTP client.
     pub fn http_client(&self) -> &HttpClient {
         &self.http
+    }
+
+    /// Get a reference to the interceptor chain.
+    ///
+    /// This is primarily for internal use when executing requests.
+    pub(crate) fn interceptors(&self) -> &Arc<RwLock<InterceptorChain>> {
+        &self.interceptors
     }
 }
 
