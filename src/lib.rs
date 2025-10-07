@@ -138,12 +138,17 @@ pub mod builders;
 pub mod client;
 pub mod config;
 pub mod errors;
+pub mod interceptor;
 pub mod responses;
 
 // Re-export commonly used types
 pub use client::Client;
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, Result};
+pub use interceptor::{
+    AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
+    StreamEndContext,
+};
 
 // Re-export specific builder and response types for convenience
 // NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
