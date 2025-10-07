@@ -2,7 +2,7 @@
 //!
 //! This module defines constants for OpenTelemetry semantic conventions
 //! for generative AI operations, following the official specification:
-//! https://opentelemetry.io/docs/specs/semconv/gen-ai/
+//! <https://opentelemetry.io/docs/specs/semconv/gen-ai/>
 //!
 //! We use the official attribute names from the opentelemetry-semantic-conventions
 //! crate and define our own operation values until they are officially available.
@@ -12,9 +12,9 @@ pub use opentelemetry_semantic_conventions::attribute::{
     GEN_AI_OPERATION_NAME, GEN_AI_REQUEST_MODEL, GEN_AI_SYSTEM,
 };
 
-/// Standard operation names for OpenAI APIs
+/// Standard operation names for `OpenAI` APIs
 pub mod operation_names {
-    /// Chat completion operation (ChatGPT, GPT-4, etc.)
+    /// Chat completion operation (`ChatGPT`, `GPT-4`, etc.)
     pub const CHAT: &str = "chat";
 
     /// Create embeddings operation
@@ -23,7 +23,7 @@ pub mod operation_names {
     /// Text completion operation (legacy)
     pub const TEXT_COMPLETION: &str = "text_completion";
 
-    /// Image generation operation (DALL-E)
+    /// Image generation operation (`DALL-E`)
     pub const IMAGE_GENERATION: &str = "image_generation";
 
     /// Image edit operation
@@ -32,7 +32,7 @@ pub mod operation_names {
     /// Image variation operation
     pub const IMAGE_VARIATION: &str = "image_variation";
 
-    /// Audio transcription operation (Whisper)
+    /// Audio transcription operation (`Whisper`)
     pub const AUDIO_TRANSCRIPTION: &str = "audio_transcription";
 
     /// Audio translation operation
@@ -167,7 +167,7 @@ pub mod operation_names {
 
 /// System/provider name constants
 pub mod systems {
-    /// OpenAI as the GenAI provider
+    /// `OpenAI` as the `GenAI` provider
     pub const OPENAI: &str = "openai";
 }
 
