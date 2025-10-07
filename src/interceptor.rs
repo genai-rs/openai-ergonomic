@@ -49,7 +49,7 @@ use std::time::Duration;
 /// carried through the request lifecycle.
 #[derive(Debug)]
 pub struct BeforeRequestContext<'a> {
-    /// The operation being performed (e.g., "chat", "embedding", "image_generation")
+    /// The operation being performed (e.g., "chat", "embedding", "`image_generation`")
     pub operation: &'a str,
     /// The model being used for the request
     pub model: &'a str,
@@ -213,7 +213,7 @@ impl InterceptorChain {
         self.interceptors.push(interceptor);
     }
 
-    /// Execute the before_request hook for all interceptors.
+    /// Execute the `before_request` hook for all interceptors.
     pub async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.before_request(ctx).await?;
@@ -221,7 +221,7 @@ impl InterceptorChain {
         Ok(())
     }
 
-    /// Execute the after_response hook for all interceptors.
+    /// Execute the `after_response` hook for all interceptors.
     pub async fn after_response(&self, ctx: &AfterResponseContext<'_>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.after_response(ctx).await?;
@@ -229,7 +229,7 @@ impl InterceptorChain {
         Ok(())
     }
 
-    /// Execute the on_stream_chunk hook for all interceptors.
+    /// Execute the `on_stream_chunk` hook for all interceptors.
     pub async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.on_stream_chunk(ctx).await?;
@@ -237,7 +237,7 @@ impl InterceptorChain {
         Ok(())
     }
 
-    /// Execute the on_stream_end hook for all interceptors.
+    /// Execute the `on_stream_end` hook for all interceptors.
     pub async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.on_stream_end(ctx).await?;
@@ -245,7 +245,7 @@ impl InterceptorChain {
         Ok(())
     }
 
-    /// Execute the on_error hook for all interceptors.
+    /// Execute the `on_error` hook for all interceptors.
     ///
     /// Errors in individual interceptors are ignored to prevent
     /// cascading failures during error handling.
@@ -397,7 +397,8 @@ mod tests {
         #[async_trait::async_trait]
         impl Interceptor for MetadataInterceptor {
             async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
-                ctx.metadata.insert("test_key".to_string(), "test_value".to_string());
+                ctx.metadata
+                    .insert("test_key".to_string(), "test_value".to_string());
                 Ok(())
             }
         }
@@ -419,6 +420,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_error_handler_doesnt_propagate_errors() {
+        #[allow(dead_code)]
         struct ErrorInterceptor {
             called: Arc<AtomicUsize>,
         }
