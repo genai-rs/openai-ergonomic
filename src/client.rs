@@ -4407,8 +4407,7 @@ impl AssistantsClient<'_> {
         let operation = "messages_get";
         let model = "messages";
         let request_json = format!(
-            "{{\"thread_id\":\"{}\",\"message_id\":\"{}\"}}",
-            thread_id, message_id
+            "{{\"thread_id\":\"{thread_id}\",\"message_id\":\"{message_id}\"}}"
         );
 
         // Call before_request hook
@@ -4562,8 +4561,7 @@ impl AssistantsClient<'_> {
         let operation = "run_steps_get";
         let model = "run_steps";
         let request_json = format!(
-            "{{\"thread_id\":\"{}\",\"run_id\":\"{}\",\"step_id\":\"{}\",\"include\":{:?}}}",
-            thread_id, run_id, step_id, include
+            "{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\",\"step_id\":\"{step_id}\",\"include\":{include:?}}}"
         );
 
         // Call before_request hook
