@@ -64,7 +64,8 @@ use tokio::time::Duration;
 macro_rules! impl_interceptor_helpers {
     ($client_type:ty) => {
         impl $client_type {
-            /// Helper to call before_request hooks
+            /// Helper to call `before_request` hooks
+            #[allow(clippy::future_not_send, clippy::await_holding_lock)]
             async fn call_before_request(
                 &self,
                 operation: &str,
@@ -97,6 +98,7 @@ macro_rules! impl_interceptor_helpers {
             }
 
             /// Helper to handle API errors with interceptor hooks
+            #[allow(clippy::future_not_send, clippy::await_holding_lock)]
             async fn handle_api_error<T>(
                 &self,
                 error: openai_client_base::apis::Error<T>,
@@ -123,7 +125,8 @@ macro_rules! impl_interceptor_helpers {
                 error
             }
 
-            /// Helper to call after_response hooks
+            /// Helper to call `after_response` hooks
+            #[allow(clippy::future_not_send, clippy::await_holding_lock)]
             async fn call_after_response<T>(
                 &self,
                 response: &T,
@@ -291,7 +294,8 @@ impl Client {
 
 // Interceptor helper methods
 impl Client {
-    /// Helper to call before_request hooks
+    /// Helper to call `before_request` hooks
+    #[allow(clippy::future_not_send, clippy::await_holding_lock)]
     async fn call_before_request(
         &self,
         operation: &str,
@@ -325,6 +329,7 @@ impl Client {
     }
 
     /// Helper to handle API errors with interceptor hooks
+    #[allow(clippy::future_not_send, clippy::await_holding_lock)]
     async fn handle_api_error<T>(
         &self,
         error: openai_client_base::apis::Error<T>,
@@ -352,7 +357,8 @@ impl Client {
         error
     }
 
-    /// Helper to call after_response hooks
+    /// Helper to call `after_response` hooks
+    #[allow(clippy::future_not_send, clippy::await_holding_lock)]
     async fn call_after_response<T>(
         &self,
         response: &T,
@@ -435,7 +441,9 @@ impl Client {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -622,7 +630,9 @@ impl AudioClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -667,10 +677,7 @@ impl AudioClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "audio_transcription";
         // TranscriptionRequest doesn't implement Serialize, so we'll create a simple JSON representation
-        let request_json = format!(
-            r#"{{"model":"{}","file":"<audio_file>"}}"#,
-            model_str
-        );
+        let request_json = format!(r#"{{"model":"{}","file":"<audio_file>"}}"#, model_str);
 
         // Call before_request hook
         self.call_before_request(operation, &model_str, &request_json, &mut metadata)
@@ -716,7 +723,9 @@ impl AudioClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, &model_str, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, &model_str, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -760,10 +769,7 @@ impl AudioClient<'_> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "audio_translation";
-        let request_json = format!(
-            r#"{{"model":"{}","file":"<audio_file>"}}"#,
-            model_str
-        );
+        let request_json = format!(r#"{{"model":"{}","file":"<audio_file>"}}"#, model_str);
 
         // Call before_request hook
         self.call_before_request(operation, &model_str, &request_json, &mut metadata)
@@ -907,7 +913,11 @@ impl ImagesClient<'_> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "image_generation";
-        let model = request.model.as_ref().map(|m| m.to_string()).unwrap_or_else(|| "dall-e-2".to_string());
+        let model = request
+            .model
+            .as_ref()
+            .map(|m| m.to_string())
+            .unwrap_or_else(|| "dall-e-2".to_string());
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -963,7 +973,11 @@ impl ImagesClient<'_> {
     /// Execute an image edit request.
     pub async fn create_edit(&self, builder: ImageEditBuilder) -> Result<ImagesResponse> {
         let request = builder.build()?;
-        let model_str = request.model.as_ref().map(|m| m.to_string()).unwrap_or_else(|| "dall-e-2".to_string());
+        let model_str = request
+            .model
+            .as_ref()
+            .map(|m| m.to_string())
+            .unwrap_or_else(|| "dall-e-2".to_string());
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
@@ -1054,7 +1068,11 @@ impl ImagesClient<'_> {
     /// Execute an image variation request.
     pub async fn create_variation(&self, builder: ImageVariationBuilder) -> Result<ImagesResponse> {
         let request = builder.build()?;
-        let model_str = request.model.as_ref().map(|m| m.to_string()).unwrap_or_else(|| "dall-e-2".to_string());
+        let model_str = request
+            .model
+            .as_ref()
+            .map(|m| m.to_string())
+            .unwrap_or_else(|| "dall-e-2".to_string());
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
@@ -1148,7 +1166,9 @@ impl ThreadsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1210,7 +1230,9 @@ impl UploadsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1314,7 +1336,11 @@ impl ModerationsClient<'_> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "moderation";
-        let model = request.model.as_ref().map(|m| m.to_string()).unwrap_or_else(|| "text-moderation-latest".to_string());
+        let model = request
+            .model
+            .as_ref()
+            .map(|m| m.to_string())
+            .unwrap_or_else(|| "text-moderation-latest".to_string());
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -1332,7 +1358,9 @@ impl ModerationsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1401,7 +1429,10 @@ impl FilesClient<'_> {
         );
 
         // Call before_request hook
-        if let Err(e) = self.call_before_request(operation, model, &request_json, &mut metadata).await {
+        if let Err(e) = self
+            .call_before_request(operation, model, &request_json, &mut metadata)
+            .await
+        {
             // Clean up temp file before returning
             let _ = std::fs::remove_file(&temp_file_path);
             return Err(e);
@@ -1421,7 +1452,9 @@ impl FilesClient<'_> {
             Err(e) => {
                 // Clean up temp file
                 let _ = std::fs::remove_file(&temp_file_path);
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1548,7 +1581,9 @@ impl FilesClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1615,7 +1650,9 @@ impl FilesClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1681,7 +1718,9 @@ impl FilesClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1749,7 +1788,9 @@ impl FilesClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1844,7 +1885,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1916,7 +1959,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -1977,7 +2022,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2063,7 +2110,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2127,7 +2176,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2197,7 +2248,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2271,7 +2324,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2338,7 +2393,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2405,7 +2462,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2463,7 +2522,11 @@ impl VectorStoresClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "vector_store_search";
         let model = "vector-store";
-        let request_json = format!(r#"{{"vector_store_id":"{}","query":"{}"}}"#, vs_id, builder.query());
+        let request_json = format!(
+            r#"{{"vector_store_id":"{}","query":"{}"}}"#,
+            vs_id,
+            builder.query()
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -2481,7 +2544,9 @@ impl VectorStoresClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2565,7 +2630,9 @@ impl BatchClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2629,7 +2696,9 @@ impl BatchClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2690,7 +2759,9 @@ impl BatchClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2751,7 +2822,9 @@ impl BatchClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2835,7 +2908,9 @@ impl FineTuningClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2899,7 +2974,9 @@ impl FineTuningClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -2960,7 +3037,9 @@ impl FineTuningClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3021,7 +3100,9 @@ impl FineTuningClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3070,7 +3151,10 @@ impl FineTuningClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "fine_tuning_list_events";
         let model = "fine-tuning";
-        let request_json = format!("{{\"job_id\":\"{}\",\"after\":{:?},\"limit\":{:?}}}", id, after, limit);
+        let request_json = format!(
+            "{{\"job_id\":\"{}\",\"after\":{:?},\"limit\":{:?}}}",
+            id, after, limit
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3089,7 +3173,9 @@ impl FineTuningClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3138,7 +3224,10 @@ impl FineTuningClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "fine_tuning_list_checkpoints";
         let model = "fine-tuning";
-        let request_json = format!("{{\"job_id\":\"{}\",\"after\":{:?},\"limit\":{:?}}}", id, after, limit);
+        let request_json = format!(
+            "{{\"job_id\":\"{}\",\"after\":{:?},\"limit\":{:?}}}",
+            id, after, limit
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3157,7 +3246,9 @@ impl FineTuningClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3451,7 +3542,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3499,7 +3592,10 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "assistants_list";
         let model = "assistants";
-        let request_json = format!("{{\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?}}}", limit, order, after, before);
+        let request_json = format!(
+            "{{\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?}}}",
+            limit, order, after, before
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3519,7 +3615,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3580,7 +3678,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3657,7 +3757,11 @@ impl AssistantsClient<'_> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "assistants_update";
-        let model = request.model.as_ref().map(|m| m.clone()).unwrap_or_else(|| "assistants".to_string());
+        let model = request
+            .model
+            .as_ref()
+            .map(|m| m.clone())
+            .unwrap_or_else(|| "assistants".to_string());
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -3676,7 +3780,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3737,7 +3843,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3787,7 +3895,11 @@ impl AssistantsClient<'_> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
         let operation = "runs_create";
-        let model = request.model.as_ref().map(|m| m.clone()).unwrap_or_else(|| "runs".to_string());
+        let model = request
+            .model
+            .as_ref()
+            .map(|m| m.clone())
+            .unwrap_or_else(|| "runs".to_string());
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -3806,7 +3918,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, &model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3857,7 +3971,10 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "runs_list";
         let model = "runs";
-        let request_json = format!("{{\"thread_id\":\"{}\",\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?}}}", thread_id, limit, order, after, before);
+        let request_json = format!(
+            "{{\"thread_id\":\"{}\",\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?}}}",
+            thread_id, limit, order, after, before
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3878,7 +3995,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3927,7 +4046,10 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "runs_get";
         let model = "runs";
-        let request_json = format!("{{\"thread_id\":\"{}\",\"run_id\":\"{}\"}}", thread_id, run_id);
+        let request_json = format!(
+            "{{\"thread_id\":\"{}\",\"run_id\":\"{}\"}}",
+            thread_id, run_id
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3945,7 +4067,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -3994,7 +4118,10 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "runs_cancel";
         let model = "runs";
-        let request_json = format!("{{\"thread_id\":\"{}\",\"run_id\":\"{}\"}}", thread_id, run_id);
+        let request_json = format!(
+            "{{\"thread_id\":\"{}\",\"run_id\":\"{}\"}}",
+            thread_id, run_id
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -4012,7 +4139,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4087,7 +4216,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4156,7 +4287,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4230,7 +4363,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4279,7 +4414,10 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "messages_get";
         let model = "messages";
-        let request_json = format!("{{\"thread_id\":\"{}\",\"message_id\":\"{}\"}}", thread_id, message_id);
+        let request_json = format!(
+            "{{\"thread_id\":\"{}\",\"message_id\":\"{}\"}}",
+            thread_id, message_id
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -4297,7 +4435,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4375,7 +4515,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4427,7 +4569,10 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "run_steps_get";
         let model = "run_steps";
-        let request_json = format!("{{\"thread_id\":\"{}\",\"run_id\":\"{}\",\"step_id\":\"{}\",\"include\":{:?}}}", thread_id, run_id, step_id, include);
+        let request_json = format!(
+            "{{\"thread_id\":\"{}\",\"run_id\":\"{}\",\"step_id\":\"{}\",\"include\":{:?}}}",
+            thread_id, run_id, step_id, include
+        );
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -4447,7 +4592,9 @@ impl AssistantsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4611,7 +4758,9 @@ impl ModelsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4672,7 +4821,9 @@ impl ModelsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4740,7 +4891,9 @@ impl ModelsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4816,28 +4969,8 @@ impl CompletionsClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    metadata: &mut metadata,
-                };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(&model),
-                        request_json: Some(&request_json),
-                        error: &e,
-                        metadata: Some(&metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
-            }
-        }
+        self.call_before_request(operation, &model, &request_json, &mut metadata)
+            .await?;
 
         let start_time = Instant::now();
 
@@ -4850,22 +4983,9 @@ impl CompletionsClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = map_api_error(e);
-
-                // Call error hook
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(&model),
-                            request_json: Some(&request_json),
-                            error: &error,
-                            metadata: Some(&metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
-                }
-
+                let error = self
+                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -4873,25 +4993,17 @@ impl CompletionsClient<'_> {
         let duration = start_time.elapsed();
 
         // Call after_response hook
-        if let Ok(chain) = self.client.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(&response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model: &model,
-                    request_json: &request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens: response.usage.as_ref().map(|u| u.prompt_tokens as i64),
-                    output_tokens: response.usage.as_ref().map(|u| u.completion_tokens as i64),
-                    metadata: &metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
-            }
-        }
+        self.call_after_response(
+            &response,
+            operation,
+            &model,
+            &request_json,
+            &metadata,
+            duration,
+            response.usage.as_ref().map(|u| u.prompt_tokens as i64),
+            response.usage.as_ref().map(|u| u.completion_tokens as i64),
+        )
+        .await;
 
         Ok(response)
     }
@@ -4945,7 +5057,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -5000,7 +5114,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -5052,7 +5168,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -5107,7 +5225,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -5162,7 +5282,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -5217,7 +5339,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -5272,7 +5396,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -5324,7 +5450,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
@@ -5376,7 +5504,9 @@ impl UsageClient<'_> {
         {
             Ok(resp) => resp,
             Err(e) => {
-                let error = self.handle_api_error(e, operation, model, &request_json, &metadata).await;
+                let error = self
+                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .await;
                 return Err(error);
             }
         };
