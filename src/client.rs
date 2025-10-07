@@ -13,6 +13,7 @@
 use crate::interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, InterceptorChain,
 };
+use crate::semantic_conventions::operation_names;
 use crate::{
     builders::{
         assistants::{AssistantBuilder, MessageBuilder, RunBuilder},
@@ -429,7 +430,7 @@ impl Client {
         request: CreateChatCompletionRequest,
     ) -> Result<ChatCompletionResponseWrapper> {
         let mut metadata = HashMap::new();
-        let operation = "chat";
+        let operation = operation_names::CHAT;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -621,7 +622,7 @@ impl AudioClient<'_> {
     pub async fn create_speech(&self, builder: SpeechBuilder) -> Result<Vec<u8>> {
         let request = builder.build()?;
         let mut metadata = HashMap::new();
-        let operation = "audio_speech";
+        let operation = operation_names::AUDIO_SPEECH;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -685,7 +686,7 @@ impl AudioClient<'_> {
         let request = builder.build()?;
         let model_str = request.model.clone();
         let mut metadata = HashMap::new();
-        let operation = "audio_transcription";
+        let operation = operation_names::AUDIO_TRANSCRIPTION;
         // TranscriptionRequest doesn't implement Serialize, so we'll create a simple JSON representation
         let request_json = format!(r#"{{"model":"{model_str}","file":"<audio_file>"}}"#);
 
@@ -778,7 +779,7 @@ impl AudioClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "audio_translation";
+        let operation = operation_names::AUDIO_TRANSLATION;
         let request_json = format!(r#"{{"model":"{model_str}","file":"<audio_file>"}}"#);
 
         // Call before_request hook
@@ -864,7 +865,7 @@ impl EmbeddingsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "embedding";
+        let operation = operation_names::EMBEDDINGS;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -922,7 +923,7 @@ impl ImagesClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "image_generation";
+        let operation = operation_names::IMAGE_GENERATION;
         let model = request
             .model
             .as_ref()
@@ -989,7 +990,7 @@ impl ImagesClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "image_edit";
+        let operation = operation_names::IMAGE_EDIT;
         let request_json = format!(
             r#"{{"prompt":"{}","model":"{}"}}"#,
             request.prompt, model_str
@@ -1083,7 +1084,7 @@ impl ImagesClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "image_variation";
+        let operation = operation_names::IMAGE_VARIATION;
         let request_json = format!(r#"{{"model":"{model_str}"}}"#);
 
         // Call before_request hook
@@ -1154,7 +1155,7 @@ impl ThreadsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "thread_create";
+        let operation = operation_names::THREAD_CREATE;
         let model = "thread"; // No model for thread operations
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -1218,7 +1219,7 @@ impl UploadsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "upload_create";
+        let operation = operation_names::UPLOAD_CREATE;
         let model = "upload"; // No model for upload operations
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -1342,7 +1343,7 @@ impl ModerationsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "moderation";
+        let operation = operation_names::MODERATION;
         let model = request
             .model
             .as_ref()
@@ -1425,7 +1426,7 @@ impl FilesClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "file_upload";
+        let operation = operation_names::FILE_UPLOAD;
         let model = "file-upload"; // No model for file operations
         let request_json = format!(
             r#"{{"filename":"{}","purpose":"{}","size":{}}}"#,
@@ -1561,7 +1562,7 @@ impl FilesClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "file_list";
+        let operation = operation_names::FILE_LIST;
         let model = "files";
         let request_json = format!(
             r#"{{"purpose":"{}","limit":{},"order":"{}"}}"#,
@@ -1637,7 +1638,7 @@ impl FilesClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "file_retrieve";
+        let operation = operation_names::FILE_RETRIEVE;
         let model = "files";
         let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
@@ -1705,7 +1706,7 @@ impl FilesClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "file_download";
+        let operation = operation_names::FILE_DOWNLOAD;
         let model = "files";
         let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
@@ -1775,7 +1776,7 @@ impl FilesClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "file_delete";
+        let operation = operation_names::FILE_DELETE;
         let model = "files";
         let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
@@ -1872,7 +1873,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_create";
+        let operation = operation_names::VECTOR_STORE_CREATE;
         let model = "vector-store";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -1939,7 +1940,7 @@ impl VectorStoresClient<'_> {
     ) -> Result<ListVectorStoresResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_list";
+        let operation = operation_names::VECTOR_STORE_LIST;
         let model = "vector-store";
         let request_json = format!(
             r#"{{"limit":{},"order":"{}"}}"#,
@@ -2009,7 +2010,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_get";
+        let operation = operation_names::VECTOR_STORE_RETRIEVE;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
@@ -2096,7 +2097,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_update";
+        let operation = operation_names::VECTOR_STORE_UPDATE;
         let model = "vector-store";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -2163,7 +2164,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_delete";
+        let operation = operation_names::VECTOR_STORE_DELETE;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
@@ -2234,7 +2235,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_add_file";
+        let operation = operation_names::VECTOR_STORE_FILE_ADD;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
@@ -2306,7 +2307,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_list_files";
+        let operation = operation_names::VECTOR_STORE_FILE_LIST;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
@@ -2379,7 +2380,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_get_file";
+        let operation = operation_names::VECTOR_STORE_FILE_RETRIEVE;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
@@ -2448,7 +2449,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_delete_file";
+        let operation = operation_names::VECTOR_STORE_FILE_DELETE;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
@@ -2526,7 +2527,7 @@ impl VectorStoresClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "vector_store_search";
+        let operation = operation_names::VECTOR_STORE_SEARCH;
         let model = "vector-store";
         let request_json = format!(
             r#"{{"vector_store_id":"{}","query":"{}"}}"#,
@@ -2617,7 +2618,7 @@ impl BatchClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "batch_create";
+        let operation = operation_names::BATCH_CREATE;
         let model = "batch";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -2682,7 +2683,7 @@ impl BatchClient<'_> {
     ) -> Result<ListBatchesResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "batch_list";
+        let operation = operation_names::BATCH_LIST;
         let model = "batch";
         let request_json = format!("{{\"after\":{after:?},\"limit\":{limit:?}}}");
 
@@ -2746,7 +2747,7 @@ impl BatchClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "batch_get";
+        let operation = operation_names::BATCH_RETRIEVE;
         let model = "batch";
         let request_json = format!("{{\"batch_id\":\"{id}\"}}");
 
@@ -2809,7 +2810,7 @@ impl BatchClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "batch_cancel";
+        let operation = operation_names::BATCH_CANCEL;
         let model = "batch";
         let request_json = format!("{{\"batch_id\":\"{id}\"}}");
 
@@ -2895,7 +2896,7 @@ impl FineTuningClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "fine_tuning_create_job";
+        let operation = operation_names::FINE_TUNING_CREATE;
         let model = builder.model();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -2960,7 +2961,7 @@ impl FineTuningClient<'_> {
     ) -> Result<ListPaginatedFineTuningJobsResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "fine_tuning_list_jobs";
+        let operation = operation_names::FINE_TUNING_LIST;
         let model = "fine-tuning";
         let request_json = format!("{{\"after\":{after:?},\"limit\":{limit:?}}}");
 
@@ -3024,7 +3025,7 @@ impl FineTuningClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "fine_tuning_get_job";
+        let operation = operation_names::FINE_TUNING_RETRIEVE;
         let model = "fine-tuning";
         let request_json = format!("{{\"job_id\":\"{id}\"}}");
 
@@ -3087,7 +3088,7 @@ impl FineTuningClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "fine_tuning_cancel_job";
+        let operation = operation_names::FINE_TUNING_CANCEL;
         let model = "fine-tuning";
         let request_json = format!("{{\"job_id\":\"{id}\"}}");
 
@@ -3155,7 +3156,7 @@ impl FineTuningClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "fine_tuning_list_events";
+        let operation = operation_names::FINE_TUNING_LIST_EVENTS;
         let model = "fine-tuning";
         let request_json =
             format!("{{\"job_id\":\"{id}\",\"after\":{after:?},\"limit\":{limit:?}}}");
@@ -3226,7 +3227,7 @@ impl FineTuningClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "fine_tuning_list_checkpoints";
+        let operation = operation_names::FINE_TUNING_LIST_CHECKPOINTS;
         let model = "fine-tuning";
         let request_json =
             format!("{{\"job_id\":\"{id}\",\"after\":{after:?},\"limit\":{limit:?}}}");
@@ -3525,7 +3526,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "assistants_create";
+        let operation = operation_names::ASSISTANT_CREATE;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -3592,7 +3593,7 @@ impl AssistantsClient<'_> {
     ) -> Result<ListAssistantsResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "assistants_list";
+        let operation = operation_names::ASSISTANT_LIST;
         let model = "assistants";
         let request_json = format!(
             "{{\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?}}}"
@@ -3660,7 +3661,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "assistants_get";
+        let operation = operation_names::ASSISTANT_RETRIEVE;
         let model = "assistants";
         let request_json = format!("{{\"assistant_id\":\"{id}\"}}");
 
@@ -3757,7 +3758,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "assistants_update";
+        let operation = operation_names::ASSISTANT_UPDATE;
         let model = request
             .model
             .as_ref()
@@ -3824,7 +3825,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "assistants_delete";
+        let operation = operation_names::ASSISTANT_DELETE;
         let model = "assistants";
         let request_json = format!("{{\"assistant_id\":\"{id}\"}}");
 
@@ -3894,7 +3895,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "runs_create";
+        let operation = operation_names::RUN_CREATE;
         let model = request
             .model
             .as_ref()
@@ -3968,7 +3969,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "runs_list";
+        let operation = operation_names::RUN_LIST;
         let model = "runs";
         let request_json = format!(
             "{{\"thread_id\":\"{thread_id}\",\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?}}}"
@@ -4042,7 +4043,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "runs_get";
+        let operation = operation_names::RUN_RETRIEVE;
         let model = "runs";
         let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\"}}");
 
@@ -4111,7 +4112,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "runs_cancel";
+        let operation = operation_names::RUN_CANCEL;
         let model = "runs";
         let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\"}}");
 
@@ -4187,7 +4188,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "runs_submit_tool_outputs";
+        let operation = operation_names::RUN_SUBMIT_TOOL_OUTPUTS;
         let model = "runs";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -4259,7 +4260,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "messages_create";
+        let operation = operation_names::MESSAGE_CREATE;
         let model = "messages";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -4331,7 +4332,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "messages_list";
+        let operation = operation_names::MESSAGE_LIST;
         let model = "messages";
         let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?},\"run_id\":{run_id:?}}}");
 
@@ -4404,7 +4405,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "messages_get";
+        let operation = operation_names::MESSAGE_RETRIEVE;
         let model = "messages";
         let request_json =
             format!("{{\"thread_id\":\"{thread_id}\",\"message_id\":\"{message_id}\"}}");
@@ -4480,7 +4481,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "run_steps_list";
+        let operation = operation_names::RUN_STEP_LIST;
         let model = "run_steps";
         let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\",\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?},\"include\":{include:?}}}");
 
@@ -4557,7 +4558,7 @@ impl AssistantsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "run_steps_get";
+        let operation = operation_names::RUN_STEP_RETRIEVE;
         let model = "run_steps";
         let request_json = format!(
             "{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\",\"step_id\":\"{step_id}\",\"include\":{include:?}}}"
@@ -4729,7 +4730,7 @@ impl ModelsClient<'_> {
     pub async fn list(&self) -> Result<ListModelsResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "models_list";
+        let operation = operation_names::MODEL_LIST;
         let model = "models";
         let request_json = "{}".to_string();
 
@@ -4791,7 +4792,7 @@ impl ModelsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "models_get";
+        let operation = operation_names::MODEL_RETRIEVE;
         let model = "models";
         let request_json = format!("{{\"model_id\":\"{id}\"}}");
 
@@ -4861,7 +4862,7 @@ impl ModelsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "models_delete";
+        let operation = operation_names::MODEL_DELETE;
         let model = "models";
         let request_json = format!("{{\"model_id\":\"{id}\"}}");
 
@@ -4953,7 +4954,7 @@ impl CompletionsClient<'_> {
 
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "completion";
+        let operation = operation_names::TEXT_COMPLETION;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
@@ -5021,7 +5022,7 @@ impl UsageClient<'_> {
     pub async fn audio_speeches(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_audio_speeches";
+        let operation = operation_names::USAGE_AUDIO_SPEECHES;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
@@ -5079,7 +5080,7 @@ impl UsageClient<'_> {
     pub async fn audio_transcriptions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_audio_transcriptions";
+        let operation = operation_names::USAGE_AUDIO_TRANSCRIPTIONS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
@@ -5137,7 +5138,7 @@ impl UsageClient<'_> {
     pub async fn code_interpreter_sessions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_code_interpreter_sessions";
+        let operation = operation_names::USAGE_CODE_INTERPRETER;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
@@ -5192,7 +5193,7 @@ impl UsageClient<'_> {
     pub async fn completions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_completions";
+        let operation = operation_names::USAGE_COMPLETIONS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
@@ -5250,7 +5251,7 @@ impl UsageClient<'_> {
     pub async fn embeddings(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_embeddings";
+        let operation = operation_names::USAGE_EMBEDDINGS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
@@ -5308,7 +5309,7 @@ impl UsageClient<'_> {
     pub async fn images(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_images";
+        let operation = operation_names::USAGE_IMAGES;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
@@ -5366,7 +5367,7 @@ impl UsageClient<'_> {
     pub async fn moderations(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_moderations";
+        let operation = operation_names::USAGE_MODERATIONS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
@@ -5424,7 +5425,7 @@ impl UsageClient<'_> {
     pub async fn vector_stores(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_vector_stores";
+        let operation = operation_names::USAGE_VECTOR_STORES;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
@@ -5479,7 +5480,7 @@ impl UsageClient<'_> {
     pub async fn costs(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
         let mut metadata = HashMap::new();
-        let operation = "usage_costs";
+        let operation = operation_names::USAGE_COSTS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");

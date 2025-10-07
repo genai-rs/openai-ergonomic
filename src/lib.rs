@@ -140,6 +140,7 @@ pub mod config;
 pub mod errors;
 pub mod interceptor;
 pub mod responses;
+pub mod semantic_conventions;
 
 // Re-export commonly used types
 pub use client::Client;
