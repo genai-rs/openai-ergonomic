@@ -17,12 +17,14 @@
 //!
 //! ```rust,ignore
 //! use opentelemetry_langfuse::ExporterBuilder;
+//! use opentelemetry_sdk::runtime::Tokio;
+//! use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 //! use opentelemetry_sdk::trace::TracerProvider;
 //!
 //! // User sets up OpenTelemetry once
 //! let exporter = ExporterBuilder::from_env()?.build()?;
 //! let provider = TracerProvider::builder()
-//!     .with_batch_exporter(exporter)
+//!     .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
 //!     .build();
 //! opentelemetry::global::set_tracer_provider(provider);
 //!

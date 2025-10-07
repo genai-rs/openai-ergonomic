@@ -30,7 +30,7 @@
 //!
 //! # Batch Exporting
 //!
-//! This example uses `with_batch_exporter` for production-ready async span export.
+//! This example uses explicit BatchSpanProcessor for production-ready async span export.
 //! `BatchSpanProcessor` provides:
 //! - Non-blocking span export
 //! - Efficient batching for reduced network overhead
