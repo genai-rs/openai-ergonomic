@@ -161,8 +161,6 @@ Use the `LangfuseInterceptor` for enhanced observability with user/session track
 use openai_ergonomic::{Client, LangfuseInterceptor, TelemetryContext};
 use opentelemetry::global;
 use opentelemetry_langfuse::ExporterBuilder;
-use opentelemetry_sdk::runtime::Tokio;
-use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 
 #[tokio::main]
@@ -170,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Setup OpenTelemetry with Langfuse
     let exporter = ExporterBuilder::from_env()?.build()?;
     let provider = SdkTracerProvider::builder()
-        .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
+        .with_batch_exporter(exporter)
         .build();
     global::set_tracer_provider(provider.clone());
 

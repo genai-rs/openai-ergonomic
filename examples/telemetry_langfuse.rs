@@ -42,8 +42,6 @@
 use openai_ergonomic::{Client, LangfuseInterceptor, TelemetryContext};
 use opentelemetry::global;
 use opentelemetry_langfuse::ExporterBuilder;
-use opentelemetry_sdk::runtime::Tokio;
-use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use opentelemetry_sdk::Resource;
 
@@ -59,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create tracer provider with batch exporter for production use
     // BatchSpanProcessor batches spans for efficient network usage
-    // IMPORTANT: We must provide the Tokio runtime to the BatchSpanProcessor
+    // The batch processor uses the Tokio runtime from #[tokio::main]
     let provider = SdkTracerProvider::builder()
         .with_resource(
             Resource::builder()
@@ -69,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ])
                 .build(),
         )
-        .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
+        .with_batch_exporter(exporter)
         .build();
 
     // Set the global tracer provider
