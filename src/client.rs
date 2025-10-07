@@ -3157,10 +3157,8 @@ impl FineTuningClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "fine_tuning_list_events";
         let model = "fine-tuning";
-        let request_json = format!(
-            "{{\"job_id\":\"{}\",\"after\":{:?},\"limit\":{:?}}}",
-            id, after, limit
-        );
+        let request_json =
+            format!("{{\"job_id\":\"{id}\",\"after\":{after:?},\"limit\":{limit:?}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3230,10 +3228,8 @@ impl FineTuningClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "fine_tuning_list_checkpoints";
         let model = "fine-tuning";
-        let request_json = format!(
-            "{{\"job_id\":\"{}\",\"after\":{:?},\"limit\":{:?}}}",
-            id, after, limit
-        );
+        let request_json =
+            format!("{{\"job_id\":\"{id}\",\"after\":{after:?},\"limit\":{limit:?}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -3599,8 +3595,7 @@ impl AssistantsClient<'_> {
         let operation = "assistants_list";
         let model = "assistants";
         let request_json = format!(
-            "{{\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?}}}",
-            limit, order, after, before
+            "{{\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?}}}"
         );
 
         // Call before_request hook
@@ -3903,8 +3898,7 @@ impl AssistantsClient<'_> {
         let model = request
             .model
             .as_ref()
-            .map(|m| m.clone())
-            .unwrap_or_else(|| "runs".to_string());
+            .map_or_else(|| "runs".to_string(), Clone::clone);
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -3977,8 +3971,7 @@ impl AssistantsClient<'_> {
         let operation = "runs_list";
         let model = "runs";
         let request_json = format!(
-            "{{\"thread_id\":\"{}\",\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?}}}",
-            thread_id, limit, order, after, before
+            "{{\"thread_id\":\"{thread_id}\",\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?}}}"
         );
 
         // Call before_request hook
@@ -4051,10 +4044,7 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "runs_get";
         let model = "runs";
-        let request_json = format!(
-            "{{\"thread_id\":\"{}\",\"run_id\":\"{}\"}}",
-            thread_id, run_id
-        );
+        let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -4123,10 +4113,7 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "runs_cancel";
         let model = "runs";
-        let request_json = format!(
-            "{{\"thread_id\":\"{}\",\"run_id\":\"{}\"}}",
-            thread_id, run_id
-        );
+        let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\"}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -4346,7 +4333,7 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "messages_list";
         let model = "messages";
-        let request_json = format!("{{\"thread_id\":\"{}\",\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?},\"run_id\":{:?}}}", thread_id, limit, order, after, before, run_id);
+        let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?},\"run_id\":{run_id:?}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -4497,7 +4484,7 @@ impl AssistantsClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "run_steps_list";
         let model = "run_steps";
-        let request_json = format!("{{\"thread_id\":\"{}\",\"run_id\":\"{}\",\"limit\":{:?},\"order\":{:?},\"after\":{:?},\"before\":{:?},\"include\":{:?}}}", thread_id, run_id, limit, order, after, before, include);
+        let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\",\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?},\"include\":{include:?}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5039,7 +5026,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_audio_speeches";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5096,7 +5084,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_audio_transcriptions";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5153,7 +5142,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_code_interpreter_sessions";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5207,7 +5197,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_completions";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5264,7 +5255,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_embeddings";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5321,7 +5313,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_images";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5378,7 +5371,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_moderations";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5435,7 +5429,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_vector_stores";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
@@ -5489,7 +5484,8 @@ impl UsageClient<'_> {
         let mut metadata = HashMap::new();
         let operation = "usage_costs";
         let model = "usage";
-        let request_json = format!("{{\"start_time\":{}}}", builder.start_time());
+        let start_time = builder.start_time();
+        let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut metadata)
