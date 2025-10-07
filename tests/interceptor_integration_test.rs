@@ -9,6 +9,7 @@ mod tests {
     use std::sync::Arc;
 
     /// Test interceptor that counts invocations.
+    #[allow(clippy::struct_field_names)]
     struct CountingInterceptor {
         before_count: Arc<AtomicUsize>,
         after_count: Arc<AtomicUsize>,

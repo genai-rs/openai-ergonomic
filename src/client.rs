@@ -3,11 +3,8 @@
 //! This module provides a high-level client that wraps the base `OpenAI` client
 //! with ergonomic builders and response handling.
 
-// Allow these lints at module level for interceptor implementation
-// The interceptor design requires holding RwLock guards across await points
-// which triggers these warnings. This is a known limitation of the current design.
-#![allow(clippy::future_not_send)]
-#![allow(clippy::await_holding_lock)]
+// Allow this lint at module level for interceptor helper methods
+// that require many parameters for comprehensive context passing
 #![allow(clippy::too_many_arguments)]
 
 use crate::interceptor::{
@@ -64,8 +61,9 @@ use openai_client_base::{
 };
 use reqwest::Client as HttpClient;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Instant;
+use tokio::sync::RwLock;
 use tokio::time::Duration;
 
 // Helper macro to generate interceptor helper methods for sub-clients
@@ -73,7 +71,6 @@ macro_rules! impl_interceptor_helpers {
     ($client_type:ty) => {
         impl $client_type {
             /// Helper to call `before_request` hooks
-            #[allow(clippy::future_not_send, clippy::await_holding_lock)]
             async fn call_before_request(
                 &self,
                 operation: &str,
@@ -81,32 +78,32 @@ macro_rules! impl_interceptor_helpers {
                 request_json: &str,
                 metadata: &mut HashMap<String, String>,
             ) -> Result<()> {
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let mut ctx = BeforeRequestContext {
+                let chain = self.client.interceptors.read().await;
+                if !chain.is_empty() {
+                    let mut ctx = BeforeRequestContext {
+                        operation,
+                        model,
+                        request_json,
+                        metadata,
+                    };
+                    if let Err(e) = chain.before_request(&mut ctx).await {
+                        let error_ctx = ErrorContext {
                             operation,
-                            model,
-                            request_json,
-                            metadata,
+                            model: Some(model),
+                            request_json: Some(request_json),
+                            error: &e,
+                            metadata: Some(metadata),
                         };
-                        if let Err(e) = chain.before_request(&mut ctx).await {
-                            let error_ctx = ErrorContext {
-                                operation,
-                                model: Some(model),
-                                request_json: Some(request_json),
-                                error: &e,
-                                metadata: Some(metadata),
-                            };
-                            chain.on_error(&error_ctx).await;
-                            return Err(e);
-                        }
+                        chain.on_error(&error_ctx).await;
+                        drop(chain); // Explicitly drop the guard
+                        return Err(e);
                     }
                 }
+                drop(chain); // Explicitly drop the guard
                 Ok(())
             }
 
             /// Helper to handle API errors with interceptor hooks
-            #[allow(clippy::future_not_send, clippy::await_holding_lock)]
             async fn handle_api_error<T>(
                 &self,
                 error: openai_client_base::apis::Error<T>,
@@ -117,24 +114,23 @@ macro_rules! impl_interceptor_helpers {
             ) -> Error {
                 let error = map_api_error(error);
 
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let error_ctx = ErrorContext {
-                            operation,
-                            model: Some(model),
-                            request_json: Some(request_json),
-                            error: &error,
-                            metadata: Some(metadata),
-                        };
-                        chain.on_error(&error_ctx).await;
-                    }
+                let chain = self.client.interceptors.read().await;
+                if !chain.is_empty() {
+                    let error_ctx = ErrorContext {
+                        operation,
+                        model: Some(model),
+                        request_json: Some(request_json),
+                        error: &error,
+                        metadata: Some(metadata),
+                    };
+                    chain.on_error(&error_ctx).await;
                 }
+                drop(chain); // Explicitly drop the guard
 
                 error
             }
 
             /// Helper to call `after_response` hooks
-            #[allow(clippy::future_not_send, clippy::await_holding_lock)]
             async fn call_after_response<T>(
                 &self,
                 response: &T,
@@ -146,26 +142,26 @@ macro_rules! impl_interceptor_helpers {
                 input_tokens: Option<i64>,
                 output_tokens: Option<i64>,
             ) where
-                T: serde::Serialize,
+                T: serde::Serialize + Sync,
             {
-                if let Ok(chain) = self.client.interceptors.read() {
-                    if !chain.is_empty() {
-                        let response_json = serde_json::to_string(response).unwrap_or_default();
-                        let ctx = AfterResponseContext {
-                            operation,
-                            model,
-                            request_json,
-                            response_json: &response_json,
-                            duration,
-                            input_tokens,
-                            output_tokens,
-                            metadata,
-                        };
-                        if let Err(e) = chain.after_response(&ctx).await {
-                            tracing::warn!("Interceptor after_response failed: {}", e);
-                        }
+                let chain = self.client.interceptors.read().await;
+                if !chain.is_empty() {
+                    let response_json = serde_json::to_string(response).unwrap_or_default();
+                    let ctx = AfterResponseContext {
+                        operation,
+                        model,
+                        request_json,
+                        response_json: &response_json,
+                        duration,
+                        input_tokens,
+                        output_tokens,
+                        metadata,
+                    };
+                    if let Err(e) = chain.after_response(&ctx).await {
+                        tracing::warn!("Interceptor after_response failed: {}", e);
                     }
                 }
+                drop(chain); // Explicitly drop the guard
             }
         }
     };
@@ -275,9 +271,11 @@ impl Client {
     /// ```
     #[must_use]
     pub fn with_interceptor(self, interceptor: Box<dyn crate::interceptor::Interceptor>) -> Self {
-        if let Ok(mut chain) = self.interceptors.write() {
+        // Use futures::executor::block_on which works both inside and outside tokio runtime
+        futures::executor::block_on(async {
+            let mut chain = self.interceptors.write().await;
             chain.add(interceptor);
-        }
+        });
         self
     }
 
@@ -303,7 +301,6 @@ impl Client {
 // Interceptor helper methods
 impl Client {
     /// Helper to call `before_request` hooks
-    #[allow(clippy::future_not_send, clippy::await_holding_lock)]
     async fn call_before_request(
         &self,
         operation: &str,
@@ -311,33 +308,33 @@ impl Client {
         request_json: &str,
         metadata: &mut HashMap<String, String>,
     ) -> Result<()> {
-        if let Ok(chain) = self.interceptors.read() {
-            if !chain.is_empty() {
-                let mut ctx = BeforeRequestContext {
+        let chain = self.interceptors.read().await;
+        if !chain.is_empty() {
+            let mut ctx = BeforeRequestContext {
+                operation,
+                model,
+                request_json,
+                metadata,
+            };
+            if let Err(e) = chain.before_request(&mut ctx).await {
+                // If before_request fails, call error hook and return error
+                let error_ctx = ErrorContext {
                     operation,
-                    model,
-                    request_json,
-                    metadata,
+                    model: Some(model),
+                    request_json: Some(request_json),
+                    error: &e,
+                    metadata: Some(metadata),
                 };
-                if let Err(e) = chain.before_request(&mut ctx).await {
-                    // If before_request fails, call error hook and return error
-                    let error_ctx = ErrorContext {
-                        operation,
-                        model: Some(model),
-                        request_json: Some(request_json),
-                        error: &e,
-                        metadata: Some(metadata),
-                    };
-                    chain.on_error(&error_ctx).await;
-                    return Err(e);
-                }
+                chain.on_error(&error_ctx).await;
+                drop(chain); // Explicitly drop the guard
+                return Err(e);
             }
         }
+        drop(chain); // Explicitly drop the guard
         Ok(())
     }
 
     /// Helper to handle API errors with interceptor hooks
-    #[allow(clippy::future_not_send, clippy::await_holding_lock)]
     async fn handle_api_error<T>(
         &self,
         error: openai_client_base::apis::Error<T>,
@@ -349,24 +346,23 @@ impl Client {
         let error = map_api_error(error);
 
         // Call error hook
-        if let Ok(chain) = self.interceptors.read() {
-            if !chain.is_empty() {
-                let error_ctx = ErrorContext {
-                    operation,
-                    model: Some(model),
-                    request_json: Some(request_json),
-                    error: &error,
-                    metadata: Some(metadata),
-                };
-                chain.on_error(&error_ctx).await;
-            }
+        let chain = self.interceptors.read().await;
+        if !chain.is_empty() {
+            let error_ctx = ErrorContext {
+                operation,
+                model: Some(model),
+                request_json: Some(request_json),
+                error: &error,
+                metadata: Some(metadata),
+            };
+            chain.on_error(&error_ctx).await;
         }
+        drop(chain); // Explicitly drop the guard
 
         error
     }
 
     /// Helper to call `after_response` hooks
-    #[allow(clippy::future_not_send, clippy::await_holding_lock)]
     async fn call_after_response<T>(
         &self,
         response: &T,
@@ -378,27 +374,27 @@ impl Client {
         input_tokens: Option<i64>,
         output_tokens: Option<i64>,
     ) where
-        T: serde::Serialize,
+        T: serde::Serialize + Sync,
     {
-        if let Ok(chain) = self.interceptors.read() {
-            if !chain.is_empty() {
-                let response_json = serde_json::to_string(response).unwrap_or_default();
-                let ctx = AfterResponseContext {
-                    operation,
-                    model,
-                    request_json,
-                    response_json: &response_json,
-                    duration,
-                    input_tokens,
-                    output_tokens,
-                    metadata,
-                };
-                if let Err(e) = chain.after_response(&ctx).await {
-                    // If after_response fails, we still return the response but log the error
-                    tracing::warn!("Interceptor after_response failed: {}", e);
-                }
+        let chain = self.interceptors.read().await;
+        if !chain.is_empty() {
+            let response_json = serde_json::to_string(response).unwrap_or_default();
+            let ctx = AfterResponseContext {
+                operation,
+                model,
+                request_json,
+                response_json: &response_json,
+                duration,
+                input_tokens,
+                output_tokens,
+                metadata,
+            };
+            if let Err(e) = chain.after_response(&ctx).await {
+                // If after_response fails, we still return the response but log the error
+                tracing::warn!("Interceptor after_response failed: {}", e);
             }
         }
+        drop(chain); // Explicitly drop the guard
     }
 }
 
