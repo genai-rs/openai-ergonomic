@@ -93,30 +93,35 @@ impl LangfuseConfig {
     }
 
     /// Set the session ID.
+    #[must_use]
     pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
         self.session_id = Some(session_id.into());
         self
     }
 
     /// Set the user ID.
+    #[must_use]
     pub fn with_user_id(mut self, user_id: impl Into<String>) -> Self {
         self.user_id = Some(user_id.into());
         self
     }
 
     /// Set the release version.
+    #[must_use]
     pub fn with_release(mut self, release: impl Into<String>) -> Self {
         self.release = Some(release.into());
         self
     }
 
     /// Set the timeout.
+    #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
     }
 
     /// Enable debug logging.
+    #[must_use]
     pub fn with_debug(mut self, debug: bool) -> Self {
         self.debug = debug;
         self
@@ -453,12 +458,14 @@ impl LangfuseInterceptorBuilder {
     }
 
     /// Set the Langfuse API host.
+    #[must_use]
     pub fn with_host(mut self, host: impl Into<String>) -> Self {
         self.config.host = host.into();
         self
     }
 
     /// Set the Langfuse credentials.
+    #[must_use]
     pub fn with_credentials(
         mut self,
         public_key: impl Into<String>,
@@ -470,42 +477,49 @@ impl LangfuseInterceptorBuilder {
     }
 
     /// Set the session ID.
+    #[must_use]
     pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
         self.config.session_id = Some(session_id.into());
         self
     }
 
     /// Set the user ID.
+    #[must_use]
     pub fn with_user_id(mut self, user_id: impl Into<String>) -> Self {
         self.config.user_id = Some(user_id.into());
         self
     }
 
     /// Set the release version.
+    #[must_use]
     pub fn with_release(mut self, release: impl Into<String>) -> Self {
         self.config.release = Some(release.into());
         self
     }
 
     /// Set the export timeout.
+    #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = timeout;
         self
     }
 
     /// Set the batch size.
+    #[must_use]
     pub fn with_batch_size(mut self, batch_size: usize) -> Self {
         self.config.batch_size = batch_size;
         self
     }
 
     /// Set the export interval.
+    #[must_use]
     pub fn with_export_interval(mut self, interval: Duration) -> Self {
         self.config.export_interval = interval;
         self
     }
 
     /// Enable debug logging.
+    #[must_use]
     pub fn with_debug(mut self, debug: bool) -> Self {
         self.config.debug = debug;
         self
