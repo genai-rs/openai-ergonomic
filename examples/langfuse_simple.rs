@@ -14,9 +14,7 @@
 //! cargo run --example langfuse_simple
 //! ```
 
-use openai_ergonomic::{
-    middleware::langfuse::LangfuseMiddleware, Builder, Client, Config,
-};
+use openai_ergonomic::{middleware::langfuse::LangfuseMiddleware, Builder, Client, Config};
 use std::sync::Arc;
 use std::time::Duration;
 

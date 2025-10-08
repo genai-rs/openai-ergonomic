@@ -203,7 +203,10 @@ impl std::fmt::Debug for Client {
             .field("config", &self.config)
             .field("http", &"<HttpClient>")
             .field("base_configuration", &"<Configuration>")
-            .field("middleware", &format!("<{} middleware>", self.middleware.len()))
+            .field(
+                "middleware",
+                &format!("<{} middleware>", self.middleware.len()),
+            )
             .finish()
     }
 }
@@ -354,9 +357,9 @@ impl ClientBuilder {
 
     /// Build the client.
     pub fn build(self) -> Result<Client> {
-        let config = self.config.ok_or_else(|| {
-            Error::Config("Client configuration is required".to_string())
-        })?;
+        let config = self
+            .config
+            .ok_or_else(|| Error::Config("Client configuration is required".to_string()))?;
 
         let mut client = Client::new(config)?;
         client.middleware = self.middleware;
