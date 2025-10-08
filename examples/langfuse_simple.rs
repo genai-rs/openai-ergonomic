@@ -1,4 +1,4 @@
-//! Simple example of using the Langfuse interceptor for LLM observability.
+//! Simple example of using the Langfuse middleware for LLM observability.
 //!
 //! ## Setup
 //!
@@ -14,7 +14,11 @@
 //! cargo run --example langfuse_simple
 //! ```
 
-use openai_ergonomic::{Builder, Client, LangfuseInterceptor};
+use openai_ergonomic::{
+    middleware::langfuse::LangfuseMiddleware, Builder, Client, Config,
+};
+use std::sync::Arc;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,31 +32,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🚀 Initializing OpenAI client with Langfuse observability...\n");
 
-    // Create Langfuse interceptor from environment variables
-    let langfuse_interceptor = LangfuseInterceptor::from_env()?;
+    // Create Langfuse middleware from environment variables
+    let langfuse_middleware = LangfuseMiddleware::from_env()?;
 
-    // Create the OpenAI client and add the Langfuse interceptor
-    let client = Client::from_env()?.with_interceptor(Box::new(langfuse_interceptor));
-
-    println!("✅ Client initialized successfully!");
-    println!("📊 Traces will be sent to Langfuse for monitoring\n");
-
-    // Make a simple API call
-    println!("📝 Making a simple chat completion request...");
-    let request = client
-        .chat_simple("What is 2 + 2? Answer with just the number.")
+    // Create the OpenAI client with middleware
+    let client = Client::builder()
+        .config(Config::from_env()?)
+        .with_middleware(Arc::new(langfuse_middleware))
         .build()?;
-    let response = client.execute_chat(request).await?;
 
-    println!("🤖 Response: {:?}", response.content());
+    println!("📊 Making API call with Langfuse tracing enabled\n");
 
-    println!("\n✨ Done! Check your Langfuse dashboard to see the traces.");
-    println!("   - Look for traces with operation names like 'chat_request', 'chat_response'");
-    println!("   - Each trace includes request/response details and token usage");
+    // Make a simple chat request
+    let chat_builder = client
+        .chat_simple("What is Rust programming language? Answer in one sentence.")
+        .build()?;
 
-    // Give some time for traces to be exported
-    println!("\n⏳ Waiting for traces to be exported...");
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    let response = client.execute_chat(chat_builder).await?;
+    println!("Response: {:?}\n", response.content());
+
+    println!("✅ Request completed!");
+    println!("📊 Check your Langfuse dashboard to see the trace");
+
+    // Wait for traces to be exported
+    tokio::time::sleep(Duration::from_secs(2)).await;
 
     Ok(())
 }
