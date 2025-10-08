@@ -1,29 +1,20 @@
 //! Langfuse interceptor for OpenTelemetry-based LLM observability.
 //!
-//! This module provides an example Langfuse interceptor that demonstrates how to use
-//! OpenTelemetry with task-local span storage for proper span lifecycle management.
+//! This interceptor automatically instruments `OpenAI` API calls with OpenTelemetry spans
+//! that are exported to Langfuse. No user code changes required beyond adding the interceptor.
 //!
-//! # Important: Using with Span Storage
-//!
-//! To use this interceptor, you must wrap your API calls with `span_storage::with_storage`:
+//! # Usage
 //!
 //! ```no_run
-//! use opentelemetry_langfuse::span_storage;
-//! # use openai_ergonomic::Client;
+//! # use openai_ergonomic::{Builder, Client};
 //! # use openai_ergonomic::langfuse_interceptor::LangfuseInterceptor;
-//!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let interceptor = LangfuseInterceptor::from_env()?;
-//! let client = Client::new("api-key").with_interceptor(interceptor);
+//! let client = Client::from_env()?.with_interceptor(Box::new(interceptor));
 //!
-//! // IMPORTANT: Wrap API calls in with_storage
-//! let response = span_storage::with_storage(async {
-//!     client.chat()
-//!         .model("gpt-4")
-//!         .messages(vec![/* ... */])
-//!         .create()
-//!         .await
-//! }).await?;
+//! // Traces are automatically sent to Langfuse
+//! let request = client.chat_simple("Hello!").build()?;
+//! let response = client.execute_chat(request).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -119,10 +110,9 @@ impl LangfuseConfig {
 
 /// Langfuse interceptor for OpenTelemetry-based observability.
 ///
-/// This interceptor demonstrates how to use task-local span storage to maintain
-/// a single span across `before_request` and `after_response` calls.
-///
-/// **Important**: Client code must wrap API calls in `span_storage::with_storage`.
+/// This interceptor automatically creates spans for API calls and exports them to Langfuse.
+/// Spans are maintained across `before_request` and `after_response` using a global registry
+/// and request metadata, requiring no user code changes.
 pub struct LangfuseInterceptor {
     config: LangfuseConfig,
     tracer_provider: Arc<SdkTracerProvider>,
@@ -244,13 +234,16 @@ impl Interceptor for LangfuseInterceptor {
             }
         }
 
-        // Create and store the span using task-local storage
-        span_storage::create_and_store_span(
+        // Create and store the span in global registry
+        let span_id = span_storage::create_and_store_span(
             &tracer,
             ctx.operation.to_string(),
             SpanKind::Client,
             attributes,
         );
+
+        // Store span ID in metadata so after_response can retrieve it
+        ctx.metadata.insert("langfuse_span_id".to_string(), span_id);
 
         if self.config.debug {
             debug!("Started Langfuse span for operation: {}", ctx.operation);
@@ -260,6 +253,14 @@ impl Interceptor for LangfuseInterceptor {
     }
 
     async fn after_response(&self, ctx: &AfterResponseContext<'_>) -> Result<()> {
+        // Retrieve span ID from metadata
+        let Some(span_id) = ctx.metadata.get("langfuse_span_id") else {
+            if self.config.debug {
+                debug!("No span ID found in metadata for operation: {}", ctx.operation);
+            }
+            return Ok(());
+        };
+
         // Add response attributes to the existing span
         #[allow(clippy::cast_possible_truncation)]
         let mut attributes = vec![KeyValue::new(
@@ -304,8 +305,8 @@ impl Interceptor for LangfuseInterceptor {
         }
 
         // Add attributes and end the span
-        span_storage::add_span_attributes(attributes);
-        span_storage::end_span_with_attributes(vec![]);
+        span_storage::add_span_attributes(span_id, attributes);
+        span_storage::end_span(span_id, vec![]);
 
         if self.config.debug {
             debug!("Completed Langfuse span for operation: {}", ctx.operation);
@@ -321,6 +322,14 @@ impl Interceptor for LangfuseInterceptor {
     }
 
     async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
+        // Retrieve span ID from metadata
+        let Some(span_id) = ctx.metadata.get("langfuse_span_id") else {
+            if self.config.debug {
+                debug!("No span ID found in metadata for stream operation: {}", ctx.operation);
+            }
+            return Ok(());
+        };
+
         // Similar to after_response, add final streaming attributes
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         let mut attributes = vec![
@@ -335,8 +344,8 @@ impl Interceptor for LangfuseInterceptor {
             attributes.push(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
         }
 
-        span_storage::add_span_attributes(attributes);
-        span_storage::end_span_with_attributes(vec![]);
+        span_storage::add_span_attributes(span_id, attributes);
+        span_storage::end_span(span_id, vec![]);
 
         if self.config.debug {
             info!(
@@ -349,21 +358,33 @@ impl Interceptor for LangfuseInterceptor {
     }
 
     async fn on_error(&self, ctx: &ErrorContext<'_>) {
-        // Add error attributes to the span if it exists
-        let attributes = vec![
+        // Retrieve span ID from metadata if available
+        let Some(metadata) = ctx.metadata else {
+            if self.config.debug {
+                debug!("No metadata available for error in operation: {}", ctx.operation);
+            }
+            return;
+        };
+
+        let Some(span_id) = metadata.get("langfuse_span_id") else {
+            if self.config.debug {
+                debug!("No span ID found in metadata for error in operation: {}", ctx.operation);
+            }
+            return;
+        };
+
+        // Add error attributes to the span
+        let mut attributes = vec![
             KeyValue::new("error.type", format!("{:?}", ctx.error)),
             KeyValue::new("error.message", ctx.error.to_string()),
         ];
 
         if let Some(model) = ctx.model {
-            span_storage::add_span_attributes(vec![KeyValue::new(
-                GEN_AI_REQUEST_MODEL,
-                model.to_string(),
-            )]);
+            attributes.push(KeyValue::new(GEN_AI_REQUEST_MODEL, model.to_string()));
         }
 
-        span_storage::add_span_attributes(attributes);
-        span_storage::end_span_with_attributes(vec![]);
+        span_storage::add_span_attributes(span_id, attributes);
+        span_storage::end_span(span_id, vec![]);
 
         if self.config.debug {
             error!(
