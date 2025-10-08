@@ -119,6 +119,76 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Observability with Middleware
+
+The library includes a powerful middleware system for observability and instrumentation:
+
+### Langfuse Integration
+
+Monitor your LLM usage with [Langfuse](https://langfuse.com/) for comprehensive observability:
+
+```rust,ignore
+use openai_ergonomic::{Client, Config};
+use openai_ergonomic::middleware::langfuse::LangfuseMiddleware;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create Langfuse middleware from environment variables
+    let langfuse = LangfuseMiddleware::from_env()?;
+
+    // Build client with middleware
+    let client = Client::builder()
+        .config(Config::from_env()?)
+        .with_middleware(Arc::new(langfuse))
+        .build()?;
+
+    // Use normally - all requests are automatically traced
+    let response = client.chat_simple("Hello!").await?;
+    println!("{}", response);
+    Ok(())
+}
+```
+
+### OpenTelemetry Support
+
+Use the generic OpenTelemetry middleware for any OTel backend (Jaeger, Zipkin, etc.):
+
+```rust,ignore
+use openai_ergonomic::{Client, Config};
+use openai_ergonomic::middleware::opentelemetry::OpenTelemetryMiddleware;
+use std::sync::Arc;
+
+let otel = OpenTelemetryMiddleware::new();
+let client = Client::builder()
+    .config(Config::from_env()?)
+    .with_middleware(Arc::new(otel))
+    .build()?;
+```
+
+### Custom Middleware
+
+Implement the `Middleware` trait for custom instrumentation:
+
+```rust,ignore
+use openai_ergonomic::middleware::{Middleware, MiddlewareRequest, MiddlewareResponse, Next};
+use async_trait::async_trait;
+
+struct LoggingMiddleware;
+
+#[async_trait]
+impl Middleware for LoggingMiddleware {
+    async fn handle(&self, req: MiddlewareRequest<'_>, next: Next<'_>)
+        -> openai_ergonomic::Result<MiddlewareResponse>
+    {
+        println!("Request: {} to {}", req.operation, req.model);
+        let response = next.run(req).await?;
+        println!("Response: {} tokens", response.output_tokens.unwrap_or(0));
+        Ok(response)
+    }
+}
+```
+
 ## Documentation
 
 - [Getting Started Guide](docs/getting-started.md)
