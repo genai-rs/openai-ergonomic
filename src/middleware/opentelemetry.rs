@@ -56,7 +56,8 @@ impl Middleware for OpenTelemetryMiddleware {
         req: MiddlewareRequest<'_>,
         next: Next<'_>,
     ) -> Result<MiddlewareResponse> {
-        let tracer = global::tracer(&self.tracer_name);
+        let tracer_name = self.tracer_name.clone();
+        let tracer = global::tracer(tracer_name);
         let start_time = Instant::now();
 
         // Create span with GenAI semantic conventions
