@@ -15,6 +15,7 @@
 //! ```
 
 use openai_ergonomic::{Builder, Client, LangfuseInterceptor};
+use opentelemetry_langfuse::span_storage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,17 +38,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ Client initialized successfully!");
     println!("📊 Traces will be sent to Langfuse for monitoring\n");
 
-    // Make a simple API call
+    // IMPORTANT: Wrap API calls in with_storage to enable span lifecycle tracking
     println!("📝 Making a simple chat completion request...");
-    let request = client
-        .chat_simple("What is 2 + 2? Answer with just the number.")
-        .build()?;
-    let response = client.execute_chat(request).await?;
+    let response = span_storage::with_storage(async {
+        let request = client
+            .chat_simple("What is 2 + 2? Answer with just the number.")
+            .build()?;
+        client.execute_chat(request).await
+    })
+    .await?;
 
     println!("🤖 Response: {:?}", response.content());
 
     println!("\n✨ Done! Check your Langfuse dashboard to see the traces.");
-    println!("   - Look for traces with operation names like 'chat_request', 'chat_response'");
+    println!("   - Look for traces with the operation name 'chat'");
     println!("   - Each trace includes request/response details and token usage");
 
     // Give some time for traces to be exported
