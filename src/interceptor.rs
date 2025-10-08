@@ -39,24 +39,26 @@
 //! ```
 
 use crate::Result;
-use std::collections::HashMap;
 use std::time::Duration;
 
 /// Context provided before a request is sent.
 ///
 /// This context contains all the information about the request that's about
-/// to be made, and allows interceptors to modify metadata that will be
+/// to be made, and allows interceptors to store state that will be
 /// carried through the request lifecycle.
+///
+/// The generic type parameter `T` allows interceptors to define their own
+/// state type for passing data between lifecycle hooks.
 #[derive(Debug)]
-pub struct BeforeRequestContext<'a> {
+pub struct BeforeRequestContext<'a, T = ()> {
     /// The operation being performed (e.g., "chat", "embedding", "`image_generation`")
     pub operation: &'a str,
     /// The model being used for the request
     pub model: &'a str,
     /// The serialized request body as JSON
     pub request_json: &'a str,
-    /// Mutable metadata map for passing data between interceptors
-    pub metadata: &'a mut HashMap<String, String>,
+    /// Typed state for passing data between interceptor hooks
+    pub state: &'a mut T,
 }
 
 /// Context provided after a successful non-streaming response.
@@ -64,7 +66,7 @@ pub struct BeforeRequestContext<'a> {
 /// This context contains the complete request and response information,
 /// allowing interceptors to observe and react to successful API calls.
 #[derive(Debug)]
-pub struct AfterResponseContext<'a> {
+pub struct AfterResponseContext<'a, T = ()> {
     /// The operation that was performed
     pub operation: &'a str,
     /// The model that was used
@@ -79,8 +81,8 @@ pub struct AfterResponseContext<'a> {
     pub input_tokens: Option<i64>,
     /// Number of output tokens generated (if available)
     pub output_tokens: Option<i64>,
-    /// Metadata from the request context
-    pub metadata: &'a HashMap<String, String>,
+    /// Typed state from the request context
+    pub state: &'a T,
 }
 
 /// Context provided for each chunk in a streaming response.
@@ -88,7 +90,7 @@ pub struct AfterResponseContext<'a> {
 /// This context allows interceptors to process streaming data as it arrives,
 /// useful for real-time monitoring or transformation.
 #[derive(Debug)]
-pub struct StreamChunkContext<'a> {
+pub struct StreamChunkContext<'a, T = ()> {
     /// The operation being performed
     pub operation: &'a str,
     /// The model being used
@@ -99,8 +101,8 @@ pub struct StreamChunkContext<'a> {
     pub chunk_json: &'a str,
     /// Zero-based index of this chunk
     pub chunk_index: usize,
-    /// Metadata from the request context
-    pub metadata: &'a HashMap<String, String>,
+    /// Typed state from the request context
+    pub state: &'a T,
 }
 
 /// Context provided when a streaming response completes.
@@ -108,7 +110,7 @@ pub struct StreamChunkContext<'a> {
 /// This context provides summary information about the completed stream,
 /// including total chunks and token usage.
 #[derive(Debug)]
-pub struct StreamEndContext<'a> {
+pub struct StreamEndContext<'a, T = ()> {
     /// The operation that was performed
     pub operation: &'a str,
     /// The model that was used
@@ -123,8 +125,8 @@ pub struct StreamEndContext<'a> {
     pub input_tokens: Option<i64>,
     /// Total output tokens generated (if available)
     pub output_tokens: Option<i64>,
-    /// Metadata from the request context
-    pub metadata: &'a HashMap<String, String>,
+    /// Typed state from the request context
+    pub state: &'a T,
 }
 
 /// Context provided when an error occurs.
@@ -132,7 +134,7 @@ pub struct StreamEndContext<'a> {
 /// This context allows interceptors to observe and react to errors,
 /// useful for error tracking and recovery strategies.
 #[derive(Debug)]
-pub struct ErrorContext<'a> {
+pub struct ErrorContext<'a, T = ()> {
     /// The operation that failed
     pub operation: &'a str,
     /// The model being used (if known)
@@ -141,8 +143,8 @@ pub struct ErrorContext<'a> {
     pub request_json: Option<&'a str>,
     /// The error that occurred
     pub error: &'a crate::Error,
-    /// Metadata from the request context (if available)
-    pub metadata: Option<&'a HashMap<String, String>>,
+    /// Typed state from the request context (if available)
+    pub state: Option<&'a T>,
 }
 
 /// Trait for implementing interceptors.
@@ -150,28 +152,32 @@ pub struct ErrorContext<'a> {
 /// Interceptors can hook into various stages of the request/response lifecycle.
 /// All methods have default no-op implementations, so you only need to implement
 /// the hooks you're interested in.
+///
+/// The generic type parameter `T` defines the state type that will be passed
+/// through the request lifecycle. Use `()` (the default) for simple interceptors
+/// that don't need to maintain state across hooks.
 #[async_trait::async_trait]
-pub trait Interceptor: Send + Sync {
+pub trait Interceptor<T = ()>: Send + Sync {
     /// Called before a request is sent.
     ///
-    /// This method can modify the metadata that will be passed through
+    /// This method can modify the state that will be passed through
     /// the request lifecycle.
-    async fn before_request(&self, _ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
+    async fn before_request(&self, _ctx: &mut BeforeRequestContext<'_, T>) -> Result<()> {
         Ok(())
     }
 
     /// Called after a successful non-streaming response is received.
-    async fn after_response(&self, _ctx: &AfterResponseContext<'_>) -> Result<()> {
+    async fn after_response(&self, _ctx: &AfterResponseContext<'_, T>) -> Result<()> {
         Ok(())
     }
 
     /// Called for each chunk in a streaming response.
-    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_>) -> Result<()> {
+    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_, T>) -> Result<()> {
         Ok(())
     }
 
     /// Called when a streaming response completes successfully.
-    async fn on_stream_end(&self, _ctx: &StreamEndContext<'_>) -> Result<()> {
+    async fn on_stream_end(&self, _ctx: &StreamEndContext<'_, T>) -> Result<()> {
         Ok(())
     }
 
@@ -179,7 +185,7 @@ pub trait Interceptor: Send + Sync {
     ///
     /// Note: This method doesn't return a Result as it's called during
     /// error handling and shouldn't fail.
-    async fn on_error(&self, _ctx: &ErrorContext<'_>) {
+    async fn on_error(&self, _ctx: &ErrorContext<'_, T>) {
         // Default: no-op
     }
 }
@@ -188,17 +194,21 @@ pub trait Interceptor: Send + Sync {
 ///
 /// This struct manages multiple interceptors and ensures they are
 /// called in the correct order for each lifecycle event.
-pub struct InterceptorChain {
-    interceptors: Vec<Box<dyn Interceptor>>,
+///
+/// The generic type parameter `T` defines the state type that will be passed
+/// through the request lifecycle. Use `()` (the default) for interceptors
+/// that don't need to maintain state.
+pub struct InterceptorChain<T = ()> {
+    interceptors: Vec<Box<dyn Interceptor<T>>>,
 }
 
-impl Default for InterceptorChain {
+impl<T> Default for InterceptorChain<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl InterceptorChain {
+impl<T> InterceptorChain<T> {
     /// Create a new, empty interceptor chain.
     pub fn new() -> Self {
         Self {
@@ -209,12 +219,12 @@ impl InterceptorChain {
     /// Add an interceptor to the chain.
     ///
     /// Interceptors are executed in the order they are added.
-    pub fn add(&mut self, interceptor: Box<dyn Interceptor>) {
+    pub fn add(&mut self, interceptor: Box<dyn Interceptor<T>>) {
         self.interceptors.push(interceptor);
     }
 
     /// Execute the `before_request` hook for all interceptors.
-    pub async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
+    pub async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, T>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.before_request(ctx).await?;
         }
@@ -222,7 +232,7 @@ impl InterceptorChain {
     }
 
     /// Execute the `after_response` hook for all interceptors.
-    pub async fn after_response(&self, ctx: &AfterResponseContext<'_>) -> Result<()> {
+    pub async fn after_response(&self, ctx: &AfterResponseContext<'_, T>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.after_response(ctx).await?;
         }
@@ -230,7 +240,7 @@ impl InterceptorChain {
     }
 
     /// Execute the `on_stream_chunk` hook for all interceptors.
-    pub async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_>) -> Result<()> {
+    pub async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_, T>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.on_stream_chunk(ctx).await?;
         }
@@ -238,7 +248,7 @@ impl InterceptorChain {
     }
 
     /// Execute the `on_stream_end` hook for all interceptors.
-    pub async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
+    pub async fn on_stream_end(&self, ctx: &StreamEndContext<'_, T>) -> Result<()> {
         for interceptor in &self.interceptors {
             interceptor.on_stream_end(ctx).await?;
         }
@@ -249,7 +259,7 @@ impl InterceptorChain {
     ///
     /// Errors in individual interceptors are ignored to prevent
     /// cascading failures during error handling.
-    pub async fn on_error(&self, ctx: &ErrorContext<'_>) {
+    pub async fn on_error(&self, ctx: &ErrorContext<'_, T>) {
         for interceptor in &self.interceptors {
             // Ignore errors in error handlers to prevent cascading failures
             interceptor.on_error(ctx).await;
@@ -335,12 +345,12 @@ mod tests {
         chain.add(Box::new(interceptor2));
 
         // Test before_request
-        let mut metadata = HashMap::new();
+        let mut state = ();
         let mut ctx = BeforeRequestContext {
             operation: "test",
             model: "gpt-4",
             request_json: "{}",
-            metadata: &mut metadata,
+            state: &mut state,
         };
         chain.before_request(&mut ctx).await.unwrap();
 
@@ -362,12 +372,12 @@ mod tests {
         let mut chain = InterceptorChain::new();
         chain.add(Box::new(FailingInterceptor));
 
-        let mut metadata = HashMap::new();
+        let mut state = ();
         let mut ctx = BeforeRequestContext {
             operation: "test",
             model: "gpt-4",
             request_json: "{}",
-            metadata: &mut metadata,
+            state: &mut state,
         };
 
         let result = chain.before_request(&mut ctx).await;
@@ -381,42 +391,45 @@ mod tests {
         assert_eq!(chain.len(), 0);
 
         // Empty chain should succeed without doing anything
-        let mut metadata = HashMap::new();
+        let mut state = ();
         let mut ctx = BeforeRequestContext {
             operation: "test",
             model: "gpt-4",
             request_json: "{}",
-            metadata: &mut metadata,
+            state: &mut state,
         };
         chain.before_request(&mut ctx).await.unwrap();
     }
 
     #[tokio::test]
-    async fn test_metadata_passing() {
-        struct MetadataInterceptor;
+    async fn test_state_passing() {
+        struct StateInterceptor;
 
         #[async_trait::async_trait]
-        impl Interceptor for MetadataInterceptor {
-            async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
-                ctx.metadata
+        impl Interceptor<HashMap<String, String>> for StateInterceptor {
+            async fn before_request(
+                &self,
+                ctx: &mut BeforeRequestContext<'_, HashMap<String, String>>,
+            ) -> Result<()> {
+                ctx.state
                     .insert("test_key".to_string(), "test_value".to_string());
                 Ok(())
             }
         }
 
         let mut chain = InterceptorChain::new();
-        chain.add(Box::new(MetadataInterceptor));
+        chain.add(Box::new(StateInterceptor));
 
-        let mut metadata = HashMap::new();
+        let mut state = HashMap::new();
         let mut ctx = BeforeRequestContext {
             operation: "test",
             model: "gpt-4",
             request_json: "{}",
-            metadata: &mut metadata,
+            state: &mut state,
         };
 
         chain.before_request(&mut ctx).await.unwrap();
-        assert_eq!(metadata.get("test_key"), Some(&"test_value".to_string()));
+        assert_eq!(state.get("test_key"), Some(&"test_value".to_string()));
     }
 
     #[tokio::test]
@@ -442,7 +455,7 @@ mod tests {
             model: None,
             request_json: None,
             error: &error,
-            metadata: None,
+            state: None,
         };
 
         // Should not panic even though the interceptor panics
