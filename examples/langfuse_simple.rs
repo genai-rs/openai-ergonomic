@@ -3,10 +3,10 @@
 //! ## Setup
 //!
 //! Before running this example, set the following environment variables:
-//! - `OPENAI_API_KEY`: Your OpenAI API key
+//! - `OPENAI_API_KEY`: Your `OpenAI` API key
 //! - `LANGFUSE_PUBLIC_KEY`: Your Langfuse public key (starts with "pk-lf-")
 //! - `LANGFUSE_SECRET_KEY`: Your Langfuse secret key (starts with "sk-lf-")
-//! - `LANGFUSE_HOST` (optional): Langfuse API host (defaults to https://cloud.langfuse.com)
+//! - `LANGFUSE_HOST` (optional): Langfuse API host (defaults to <https://cloud.langfuse.com>)
 //!
 //! ## Running the example
 //!
