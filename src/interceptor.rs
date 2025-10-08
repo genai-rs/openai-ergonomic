@@ -3,6 +3,10 @@
 //! This module provides minimal stubs to allow existing code to compile
 //! while migrating to the middleware system.
 
+#![allow(deprecated)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::unused_async)]
+
 use crate::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;

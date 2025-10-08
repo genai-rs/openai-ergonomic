@@ -1,13 +1,13 @@
 //! Example of using OpenTelemetry middleware for observability.
 //!
 //! This example demonstrates how to use the generic OpenTelemetry middleware
-//! that follows GenAI semantic conventions. This works with any OpenTelemetry
+//! that follows `GenAI` semantic conventions. This works with any OpenTelemetry
 //! backend (Jaeger, Zipkin, etc.).
 //!
 //! ## Setup
 //!
 //! Before running this example, set the following environment variable:
-//! - `OPENAI_API_KEY`: Your OpenAI API key
+//! - `OPENAI_API_KEY`: Your `OpenAI` API key
 //!
 //! ## Running the example
 //!
@@ -16,7 +16,8 @@
 //! ```
 
 use openai_ergonomic::{
-    middleware::opentelemetry::OpenTelemetryMiddleware, Builder, Client, Config,
+    middleware::opentelemetry::OpenTelemetryMiddleware, Builder, ChatCompletionBuilder, Client,
+    Config,
 };
 use std::sync::Arc;
 
@@ -78,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match result {
         Ok(_) => println!("Unexpected success"),
-        Err(e) => println!("Expected error captured: {}\n", e),
+        Err(e) => println!("Expected error captured: {e}\n"),
     }
 
     println!("✅ All examples completed!");

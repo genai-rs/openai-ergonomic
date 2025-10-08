@@ -1,4 +1,4 @@
-//! Middleware system for intercepting and instrumenting OpenAI API calls.
+//! Middleware system for intercepting and instrumenting `OpenAI` API calls.
 //!
 //! This module provides a middleware pattern that allows full access to the request/response
 //! lifecycle, enabling proper OpenTelemetry tracing, logging, and other cross-cutting concerns.
@@ -132,6 +132,7 @@ impl MiddlewareChain {
     }
 
     /// Add a middleware to the chain.
+    #[must_use]
     pub fn with(mut self, middleware: Arc<dyn Middleware>) -> Self {
         self.middlewares.push(middleware);
         self
