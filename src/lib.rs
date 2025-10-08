@@ -151,7 +151,7 @@ pub use interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
     StreamEndContext,
 };
-pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor, LangfuseInterceptorBuilder};
+pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor};
 
 // Re-export specific builder and response types for convenience
 // NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
