@@ -142,14 +142,6 @@ pub mod middleware;
 pub mod responses;
 pub mod semantic_conventions;
 
-// Stub interceptor modules for backward compatibility (deprecated)
-#[doc(hidden)]
-#[deprecated(note = "Use the middleware system instead")]
-pub mod interceptor;
-#[doc(hidden)]
-#[deprecated(note = "Use the middleware system instead")]
-pub mod langfuse_interceptor;
-
 // Re-export commonly used types
 pub use client::Client;
 pub use config::{Config, ConfigBuilder};
