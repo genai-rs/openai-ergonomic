@@ -19,7 +19,7 @@
 
 use openai_ergonomic::{Builder, ChatCompletionBuilder, Client, LangfuseConfig, LangfuseInterceptor};
 use opentelemetry::{global, trace::TracerProvider};
-use opentelemetry_langfuse::{context, ExporterBuilder};
+use opentelemetry_langfuse::ExporterBuilder;
 use opentelemetry_sdk::{
     runtime::Tokio,
     trace::{span_processor_with_async_runtime::BatchSpanProcessor, SdkTracerProvider},
@@ -49,10 +49,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Get tracer and create interceptor
     let tracer = provider.tracer("openai-ergonomic");
-    let langfuse_interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
+    let langfuse_interceptor = std::sync::Arc::new(LangfuseInterceptor::new(tracer, LangfuseConfig::new()));
 
     // 4. Create the OpenAI client and add the Langfuse interceptor
-    let client = Client::from_env()?.with_interceptor(Box::new(langfuse_interceptor));
+    // Keep a reference to the interceptor so we can update context later
+    let client = Client::from_env()?.with_interceptor(Box::new(langfuse_interceptor.clone()));
 
     println!("🚀 OpenAI client initialized with Langfuse observability");
     println!("📊 Traces will be sent to Langfuse for monitoring\n");
@@ -116,14 +117,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let embeddings = client.embeddings().create(embeddings_builder).await?;
     println!("Generated {} embedding(s)\n", embeddings.data.len());
 
-    // Example 6: Using custom metadata via GLOBAL_CONTEXT
-    println!("Example 6: Custom metadata via GLOBAL_CONTEXT");
-    println!("----------------------------------------------");
+    // Example 6: Using custom metadata via interceptor context
+    println!("Example 6: Custom metadata via interceptor context");
+    println!("---------------------------------------------------");
 
-    // Set session and user IDs on the GLOBAL_CONTEXT
-    context::set_session_id("demo-session-123");
-    context::set_user_id("demo-user-456");
-    context::add_tags(vec!["example".to_string(), "demo".to_string()]);
+    // Set session and user IDs on the interceptor's context
+    langfuse_interceptor.set_session_id("demo-session-123");
+    langfuse_interceptor.set_user_id("demo-user-456");
+    langfuse_interceptor.add_tags(vec!["example".to_string(), "demo".to_string()]);
 
     let chat_builder = client
         .chat_simple("Say 'Hello from custom session!'")
@@ -132,7 +133,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Response with custom metadata: {:?}\n", response.content());
 
     // Clear context for subsequent calls
-    context::clear();
+    langfuse_interceptor.clear_context();
 
     println!("✅ All examples completed!");
     println!("📊 Check your Langfuse dashboard to see the traces");
