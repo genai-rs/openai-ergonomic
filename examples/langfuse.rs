@@ -1,15 +1,15 @@
 //! Example of using the Langfuse interceptor for LLM observability.
 //!
-//! This example demonstrates how to integrate Langfuse tracing with OpenAI API calls
+//! This example demonstrates how to integrate Langfuse tracing with `OpenAI` API calls
 //! using the built-in interceptor system with task-local span storage.
 //!
 //! ## Setup
 //!
 //! Before running this example, set the following environment variables:
-//! - `OPENAI_API_KEY`: Your OpenAI API key
+//! - `OPENAI_API_KEY`: Your `OpenAI` API key
 //! - `LANGFUSE_PUBLIC_KEY`: Your Langfuse public key (starts with "pk-lf-")
 //! - `LANGFUSE_SECRET_KEY`: Your Langfuse secret key (starts with "sk-lf-")
-//! - `LANGFUSE_HOST` (optional): Langfuse API host (defaults to https://cloud.langfuse.com)
+//! - `LANGFUSE_HOST` (optional): Langfuse API host (defaults to <https://cloud.langfuse.com>)
 //!
 //! ## Running the example
 //!
@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match result {
         Ok(_) => println!("Unexpected success"),
-        Err(e) => println!("Expected error captured: {}\n", e),
+        Err(e) => println!("Expected error captured: {e}\n"),
     }
 
     // Example 5: Embeddings
