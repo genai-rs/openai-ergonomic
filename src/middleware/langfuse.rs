@@ -100,7 +100,9 @@ impl LangfuseMiddleware {
             .with_basic_auth(&config.public_key, &config.secret_key)
             .with_timeout(config.timeout)
             .build()
-            .map_err(|e| crate::Error::Config(format!("Failed to build Langfuse exporter: {}", e)))?;
+            .map_err(|e| {
+                crate::Error::Config(format!("Failed to build Langfuse exporter: {}", e))
+            })?;
 
         // Create batch processor
         let batch_config = BatchConfigBuilder::default()

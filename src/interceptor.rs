@@ -97,7 +97,7 @@ impl InterceptorChain {
 
     /// Check if empty.
     pub fn is_empty(&self) -> bool {
-        true  // Always empty
+        true // Always empty
     }
 
     /// Call before_request hooks (no-op).

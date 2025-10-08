@@ -67,7 +67,11 @@ pub trait Middleware: Send + Sync {
     ///     Ok(response)
     /// }
     /// ```
-    async fn handle(&self, req: MiddlewareRequest<'_>, next: Next<'_>) -> Result<MiddlewareResponse>;
+    async fn handle(
+        &self,
+        req: MiddlewareRequest<'_>,
+        next: Next<'_>,
+    ) -> Result<MiddlewareResponse>;
 }
 
 /// The Next handler in the middleware chain.
@@ -76,7 +80,9 @@ pub trait Middleware: Send + Sync {
 pub struct Next<'a> {
     middlewares: &'a [Arc<dyn Middleware>],
     index: usize,
-    executor: &'a (dyn Fn(MiddlewareRequest<'_>) -> futures::future::BoxFuture<'_, Result<MiddlewareResponse>> + Send + Sync),
+    executor: &'a (dyn Fn(MiddlewareRequest<'_>) -> futures::future::BoxFuture<'_, Result<MiddlewareResponse>>
+             + Send
+             + Sync),
 }
 
 impl<'a> Next<'a> {
@@ -84,7 +90,11 @@ impl<'a> Next<'a> {
     pub(crate) fn new(
         middlewares: &'a [Arc<dyn Middleware>],
         index: usize,
-        executor: &'a (dyn Fn(MiddlewareRequest<'_>) -> futures::future::BoxFuture<'_, Result<MiddlewareResponse>> + Send + Sync),
+        executor: &'a (dyn Fn(
+            MiddlewareRequest<'_>,
+        ) -> futures::future::BoxFuture<'_, Result<MiddlewareResponse>>
+                 + Send
+                 + Sync),
     ) -> Self {
         Self {
             middlewares,
@@ -134,7 +144,9 @@ impl MiddlewareChain {
         executor: F,
     ) -> Result<MiddlewareResponse>
     where
-        F: Fn(MiddlewareRequest<'_>) -> futures::future::BoxFuture<'_, Result<MiddlewareResponse>> + Send + Sync,
+        F: Fn(MiddlewareRequest<'_>) -> futures::future::BoxFuture<'_, Result<MiddlewareResponse>>
+            + Send
+            + Sync,
     {
         let next = Next::new(&self.middlewares, 0, &executor);
         next.run(req).await

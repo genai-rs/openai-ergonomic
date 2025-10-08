@@ -65,9 +65,7 @@ mod tests {
     #[allow(deprecated)]
     async fn test_interceptor_stubs_work() {
         // Test that the backward compatibility stubs don't break existing code
-        let config = Config::builder()
-            .api_key("sk-test123")
-            .build();
+        let config = Config::builder().api_key("sk-test123").build();
 
         let (interceptor, _before, _after, _error) = CountingInterceptor::new();
 
