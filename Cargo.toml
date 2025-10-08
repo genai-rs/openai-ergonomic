@@ -27,7 +27,7 @@ tracing = "0.1"
 opentelemetry-semantic-conventions = { version = "0.31", features = ["semconv_experimental"] }
 opentelemetry = { version = "0.31", features = ["trace"] }
 opentelemetry_sdk = { version = "0.31", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
-opentelemetry-langfuse = "0.5"
+opentelemetry-langfuse = { path = "../opentelemetry-langfuse" }
 async-trait = "0.1"
 bytes = "1.5"
 uuid = { version = "1.10", features = ["v4"] }

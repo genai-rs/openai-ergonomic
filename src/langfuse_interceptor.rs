@@ -1,7 +1,32 @@
 //! Langfuse interceptor for OpenTelemetry-based LLM observability.
 //!
-//! This module provides a Langfuse interceptor that integrates with OpenTelemetry
-//! to send traces to Langfuse for comprehensive LLM observability.
+//! This module provides an example Langfuse interceptor that demonstrates how to use
+//! OpenTelemetry with task-local span storage for proper span lifecycle management.
+//!
+//! # Important: Using with Span Storage
+//!
+//! To use this interceptor, you must wrap your API calls with `span_storage::with_storage`:
+//!
+//! ```no_run
+//! use opentelemetry_langfuse::span_storage;
+//! # use openai_ergonomic::Client;
+//! # use openai_ergonomic::langfuse_interceptor::LangfuseInterceptor;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let interceptor = LangfuseInterceptor::from_env()?;
+//! let client = Client::new("api-key").with_interceptor(interceptor);
+//!
+//! // IMPORTANT: Wrap API calls in with_storage
+//! let response = span_storage::with_storage(async {
+//!     client.chat()
+//!         .model("gpt-4")
+//!         .messages(vec![/* ... */])
+//!         .create()
+//!         .await
+//! }).await?;
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
@@ -9,15 +34,15 @@ use crate::interceptor::{
 };
 use crate::Result;
 use opentelemetry::{
-    trace::{Span, SpanKind, Status, Tracer, TracerProvider as _},
+    trace::{SpanKind, TracerProvider as _},
     KeyValue,
 };
-use opentelemetry_langfuse::ExporterBuilder;
+use opentelemetry_langfuse::{span_storage, ExporterBuilder};
 use opentelemetry_sdk::{
     runtime::Tokio,
     trace::{
-        span_processor_with_async_runtime::BatchSpanProcessor, BatchConfigBuilder,
-        RandomIdGenerator, Sampler, SdkTracerProvider,
+        span_processor_with_async_runtime::BatchSpanProcessor, RandomIdGenerator, Sampler,
+        SdkTracerProvider,
     },
     Resource,
 };
@@ -40,18 +65,8 @@ pub struct LangfuseConfig {
     pub public_key: String,
     /// Langfuse secret key
     pub secret_key: String,
-    /// Session ID for grouping related traces
-    pub session_id: Option<String>,
-    /// User ID for attribution
-    pub user_id: Option<String>,
-    /// Release version
-    pub release: Option<String>,
     /// Timeout for exporting spans
     pub timeout: Duration,
-    /// Maximum batch size for exporting spans
-    pub batch_size: usize,
-    /// Interval between batch exports
-    pub export_interval: Duration,
     /// Enable debug logging
     pub debug: bool,
 }
@@ -63,12 +78,7 @@ impl Default for LangfuseConfig {
                 .unwrap_or_else(|_| "https://cloud.langfuse.com".to_string()),
             public_key: std::env::var("LANGFUSE_PUBLIC_KEY").unwrap_or_default(),
             secret_key: std::env::var("LANGFUSE_SECRET_KEY").unwrap_or_default(),
-            session_id: std::env::var("LANGFUSE_SESSION_ID").ok(),
-            user_id: std::env::var("LANGFUSE_USER_ID").ok(),
-            release: std::env::var("LANGFUSE_RELEASE").ok(),
             timeout: Duration::from_secs(10),
-            batch_size: 100,
-            export_interval: Duration::from_secs(5),
             debug: std::env::var("LANGFUSE_DEBUG")
                 .unwrap_or_else(|_| "false".to_string())
                 .parse()
@@ -92,27 +102,6 @@ impl LangfuseConfig {
         }
     }
 
-    /// Set the session ID.
-    #[must_use]
-    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
-        self.session_id = Some(session_id.into());
-        self
-    }
-
-    /// Set the user ID.
-    #[must_use]
-    pub fn with_user_id(mut self, user_id: impl Into<String>) -> Self {
-        self.user_id = Some(user_id.into());
-        self
-    }
-
-    /// Set the release version.
-    #[must_use]
-    pub fn with_release(mut self, release: impl Into<String>) -> Self {
-        self.release = Some(release.into());
-        self
-    }
-
     /// Set the timeout.
     #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
@@ -130,8 +119,10 @@ impl LangfuseConfig {
 
 /// Langfuse interceptor for OpenTelemetry-based observability.
 ///
-/// This interceptor captures OpenAI API interactions and sends them to Langfuse
-/// as OpenTelemetry spans.
+/// This interceptor demonstrates how to use task-local span storage to maintain
+/// a single span across `before_request` and `after_response` calls.
+///
+/// **Important**: Client code must wrap API calls in `span_storage::with_storage`.
 pub struct LangfuseInterceptor {
     config: LangfuseConfig,
     tracer_provider: Arc<SdkTracerProvider>,
@@ -154,37 +145,19 @@ impl LangfuseInterceptor {
             .with_timeout(config.timeout)
             .build()
             .map_err(|e| {
-                crate::Error::Config(format!("Failed to build Langfuse exporter: {}", e))
+                crate::Error::Config(format!("Failed to build Langfuse exporter: {e}"))
             })?;
 
-        // Create the batch span processor with proper configuration and Tokio runtime
-        let batch_config = BatchConfigBuilder::default()
-            .with_max_export_batch_size(config.batch_size)
-            .with_scheduled_delay(config.export_interval)
-            .with_max_export_timeout(config.timeout)
+        // Create the batch span processor with Tokio runtime
+        let span_processor = BatchSpanProcessor::builder(exporter, Tokio).build();
+
+        // Build the tracer provider
+        let resource = Resource::builder()
+            .with_attributes(vec![
+                KeyValue::new("service.name", "openai-ergonomic"),
+                KeyValue::new("langfuse.public_key", config.public_key.clone()),
+            ])
             .build();
-
-        let span_processor = BatchSpanProcessor::builder(exporter, Tokio)
-            .with_batch_config(batch_config)
-            .build();
-
-        // Build the tracer provider with resource attributes
-        let mut resource_attrs = vec![
-            KeyValue::new("service.name", "openai-ergonomic"),
-            KeyValue::new("langfuse.public_key", config.public_key.clone()),
-        ];
-
-        if let Some(ref session_id) = config.session_id {
-            resource_attrs.push(KeyValue::new("langfuse.session_id", session_id.clone()));
-        }
-        if let Some(ref user_id) = config.user_id {
-            resource_attrs.push(KeyValue::new("langfuse.user_id", user_id.clone()));
-        }
-        if let Some(ref release) = config.release {
-            resource_attrs.push(KeyValue::new("service.version", release.clone()));
-        }
-
-        let resource = Resource::builder().with_attributes(resource_attrs).build();
 
         let provider = SdkTracerProvider::builder()
             .with_span_processor(span_processor)
@@ -227,58 +200,57 @@ impl Interceptor for LangfuseInterceptor {
     async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
         let tracer = self.tracer();
 
-        // Create a new context and span
-        let mut span = tracer
-            .span_builder(format!("{}_request", ctx.operation))
-            .with_kind(SpanKind::Client)
-            .with_attributes(vec![
-                KeyValue::new(GEN_AI_SYSTEM, "openai"),
-                KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
-                KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
-            ])
-            .start(&tracer);
+        // Build initial attributes
+        let mut attributes = vec![
+            KeyValue::new(GEN_AI_SYSTEM, "openai"),
+            KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
+            KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
+        ];
 
-        // Parse request JSON and add relevant attributes if possible
+        // Add Langfuse context attributes if available
+        attributes.extend(opentelemetry_langfuse::context::GLOBAL_CONTEXT.get_attributes());
+
+        // Parse request JSON and add relevant attributes
         if let Ok(params) = Self::extract_request_params(ctx.request_json) {
-            if let Some(temperature) = params.get("temperature").and_then(|v| v.as_f64()) {
-                span.set_attributes(vec![KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temperature)]);
+            if let Some(temperature) = params.get("temperature").and_then(serde_json::Value::as_f64) {
+                attributes.push(KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temperature));
             }
-            if let Some(max_tokens) = params.get("max_tokens").and_then(|v| v.as_i64()) {
-                span.set_attributes(vec![KeyValue::new(GEN_AI_REQUEST_MAX_TOKENS, max_tokens)]);
+            if let Some(max_tokens) = params.get("max_tokens").and_then(serde_json::Value::as_i64) {
+                attributes.push(KeyValue::new(GEN_AI_REQUEST_MAX_TOKENS, max_tokens));
             }
 
-            // Add messages as gen_ai.prompt attributes for Langfuse
-            if let Some(messages) = params.get("messages").and_then(|v| v.as_array()) {
-                let mut prompt_attrs = Vec::new();
+            // Add messages as gen_ai.prompt attributes
+            if let Some(messages) = params.get("messages").and_then(serde_json::Value::as_array) {
                 for (i, message) in messages.iter().enumerate() {
                     if let Some(obj) = message.as_object() {
                         let role = obj
                             .get("role")
-                            .and_then(|v| v.as_str())
+                            .and_then(serde_json::Value::as_str)
                             .unwrap_or("unknown")
                             .to_string();
                         let content = obj
                             .get("content")
-                            .and_then(|v| v.as_str())
+                            .and_then(serde_json::Value::as_str)
                             .unwrap_or("")
                             .to_string();
 
-                        // Set gen_ai.prompt attributes as expected by Langfuse
-                        prompt_attrs.push(KeyValue::new(format!("gen_ai.prompt.{}.role", i), role));
-                        prompt_attrs.push(KeyValue::new(
-                            format!("gen_ai.prompt.{}.content", i),
+                        attributes.push(KeyValue::new(format!("gen_ai.prompt.{i}.role"), role));
+                        attributes.push(KeyValue::new(
+                            format!("gen_ai.prompt.{i}.content"),
                             content,
                         ));
                     }
                 }
-                if !prompt_attrs.is_empty() {
-                    span.set_attributes(prompt_attrs);
-                }
             }
         }
 
-        // End the span immediately - in production, you'd store it for later
-        span.end();
+        // Create and store the span using task-local storage
+        span_storage::create_and_store_span(
+            &tracer,
+            ctx.operation.to_string(),
+            SpanKind::Client,
+            attributes,
+        );
 
         if self.config.debug {
             debug!("Started Langfuse span for operation: {}", ctx.operation);
@@ -288,65 +260,52 @@ impl Interceptor for LangfuseInterceptor {
     }
 
     async fn after_response(&self, ctx: &AfterResponseContext<'_>) -> Result<()> {
-        let tracer = self.tracer();
-
-        // Create a span for the response
-        let mut span = tracer
-            .span_builder(format!("{}_response", ctx.operation))
-            .with_kind(SpanKind::Client)
-            .with_attributes(vec![
-                KeyValue::new(GEN_AI_SYSTEM, "openai"),
-                KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
-                KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
-                KeyValue::new("duration_ms", ctx.duration.as_millis() as i64),
-            ])
-            .start(&tracer);
+        // Add response attributes to the existing span
+        #[allow(clippy::cast_possible_truncation)]
+        let mut attributes = vec![KeyValue::new(
+            "duration_ms",
+            ctx.duration.as_millis() as i64,
+        )];
 
         // Add usage metrics if available
         if let Some(input_tokens) = ctx.input_tokens {
-            span.set_attributes(vec![KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens)]);
+            attributes.push(KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens));
         }
         if let Some(output_tokens) = ctx.output_tokens {
-            span.set_attributes(vec![KeyValue::new(
-                GEN_AI_USAGE_OUTPUT_TOKENS,
-                output_tokens,
-            )]);
+            attributes.push(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
         }
 
         // Parse response and add completion content
         if let Ok(response) = Self::extract_request_params(ctx.response_json) {
             // Add response ID if available
-            if let Some(id) = response.get("id").and_then(|v| v.as_str()) {
-                span.set_attributes(vec![KeyValue::new(GEN_AI_RESPONSE_ID, id.to_string())]);
+            if let Some(id) = response.get("id").and_then(serde_json::Value::as_str) {
+                attributes.push(KeyValue::new(GEN_AI_RESPONSE_ID, id.to_string()));
             }
 
-            // Add completion content for Langfuse
-            if let Some(choices) = response.get("choices").and_then(|v| v.as_array()) {
-                let mut completion_attrs = Vec::new();
+            // Add completion content
+            if let Some(choices) = response.get("choices").and_then(serde_json::Value::as_array) {
                 for (i, choice) in choices.iter().enumerate() {
                     if let Some(message) = choice.get("message") {
-                        if let Some(role) = message.get("role").and_then(|v| v.as_str()) {
-                            completion_attrs.push(KeyValue::new(
-                                format!("gen_ai.completion.{}.role", i),
+                        if let Some(role) = message.get("role").and_then(serde_json::Value::as_str) {
+                            attributes.push(KeyValue::new(
+                                format!("gen_ai.completion.{i}.role"),
                                 role.to_string(),
                             ));
                         }
-                        if let Some(content) = message.get("content").and_then(|v| v.as_str()) {
-                            completion_attrs.push(KeyValue::new(
-                                format!("gen_ai.completion.{}.content", i),
+                        if let Some(content) = message.get("content").and_then(serde_json::Value::as_str) {
+                            attributes.push(KeyValue::new(
+                                format!("gen_ai.completion.{i}.content"),
                                 content.to_string(),
                             ));
                         }
                     }
                 }
-                if !completion_attrs.is_empty() {
-                    span.set_attributes(completion_attrs);
-                }
             }
         }
 
-        span.set_status(Status::Ok);
-        span.end();
+        // Add attributes and end the span
+        span_storage::add_span_attributes(attributes);
+        span_storage::end_span_with_attributes(vec![]);
 
         if self.config.debug {
             debug!("Completed Langfuse span for operation: {}", ctx.operation);
@@ -355,45 +314,29 @@ impl Interceptor for LangfuseInterceptor {
         Ok(())
     }
 
-    async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_>) -> Result<()> {
-        // For simplicity, we'll just log stream chunks
-        // In production, you'd accumulate these and create a single span
-        if self.config.debug && ctx.chunk_index % 10 == 0 {
-            debug!(
-                "Recorded stream chunk {} for operation: {}",
-                ctx.chunk_index, ctx.operation
-            );
-        }
+    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_>) -> Result<()> {
+        // Stream chunks can add attributes to the current span if needed
+        // For now, we just let them pass through
         Ok(())
     }
 
     async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
-        let tracer = self.tracer();
-
-        let mut span = tracer
-            .span_builder(format!("{}_stream", ctx.operation))
-            .with_kind(SpanKind::Client)
-            .with_attributes(vec![
-                KeyValue::new(GEN_AI_SYSTEM, "openai"),
-                KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
-                KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
-                KeyValue::new("stream.total_chunks", ctx.total_chunks as i64),
-                KeyValue::new("stream.duration_ms", ctx.duration.as_millis() as i64),
-            ])
-            .start(&tracer);
+        // Similar to after_response, add final streaming attributes
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+        let mut attributes = vec![
+            KeyValue::new("stream.total_chunks", ctx.total_chunks as i64),
+            KeyValue::new("stream.duration_ms", ctx.duration.as_millis() as i64),
+        ];
 
         if let Some(input_tokens) = ctx.input_tokens {
-            span.set_attributes(vec![KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens)]);
+            attributes.push(KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens));
         }
         if let Some(output_tokens) = ctx.output_tokens {
-            span.set_attributes(vec![KeyValue::new(
-                GEN_AI_USAGE_OUTPUT_TOKENS,
-                output_tokens,
-            )]);
+            attributes.push(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
         }
 
-        span.set_status(Status::Ok);
-        span.end();
+        span_storage::add_span_attributes(attributes);
+        span_storage::end_span_with_attributes(vec![]);
 
         if self.config.debug {
             info!(
@@ -406,25 +349,21 @@ impl Interceptor for LangfuseInterceptor {
     }
 
     async fn on_error(&self, ctx: &ErrorContext<'_>) {
-        let tracer = self.tracer();
-
-        let mut span = tracer
-            .span_builder(format!("{}_error", ctx.operation))
-            .with_kind(SpanKind::Client)
-            .with_attributes(vec![
-                KeyValue::new(GEN_AI_SYSTEM, "openai"),
-                KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
-                KeyValue::new("error.type", format!("{:?}", ctx.error)),
-                KeyValue::new("error.message", ctx.error.to_string()),
-            ])
-            .start(&tracer);
+        // Add error attributes to the span if it exists
+        let attributes = vec![
+            KeyValue::new("error.type", format!("{:?}", ctx.error)),
+            KeyValue::new("error.message", ctx.error.to_string()),
+        ];
 
         if let Some(model) = ctx.model {
-            span.set_attributes(vec![KeyValue::new(GEN_AI_REQUEST_MODEL, model.to_string())]);
+            span_storage::add_span_attributes(vec![KeyValue::new(
+                GEN_AI_REQUEST_MODEL,
+                model.to_string(),
+            )]);
         }
 
-        span.set_status(Status::error(ctx.error.to_string()));
-        span.end();
+        span_storage::add_span_attributes(attributes);
+        span_storage::end_span_with_attributes(vec![]);
 
         if self.config.debug {
             error!(
@@ -476,45 +415,10 @@ impl LangfuseInterceptorBuilder {
         self
     }
 
-    /// Set the session ID.
-    #[must_use]
-    pub fn with_session_id(mut self, session_id: impl Into<String>) -> Self {
-        self.config.session_id = Some(session_id.into());
-        self
-    }
-
-    /// Set the user ID.
-    #[must_use]
-    pub fn with_user_id(mut self, user_id: impl Into<String>) -> Self {
-        self.config.user_id = Some(user_id.into());
-        self
-    }
-
-    /// Set the release version.
-    #[must_use]
-    pub fn with_release(mut self, release: impl Into<String>) -> Self {
-        self.config.release = Some(release.into());
-        self
-    }
-
     /// Set the export timeout.
     #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = timeout;
-        self
-    }
-
-    /// Set the batch size.
-    #[must_use]
-    pub fn with_batch_size(mut self, batch_size: usize) -> Self {
-        self.config.batch_size = batch_size;
-        self
-    }
-
-    /// Set the export interval.
-    #[must_use]
-    pub fn with_export_interval(mut self, interval: Duration) -> Self {
-        self.config.export_interval = interval;
         self
     }
 
@@ -561,18 +465,12 @@ mod tests {
     #[test]
     fn test_builder_configuration() {
         let config = LangfuseConfig::new("https://custom.langfuse.com", "pk-custom", "sk-custom")
-            .with_session_id("session-123")
-            .with_user_id("user-456")
-            .with_release("v1.0.0")
             .with_timeout(Duration::from_secs(30))
             .with_debug(true);
 
         assert_eq!(config.host, "https://custom.langfuse.com");
         assert_eq!(config.public_key, "pk-custom");
         assert_eq!(config.secret_key, "sk-custom");
-        assert_eq!(config.session_id, Some("session-123".to_string()));
-        assert_eq!(config.user_id, Some("user-456".to_string()));
-        assert_eq!(config.release, Some("v1.0.0".to_string()));
         assert_eq!(config.timeout, Duration::from_secs(30));
         assert!(config.debug);
     }
