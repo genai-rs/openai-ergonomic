@@ -125,9 +125,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - [Architecture Overview](docs/architecture.md)
 - **[📊 API Coverage Status](docs/api-coverage.md)** - See what APIs are available
 - **[📚 Examples Index](docs/examples-index.md)** - Browse all examples by category
-- [Responses-First Workflows](docs/guides/responses_workflows.md)
-- [Tool Orchestration](docs/guides/tool_orchestration.md)
-- [Vector Store Operations](docs/guides/vector_store_operations.md)
+- [Responses-First Workflows](docs/responses_workflows.md)
+- [Tool Orchestration](docs/tool_orchestration.md)
+- [Vector Store Operations](docs/vector_store_operations.md)
+- [Langfuse Integration](docs/langfuse-integration.md)
 - [API Documentation](https://docs.rs/openai-ergonomic)
 
 ## Examples
