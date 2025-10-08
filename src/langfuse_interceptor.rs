@@ -3,6 +3,7 @@
 //! This module is deprecated. Use `middleware::langfuse::LangfuseMiddleware` instead.
 
 #![allow(dead_code)]
+#![allow(deprecated)]
 
 /// Langfuse interceptor (deprecated).
 ///

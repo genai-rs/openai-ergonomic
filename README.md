@@ -152,7 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### OpenTelemetry Support
 
-Use the generic OpenTelemetry middleware for any OTel backend (Jaeger, Zipkin, etc.):
+Use the generic OpenTelemetry middleware for any `OTel` backend (Jaeger, Zipkin, etc.):
 
 ```rust,ignore
 use openai_ergonomic::{Client, Config};

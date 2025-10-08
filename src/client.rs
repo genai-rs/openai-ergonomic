@@ -73,6 +73,7 @@ macro_rules! impl_interceptor_helpers {
     ($client_type:ty) => {
         impl $client_type {
             /// Helper to call `before_request` hooks
+            #[allow(deprecated)]
             async fn call_before_request(
                 &self,
                 operation: &str,
@@ -106,6 +107,7 @@ macro_rules! impl_interceptor_helpers {
             }
 
             /// Helper to handle API errors with interceptor hooks
+            #[allow(deprecated)]
             async fn handle_api_error<T>(
                 &self,
                 error: openai_client_base::apis::Error<T>,
@@ -133,6 +135,7 @@ macro_rules! impl_interceptor_helpers {
             }
 
             /// Helper to call `after_response` hooks
+            #[allow(deprecated)]
             async fn call_after_response<T>(
                 &self,
                 response: &T,
@@ -199,15 +202,19 @@ pub struct Client {
 // Custom Debug implementation
 impl std::fmt::Debug for Client {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Client")
-            .field("config", &self.config)
-            .field("http", &"<HttpClient>")
-            .field("base_configuration", &"<Configuration>")
-            .field(
-                "middleware",
-                &format!("<{} middleware>", self.middleware.len()),
-            )
-            .finish()
+        #[allow(deprecated)]
+        {
+            f.debug_struct("Client")
+                .field("config", &self.config)
+                .field("http", &"<HttpClient>")
+                .field("base_configuration", &"<Configuration>")
+                .field("interceptors", &"<InterceptorChain>")
+                .field(
+                    "middleware",
+                    &format!("<{} middleware>", self.middleware.len()),
+                )
+                .finish()
+        }
     }
 }
 
@@ -279,6 +286,7 @@ impl Client {
     ///     .with_interceptor(Box::new(LoggingInterceptor));
     /// ```
     #[must_use]
+    #[allow(deprecated)]
     pub fn with_interceptor(self, interceptor: Box<dyn crate::interceptor::Interceptor>) -> Self {
         // Use futures::executor::block_on which works both inside and outside tokio runtime
         futures::executor::block_on(async {
@@ -342,6 +350,7 @@ impl ClientBuilder {
     }
 
     /// Set the client configuration.
+    #[must_use]
     pub fn config(mut self, config: Config) -> Self {
         self.config = Some(config);
         self
@@ -350,6 +359,7 @@ impl ClientBuilder {
     /// Add middleware to the client.
     ///
     /// Middleware are executed in the order they are added.
+    #[must_use]
     pub fn with_middleware(mut self, middleware: Arc<dyn Middleware>) -> Self {
         self.middleware = self.middleware.with(middleware);
         self
@@ -376,6 +386,7 @@ impl Default for ClientBuilder {
 // Interceptor helper methods
 impl Client {
     /// Helper to call `before_request` hooks
+    #[allow(deprecated)]
     async fn call_before_request(
         &self,
         operation: &str,
@@ -410,6 +421,7 @@ impl Client {
     }
 
     /// Helper to handle API errors with interceptor hooks
+    #[allow(deprecated)]
     async fn handle_api_error<T>(
         &self,
         error: openai_client_base::apis::Error<T>,
@@ -438,6 +450,7 @@ impl Client {
     }
 
     /// Helper to call `after_response` hooks
+    #[allow(deprecated)]
     async fn call_after_response<T>(
         &self,
         response: &T,

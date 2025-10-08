@@ -101,7 +101,7 @@ impl LangfuseMiddleware {
             .with_timeout(config.timeout)
             .build()
             .map_err(|e| {
-                crate::Error::Config(format!("Failed to build Langfuse exporter: {}", e))
+                crate::Error::Config(format!("Failed to build Langfuse exporter: {e}"))
             })?;
 
         // Create batch processor
@@ -243,10 +243,10 @@ impl LangfuseMiddleware {
 
         // Add request attributes
         if let Ok(ref params) = request_json {
-            if let Some(temp) = params.get("temperature").and_then(|v| v.as_f64()) {
+            if let Some(temp) = params.get("temperature").and_then(serde_json::Value::as_f64) {
                 attrs.push(KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temp));
             }
-            if let Some(max_tokens) = params.get("max_tokens").and_then(|v| v.as_i64()) {
+            if let Some(max_tokens) = params.get("max_tokens").and_then(serde_json::Value::as_i64) {
                 attrs.push(KeyValue::new(GEN_AI_REQUEST_MAX_TOKENS, max_tokens));
             }
 
@@ -267,7 +267,7 @@ impl LangfuseMiddleware {
         }
 
         let mut span = tracer
-            .span_builder(format!("OpenAI {}", operation))
+            .span_builder(format!("OpenAI {operation}"))
             .with_kind(SpanKind::Client)
             .with_attributes(attrs)
             .start(tracer);
@@ -278,6 +278,7 @@ impl LangfuseMiddleware {
         // Add response attributes
         match &response {
             Ok(resp) => {
+                #[allow(clippy::cast_possible_truncation)]
                 span.set_attribute(KeyValue::new(
                     "duration_ms",
                     start_time.elapsed().as_millis() as i64,
@@ -315,7 +316,7 @@ impl LangfuseMiddleware {
 
                     // Total tokens
                     if let Some(usage) = response_json.get("usage") {
-                        if let Some(total) = usage.get("total_tokens").and_then(|v| v.as_i64()) {
+                        if let Some(total) = usage.get("total_tokens").and_then(serde_json::Value::as_i64) {
                             span.set_attribute(KeyValue::new(
                                 "langfuse.observation.usage.total",
                                 total,
@@ -327,7 +328,7 @@ impl LangfuseMiddleware {
                 span.set_status(Status::Ok);
             }
             Err(e) => {
-                span.set_status(Status::error(format!("Error: {}", e)));
+                span.set_status(Status::error(format!("Error: {e}")));
             }
         }
 

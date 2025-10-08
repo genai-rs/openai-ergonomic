@@ -1,7 +1,7 @@
-//! Generic OpenTelemetry middleware following GenAI semantic conventions.
+//! Generic OpenTelemetry middleware following `GenAI` semantic conventions.
 //!
 //! This middleware creates spans with standardized attributes for any OpenTelemetry backend.
-//! Follows: https://opentelemetry.io/docs/specs/semconv/gen-ai/
+//! Follows: <https://opentelemetry.io/docs/specs/semconv/gen-ai/>
 
 use crate::middleware::{Middleware, MiddlewareRequest, MiddlewareResponse, Next};
 use crate::Result;
@@ -19,9 +19,9 @@ use opentelemetry_semantic_conventions::attribute::{
 use serde_json::Value;
 use std::time::Instant;
 
-/// OpenTelemetry middleware for GenAI semantic conventions.
+/// OpenTelemetry middleware for `GenAI` semantic conventions.
 ///
-/// Creates spans with standardized GenAI attributes that work with any
+/// Creates spans with standardized `GenAI` attributes that work with any
 /// OpenTelemetry backend (Jaeger, Zipkin, etc.).
 pub struct OpenTelemetryMiddleware {
     tracer_name: String,
@@ -73,10 +73,10 @@ impl Middleware for OpenTelemetryMiddleware {
 
         // Add request attributes
         if let Ok(params) = serde_json::from_str::<Value>(req.request_json) {
-            if let Some(temp) = params.get("temperature").and_then(|v| v.as_f64()) {
+            if let Some(temp) = params.get("temperature").and_then(Value::as_f64) {
                 span.set_attribute(KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temp));
             }
-            if let Some(max_tokens) = params.get("max_tokens").and_then(|v| v.as_i64()) {
+            if let Some(max_tokens) = params.get("max_tokens").and_then(Value::as_i64) {
                 span.set_attribute(KeyValue::new(GEN_AI_REQUEST_MAX_TOKENS, max_tokens));
             }
         }
@@ -87,6 +87,7 @@ impl Middleware for OpenTelemetryMiddleware {
         // Add response attributes
         match &response {
             Ok(resp) => {
+                #[allow(clippy::cast_possible_truncation)]
                 span.set_attribute(KeyValue::new(
                     "duration_ms",
                     start_time.elapsed().as_millis() as i64,
@@ -108,7 +109,7 @@ impl Middleware for OpenTelemetryMiddleware {
                 span.set_status(Status::Ok);
             }
             Err(e) => {
-                span.set_status(Status::error(format!("Error: {}", e)));
+                span.set_status(Status::error(format!("Error: {e}")));
                 span.set_attribute(KeyValue::new("error.type", e.to_string()));
             }
         }
