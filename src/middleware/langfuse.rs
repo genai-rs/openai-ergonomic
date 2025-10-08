@@ -173,7 +173,7 @@ impl Middleware for LangfuseMiddleware {
         let needs_root = !parent_cx.span().span_context().is_valid();
 
         // Parse request for attributes
-        let request_json: Result<Value, _> = serde_json::from_str(req.request_json);
+        let request_json = serde_json::from_str::<Value>(req.request_json);
 
         if needs_root {
             // Create root trace
@@ -224,13 +224,16 @@ impl LangfuseMiddleware {
         req: MiddlewareRequest<'_>,
         next: Next<'_>,
         tracer: &opentelemetry_sdk::trace::Tracer,
-        request_json: Result<Value, serde_json::Error>,
+        request_json: std::result::Result<Value, serde_json::Error>,
         start_time: Instant,
     ) -> Result<MiddlewareResponse> {
+        // Save operation name before moving req
+        let operation = req.operation.to_string();
+
         // Create observation span
         let mut attrs = vec![
             KeyValue::new(GEN_AI_SYSTEM, "openai"),
-            KeyValue::new(GEN_AI_OPERATION_NAME, req.operation.to_string()),
+            KeyValue::new(GEN_AI_OPERATION_NAME, operation.clone()),
             KeyValue::new(GEN_AI_REQUEST_MODEL, req.model.to_string()),
             KeyValue::new("langfuse.observation.type", "generation"),
             KeyValue::new("langfuse.observation.model.name", req.model.to_string()),
@@ -262,7 +265,7 @@ impl LangfuseMiddleware {
         }
 
         let mut span = tracer
-            .span_builder(format!("OpenAI {}", req.operation))
+            .span_builder(format!("OpenAI {}", operation))
             .with_kind(SpanKind::Client)
             .with_attributes(attrs)
             .start(tracer);
@@ -329,7 +332,7 @@ impl LangfuseMiddleware {
         span.end();
 
         if self.config.debug {
-            debug!("Langfuse span completed for operation: {}", req.operation);
+            debug!("Langfuse span completed for operation: {}", operation);
         }
 
         response
