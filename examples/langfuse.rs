@@ -18,7 +18,7 @@
 //! ```
 
 use openai_ergonomic::{Builder, ChatCompletionBuilder, Client, LangfuseInterceptor};
-use opentelemetry_langfuse::{context, span_storage};
+use opentelemetry_langfuse::context;
 use std::time::Duration;
 
 #[tokio::main]
@@ -43,58 +43,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 1: Simple chat completion
     println!("Example 1: Simple chat completion");
     println!("---------------------------------");
-    let response = span_storage::with_storage(async {
-        let chat_builder = client
-            .chat_simple("What is the capital of France? Answer in one word.")
-            .build()?;
-        client.execute_chat(chat_builder).await
-    })
-    .await?;
+    let chat_builder = client
+        .chat_simple("What is the capital of France? Answer in one word.")
+        .build()?;
+    let response = client.execute_chat(chat_builder).await?;
     println!("Response: {:?}\n", response.content());
 
     // Example 2: Chat completion with builder pattern
     println!("Example 2: Chat with builder pattern");
     println!("-------------------------------------");
-    let response = span_storage::with_storage(async {
-        let chat_builder = client
-            .chat()
-            .system("You are a helpful assistant that speaks like a pirate.")
-            .user("Tell me about the ocean in 2 sentences.")
-            .temperature(0.7)
-            .max_tokens(100)
-            .build()?;
-        client.execute_chat(chat_builder).await
-    })
-    .await?;
+    let chat_builder = client
+        .chat()
+        .system("You are a helpful assistant that speaks like a pirate.")
+        .user("Tell me about the ocean in 2 sentences.")
+        .temperature(0.7)
+        .max_tokens(100)
+        .build()?;
+    let response = client.execute_chat(chat_builder).await?;
     println!("Response: {:?}\n", response.content());
 
     // Example 3: Multiple messages in a conversation
     println!("Example 3: Conversation");
     println!("-----------------------");
-    let response = span_storage::with_storage(async {
-        let chat_builder = client
-            .chat()
-            .system("You are a math tutor.")
-            .user("What is 2 + 2?")
-            .assistant("2 + 2 equals 4.")
-            .user("And what about 3 + 3?")
-            .build()?;
-        client.execute_chat(chat_builder).await
-    })
-    .await?;
+    let chat_builder = client
+        .chat()
+        .system("You are a math tutor.")
+        .user("What is 2 + 2?")
+        .assistant("2 + 2 equals 4.")
+        .user("And what about 3 + 3?")
+        .build()?;
+    let response = client.execute_chat(chat_builder).await?;
     println!("Response: {:?}\n", response.content());
 
     // Example 4: Error handling (intentionally trigger an error)
     println!("Example 4: Error handling");
     println!("-------------------------");
-    let result = span_storage::with_storage(async {
-        // Create a builder with a non-existent model
-        let chat_builder = ChatCompletionBuilder::new("non-existent-model")
-            .user("This should fail")
-            .build()?;
-        client.execute_chat(chat_builder).await
-    })
-    .await;
+    // Create a builder with a non-existent model
+    let chat_builder = ChatCompletionBuilder::new("non-existent-model")
+        .user("This should fail")
+        .build()?;
+    let result = client.execute_chat(chat_builder).await;
 
     match result {
         Ok(_) => println!("Unexpected success"),
@@ -104,14 +92,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 5: Embeddings
     println!("Example 5: Embeddings");
     println!("--------------------");
-    let embeddings = span_storage::with_storage(async {
-        let embeddings_builder = client.embeddings().text(
-            "text-embedding-ada-002",
-            "The quick brown fox jumps over the lazy dog",
-        );
-        client.embeddings().create(embeddings_builder).await
-    })
-    .await?;
+    let embeddings_builder = client.embeddings().text(
+        "text-embedding-ada-002",
+        "The quick brown fox jumps over the lazy dog",
+    );
+    let embeddings = client.embeddings().create(embeddings_builder).await?;
     println!("Generated {} embedding(s)\n", embeddings.data.len());
 
     // Example 6: Using custom metadata via GLOBAL_CONTEXT
@@ -123,13 +108,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     context::set_user_id("demo-user-456");
     context::add_tags(vec!["example".to_string(), "demo".to_string()]);
 
-    let response = span_storage::with_storage(async {
-        let chat_builder = client
-            .chat_simple("Say 'Hello from custom session!'")
-            .build()?;
-        client.execute_chat(chat_builder).await
-    })
-    .await?;
+    let chat_builder = client
+        .chat_simple("Say 'Hello from custom session!'")
+        .build()?;
+    let response = client.execute_chat(chat_builder).await?;
     println!("Response with custom metadata: {:?}\n", response.content());
 
     // Clear context for subsequent calls
