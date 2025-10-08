@@ -100,9 +100,7 @@ impl LangfuseMiddleware {
             .with_basic_auth(&config.public_key, &config.secret_key)
             .with_timeout(config.timeout)
             .build()
-            .map_err(|e| {
-                crate::Error::Config(format!("Failed to build Langfuse exporter: {e}"))
-            })?;
+            .map_err(|e| crate::Error::Config(format!("Failed to build Langfuse exporter: {e}")))?;
 
         // Create batch processor
         let batch_config = BatchConfigBuilder::default()
@@ -243,7 +241,10 @@ impl LangfuseMiddleware {
 
         // Add request attributes
         if let Ok(ref params) = request_json {
-            if let Some(temp) = params.get("temperature").and_then(serde_json::Value::as_f64) {
+            if let Some(temp) = params
+                .get("temperature")
+                .and_then(serde_json::Value::as_f64)
+            {
                 attrs.push(KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temp));
             }
             if let Some(max_tokens) = params.get("max_tokens").and_then(serde_json::Value::as_i64) {
@@ -316,7 +317,10 @@ impl LangfuseMiddleware {
 
                     // Total tokens
                     if let Some(usage) = response_json.get("usage") {
-                        if let Some(total) = usage.get("total_tokens").and_then(serde_json::Value::as_i64) {
+                        if let Some(total) = usage
+                            .get("total_tokens")
+                            .and_then(serde_json::Value::as_i64)
+                        {
                             span.set_attribute(KeyValue::new(
                                 "langfuse.observation.usage.total",
                                 total,
