@@ -71,9 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Example 3: Error handling
     println!("Example 3: Error handling");
     println!("-------------------------");
-    let chat_builder = client
-        .chat()
-        .model("non-existent-model")
+    let chat_builder = ChatCompletionBuilder::new("non-existent-model")
         .user("This should fail")
         .build()?;
     let result = client.execute_chat(chat_builder).await;
