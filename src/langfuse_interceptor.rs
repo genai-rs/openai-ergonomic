@@ -193,11 +193,11 @@ where
 }
 
 #[async_trait::async_trait]
-impl<T: Tracer + Send + Sync> Interceptor for LangfuseInterceptor<T>
+impl<T: Tracer + Send + Sync> Interceptor<std::collections::HashMap<String, String>> for LangfuseInterceptor<T>
 where
     T::Span: Send + Sync + 'static,
 {
-    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
+    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
         let tracer = self.tracer.as_ref();
 
         // Build initial attributes
@@ -253,7 +253,7 @@ where
         );
 
         // Store span ID in metadata so after_response can retrieve it
-        ctx.metadata.insert("langfuse_span_id".to_string(), span_id);
+        ctx.state.insert("langfuse_span_id".to_string(), span_id);
 
         if self.config.debug {
             debug!("Started Langfuse span for operation: {}", ctx.operation);
@@ -262,9 +262,9 @@ where
         Ok(())
     }
 
-    async fn after_response(&self, ctx: &AfterResponseContext<'_>) -> Result<()> {
+    async fn after_response(&self, ctx: &AfterResponseContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
         // Retrieve span ID from metadata
-        let Some(span_id) = ctx.metadata.get("langfuse_span_id") else {
+        let Some(span_id) = ctx.state.get("langfuse_span_id") else {
             if self.config.debug {
                 debug!("No span ID found in metadata for operation: {}", ctx.operation);
             }
@@ -325,15 +325,15 @@ where
         Ok(())
     }
 
-    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_>) -> Result<()> {
+    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
         // Stream chunks can add attributes to the current span if needed
         // For now, we just let them pass through
         Ok(())
     }
 
-    async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
+    async fn on_stream_end(&self, ctx: &StreamEndContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
         // Retrieve span ID from metadata
-        let Some(span_id) = ctx.metadata.get("langfuse_span_id") else {
+        let Some(span_id) = ctx.state.get("langfuse_span_id") else {
             if self.config.debug {
                 debug!("No span ID found in metadata for stream operation: {}", ctx.operation);
             }
@@ -367,9 +367,9 @@ where
         Ok(())
     }
 
-    async fn on_error(&self, ctx: &ErrorContext<'_>) {
+    async fn on_error(&self, ctx: &ErrorContext<'_, std::collections::HashMap<String, String>>) {
         // Retrieve span ID from metadata if available
-        let Some(metadata) = ctx.metadata else {
+        let Some(metadata) = ctx.state else {
             if self.config.debug {
                 debug!("No metadata available for error in operation: {}", ctx.operation);
             }
@@ -410,27 +410,27 @@ where
 
 // Implement Interceptor for Arc<LangfuseInterceptor<T>> to allow sharing the interceptor
 #[async_trait::async_trait]
-impl<T: Tracer + Send + Sync> Interceptor for Arc<LangfuseInterceptor<T>>
+impl<T: Tracer + Send + Sync> Interceptor<std::collections::HashMap<String, String>> for Arc<LangfuseInterceptor<T>>
 where
     T::Span: Send + Sync + 'static,
 {
-    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
+    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
         (**self).before_request(ctx).await
     }
 
-    async fn after_response(&self, ctx: &AfterResponseContext<'_>) -> Result<()> {
+    async fn after_response(&self, ctx: &AfterResponseContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
         (**self).after_response(ctx).await
     }
 
-    async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_>) -> Result<()> {
+    async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
         (**self).on_stream_chunk(ctx).await
     }
 
-    async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
+    async fn on_stream_end(&self, ctx: &StreamEndContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
         (**self).on_stream_end(ctx).await
     }
 
-    async fn on_error(&self, ctx: &ErrorContext<'_>) {
+    async fn on_error(&self, ctx: &ErrorContext<'_, std::collections::HashMap<String, String>>) {
         (**self).on_error(ctx).await
     }
 }

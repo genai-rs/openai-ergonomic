@@ -69,14 +69,14 @@ use tokio::time::Duration;
 // Helper macro to generate interceptor helper methods for sub-clients
 macro_rules! impl_interceptor_helpers {
     ($client_type:ty) => {
-        impl $client_type {
+        impl<T: Default + Send + Sync> $client_type {
             /// Helper to call `before_request` hooks
             async fn call_before_request(
                 &self,
                 operation: &str,
                 model: &str,
                 request_json: &str,
-                metadata: &mut HashMap<String, String>,
+                state: &mut T,
             ) -> Result<()> {
                 let chain = self.client.interceptors.read().await;
                 if !chain.is_empty() {
@@ -84,7 +84,7 @@ macro_rules! impl_interceptor_helpers {
                         operation,
                         model,
                         request_json,
-                        metadata,
+                        state,
                     };
                     if let Err(e) = chain.before_request(&mut ctx).await {
                         let error_ctx = ErrorContext {
@@ -92,7 +92,7 @@ macro_rules! impl_interceptor_helpers {
                             model: Some(model),
                             request_json: Some(request_json),
                             error: &e,
-                            metadata: Some(metadata),
+                            state: Some(state),
                         };
                         chain.on_error(&error_ctx).await;
                         drop(chain); // Explicitly drop the guard
@@ -104,13 +104,13 @@ macro_rules! impl_interceptor_helpers {
             }
 
             /// Helper to handle API errors with interceptor hooks
-            async fn handle_api_error<T>(
+            async fn handle_api_error<E>(
                 &self,
-                error: openai_client_base::apis::Error<T>,
+                error: openai_client_base::apis::Error<E>,
                 operation: &str,
                 model: &str,
                 request_json: &str,
-                metadata: &HashMap<String, String>,
+                state: &T,
             ) -> Error {
                 let error = map_api_error(error);
 
@@ -121,7 +121,7 @@ macro_rules! impl_interceptor_helpers {
                         model: Some(model),
                         request_json: Some(request_json),
                         error: &error,
-                        metadata: Some(metadata),
+                        state: Some(state),
                     };
                     chain.on_error(&error_ctx).await;
                 }
@@ -131,18 +131,18 @@ macro_rules! impl_interceptor_helpers {
             }
 
             /// Helper to call `after_response` hooks
-            async fn call_after_response<T>(
+            async fn call_after_response<R>(
                 &self,
-                response: &T,
+                response: &R,
                 operation: &str,
                 model: &str,
                 request_json: &str,
-                metadata: &HashMap<String, String>,
+                state: &T,
                 duration: std::time::Duration,
                 input_tokens: Option<i64>,
                 output_tokens: Option<i64>,
             ) where
-                T: serde::Serialize + Sync,
+                R: serde::Serialize + Sync,
             {
                 let chain = self.client.interceptors.read().await;
                 if !chain.is_empty() {
@@ -155,7 +155,7 @@ macro_rules! impl_interceptor_helpers {
                         duration,
                         input_tokens,
                         output_tokens,
-                        metadata,
+                        state,
                     };
                     if let Err(e) = chain.after_response(&ctx).await {
                         tracing::warn!("Interceptor after_response failed: {}", e);
@@ -185,15 +185,15 @@ macro_rules! impl_interceptor_helpers {
 /// # }
 /// ```
 #[derive(Clone)]
-pub struct Client {
+pub struct Client<T = ()> {
     config: Arc<Config>,
     http: HttpClient,
     base_configuration: Configuration,
-    interceptors: Arc<RwLock<InterceptorChain>>,
+    interceptors: Arc<RwLock<InterceptorChain<T>>>,
 }
 
 // Custom Debug implementation since InterceptorChain doesn't implement Debug
-impl std::fmt::Debug for Client {
+impl<T> std::fmt::Debug for Client<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Client")
             .field("config", &self.config)
@@ -204,7 +204,7 @@ impl std::fmt::Debug for Client {
     }
 }
 
-impl Client {
+impl<T> Client<T> {
     /// Create a new client with the given configuration.
     pub fn new(config: Config) -> Result<Self> {
         // Use custom HTTP client if provided, otherwise build a default one
@@ -270,7 +270,7 @@ impl Client {
     ///     .with_interceptor(Box::new(LoggingInterceptor));
     /// ```
     #[must_use]
-    pub fn with_interceptor(self, interceptor: Box<dyn crate::interceptor::Interceptor>) -> Self {
+    pub fn with_interceptor(self, interceptor: Box<dyn crate::interceptor::Interceptor<T>>) -> Self {
         // Use futures::executor::block_on which works both inside and outside tokio runtime
         futures::executor::block_on(async {
             let mut chain = self.interceptors.write().await;
@@ -293,20 +293,20 @@ impl Client {
     ///
     /// This is primarily for internal use when executing requests.
     #[allow(dead_code)]
-    pub(crate) fn interceptors(&self) -> &Arc<RwLock<InterceptorChain>> {
+    pub(crate) fn interceptors(&self) -> &Arc<RwLock<InterceptorChain<T>>> {
         &self.interceptors
     }
 }
 
 // Interceptor helper methods
-impl Client {
+impl<T: Default + Send + Sync> Client<T> {
     /// Helper to call `before_request` hooks
     async fn call_before_request(
         &self,
         operation: &str,
         model: &str,
         request_json: &str,
-        metadata: &mut HashMap<String, String>,
+        state: &mut T,
     ) -> Result<()> {
         let chain = self.interceptors.read().await;
         if !chain.is_empty() {
@@ -314,7 +314,7 @@ impl Client {
                 operation,
                 model,
                 request_json,
-                metadata,
+                state,
             };
             if let Err(e) = chain.before_request(&mut ctx).await {
                 // If before_request fails, call error hook and return error
@@ -323,7 +323,7 @@ impl Client {
                     model: Some(model),
                     request_json: Some(request_json),
                     error: &e,
-                    metadata: Some(metadata),
+                    state: Some(state),
                 };
                 chain.on_error(&error_ctx).await;
                 drop(chain); // Explicitly drop the guard
@@ -335,13 +335,13 @@ impl Client {
     }
 
     /// Helper to handle API errors with interceptor hooks
-    async fn handle_api_error<T>(
+    async fn handle_api_error<E>(
         &self,
-        error: openai_client_base::apis::Error<T>,
+        error: openai_client_base::apis::Error<E>,
         operation: &str,
         model: &str,
         request_json: &str,
-        metadata: &HashMap<String, String>,
+        state: &T,
     ) -> Error {
         let error = map_api_error(error);
 
@@ -353,7 +353,7 @@ impl Client {
                 model: Some(model),
                 request_json: Some(request_json),
                 error: &error,
-                metadata: Some(metadata),
+                state: Some(state),
             };
             chain.on_error(&error_ctx).await;
         }
@@ -363,18 +363,18 @@ impl Client {
     }
 
     /// Helper to call `after_response` hooks
-    async fn call_after_response<T>(
+    async fn call_after_response<R>(
         &self,
-        response: &T,
+        response: &R,
         operation: &str,
         model: &str,
         request_json: &str,
-        metadata: &HashMap<String, String>,
+        state: &T,
         duration: std::time::Duration,
         input_tokens: Option<i64>,
         output_tokens: Option<i64>,
     ) where
-        T: serde::Serialize + Sync,
+        R: serde::Serialize + Sync,
     {
         let chain = self.interceptors.read().await;
         if !chain.is_empty() {
@@ -387,7 +387,7 @@ impl Client {
                 duration,
                 input_tokens,
                 output_tokens,
-                metadata,
+                state,
             };
             if let Err(e) = chain.after_response(&ctx).await {
                 // If after_response fails, we still return the response but log the error
@@ -399,7 +399,7 @@ impl Client {
 }
 
 // Chat API methods
-impl Client {
+impl<T: Default + Send + Sync> Client<T> {
     /// Create a chat completion builder.
     pub fn chat(&self) -> ChatCompletionBuilder {
         let model = self.config.default_model().unwrap_or("gpt-4");
@@ -425,13 +425,13 @@ impl Client {
         &self,
         request: CreateChatCompletionRequest,
     ) -> Result<ChatCompletionResponseWrapper> {
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::CHAT;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -446,7 +446,7 @@ impl Client {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -460,7 +460,7 @@ impl Client {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             response.usage.as_ref().map(|u| i64::from(u.prompt_tokens)),
             response
@@ -484,7 +484,7 @@ impl Client {
 }
 
 // Responses API methods
-impl Client {
+impl<T: Default + Send + Sync> Client<T> {
     /// Create a responses builder for structured outputs.
     pub fn responses(&self) -> ResponsesBuilder {
         let model = self.config.default_model().unwrap_or("gpt-4");
@@ -516,93 +516,93 @@ impl Client {
 }
 
 // TODO: Add methods for other API endpoints
-impl Client {
+impl<T: Default + Send + Sync> Client<T> {
     /// Get assistants client (placeholder).
     #[must_use]
-    pub fn assistants(&self) -> AssistantsClient<'_> {
+    pub fn assistants(&self) -> AssistantsClient<'_, T> {
         AssistantsClient { client: self }
     }
 
     /// Get audio client (placeholder).
     #[must_use]
-    pub fn audio(&self) -> AudioClient<'_> {
+    pub fn audio(&self) -> AudioClient<'_, T> {
         AudioClient { client: self }
     }
 
     /// Get embeddings client (placeholder).
     #[must_use]
-    pub fn embeddings(&self) -> EmbeddingsClient<'_> {
+    pub fn embeddings(&self) -> EmbeddingsClient<'_, T> {
         EmbeddingsClient { client: self }
     }
 
     /// Get images client (placeholder).
     #[must_use]
-    pub fn images(&self) -> ImagesClient<'_> {
+    pub fn images(&self) -> ImagesClient<'_, T> {
         ImagesClient { client: self }
     }
 
     /// Get files client (placeholder).
     #[must_use]
-    pub fn files(&self) -> FilesClient<'_> {
+    pub fn files(&self) -> FilesClient<'_, T> {
         FilesClient { client: self }
     }
 
     /// Get fine-tuning client (placeholder).
     #[must_use]
-    pub fn fine_tuning(&self) -> FineTuningClient<'_> {
+    pub fn fine_tuning(&self) -> FineTuningClient<'_, T> {
         FineTuningClient { client: self }
     }
 
     /// Get batch client (placeholder).
     #[must_use]
-    pub fn batch(&self) -> BatchClient<'_> {
+    pub fn batch(&self) -> BatchClient<'_, T> {
         BatchClient { client: self }
     }
 
     /// Get vector stores client (placeholder).
     #[must_use]
-    pub fn vector_stores(&self) -> VectorStoresClient<'_> {
+    pub fn vector_stores(&self) -> VectorStoresClient<'_, T> {
         VectorStoresClient { client: self }
     }
 
     /// Get moderations client (placeholder).
     #[must_use]
-    pub fn moderations(&self) -> ModerationsClient<'_> {
+    pub fn moderations(&self) -> ModerationsClient<'_, T> {
         ModerationsClient { client: self }
     }
 
     /// Get threads client (placeholder).
     #[must_use]
-    pub fn threads(&self) -> ThreadsClient<'_> {
+    pub fn threads(&self) -> ThreadsClient<'_, T> {
         ThreadsClient { client: self }
     }
 
     /// Get uploads client (placeholder).
     #[must_use]
-    pub fn uploads(&self) -> UploadsClient<'_> {
+    pub fn uploads(&self) -> UploadsClient<'_, T> {
         UploadsClient { client: self }
     }
 
     /// Get models client.
     #[must_use]
-    pub fn models(&self) -> ModelsClient<'_> {
+    pub fn models(&self) -> ModelsClient<'_, T> {
         ModelsClient { client: self }
     }
 
     /// Get completions client.
     #[must_use]
-    pub fn completions(&self) -> CompletionsClient<'_> {
+    pub fn completions(&self) -> CompletionsClient<'_, T> {
         CompletionsClient { client: self }
     }
 
     /// Get usage client.
     #[must_use]
-    pub fn usage(&self) -> UsageClient<'_> {
+    pub fn usage(&self) -> UsageClient<'_, T> {
         UsageClient { client: self }
     }
 }
 
-impl AudioClient<'_> {
+impl<T: Default + Send + Sync> AudioClient<\'_, T> {
     /// Create a speech builder for text-to-speech generation.
     #[must_use]
     pub fn speech(
@@ -617,13 +617,13 @@ impl AudioClient<'_> {
     /// Submit a speech synthesis request and return binary audio data.
     pub async fn create_speech(&self, builder: SpeechBuilder) -> Result<Vec<u8>> {
         let request = builder.build()?;
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::AUDIO_SPEECH;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -638,7 +638,7 @@ impl AudioClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -654,7 +654,7 @@ impl AudioClient<'_> {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -681,13 +681,13 @@ impl AudioClient<'_> {
     ) -> Result<CreateTranscription200Response> {
         let request = builder.build()?;
         let model_str = request.model.clone();
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::AUDIO_TRANSCRIPTION;
         // TranscriptionRequest doesn't implement Serialize, so we'll create a simple JSON representation
         let request_json = format!(r#"{{"model":"{model_str}","file":"<audio_file>"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, &model_str, &request_json, &mut metadata)
+        self.call_before_request(operation, &model_str, &request_json, &mut state)
             .await?;
 
         let TranscriptionRequest {
@@ -731,7 +731,7 @@ impl AudioClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model_str, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model_str, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -745,7 +745,7 @@ impl AudioClient<'_> {
             operation,
             &model_str,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -774,12 +774,12 @@ impl AudioClient<'_> {
         let model_str = request.model.clone();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::AUDIO_TRANSLATION;
         let request_json = format!(r#"{{"model":"{model_str}","file":"<audio_file>"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, &model_str, &request_json, &mut metadata)
+        self.call_before_request(operation, &model_str, &request_json, &mut state)
             .await?;
 
         let TranslationRequest {
@@ -808,7 +808,7 @@ impl AudioClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model_str, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model_str, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -822,7 +822,7 @@ impl AudioClient<'_> {
             operation,
             &model_str,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -833,7 +833,7 @@ impl AudioClient<'_> {
     }
 }
 
-impl EmbeddingsClient<'_> {
+impl<T: Default + Send + Sync> EmbeddingsClient<\'_, T> {
     /// Start a builder for creating embeddings requests with the given model.
     #[must_use]
     pub fn builder(&self, model: impl Into<String>) -> EmbeddingsBuilder {
@@ -860,13 +860,13 @@ impl EmbeddingsClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::EMBEDDINGS;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -881,7 +881,7 @@ impl EmbeddingsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -895,7 +895,7 @@ impl EmbeddingsClient<'_> {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             Some(i64::from(response.usage.prompt_tokens)),
             Some(i64::from(response.usage.total_tokens)),
@@ -906,7 +906,7 @@ impl EmbeddingsClient<'_> {
     }
 }
 
-impl ImagesClient<'_> {
+impl<T: Default + Send + Sync> ImagesClient<\'_, T> {
     /// Create a builder for image generation requests.
     #[must_use]
     pub fn generate(&self, prompt: impl Into<String>) -> ImageGenerationBuilder {
@@ -918,7 +918,7 @@ impl ImagesClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::IMAGE_GENERATION;
         let model = request
             .model
@@ -927,7 +927,7 @@ impl ImagesClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -942,7 +942,7 @@ impl ImagesClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -956,7 +956,7 @@ impl ImagesClient<'_> {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -985,7 +985,7 @@ impl ImagesClient<'_> {
             .map_or_else(|| "dall-e-2".to_string(), ToString::to_string);
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::IMAGE_EDIT;
         let request_json = format!(
             r#"{{"prompt":"{}","model":"{}"}}"#,
@@ -993,7 +993,7 @@ impl ImagesClient<'_> {
         );
 
         // Call before_request hook
-        self.call_before_request(operation, &model_str, &request_json, &mut metadata)
+        self.call_before_request(operation, &model_str, &request_json, &mut state)
             .await?;
 
         let ImageEditRequest {
@@ -1040,7 +1040,7 @@ impl ImagesClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model_str, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model_str, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1054,7 +1054,7 @@ impl ImagesClient<'_> {
             operation,
             &model_str,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1079,12 +1079,12 @@ impl ImagesClient<'_> {
             .map_or_else(|| "dall-e-2".to_string(), ToString::to_string);
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::IMAGE_VARIATION;
         let request_json = format!(r#"{{"model":"{model_str}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, &model_str, &request_json, &mut metadata)
+        self.call_before_request(operation, &model_str, &request_json, &mut state)
             .await?;
 
         let ImageVariationRequest {
@@ -1113,7 +1113,7 @@ impl ImagesClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model_str, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model_str, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1127,7 +1127,7 @@ impl ImagesClient<'_> {
             operation,
             &model_str,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1138,7 +1138,7 @@ impl ImagesClient<'_> {
     }
 }
 
-impl ThreadsClient<'_> {
+impl<T: Default + Send + Sync> ThreadsClient<\'_, T> {
     /// Start building a new thread request.
     #[must_use]
     pub fn builder(&self) -> ThreadRequestBuilder {
@@ -1150,13 +1150,13 @@ impl ThreadsClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::THREAD_CREATE;
         let model = "thread"; // No model for thread operations
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1171,7 +1171,7 @@ impl ThreadsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1185,7 +1185,7 @@ impl ThreadsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1196,7 +1196,7 @@ impl ThreadsClient<'_> {
     }
 }
 
-impl UploadsClient<'_> {
+impl<T: Default + Send + Sync> UploadsClient<\'_, T> {
     /// Create a new upload builder for the given file metadata.
     #[must_use]
     pub fn builder(
@@ -1214,13 +1214,13 @@ impl UploadsClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::UPLOAD_CREATE;
         let model = "upload"; // No model for upload operations
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1235,7 +1235,7 @@ impl UploadsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1249,7 +1249,7 @@ impl UploadsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1260,7 +1260,7 @@ impl UploadsClient<'_> {
     }
 }
 
-impl ModerationsClient<'_> {
+impl<T: Default + Send + Sync> ModerationsClient<\'_, T> {
     /// Create a moderation builder for checking text content.
     ///
     /// # Example
@@ -1338,7 +1338,7 @@ impl ModerationsClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::MODERATION;
         let model = request
             .model
@@ -1347,7 +1347,7 @@ impl ModerationsClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1362,7 +1362,7 @@ impl ModerationsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1376,7 +1376,7 @@ impl ModerationsClient<'_> {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1387,7 +1387,7 @@ impl ModerationsClient<'_> {
     }
 }
 
-impl FilesClient<'_> {
+impl<T: Default + Send + Sync> FilesClient<\'_, T> {
     /// Upload a file to `OpenAI`.
     ///
     /// # Example
@@ -1421,7 +1421,7 @@ impl FilesClient<'_> {
         };
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FILE_UPLOAD;
         let model = "file-upload"; // No model for file operations
         let request_json = format!(
@@ -1433,7 +1433,7 @@ impl FilesClient<'_> {
 
         // Call before_request hook
         if let Err(e) = self
-            .call_before_request(operation, model, &request_json, &mut metadata)
+            .call_before_request(operation, model, &request_json, &mut state)
             .await
         {
             // Clean up temp file before returning
@@ -1456,7 +1456,7 @@ impl FilesClient<'_> {
                 // Clean up temp file
                 let _ = std::fs::remove_file(&temp_file_path);
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1473,7 +1473,7 @@ impl FilesClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1557,7 +1557,7 @@ impl FilesClient<'_> {
         let order = builder.order_ref().map(ToString::to_string);
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FILE_LIST;
         let model = "files";
         let request_json = format!(
@@ -1568,7 +1568,7 @@ impl FilesClient<'_> {
         );
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1585,7 +1585,7 @@ impl FilesClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1599,7 +1599,7 @@ impl FilesClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1633,13 +1633,13 @@ impl FilesClient<'_> {
         let file_id = file_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FILE_RETRIEVE;
         let model = "files";
         let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1654,7 +1654,7 @@ impl FilesClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1668,7 +1668,7 @@ impl FilesClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1701,13 +1701,13 @@ impl FilesClient<'_> {
         let file_id = file_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FILE_DOWNLOAD;
         let model = "files";
         let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1722,7 +1722,7 @@ impl FilesClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1737,7 +1737,7 @@ impl FilesClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1771,13 +1771,13 @@ impl FilesClient<'_> {
         let file_id = file_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FILE_DELETE;
         let model = "files";
         let request_json = format!(r#"{{"file_id":"{file_id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1792,7 +1792,7 @@ impl FilesClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1806,7 +1806,7 @@ impl FilesClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1822,7 +1822,7 @@ impl FilesClient<'_> {
     }
 }
 
-impl VectorStoresClient<'_> {
+impl<T: Default + Send + Sync> VectorStoresClient<\'_, T> {
     /// Create a new vector store.
     ///
     /// # Example
@@ -1868,13 +1868,13 @@ impl VectorStoresClient<'_> {
         }
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_CREATE;
         let model = "vector-store";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1889,7 +1889,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1903,7 +1903,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -1935,7 +1935,7 @@ impl VectorStoresClient<'_> {
         before: Option<&str>,
     ) -> Result<ListVectorStoresResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_LIST;
         let model = "vector-store";
         let request_json = format!(
@@ -1945,7 +1945,7 @@ impl VectorStoresClient<'_> {
         );
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -1963,7 +1963,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -1977,7 +1977,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2005,13 +2005,13 @@ impl VectorStoresClient<'_> {
         let id = vector_store_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_RETRIEVE;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2026,7 +2026,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2040,7 +2040,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2092,13 +2092,13 @@ impl VectorStoresClient<'_> {
         }
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_UPDATE;
         let model = "vector-store";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2114,7 +2114,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2128,7 +2128,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2159,13 +2159,13 @@ impl VectorStoresClient<'_> {
         let id = vector_store_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_DELETE;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2180,7 +2180,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2194,7 +2194,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2230,13 +2230,13 @@ impl VectorStoresClient<'_> {
         let request = CreateVectorStoreFileRequest::new(f_id.clone());
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_FILE_ADD;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2252,7 +2252,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2266,7 +2266,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2302,13 +2302,13 @@ impl VectorStoresClient<'_> {
         let id = vector_store_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_FILE_LIST;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2328,7 +2328,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2342,7 +2342,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2375,13 +2375,13 @@ impl VectorStoresClient<'_> {
         let f_id = file_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_FILE_RETRIEVE;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2397,7 +2397,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2411,7 +2411,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2444,13 +2444,13 @@ impl VectorStoresClient<'_> {
         let f_id = file_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_FILE_DELETE;
         let model = "vector-store";
         let request_json = format!(r#"{{"vector_store_id":"{vs_id}","file_id":"{f_id}"}}"#);
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2466,7 +2466,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2480,7 +2480,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2522,7 +2522,7 @@ impl VectorStoresClient<'_> {
         let vs_id = builder.vector_store_id().to_string();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_SEARCH;
         let model = "vector-store";
         let request_json = format!(
@@ -2532,7 +2532,7 @@ impl VectorStoresClient<'_> {
         );
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2548,7 +2548,7 @@ impl VectorStoresClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2562,7 +2562,7 @@ impl VectorStoresClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2573,7 +2573,7 @@ impl VectorStoresClient<'_> {
     }
 }
 
-impl BatchClient<'_> {
+impl<T: Default + Send + Sync> BatchClient<\'_, T> {
     /// Create a new batch job.
     ///
     /// # Example
@@ -2613,13 +2613,13 @@ impl BatchClient<'_> {
         }
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::BATCH_CREATE;
         let model = "batch";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2634,7 +2634,7 @@ impl BatchClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2648,7 +2648,7 @@ impl BatchClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2678,13 +2678,13 @@ impl BatchClient<'_> {
         limit: Option<i32>,
     ) -> Result<ListBatchesResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::BATCH_LIST;
         let model = "batch";
         let request_json = format!("{{\"after\":{after:?},\"limit\":{limit:?}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2700,7 +2700,7 @@ impl BatchClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2714,7 +2714,7 @@ impl BatchClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2742,13 +2742,13 @@ impl BatchClient<'_> {
         let id = batch_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::BATCH_RETRIEVE;
         let model = "batch";
         let request_json = format!("{{\"batch_id\":\"{id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2763,7 +2763,7 @@ impl BatchClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2777,7 +2777,7 @@ impl BatchClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2805,13 +2805,13 @@ impl BatchClient<'_> {
         let id = batch_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::BATCH_CANCEL;
         let model = "batch";
         let request_json = format!("{{\"batch_id\":\"{id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2826,7 +2826,7 @@ impl BatchClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2840,7 +2840,7 @@ impl BatchClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2851,7 +2851,7 @@ impl BatchClient<'_> {
     }
 }
 
-impl FineTuningClient<'_> {
+impl<T: Default + Send + Sync> FineTuningClient<\'_, T> {
     /// Create a new fine-tuning job.
     ///
     /// # Example
@@ -2891,13 +2891,13 @@ impl FineTuningClient<'_> {
         // TODO: Update when openai-client-base fixes hyperparameters types
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FINE_TUNING_CREATE;
         let model = builder.model();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2912,7 +2912,7 @@ impl FineTuningClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2926,7 +2926,7 @@ impl FineTuningClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -2956,13 +2956,13 @@ impl FineTuningClient<'_> {
         limit: Option<i32>,
     ) -> Result<ListPaginatedFineTuningJobsResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FINE_TUNING_LIST;
         let model = "fine-tuning";
         let request_json = format!("{{\"after\":{after:?},\"limit\":{limit:?}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -2978,7 +2978,7 @@ impl FineTuningClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -2992,7 +2992,7 @@ impl FineTuningClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3020,13 +3020,13 @@ impl FineTuningClient<'_> {
         let id = job_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FINE_TUNING_RETRIEVE;
         let model = "fine-tuning";
         let request_json = format!("{{\"job_id\":\"{id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3041,7 +3041,7 @@ impl FineTuningClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3055,7 +3055,7 @@ impl FineTuningClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3083,13 +3083,13 @@ impl FineTuningClient<'_> {
         let id = job_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FINE_TUNING_CANCEL;
         let model = "fine-tuning";
         let request_json = format!("{{\"job_id\":\"{id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3104,7 +3104,7 @@ impl FineTuningClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3118,7 +3118,7 @@ impl FineTuningClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3151,14 +3151,14 @@ impl FineTuningClient<'_> {
         let id = job_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FINE_TUNING_LIST_EVENTS;
         let model = "fine-tuning";
         let request_json =
             format!("{{\"job_id\":\"{id}\",\"after\":{after:?},\"limit\":{limit:?}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3175,7 +3175,7 @@ impl FineTuningClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3189,7 +3189,7 @@ impl FineTuningClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3222,14 +3222,14 @@ impl FineTuningClient<'_> {
         let id = job_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::FINE_TUNING_LIST_CHECKPOINTS;
         let model = "fine-tuning";
         let request_json =
             format!("{{\"job_id\":\"{id}\",\"after\":{after:?},\"limit\":{limit:?}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3246,7 +3246,7 @@ impl FineTuningClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3260,7 +3260,7 @@ impl FineTuningClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3494,11 +3494,11 @@ mod tests {
 
 /// Client for assistants API.
 #[derive(Debug, Clone, Copy)]
-pub struct AssistantsClient<'a> {
-    client: &'a Client,
+pub struct AssistantsClient<'a, T = ()> {
+    client: &'a Client<T>,
 }
 
-impl AssistantsClient<'_> {
+impl<T: Default + Send + Sync> AssistantsClient<\'_, T> {
     /// Create a new assistant.
     ///
     /// # Example
@@ -3521,13 +3521,13 @@ impl AssistantsClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::ASSISTANT_CREATE;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3542,7 +3542,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3556,7 +3556,7 @@ impl AssistantsClient<'_> {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3588,7 +3588,7 @@ impl AssistantsClient<'_> {
         before: Option<&str>,
     ) -> Result<ListAssistantsResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::ASSISTANT_LIST;
         let model = "assistants";
         let request_json = format!(
@@ -3596,7 +3596,7 @@ impl AssistantsClient<'_> {
         );
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3614,7 +3614,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3628,7 +3628,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3656,13 +3656,13 @@ impl AssistantsClient<'_> {
         let id = assistant_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::ASSISTANT_RETRIEVE;
         let model = "assistants";
         let request_json = format!("{{\"assistant_id\":\"{id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3677,7 +3677,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3691,7 +3691,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3753,7 +3753,7 @@ impl AssistantsClient<'_> {
         request.metadata = request_data.metadata;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::ASSISTANT_UPDATE;
         let model = request
             .model
@@ -3762,7 +3762,7 @@ impl AssistantsClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3778,7 +3778,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3792,7 +3792,7 @@ impl AssistantsClient<'_> {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3820,13 +3820,13 @@ impl AssistantsClient<'_> {
         let id = assistant_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::ASSISTANT_DELETE;
         let model = "assistants";
         let request_json = format!("{{\"assistant_id\":\"{id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3841,7 +3841,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3855,7 +3855,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3890,7 +3890,7 @@ impl AssistantsClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::RUN_CREATE;
         let model = request
             .model
@@ -3899,7 +3899,7 @@ impl AssistantsClient<'_> {
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3915,7 +3915,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -3929,7 +3929,7 @@ impl AssistantsClient<'_> {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -3964,7 +3964,7 @@ impl AssistantsClient<'_> {
         let thread_id = thread_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::RUN_LIST;
         let model = "runs";
         let request_json = format!(
@@ -3972,7 +3972,7 @@ impl AssistantsClient<'_> {
         );
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -3991,7 +3991,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4005,7 +4005,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4038,13 +4038,13 @@ impl AssistantsClient<'_> {
         let run_id = run_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::RUN_RETRIEVE;
         let model = "runs";
         let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4060,7 +4060,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4074,7 +4074,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4107,13 +4107,13 @@ impl AssistantsClient<'_> {
         let run_id = run_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::RUN_CANCEL;
         let model = "runs";
         let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4129,7 +4129,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4143,7 +4143,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4183,13 +4183,13 @@ impl AssistantsClient<'_> {
         let request = SubmitToolOutputsRunRequest::new(tool_outputs);
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::RUN_SUBMIT_TOOL_OUTPUTS;
         let model = "runs";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4206,7 +4206,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4220,7 +4220,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4255,13 +4255,13 @@ impl AssistantsClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::MESSAGE_CREATE;
         let model = "messages";
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4277,7 +4277,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4291,7 +4291,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4327,13 +4327,13 @@ impl AssistantsClient<'_> {
         let thread_id = thread_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::MESSAGE_LIST;
         let model = "messages";
         let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?},\"run_id\":{run_id:?}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4353,7 +4353,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4367,7 +4367,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4400,14 +4400,14 @@ impl AssistantsClient<'_> {
         let message_id = message_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::MESSAGE_RETRIEVE;
         let model = "messages";
         let request_json =
             format!("{{\"thread_id\":\"{thread_id}\",\"message_id\":\"{message_id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4423,7 +4423,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4437,7 +4437,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4476,13 +4476,13 @@ impl AssistantsClient<'_> {
         let run_id = run_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::RUN_STEP_LIST;
         let model = "run_steps";
         let request_json = format!("{{\"thread_id\":\"{thread_id}\",\"run_id\":\"{run_id}\",\"limit\":{limit:?},\"order\":{order:?},\"after\":{after:?},\"before\":{before:?},\"include\":{include:?}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4503,7 +4503,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4517,7 +4517,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4553,7 +4553,7 @@ impl AssistantsClient<'_> {
         let step_id = step_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::RUN_STEP_RETRIEVE;
         let model = "run_steps";
         let request_json = format!(
@@ -4561,7 +4561,7 @@ impl AssistantsClient<'_> {
         );
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4579,7 +4579,7 @@ impl AssistantsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4593,7 +4593,7 @@ impl AssistantsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4607,108 +4607,108 @@ impl AssistantsClient<'_> {
 /// Client for audio API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct AudioClient<'a> {
-    client: &'a Client,
+pub struct AudioClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for embeddings API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct EmbeddingsClient<'a> {
-    client: &'a Client,
+pub struct EmbeddingsClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for images API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct ImagesClient<'a> {
-    client: &'a Client,
+pub struct ImagesClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for files API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct FilesClient<'a> {
-    client: &'a Client,
+pub struct FilesClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for fine-tuning API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct FineTuningClient<'a> {
-    client: &'a Client,
+pub struct FineTuningClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for batch API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct BatchClient<'a> {
-    client: &'a Client,
+pub struct BatchClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for vector stores API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct VectorStoresClient<'a> {
-    client: &'a Client,
+pub struct VectorStoresClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for moderations API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct ModerationsClient<'a> {
-    client: &'a Client,
+pub struct ModerationsClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for threads API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct ThreadsClient<'a> {
-    client: &'a Client,
+pub struct ThreadsClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for uploads API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct UploadsClient<'a> {
-    client: &'a Client,
+pub struct UploadsClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for models API.
 #[derive(Debug, Clone, Copy)]
-pub struct ModelsClient<'a> {
-    client: &'a Client,
+pub struct ModelsClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for completions API.
 #[derive(Debug, Clone, Copy)]
-pub struct CompletionsClient<'a> {
-    client: &'a Client,
+pub struct CompletionsClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 /// Client for usage API.
 #[derive(Debug, Clone, Copy)]
-pub struct UsageClient<'a> {
-    client: &'a Client,
+pub struct UsageClient<\'a, T = ()> {
+    client: &'a Client<T>,
 }
 
 // Apply interceptor helper methods to all sub-clients
-impl_interceptor_helpers!(AssistantsClient<'_>);
-impl_interceptor_helpers!(AudioClient<'_>);
-impl_interceptor_helpers!(EmbeddingsClient<'_>);
-impl_interceptor_helpers!(ImagesClient<'_>);
-impl_interceptor_helpers!(FilesClient<'_>);
-impl_interceptor_helpers!(FineTuningClient<'_>);
-impl_interceptor_helpers!(BatchClient<'_>);
-impl_interceptor_helpers!(VectorStoresClient<'_>);
-impl_interceptor_helpers!(ModerationsClient<'_>);
-impl_interceptor_helpers!(ThreadsClient<'_>);
-impl_interceptor_helpers!(UploadsClient<'_>);
-impl_interceptor_helpers!(ModelsClient<'_>);
-impl_interceptor_helpers!(CompletionsClient<'_>);
-impl_interceptor_helpers!(UsageClient<'_>);
+impl_interceptor_helpers!(AssistantsClient<'_, T>);
+impl_interceptor_helpers!(AudioClient<'_, T>);
+impl_interceptor_helpers!(EmbeddingsClient<'_, T>);
+impl_interceptor_helpers!(ImagesClient<'_, T>);
+impl_interceptor_helpers!(FilesClient<'_, T>);
+impl_interceptor_helpers!(FineTuningClient<'_, T>);
+impl_interceptor_helpers!(BatchClient<'_, T>);
+impl_interceptor_helpers!(VectorStoresClient<'_, T>);
+impl_interceptor_helpers!(ModerationsClient<'_, T>);
+impl_interceptor_helpers!(ThreadsClient<'_, T>);
+impl_interceptor_helpers!(UploadsClient<'_, T>);
+impl_interceptor_helpers!(ModelsClient<'_, T>);
+impl_interceptor_helpers!(CompletionsClient<'_, T>);
+impl_interceptor_helpers!(UsageClient<'_, T>);
 
-impl ModelsClient<'_> {
+impl<T: Default + Send + Sync> ModelsClient<\'_, T> {
     /// List all available models.
     ///
     /// # Example
@@ -4725,13 +4725,13 @@ impl ModelsClient<'_> {
     /// ```
     pub async fn list(&self) -> Result<ListModelsResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::MODEL_LIST;
         let model = "models";
         let request_json = "{}".to_string();
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4745,7 +4745,7 @@ impl ModelsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4759,7 +4759,7 @@ impl ModelsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4787,13 +4787,13 @@ impl ModelsClient<'_> {
         let id = model_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::MODEL_RETRIEVE;
         let model = "models";
         let request_json = format!("{{\"model_id\":\"{id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4808,7 +4808,7 @@ impl ModelsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4822,7 +4822,7 @@ impl ModelsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4857,13 +4857,13 @@ impl ModelsClient<'_> {
         let id = model_id.into();
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::MODEL_DELETE;
         let model = "models";
         let request_json = format!("{{\"model_id\":\"{id}\"}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4878,7 +4878,7 @@ impl ModelsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4892,7 +4892,7 @@ impl ModelsClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -4908,7 +4908,7 @@ impl ModelsClient<'_> {
     }
 }
 
-impl CompletionsClient<'_> {
+impl<T: Default + Send + Sync> CompletionsClient<\'_, T> {
     /// Create a completions builder for the specified model.
     ///
     /// # Example
@@ -4949,13 +4949,13 @@ impl CompletionsClient<'_> {
         let request = builder.build()?;
 
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::TEXT_COMPLETION;
         let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut metadata)
+        self.call_before_request(operation, &model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -4970,7 +4970,7 @@ impl CompletionsClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &metadata)
+                    .handle_api_error(e, operation, &model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -4984,7 +4984,7 @@ impl CompletionsClient<'_> {
             operation,
             &model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             response.usage.as_ref().map(|u| i64::from(u.prompt_tokens)),
             response
@@ -4998,7 +4998,7 @@ impl CompletionsClient<'_> {
     }
 }
 
-impl UsageClient<'_> {
+impl<T: Default + Send + Sync> UsageClient<\'_, T> {
     /// Get usage data for audio speeches.
     ///
     /// # Example
@@ -5017,14 +5017,14 @@ impl UsageClient<'_> {
     /// ```
     pub async fn audio_speeches(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_AUDIO_SPEECHES;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5048,7 +5048,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5062,7 +5062,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -5075,14 +5075,14 @@ impl UsageClient<'_> {
     /// Get usage data for audio transcriptions.
     pub async fn audio_transcriptions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_AUDIO_TRANSCRIPTIONS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5106,7 +5106,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5120,7 +5120,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -5133,14 +5133,14 @@ impl UsageClient<'_> {
     /// Get usage data for code interpreter sessions.
     pub async fn code_interpreter_sessions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_CODE_INTERPRETER;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5161,7 +5161,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5175,7 +5175,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -5188,14 +5188,14 @@ impl UsageClient<'_> {
     /// Get usage data for completions.
     pub async fn completions(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_COMPLETIONS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5219,7 +5219,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5233,7 +5233,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -5246,14 +5246,14 @@ impl UsageClient<'_> {
     /// Get usage data for embeddings.
     pub async fn embeddings(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_EMBEDDINGS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5277,7 +5277,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5291,7 +5291,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -5304,14 +5304,14 @@ impl UsageClient<'_> {
     /// Get usage data for images.
     pub async fn images(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_IMAGES;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5335,7 +5335,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5349,7 +5349,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -5362,14 +5362,14 @@ impl UsageClient<'_> {
     /// Get usage data for moderations.
     pub async fn moderations(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_MODERATIONS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5393,7 +5393,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5407,7 +5407,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -5420,14 +5420,14 @@ impl UsageClient<'_> {
     /// Get usage data for vector stores.
     pub async fn vector_stores(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_VECTOR_STORES;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5448,7 +5448,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5462,7 +5462,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
@@ -5475,14 +5475,14 @@ impl UsageClient<'_> {
     /// Get cost data.
     pub async fn costs(&self, builder: UsageBuilder) -> Result<UsageResponse> {
         // Prepare interceptor context
-        let mut metadata = HashMap::new();
+        let mut state = T::default();
         let operation = operation_names::USAGE_COSTS;
         let model = "usage";
         let start_time = builder.start_time();
         let request_json = format!("{{\"start_time\":{start_time}}}");
 
         // Call before_request hook
-        self.call_before_request(operation, model, &request_json, &mut metadata)
+        self.call_before_request(operation, model, &request_json, &mut state)
             .await?;
 
         let start_time = Instant::now();
@@ -5503,7 +5503,7 @@ impl UsageClient<'_> {
             Ok(resp) => resp,
             Err(e) => {
                 let error = self
-                    .handle_api_error(e, operation, model, &request_json, &metadata)
+                    .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
@@ -5517,7 +5517,7 @@ impl UsageClient<'_> {
             operation,
             model,
             &request_json,
-            &metadata,
+            &state,
             duration,
             None,
             None,
