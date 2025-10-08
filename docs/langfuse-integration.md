@@ -1,3 +1,19 @@
+# Langfuse Integration
+
+## ⚠️ Known Issue
+
+**Status**: The current Langfuse integration has a limitation where traces may not appear correctly in Langfuse Cloud.
+
+**Problem**: The interceptor pattern creates separate spans for request/response that aren't properly linked through OpenTelemetry context management. The reference implementation at https://github.com/timvw/reqwest-openai-tracing uses middleware which has access to the full request/response lifecycle, allowing it to create a single span that properly tracks the entire operation.
+
+**Workaround**: We're working on a fix. In the meantime, you can:
+1. Use the reference implementation (reqwest-openai-tracing) if you need working Langfuse integration now
+2. Wait for the fix which will likely involve refactoring to use middleware or task-local storage
+
+**Tracking**: See TODO_CONSOLIDATED.md for details.
+
+---
+
 # Langfuse Integration for OpenAI Ergonomic
 
 This document describes the Langfuse middleware integration for comprehensive LLM observability using OpenTelemetry.

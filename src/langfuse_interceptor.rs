@@ -225,128 +225,177 @@ impl LangfuseInterceptor {
 #[async_trait::async_trait]
 impl Interceptor for LangfuseInterceptor {
     async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
+        use opentelemetry::trace::{TraceContextExt};
+
         let tracer = self.tracer();
 
-        // Create a new context and span
-        let mut span = tracer
-            .span_builder(format!("{}_request", ctx.operation))
-            .with_kind(SpanKind::Client)
-            .with_attributes(vec![
+        // Get the current OpenTelemetry context
+        let parent_cx = opentelemetry::Context::current();
+
+        // Check if we need to create a root trace
+        let needs_root = !parent_cx.span().span_context().is_valid();
+
+        let (span_cx, mut span) = if needs_root {
+            // Create a root trace for this operation
+            let mut root_attrs = vec![
+                KeyValue::new("service.name", "openai-ergonomic"),
+                KeyValue::new(GEN_AI_SYSTEM, "openai"),
+            ];
+
+            // Add session/user/release if available
+            if let Some(ref session_id) = self.config.session_id {
+                root_attrs.push(KeyValue::new("langfuse.session_id", session_id.clone()));
+            }
+            if let Some(ref user_id) = self.config.user_id {
+                root_attrs.push(KeyValue::new("langfuse.user_id", user_id.clone()));
+            }
+            if let Some(ref release) = self.config.release {
+                root_attrs.push(KeyValue::new("service.version", release.clone()));
+            }
+
+            let root_span = tracer
+                .span_builder("OpenAI-generation")
+                .with_kind(SpanKind::Internal)
+                .with_attributes(root_attrs)
+                .start(&tracer);
+
+            let root_cx = opentelemetry::Context::current_with_span(root_span);
+
+            // Now create the operation span as a child
+            let mut op_attrs = vec![
                 KeyValue::new(GEN_AI_SYSTEM, "openai"),
                 KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
                 KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
-            ])
-            .start(&tracer);
+                KeyValue::new("langfuse.observation.type", "generation"),
+            ];
 
-        // Parse request JSON and add relevant attributes if possible
+            // Add model for Langfuse
+            op_attrs.push(KeyValue::new("langfuse.observation.model.name", ctx.model.to_string()));
+
+            let operation_span = tracer
+                .span_builder(format!("OpenAI {}", ctx.operation))
+                .with_kind(SpanKind::Client)
+                .with_attributes(op_attrs)
+                .start_with_context(&tracer, &root_cx);
+
+            // Store root context as well
+            ctx.metadata.insert("langfuse.root_cx".to_string(), serde_json::to_string(&true).unwrap_or_default());
+
+            (root_cx, operation_span)
+        } else {
+            // Use existing context, just create child span
+            let mut attrs = vec![
+                KeyValue::new(GEN_AI_SYSTEM, "openai"),
+                KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
+                KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
+                KeyValue::new("langfuse.observation.type", "generation"),
+                KeyValue::new("langfuse.observation.model.name", ctx.model.to_string()),
+            ];
+
+            let span = tracer
+                .span_builder(format!("OpenAI {}", ctx.operation))
+                .with_kind(SpanKind::Client)
+                .with_attributes(attrs)
+                .start_with_context(&tracer, &parent_cx);
+
+            (parent_cx, span)
+        };
+
+        // Parse request JSON and add input/attributes
         if let Ok(params) = Self::extract_request_params(ctx.request_json) {
             if let Some(temperature) = params.get("temperature").and_then(|v| v.as_f64()) {
-                span.set_attributes(vec![KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temperature)]);
+                span.set_attribute(KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temperature));
             }
             if let Some(max_tokens) = params.get("max_tokens").and_then(|v| v.as_i64()) {
-                span.set_attributes(vec![KeyValue::new(GEN_AI_REQUEST_MAX_TOKENS, max_tokens)]);
+                span.set_attribute(KeyValue::new(GEN_AI_REQUEST_MAX_TOKENS, max_tokens));
             }
 
-            // Add messages as gen_ai.prompt attributes for Langfuse
-            if let Some(messages) = params.get("messages").and_then(|v| v.as_array()) {
-                let mut prompt_attrs = Vec::new();
-                for (i, message) in messages.iter().enumerate() {
-                    if let Some(obj) = message.as_object() {
-                        let role = obj
-                            .get("role")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("unknown")
-                            .to_string();
-                        let content = obj
-                            .get("content")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-
-                        // Set gen_ai.prompt attributes as expected by Langfuse
-                        prompt_attrs.push(KeyValue::new(format!("gen_ai.prompt.{}.role", i), role));
-                        prompt_attrs.push(KeyValue::new(
-                            format!("gen_ai.prompt.{}.content", i),
-                            content,
-                        ));
-                    }
-                }
-                if !prompt_attrs.is_empty() {
-                    span.set_attributes(prompt_attrs);
-                }
+            // Add observation input for Langfuse (simplified - just include messages or prompt)
+            if let Some(messages) = params.get("messages") {
+                let input = serde_json::json!({"messages": messages});
+                span.set_attribute(KeyValue::new("langfuse.observation.input", input.to_string()));
+            } else if let Some(prompt) = params.get("prompt") {
+                let input = serde_json::json!({"prompt": prompt});
+                span.set_attribute(KeyValue::new("langfuse.observation.input", input.to_string()));
             }
         }
 
-        // End the span immediately - in production, you'd store it for later
-        span.end();
+        // Store span context in metadata for after_response
+        // We'll use a simple marker - the span will be accessible via the tracer
+        ctx.metadata.insert("langfuse.span_started".to_string(), "true".to_string());
+
+        // DON'T end the span yet - it needs to stay alive for the entire operation
+        // We'll end it in after_response
 
         if self.config.debug {
-            debug!("Started Langfuse span for operation: {}", ctx.operation);
+            debug!("Started Langfuse span for operation: {} (span will be ended in after_response)", ctx.operation);
         }
 
         Ok(())
     }
 
     async fn after_response(&self, ctx: &AfterResponseContext<'_>) -> Result<()> {
+        // Check if we started a span in before_request
+        if ctx.metadata.get("langfuse.span_started").is_none() {
+            return Ok(());
+        }
+
         let tracer = self.tracer();
 
-        // Create a span for the response
-        let mut span = tracer
-            .span_builder(format!("{}_response", ctx.operation))
-            .with_kind(SpanKind::Client)
-            .with_attributes(vec![
-                KeyValue::new(GEN_AI_SYSTEM, "openai"),
-                KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
-                KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
-                KeyValue::new("duration_ms", ctx.duration.as_millis() as i64),
-            ])
-            .start(&tracer);
+        // Get the current context which should have our span
+        let current_cx = opentelemetry::Context::current();
+
+        // Get the current span and add response attributes to it
+        let span = current_cx.span();
+
+        // Add duration
+        span.set_attribute(KeyValue::new("duration_ms", ctx.duration.as_millis() as i64));
 
         // Add usage metrics if available
         if let Some(input_tokens) = ctx.input_tokens {
-            span.set_attributes(vec![KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens)]);
+            span.set_attribute(KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens));
         }
         if let Some(output_tokens) = ctx.output_tokens {
-            span.set_attributes(vec![KeyValue::new(
-                GEN_AI_USAGE_OUTPUT_TOKENS,
-                output_tokens,
-            )]);
+            span.set_attribute(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
         }
 
-        // Parse response and add completion content
+        // Parse response and add observation output for Langfuse
         if let Ok(response) = Self::extract_request_params(ctx.response_json) {
             // Add response ID if available
             if let Some(id) = response.get("id").and_then(|v| v.as_str()) {
-                span.set_attributes(vec![KeyValue::new(GEN_AI_RESPONSE_ID, id.to_string())]);
+                span.set_attribute(KeyValue::new(GEN_AI_RESPONSE_ID, id.to_string()));
             }
 
-            // Add completion content for Langfuse
+            // Add observation output for Langfuse
             if let Some(choices) = response.get("choices").and_then(|v| v.as_array()) {
-                let mut completion_attrs = Vec::new();
-                for (i, choice) in choices.iter().enumerate() {
-                    if let Some(message) = choice.get("message") {
-                        if let Some(role) = message.get("role").and_then(|v| v.as_str()) {
-                            completion_attrs.push(KeyValue::new(
-                                format!("gen_ai.completion.{}.role", i),
-                                role.to_string(),
-                            ));
-                        }
-                        if let Some(content) = message.get("content").and_then(|v| v.as_str()) {
-                            completion_attrs.push(KeyValue::new(
-                                format!("gen_ai.completion.{}.content", i),
-                                content.to_string(),
-                            ));
-                        }
+                if let Some(first_choice) = choices.first() {
+                    if let Some(message) = first_choice.get("message") {
+                        let output = serde_json::json!({
+                            "choices": [{
+                                "message": message
+                            }]
+                        });
+                        span.set_attribute(KeyValue::new("langfuse.observation.output", output.to_string()));
                     }
                 }
-                if !completion_attrs.is_empty() {
-                    span.set_attributes(completion_attrs);
+            }
+
+            // Add total tokens if available
+            if let Some(usage) = response.get("usage") {
+                if let Some(total_tokens) = usage.get("total_tokens").and_then(|v| v.as_i64()) {
+                    span.set_attribute(KeyValue::new("langfuse.observation.usage.total", total_tokens));
                 }
             }
         }
 
         span.set_status(Status::Ok);
         span.end();
+
+        // If we created a root trace, end it too
+        if ctx.metadata.get("langfuse.root_cx").is_some() {
+            // The root span should be the parent of the current span
+            // It will be ended when the context is dropped
+        }
 
         if self.config.debug {
             debug!("Completed Langfuse span for operation: {}", ctx.operation);
