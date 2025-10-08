@@ -14,7 +14,13 @@
 //! cargo run --example langfuse_simple
 //! ```
 
-use openai_ergonomic::{Builder, Client, LangfuseInterceptor};
+use openai_ergonomic::{Builder, Client, LangfuseConfig, LangfuseInterceptor};
+use opentelemetry::{global, trace::TracerProvider};
+use opentelemetry_langfuse::ExporterBuilder;
+use opentelemetry_sdk::{
+    runtime::Tokio,
+    trace::{span_processor_with_async_runtime::BatchSpanProcessor, SdkTracerProvider},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,10 +34,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🚀 Initializing OpenAI client with Langfuse observability...\n");
 
-    // Create Langfuse interceptor from environment variables
-    let langfuse_interceptor = LangfuseInterceptor::from_env()?;
+    // 1. Build Langfuse exporter from environment variables
+    let exporter = ExporterBuilder::from_env()?.build()?;
 
-    // Create the OpenAI client and add the Langfuse interceptor
+    // 2. Create tracer provider with batch processor
+    let provider = SdkTracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
+        .build();
+
+    // Set as global provider
+    global::set_tracer_provider(provider.clone());
+
+    // 3. Get tracer and create interceptor
+    let tracer = provider.tracer("openai-ergonomic");
+    let langfuse_interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
+
+    // 4. Create the OpenAI client and add the Langfuse interceptor
     let client = Client::from_env()?.with_interceptor(Box::new(langfuse_interceptor));
 
     println!("✅ Client initialized successfully!");
@@ -50,9 +68,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   - Look for traces with the operation name 'chat'");
     println!("   - Each trace includes request/response details and token usage");
 
-    // Give some time for traces to be exported
-    println!("\n⏳ Waiting for traces to be exported...");
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    // Shutdown the tracer provider to flush all spans
+    println!("\n⏳ Flushing spans to Langfuse...");
+    provider.shutdown()?;
 
     Ok(())
 }

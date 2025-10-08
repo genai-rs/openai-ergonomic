@@ -1,15 +1,32 @@
 //! Langfuse interceptor for OpenTelemetry-based LLM observability.
 //!
-//! This interceptor automatically instruments `OpenAI` API calls with OpenTelemetry spans
-//! that are exported to Langfuse. No user code changes required beyond adding the interceptor.
+//! This interceptor automatically instruments `OpenAI` API calls with OpenTelemetry spans.
+//! You must configure the OpenTelemetry tracer with Langfuse exporter separately.
 //!
 //! # Usage
 //!
 //! ```no_run
 //! # use openai_ergonomic::{Builder, Client};
-//! # use openai_ergonomic::langfuse_interceptor::LangfuseInterceptor;
+//! # use openai_ergonomic::langfuse_interceptor::{LangfuseInterceptor, LangfuseConfig};
+//! # use opentelemetry_langfuse::ExporterBuilder;
+//! # use opentelemetry_sdk::runtime::Tokio;
+//! # use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
+//! # use opentelemetry_sdk::trace::SdkTracerProvider;
+//! # use opentelemetry::global;
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let interceptor = LangfuseInterceptor::from_env()?;
+//! // 1. Build Langfuse exporter
+//! let exporter = ExporterBuilder::from_env()?.build()?;
+//!
+//! // 2. Create tracer provider
+//! let provider = SdkTracerProvider::builder()
+//!     .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
+//!     .build();
+//!
+//! global::set_tracer_provider(provider.clone());
+//!
+//! // 3. Create interceptor with tracer
+//! let tracer = provider.tracer("openai-ergonomic");
+//! let interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
 //! let client = Client::from_env()?.with_interceptor(Box::new(interceptor));
 //!
 //! // Traces are automatically sent to Langfuse
@@ -25,18 +42,10 @@ use crate::interceptor::{
 };
 use crate::Result;
 use opentelemetry::{
-    trace::{SpanKind, TracerProvider as _},
+    trace::{SpanKind, Tracer},
     KeyValue,
 };
-use opentelemetry_langfuse::{span_storage, ExporterBuilder};
-use opentelemetry_sdk::{
-    runtime::Tokio,
-    trace::{
-        span_processor_with_async_runtime::BatchSpanProcessor, RandomIdGenerator, Sampler,
-        SdkTracerProvider,
-    },
-    Resource,
-};
+use opentelemetry_langfuse::span_storage;
 use opentelemetry_semantic_conventions::attribute::{
     GEN_AI_OPERATION_NAME, GEN_AI_REQUEST_MAX_TOKENS, GEN_AI_REQUEST_MODEL,
     GEN_AI_REQUEST_TEMPERATURE, GEN_AI_RESPONSE_ID, GEN_AI_SYSTEM, GEN_AI_USAGE_INPUT_TOKENS,
@@ -44,20 +53,11 @@ use opentelemetry_semantic_conventions::attribute::{
 };
 use serde_json::Value;
 use std::sync::Arc;
-use std::time::Duration;
 use tracing::{debug, error, info};
 
 /// Configuration for the Langfuse interceptor.
 #[derive(Debug, Clone)]
 pub struct LangfuseConfig {
-    /// Langfuse API host
-    pub host: String,
-    /// Langfuse public key
-    pub public_key: String,
-    /// Langfuse secret key
-    pub secret_key: String,
-    /// Timeout for exporting spans
-    pub timeout: Duration,
     /// Enable debug logging
     pub debug: bool,
 }
@@ -65,11 +65,6 @@ pub struct LangfuseConfig {
 impl Default for LangfuseConfig {
     fn default() -> Self {
         Self {
-            host: std::env::var("LANGFUSE_HOST")
-                .unwrap_or_else(|_| "https://cloud.langfuse.com".to_string()),
-            public_key: std::env::var("LANGFUSE_PUBLIC_KEY").unwrap_or_default(),
-            secret_key: std::env::var("LANGFUSE_SECRET_KEY").unwrap_or_default(),
-            timeout: Duration::from_secs(10),
             debug: std::env::var("LANGFUSE_DEBUG")
                 .unwrap_or_else(|_| "false".to_string())
                 .parse()
@@ -79,25 +74,9 @@ impl Default for LangfuseConfig {
 }
 
 impl LangfuseConfig {
-    /// Create a new configuration with the given credentials.
-    pub fn new(
-        host: impl Into<String>,
-        public_key: impl Into<String>,
-        secret_key: impl Into<String>,
-    ) -> Self {
-        Self {
-            host: host.into(),
-            public_key: public_key.into(),
-            secret_key: secret_key.into(),
-            ..Default::default()
-        }
-    }
-
-    /// Set the timeout.
-    #[must_use]
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
-        self
+    /// Create a new configuration.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Enable debug logging.
@@ -110,73 +89,64 @@ impl LangfuseConfig {
 
 /// Langfuse interceptor for OpenTelemetry-based observability.
 ///
-/// This interceptor automatically creates spans for API calls and exports them to Langfuse.
+/// This interceptor automatically creates spans for API calls.
 /// Spans are maintained across `before_request` and `after_response` using a global registry
 /// and request metadata, requiring no user code changes.
-pub struct LangfuseInterceptor {
+///
+/// The tracer must be configured externally - this interceptor only instruments API calls.
+pub struct LangfuseInterceptor<T: Tracer + Send + Sync> {
     config: LangfuseConfig,
-    tracer_provider: Arc<SdkTracerProvider>,
+    tracer: Arc<T>,
 }
 
-impl LangfuseInterceptor {
-    /// Create a new Langfuse interceptor with the given configuration.
-    pub fn new(config: LangfuseConfig) -> Result<Self> {
-        // Validate configuration
-        if config.public_key.is_empty() || config.secret_key.is_empty() {
-            return Err(crate::Error::Config(
-                "Langfuse public_key and secret_key must be provided".to_string(),
-            ));
-        }
-
-        // Build the Langfuse exporter
-        let exporter = ExporterBuilder::new()
-            .with_host(&config.host)
-            .with_basic_auth(&config.public_key, &config.secret_key)
-            .with_timeout(config.timeout)
-            .build()
-            .map_err(|e| {
-                crate::Error::Config(format!("Failed to build Langfuse exporter: {e}"))
-            })?;
-
-        // Create the batch span processor with Tokio runtime
-        let span_processor = BatchSpanProcessor::builder(exporter, Tokio).build();
-
-        // Build the tracer provider
-        let resource = Resource::builder()
-            .with_attributes(vec![
-                KeyValue::new("service.name", "openai-ergonomic"),
-                KeyValue::new("langfuse.public_key", config.public_key.clone()),
-            ])
-            .build();
-
-        let provider = SdkTracerProvider::builder()
-            .with_span_processor(span_processor)
-            .with_id_generator(RandomIdGenerator::default())
-            .with_sampler(Sampler::AlwaysOn)
-            .with_resource(resource)
-            .build();
-
+impl<T: Tracer + Send + Sync> LangfuseInterceptor<T>
+where
+    T::Span: Send + Sync + 'static,
+{
+    /// Create a new Langfuse interceptor with the given tracer.
+    ///
+    /// The tracer should be configured to export to Langfuse using
+    /// `opentelemetry_langfuse::ExporterBuilder`.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use opentelemetry::global;
+    /// use opentelemetry_langfuse::ExporterBuilder;
+    /// use opentelemetry_sdk::runtime::Tokio;
+    /// use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
+    /// use opentelemetry_sdk::trace::SdkTracerProvider;
+    ///
+    /// # async fn setup() -> Result<(), Box<dyn std::error::Error>> {
+    /// // Build exporter
+    /// let exporter = ExporterBuilder::from_env()?.build()?;
+    ///
+    /// // Create tracer provider with batch processor
+    /// let provider = SdkTracerProvider::builder()
+    ///     .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
+    ///     .build();
+    ///
+    /// // Set as global provider
+    /// global::set_tracer_provider(provider.clone());
+    ///
+    /// // Get tracer for interceptor
+    /// let tracer = provider.tracer("openai-ergonomic");
+    ///
+    /// // Create interceptor with tracer
+    /// use openai_ergonomic::langfuse_interceptor::{LangfuseInterceptor, LangfuseConfig};
+    /// let interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn new(tracer: T, config: LangfuseConfig) -> Self {
         if config.debug {
-            info!(
-                "Langfuse interceptor initialized with host: {}",
-                config.host
-            );
+            info!("Langfuse interceptor initialized");
         }
 
-        Ok(Self {
+        Self {
             config,
-            tracer_provider: Arc::new(provider),
-        })
-    }
-
-    /// Create a new interceptor from environment variables.
-    pub fn from_env() -> Result<Self> {
-        Self::new(LangfuseConfig::default())
-    }
-
-    /// Get a tracer for creating spans.
-    fn tracer(&self) -> opentelemetry_sdk::trace::Tracer {
-        self.tracer_provider.tracer("openai-ergonomic-langfuse")
+            tracer: Arc::new(tracer),
+        }
     }
 
     /// Extract request parameters from JSON.
@@ -186,9 +156,12 @@ impl LangfuseInterceptor {
 }
 
 #[async_trait::async_trait]
-impl Interceptor for LangfuseInterceptor {
+impl<T: Tracer + Send + Sync> Interceptor for LangfuseInterceptor<T>
+where
+    T::Span: Send + Sync + 'static,
+{
     async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
-        let tracer = self.tracer();
+        let tracer = self.tracer.as_ref();
 
         // Build initial attributes
         let mut attributes = vec![
@@ -236,7 +209,7 @@ impl Interceptor for LangfuseInterceptor {
 
         // Create and store the span in global registry
         let span_id = span_storage::create_and_store_span(
-            &tracer,
+            tracer,
             ctx.operation.to_string(),
             SpanKind::Client,
             attributes,
@@ -398,104 +371,27 @@ impl Interceptor for LangfuseInterceptor {
     }
 }
 
-impl Drop for LangfuseInterceptor {
-    fn drop(&mut self) {
-        // Force flush any pending spans
-        if let Err(e) = self.tracer_provider.force_flush() {
-            error!("Failed to flush Langfuse spans on drop: {}", e);
-        }
-    }
-}
-
-/// Builder for creating a Langfuse interceptor with custom configuration.
-pub struct LangfuseInterceptorBuilder {
-    config: LangfuseConfig,
-}
-
-impl LangfuseInterceptorBuilder {
-    /// Create a new builder with default configuration.
-    pub fn new() -> Self {
-        Self {
-            config: LangfuseConfig::default(),
-        }
-    }
-
-    /// Set the Langfuse API host.
-    #[must_use]
-    pub fn with_host(mut self, host: impl Into<String>) -> Self {
-        self.config.host = host.into();
-        self
-    }
-
-    /// Set the Langfuse credentials.
-    #[must_use]
-    pub fn with_credentials(
-        mut self,
-        public_key: impl Into<String>,
-        secret_key: impl Into<String>,
-    ) -> Self {
-        self.config.public_key = public_key.into();
-        self.config.secret_key = secret_key.into();
-        self
-    }
-
-    /// Set the export timeout.
-    #[must_use]
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.config.timeout = timeout;
-        self
-    }
-
-    /// Enable debug logging.
-    #[must_use]
-    pub fn with_debug(mut self, debug: bool) -> Self {
-        self.config.debug = debug;
-        self
-    }
-
-    /// Build the Langfuse interceptor.
-    pub fn build(self) -> Result<LangfuseInterceptor> {
-        LangfuseInterceptor::new(self.config)
-    }
-}
-
-impl Default for LangfuseInterceptorBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use opentelemetry::trace::noop::NoopTracer;
 
     #[test]
     fn test_config_from_env() {
-        std::env::set_var("LANGFUSE_HOST", "https://test.langfuse.com");
-        std::env::set_var("LANGFUSE_PUBLIC_KEY", "pk-test");
-        std::env::set_var("LANGFUSE_SECRET_KEY", "sk-test");
+        std::env::set_var("LANGFUSE_DEBUG", "true");
 
         let config = LangfuseConfig::default();
-        assert_eq!(config.host, "https://test.langfuse.com");
-        assert_eq!(config.public_key, "pk-test");
-        assert_eq!(config.secret_key, "sk-test");
+        assert!(config.debug);
 
         // Cleanup
-        std::env::remove_var("LANGFUSE_HOST");
-        std::env::remove_var("LANGFUSE_PUBLIC_KEY");
-        std::env::remove_var("LANGFUSE_SECRET_KEY");
+        std::env::remove_var("LANGFUSE_DEBUG");
     }
 
     #[test]
-    fn test_builder_configuration() {
-        let config = LangfuseConfig::new("https://custom.langfuse.com", "pk-custom", "sk-custom")
-            .with_timeout(Duration::from_secs(30))
-            .with_debug(true);
-
-        assert_eq!(config.host, "https://custom.langfuse.com");
-        assert_eq!(config.public_key, "pk-custom");
-        assert_eq!(config.secret_key, "sk-custom");
-        assert_eq!(config.timeout, Duration::from_secs(30));
-        assert!(config.debug);
+    fn test_interceptor_creation() {
+        let tracer = NoopTracer::new();
+        let config = LangfuseConfig::new().with_debug(true);
+        let _interceptor = LangfuseInterceptor::new(tracer, config);
+        // No assertion needed - just verify it compiles and constructs
     }
 }
