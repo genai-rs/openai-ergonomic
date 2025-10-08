@@ -373,6 +373,9 @@ impl Interceptor for LangfuseInterceptor {
             return;
         };
 
+        // Set the span status to error (required for Langfuse to flag it as error)
+        span_storage::set_span_error(span_id, ctx.error.to_string());
+
         // Add error attributes to the span
         let mut attributes = vec![
             KeyValue::new("error.type", format!("{:?}", ctx.error)),
