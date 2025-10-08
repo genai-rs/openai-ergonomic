@@ -1,10 +1,15 @@
-//! Integration tests for the interceptor system.
+//! Integration tests for the deprecated interceptor system (stub).
+//!
+//! These tests verify that the backward compatibility stubs work correctly.
+//! For new code, use the middleware system instead.
 
 #[cfg(test)]
 mod tests {
-    use openai_ergonomic::{
-        AfterResponseContext, BeforeRequestContext, Client, Config, ErrorContext, Interceptor,
+    #[allow(deprecated)]
+    use openai_ergonomic::interceptor::{
+        AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor,
     };
+    use openai_ergonomic::{Client, Config};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
@@ -33,6 +38,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
+    #[allow(deprecated)]
     impl Interceptor for CountingInterceptor {
         async fn before_request(
             &self,
@@ -56,99 +62,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_interceptor_called_on_chat_request() {
-        // This test requires a valid API key to run
-        let Ok(api_key) = std::env::var("OPENAI_API_KEY") else {
-            eprintln!("Skipping test: OPENAI_API_KEY not set");
-            return;
-        };
+    #[allow(deprecated)]
+    async fn test_interceptor_stubs_work() {
+        // Test that the backward compatibility stubs don't break existing code
+        let config = Config::builder()
+            .api_key("sk-test123")
+            .build();
 
-        let config = Config::builder().api_key(api_key).build();
-        let (interceptor, before_count, after_count, _error_count) = CountingInterceptor::new();
+        let (interceptor, _before, _after, _error) = CountingInterceptor::new();
 
-        let client = Client::new(config)
+        let _client = Client::new(config)
             .unwrap()
             .with_interceptor(Box::new(interceptor));
 
-        // Make a simple request
-        let result = client
-            .send_chat(client.chat_simple("Say 'test' and nothing else"))
-            .await;
-
-        // Even if the request fails (e.g., rate limit), before_request should be called
-        assert_eq!(
-            before_count.load(Ordering::SeqCst),
-            1,
-            "before_request should be called once"
-        );
-
-        // after_response should be called only on success
-        if result.is_ok() {
-            assert_eq!(
-                after_count.load(Ordering::SeqCst),
-                1,
-                "after_response should be called once on success"
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn test_interceptor_error_handling() {
-        // Use an invalid API key to trigger an error
-        let config = Config::builder().api_key("invalid-key").build();
-
-        let (interceptor, before_count, _after_count, error_count) = CountingInterceptor::new();
-
-        let client = Client::new(config)
-            .unwrap()
-            .with_interceptor(Box::new(interceptor));
-
-        // This should fail with an authentication error
-        let result = client.send_chat(client.chat_simple("test")).await;
-
-        assert!(result.is_err(), "Request should fail with invalid API key");
-        assert_eq!(
-            before_count.load(Ordering::SeqCst),
-            1,
-            "before_request should be called"
-        );
-        assert_eq!(
-            error_count.load(Ordering::SeqCst),
-            1,
-            "on_error should be called"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_multiple_interceptors() {
-        let Ok(api_key) = std::env::var("OPENAI_API_KEY") else {
-            eprintln!("Skipping test: OPENAI_API_KEY not set");
-            return;
-        };
-
-        let config = Config::builder().api_key(api_key).build();
-
-        let (interceptor1, before1, _, _) = CountingInterceptor::new();
-        let (interceptor2, before2, _, _) = CountingInterceptor::new();
-
-        let client = Client::new(config)
-            .unwrap()
-            .with_interceptor(Box::new(interceptor1))
-            .with_interceptor(Box::new(interceptor2));
-
-        // Make a request
-        let _ = client.send_chat(client.chat_simple("Say 'test'")).await;
-
-        // Both interceptors should be called
-        assert_eq!(
-            before1.load(Ordering::SeqCst),
-            1,
-            "First interceptor should be called"
-        );
-        assert_eq!(
-            before2.load(Ordering::SeqCst),
-            1,
-            "Second interceptor should be called"
-        );
+        // Note: Interceptors are now no-ops, so counts will remain 0
+        // This test just verifies the API still works for backward compatibility
     }
 }

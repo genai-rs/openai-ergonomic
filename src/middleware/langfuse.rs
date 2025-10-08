@@ -162,7 +162,7 @@ impl LangfuseMiddleware {
 impl Middleware for LangfuseMiddleware {
     async fn handle(
         &self,
-        mut req: MiddlewareRequest<'_>,
+        req: MiddlewareRequest<'_>,
         next: Next<'_>,
     ) -> Result<MiddlewareResponse> {
         let tracer = self.tracer();
