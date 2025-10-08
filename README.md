@@ -128,7 +128,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - [Responses-First Workflows](docs/guides/responses_workflows.md)
 - [Tool Orchestration](docs/guides/tool_orchestration.md)
 - [Vector Store Operations](docs/guides/vector_store_operations.md)
-- [Migrating from `openai-builders`](docs/guides/migrating_from_builders.md)
 - [API Documentation](https://docs.rs/openai-ergonomic)
 
 ## Examples
