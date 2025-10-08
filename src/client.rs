@@ -7,9 +7,11 @@
 // that require many parameters for comprehensive context passing
 #![allow(clippy::too_many_arguments)]
 
+#[allow(deprecated)]
 use crate::interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, InterceptorChain,
 };
+use crate::middleware::{Middleware, MiddlewareChain};
 use crate::semantic_conventions::operation_names;
 use crate::{
     builders::{
@@ -189,17 +191,19 @@ pub struct Client {
     config: Arc<Config>,
     http: HttpClient,
     base_configuration: Configuration,
+    #[allow(deprecated)]
     interceptors: Arc<RwLock<InterceptorChain>>,
+    middleware: MiddlewareChain,
 }
 
-// Custom Debug implementation since InterceptorChain doesn't implement Debug
+// Custom Debug implementation
 impl std::fmt::Debug for Client {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Client")
             .field("config", &self.config)
             .field("http", &"<HttpClient>")
             .field("base_configuration", &"<Configuration>")
-            .field("interceptors", &"<InterceptorChain>")
+            .field("middleware", &format!("<{} middleware>", self.middleware.len()))
             .finish()
     }
 }
@@ -236,7 +240,9 @@ impl Client {
             config: Arc::new(config),
             http: http_client,
             base_configuration,
+            #[allow(deprecated)]
             interceptors: Arc::new(RwLock::new(InterceptorChain::new())),
+            middleware: MiddlewareChain::new(),
         })
     }
 
@@ -289,12 +295,78 @@ impl Client {
         &self.http
     }
 
-    /// Get a reference to the interceptor chain.
+    /// Create a client builder for configuring middleware.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use openai_ergonomic::{Client, Config};
+    /// use openai_ergonomic::middleware::opentelemetry::OpenTelemetryMiddleware;
+    /// use std::sync::Arc;
+    ///
+    /// let client = Client::builder()
+    ///     .config(Config::from_env()?)
+    ///     .with_middleware(Arc::new(OpenTelemetryMiddleware::new()))
+    ///     .build()?;
+    /// ```
+    pub fn builder() -> ClientBuilder {
+        ClientBuilder::new()
+    }
+
+    /// Get a reference to the interceptor chain (deprecated).
     ///
     /// This is primarily for internal use when executing requests.
     #[allow(dead_code)]
+    #[allow(deprecated)]
     pub(crate) fn interceptors(&self) -> &Arc<RwLock<InterceptorChain>> {
         &self.interceptors
+    }
+}
+
+/// Builder for constructing a `Client` with middleware.
+pub struct ClientBuilder {
+    config: Option<Config>,
+    middleware: MiddlewareChain,
+}
+
+impl ClientBuilder {
+    /// Create a new client builder.
+    pub fn new() -> Self {
+        Self {
+            config: None,
+            middleware: MiddlewareChain::new(),
+        }
+    }
+
+    /// Set the client configuration.
+    pub fn config(mut self, config: Config) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    /// Add middleware to the client.
+    ///
+    /// Middleware are executed in the order they are added.
+    pub fn with_middleware(mut self, middleware: Arc<dyn Middleware>) -> Self {
+        self.middleware = self.middleware.with(middleware);
+        self
+    }
+
+    /// Build the client.
+    pub fn build(self) -> Result<Client> {
+        let config = self.config.ok_or_else(|| {
+            Error::Config("Client configuration is required".to_string())
+        })?;
+
+        let mut client = Client::new(config)?;
+        client.middleware = self.middleware;
+        Ok(client)
+    }
+}
+
+impl Default for ClientBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
