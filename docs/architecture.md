@@ -126,13 +126,3 @@ integration tests without hitting the real API.
 - **Examples** double as documentation and compile-time regression tests
 - **Smoke tests** (opt-in) hit the real API when appropriate environment
   variables are set
-
-## Future Work Highlights
-
-- Implement the remaining placeholder builder modules (images, embeddings,
-  threads, uploads)
-- Add streaming abstractions that integrate with async `Stream`
-- Expand the `Sendable` trait coverage for direct `.send()` ergonomics
-
-This architecture intentionally mirrors `langfuse-ergonomic` to stay familiar for
-contributors while embracing the latest OpenAI endpoints.
