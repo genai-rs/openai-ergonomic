@@ -45,7 +45,7 @@ use opentelemetry::{
     trace::{SpanKind, Tracer},
     KeyValue,
 };
-use opentelemetry_langfuse::span_storage;
+use opentelemetry_langfuse::{span_storage, LangfuseContext};
 use opentelemetry_semantic_conventions::attribute::{
     GEN_AI_OPERATION_NAME, GEN_AI_REQUEST_MAX_TOKENS, GEN_AI_REQUEST_MODEL,
     GEN_AI_REQUEST_TEMPERATURE, GEN_AI_RESPONSE_ID, GEN_AI_SYSTEM, GEN_AI_USAGE_INPUT_TOKENS,
@@ -97,6 +97,7 @@ impl LangfuseConfig {
 pub struct LangfuseInterceptor<T: Tracer + Send + Sync> {
     config: LangfuseConfig,
     tracer: Arc<T>,
+    context: Arc<LangfuseContext>,
 }
 
 impl<T: Tracer + Send + Sync> LangfuseInterceptor<T>
@@ -146,7 +147,43 @@ where
         Self {
             config,
             tracer: Arc::new(tracer),
+            context: Arc::new(LangfuseContext::new()),
         }
+    }
+
+    /// Set the session ID for traces created by this interceptor.
+    pub fn set_session_id(&self, session_id: impl Into<String>) {
+        self.context.set_session_id(session_id);
+    }
+
+    /// Set the user ID for traces created by this interceptor.
+    pub fn set_user_id(&self, user_id: impl Into<String>) {
+        self.context.set_user_id(user_id);
+    }
+
+    /// Add tags to traces created by this interceptor.
+    pub fn add_tags(&self, tags: Vec<String>) {
+        self.context.add_tags(tags);
+    }
+
+    /// Add a single tag to traces created by this interceptor.
+    pub fn add_tag(&self, tag: impl Into<String>) {
+        self.context.add_tag(tag);
+    }
+
+    /// Set metadata for traces created by this interceptor.
+    pub fn set_metadata(&self, metadata: serde_json::Value) {
+        self.context.set_metadata(metadata);
+    }
+
+    /// Clear all context attributes.
+    pub fn clear_context(&self) {
+        self.context.clear();
+    }
+
+    /// Get a reference to the Langfuse context.
+    pub fn context(&self) -> &Arc<LangfuseContext> {
+        &self.context
     }
 
     /// Extract request parameters from JSON.
@@ -170,8 +207,8 @@ where
             KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
         ];
 
-        // Add Langfuse context attributes if available
-        attributes.extend(opentelemetry_langfuse::context::GLOBAL_CONTEXT.get_attributes());
+        // Add Langfuse context attributes from this interceptor's context
+        attributes.extend(self.context.get_attributes());
 
         // Parse request JSON and add relevant attributes
         if let Ok(params) = Self::extract_request_params(ctx.request_json) {
@@ -368,6 +405,33 @@ where
                 ctx.operation, ctx.error
             );
         }
+    }
+}
+
+// Implement Interceptor for Arc<LangfuseInterceptor<T>> to allow sharing the interceptor
+#[async_trait::async_trait]
+impl<T: Tracer + Send + Sync> Interceptor for Arc<LangfuseInterceptor<T>>
+where
+    T::Span: Send + Sync + 'static,
+{
+    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
+        (**self).before_request(ctx).await
+    }
+
+    async fn after_response(&self, ctx: &AfterResponseContext<'_>) -> Result<()> {
+        (**self).after_response(ctx).await
+    }
+
+    async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_>) -> Result<()> {
+        (**self).on_stream_chunk(ctx).await
+    }
+
+    async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
+        (**self).on_stream_end(ctx).await
+    }
+
+    async fn on_error(&self, ctx: &ErrorContext<'_>) {
+        (**self).on_error(ctx).await
     }
 }
 
