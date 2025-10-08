@@ -139,6 +139,7 @@ pub mod client;
 pub mod config;
 pub mod errors;
 pub mod interceptor;
+pub mod langfuse_interceptor;
 pub mod responses;
 pub mod semantic_conventions;
 
@@ -150,6 +151,7 @@ pub use interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
     StreamEndContext,
 };
+pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor, LangfuseInterceptorBuilder};
 
 // Re-export specific builder and response types for convenience
 // NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
