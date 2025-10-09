@@ -28,11 +28,12 @@
 //! // 3. Create interceptor with tracer
 //! let tracer = provider.tracer("openai-ergonomic");
 //! let interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
-//! let client = Client::from_env()?.with_interceptor(Box::new(interceptor));
+//! let client = Client::from_env()?
+//!     .with_interceptor(Box::new(interceptor))
+//!     .build();
 //!
 //! // Traces are automatically sent to Langfuse
-//! let request = client.chat_simple("Hello!").build()?;
-//! let response = client.execute_chat(request).await?;
+//! let response = client.send_chat(client.chat_simple("Hello!")).await?;
 //! # Ok(())
 //! # }
 //! ```
