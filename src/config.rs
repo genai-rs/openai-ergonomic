@@ -6,7 +6,6 @@
 use crate::{errors::Result, Error};
 use reqwest_middleware::ClientWithMiddleware;
 use std::env;
-use tokio::time::Duration;
 
 /// Configuration for the `OpenAI` client.
 ///
@@ -19,7 +18,6 @@ use tokio::time::Duration;
 /// - `OPENAI_API_BASE`: Custom base URL for the API (optional)
 /// - `OPENAI_ORGANIZATION`: Organization ID (optional)
 /// - `OPENAI_PROJECT`: Project ID (optional)
-/// - `OPENAI_TIMEOUT`: Request timeout in seconds (optional, default: 120)
 /// - `OPENAI_MAX_RETRIES`: Maximum number of retries (optional, default: 3)
 ///
 /// # Example
@@ -32,7 +30,6 @@ use tokio::time::Duration;
 /// // Manual configuration
 /// let config = Config::builder()
 ///     .api_key("your-api-key")
-///     .timeout_seconds(60)
 ///     .max_retries(5)
 ///     .build();
 /// ```
@@ -42,7 +39,6 @@ pub struct Config {
     api_base: String,
     organization: Option<String>,
     project: Option<String>,
-    timeout_seconds: u64,
     max_retries: u32,
     default_model: String,
     http_client: Option<ClientWithMiddleware>,
@@ -55,7 +51,6 @@ impl std::fmt::Debug for Config {
             .field("api_base", &self.api_base)
             .field("organization", &self.organization)
             .field("project", &self.project)
-            .field("timeout_seconds", &self.timeout_seconds)
             .field("max_retries", &self.max_retries)
             .field("default_model", &self.default_model)
             .field(
@@ -85,11 +80,6 @@ impl Config {
         let organization = env::var("OPENAI_ORGANIZATION").ok();
         let project = env::var("OPENAI_PROJECT").ok();
 
-        let timeout_seconds = env::var("OPENAI_TIMEOUT")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(120);
-
         let max_retries = env::var("OPENAI_MAX_RETRIES")
             .ok()
             .and_then(|s| s.parse().ok())
@@ -103,7 +93,6 @@ impl Config {
             api_base,
             organization,
             project,
-            timeout_seconds,
             max_retries,
             default_model,
             http_client: None,
@@ -128,16 +117,6 @@ impl Config {
     /// Get the project ID, if set.
     pub fn project(&self) -> Option<&str> {
         self.project.as_deref()
-    }
-
-    /// Get the request timeout in seconds.
-    pub fn timeout_seconds(&self) -> u64 {
-        self.timeout_seconds
-    }
-
-    /// Get the request timeout as a Duration.
-    pub fn timeout(&self) -> Duration {
-        Duration::from_secs(self.timeout_seconds)
     }
 
     /// Get the maximum number of retries.
@@ -186,7 +165,6 @@ impl Default for Config {
             api_base: "https://api.openai.com/v1".to_string(),
             organization: None,
             project: None,
-            timeout_seconds: 120,
             max_retries: 3,
             default_model: "gpt-4".to_string(),
             http_client: None,
@@ -201,7 +179,6 @@ pub struct ConfigBuilder {
     api_base: Option<String>,
     organization: Option<String>,
     project: Option<String>,
-    timeout_seconds: Option<u64>,
     max_retries: Option<u32>,
     default_model: Option<String>,
     http_client: Option<ClientWithMiddleware>,
@@ -233,13 +210,6 @@ impl ConfigBuilder {
     #[must_use]
     pub fn project(mut self, project: impl Into<String>) -> Self {
         self.project = Some(project.into());
-        self
-    }
-
-    /// Set the request timeout in seconds.
-    #[must_use]
-    pub fn timeout_seconds(mut self, timeout_seconds: u64) -> Self {
-        self.timeout_seconds = Some(timeout_seconds);
         self
     }
 
@@ -294,7 +264,6 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
             organization: self.organization,
             project: self.project,
-            timeout_seconds: self.timeout_seconds.unwrap_or(120),
             max_retries: self.max_retries.unwrap_or(3),
             default_model: self.default_model.unwrap_or_else(|| "gpt-4".to_string()),
             http_client: self.http_client,
@@ -305,16 +274,17 @@ impl ConfigBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn test_config_builder() {
         let config = Config::builder()
             .api_key("test-key")
-            .timeout_seconds(60)
+            .max_retries(5)
             .build();
 
         assert_eq!(config.api_key(), "test-key");
-        assert_eq!(config.timeout_seconds(), 60);
+        assert_eq!(config.max_retries(), 5);
         assert_eq!(config.api_base(), "https://api.openai.com/v1");
     }
 
@@ -328,7 +298,6 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = Config::default();
-        assert_eq!(config.timeout_seconds(), 120);
         assert_eq!(config.max_retries(), 3);
         assert_eq!(config.default_model(), Some("gpt-4"));
     }
