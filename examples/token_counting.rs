@@ -881,7 +881,7 @@ async fn main() -> Result<()> {
 
     // Create client
     let config = Config::builder().api_key("test-api-key").build();
-    let client = Client::new(config)?;
+    let client = Client::builder(config)?.build();
 
     // Example 1: Basic token counting and estimation
     info!("=== Example 1: Token Counting and Estimation ===");
@@ -1045,7 +1045,7 @@ async fn main() -> Result<()> {
 
     // Simulate approaching budget limits
     let high_usage_client = TokenAwareClient::new(
-        Client::new(Config::builder().api_key("test-api-key").build())?,
+        Client::builder(Config::builder().api_key("test-api-key").build())?.build(),
         1.0, // Low daily budget for demonstration
         10.0,
     );

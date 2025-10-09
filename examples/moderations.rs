@@ -38,18 +38,18 @@ async fn main() -> Result<()> {
 
     // Initialize client
     let client = if let Ok(c) = Client::from_env() {
-        c
+        c.build()
     } else {
         println!("Note: OPENAI_API_KEY not found. Running in demo mode.");
         println!("Set OPENAI_API_KEY to test real API calls.\n");
         println!("To use the Moderations API:");
-        println!("  let client = Client::from_env()?;");
+        println!("  let client = Client::from_env()?.build();");
         println!("  let builder = client.moderations().check(\"text to moderate\");");
         println!("  let response = client.moderations().create(builder).await?;");
         println!();
         println!("Running demonstration examples...\n");
         // Create a dummy client for demo purposes
-        Client::new(Config::builder().api_key("demo-key").build())?
+        Client::builder(Config::builder().api_key("demo-key").build())?.build()
     };
 
     // Example 1: Basic moderation
@@ -454,7 +454,7 @@ fn apply_policy(result: &ModerationResult, policy: &ModerationPolicy) -> PolicyA
 #[tokio::test]
 async fn example_real_moderation_api() -> Result<()> {
     // Initialize client from environment
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     println!("\n=== Real Moderations API Example ===\n");
 

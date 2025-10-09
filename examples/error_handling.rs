@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
 
 async fn basic_error_handling() {
     let client = match Client::from_env() {
-        Ok(client) => client,
+        Ok(client_builder) => client_builder.build(),
         Err(e) => {
             println!("Failed to create client: {}", e);
             return;
@@ -76,9 +76,10 @@ async fn basic_error_handling() {
 }
 
 async fn pattern_matching_errors() {
-    let Ok(client) = Client::from_env() else {
+    let Ok(client_builder) = Client::from_env() else {
         return;
     };
+    let client = client_builder.build();
 
     // Simulate various errors by using invalid parameters
     let builder = client.chat().user("test");
@@ -121,9 +122,10 @@ async fn pattern_matching_errors() {
 async fn rate_limit_handling() {
     const MAX_RETRIES: u32 = 3;
 
-    let Ok(client) = Client::from_env() else {
+    let Ok(client_builder) = Client::from_env() else {
         return;
     };
+    let client = client_builder.build();
 
     // Retry logic for rate limiting
     let mut retries = 0;
@@ -158,9 +160,10 @@ async fn rate_limit_handling() {
 }
 
 async fn token_limit_handling() {
-    let Ok(client) = Client::from_env() else {
+    let Ok(client_builder) = Client::from_env() else {
         return;
     };
+    let client = client_builder.build();
 
     // Generate a very long prompt that might exceed token limits
     let long_text = "Lorem ipsum ".repeat(10000);
@@ -192,7 +195,7 @@ async fn token_limit_handling() {
 async fn auth_error_handling() -> Result<()> {
     // Try with invalid API key
     let config = Config::builder().api_key("invalid-api-key").build();
-    let invalid_client = Client::new(config)?;
+    let invalid_client = Client::builder(config)?.build();
 
     match invalid_client
         .send_chat(invalid_client.chat_simple("Hello"))
@@ -223,7 +226,7 @@ async fn network_error_handling() -> Result<()> {
         .timeout_seconds(1)
         .build();
 
-    let client = Client::new(config)?;
+    let client = Client::builder(config)?.build();
 
     match client.send_chat(client.chat_simple("Hello")).await {
         Ok(_) => println!("Unexpected success"),
@@ -248,7 +251,7 @@ async fn network_error_handling() -> Result<()> {
 }
 
 async fn custom_error_context() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Wrap errors with custom context
     let result = client
@@ -270,7 +273,7 @@ async fn custom_error_context() -> Result<()> {
 }
 
 async fn error_recovery_strategies() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Strategy 1: Fallback to simpler model
     let result = try_with_fallback(&client, "gpt-4o", "gpt-3.5-turbo").await?;

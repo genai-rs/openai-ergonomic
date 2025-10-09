@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
     println!("=== Completions API Examples ===\n");
 
     // Initialize client
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Example 1: Basic completion
     println!("1. Basic Text Completion:");

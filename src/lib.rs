@@ -98,7 +98,7 @@
 //!         .max_retries(5)
 //!         .build();
 //!
-//!     let client = Client::new(config)?;
+//!     let client = Client::builder(config)?.build();
 //!     Ok(())
 //! }
 //! ```
@@ -202,7 +202,7 @@ mod tests {
     #[test]
     fn test_client_creation_with_config() {
         let config = Config::builder().api_key("test-key").build();
-        let client = Client::new(config);
-        assert!(client.is_ok());
+        let result = Client::builder(config);
+        assert!(result.is_ok());
     }
 }

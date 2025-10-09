@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     println!("=== Retry and Resilience Patterns ===\n");
 
     // Initialize client
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Example 1: Simple retry
     println!("1. Simple Retry:");
@@ -405,7 +405,7 @@ async fn idempotency_example(_client: &Client) -> Result<()> {
 
         // Note: Headers (including idempotency key) are not yet supported in current API
 
-        let client_with_idempotency = Client::new(config)?;
+        let client_with_idempotency = Client::builder(config)?.build();
 
         match client_with_idempotency
             .send_chat(client_with_idempotency.chat_simple("Idempotent request"))

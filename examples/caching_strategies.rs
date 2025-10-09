@@ -849,7 +849,7 @@ async fn main() -> Result<()> {
 
     // Create a test client
     let config = Config::builder().api_key("test-api-key").build();
-    let client = Client::new(config)?;
+    let client = Client::builder(config)?.build();
 
     // Example 1: Basic memory caching
     info!("=== Example 1: Memory Caching ===");
@@ -942,7 +942,7 @@ async fn main() -> Result<()> {
     info!("\n=== Example 3: Conditional Caching ===");
 
     let conditional_client = CachingClient::new(
-        Client::new(Config::builder().api_key("test-api-key").build())?,
+        Client::builder(Config::builder().api_key("test-api-key").build())?.build(),
         Some(&cache_dir),
     )?
     .with_strategy(CacheStrategy {
@@ -996,7 +996,7 @@ async fn main() -> Result<()> {
     info!("\n=== Example 4: Cache Warming ===");
 
     let warming_client = CachingClient::new(
-        Client::new(Config::builder().api_key("test-api-key").build())?,
+        Client::builder(Config::builder().api_key("test-api-key").build())?.build(),
         Some(&cache_dir),
     )?
     .with_strategy(CacheStrategy {
