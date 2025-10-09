@@ -84,12 +84,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Custom HTTP Client with Retry Logic
 
-You can provide your own `reqwest::Client` with custom retry, timeout, and middleware configuration:
+You can provide your own `reqwest::Client` with custom retry, timeout, and middleware configuration.
+**Note:** When using a custom HTTP client, you must configure the timeout on the `reqwest::Client` itself:
 
 ```rust,ignore
 use openai_ergonomic::{Client, Config};
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -97,8 +99,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let retry_policy = ExponentialBackoff::builder()
         .build_with_max_retries(3);
 
-    // Build a client with retry middleware
-    let http_client = ClientBuilder::new(reqwest::Client::new())
+    // Build a reqwest client with custom timeout
+    let reqwest_client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))  // Configure timeout here
+        .build()?;
+
+    // Add retry middleware
+    let http_client = ClientBuilder::new(reqwest_client)
         .with(RetryTransientMiddleware::new_with_policy(retry_policy))
         .build();
 
@@ -110,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let client = Client::new(config)?.build();
 
-    // Use the client normally - retries are handled automatically
+    // Use the client normally - retries and timeout are handled automatically
     let response = client.chat_simple("Hello!").await?;
     println!("{}", response);
     Ok(())

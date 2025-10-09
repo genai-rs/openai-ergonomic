@@ -219,11 +219,19 @@ async fn auth_error_handling() -> Result<()> {
 
 async fn network_error_handling() -> Result<()> {
     use openai_ergonomic::Config;
+    use reqwest_middleware::ClientBuilder;
 
-    // Create client with very short timeout to simulate network issues
+    // Create a reqwest client with very short timeout to simulate network issues
+    let reqwest_client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(1))
+        .build()
+        .expect("Failed to build reqwest client");
+
+    let http_client = ClientBuilder::new(reqwest_client).build();
+
     let config = Config::builder()
         .api_key("test-key")
-        .timeout_seconds(1)
+        .http_client(http_client)
         .build();
 
     let client = Client::builder(config)?.build();
