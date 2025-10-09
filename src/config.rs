@@ -278,10 +278,7 @@ mod tests {
 
     #[test]
     fn test_config_builder() {
-        let config = Config::builder()
-            .api_key("test-key")
-            .max_retries(5)
-            .build();
+        let config = Config::builder().api_key("test-key").max_retries(5).build();
 
         assert_eq!(config.api_key(), "test-key");
         assert_eq!(config.max_retries(), 5);
