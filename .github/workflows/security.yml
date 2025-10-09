@@ -39,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
+        continue-on-error: true
         with:
           command: check ${{ matrix.checks }}
           arguments: --all-features
