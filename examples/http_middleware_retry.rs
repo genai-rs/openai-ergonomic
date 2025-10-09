@@ -85,7 +85,6 @@ async fn main() -> Result<()> {
                 .expect("OPENAI_API_KEY environment variable must be set"),
         )
         .http_client(custom_http_client)
-        .timeout_seconds(60)
         .build();
 
     let custom_client = Client::builder(custom_config)?.build();

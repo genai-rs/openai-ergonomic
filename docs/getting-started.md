@@ -58,7 +58,32 @@ async fn main() -> openai_ergonomic::Result<()> {
         .api_key("sk-your-key")
         .api_base("https://api.openai.com/v1")
         .default_model("gpt-4.1-mini")
-        .timeout_seconds(30)
+        .build();
+
+    let client = Client::new(config)?.build();
+    // Use the client …
+    Ok(())
+}
+```
+
+To configure a custom timeout, provide a custom HTTP client:
+
+```rust
+use openai_ergonomic::{Client, Config};
+use reqwest_middleware::ClientBuilder;
+use std::time::Duration;
+
+#[tokio::main]
+async fn main() -> openai_ergonomic::Result<()> {
+    let http_client = ClientBuilder::new(
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()?,
+    ).build();
+
+    let config = Config::builder()
+        .api_key("sk-your-key")
+        .http_client(http_client)
         .build();
 
     let client = Client::new(config)?.build();

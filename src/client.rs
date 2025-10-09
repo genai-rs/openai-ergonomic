@@ -227,7 +227,7 @@ impl ClientBuilder {
             client.clone()
         } else {
             let reqwest_client = reqwest::Client::builder()
-                .timeout(Duration::from_secs(config.timeout_seconds()))
+                .timeout(Duration::from_secs(120)) // Default timeout: 120 seconds
                 .user_agent(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")))
                 .build()
                 .map_err(Error::Http)?;

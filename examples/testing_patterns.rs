@@ -311,7 +311,6 @@ impl TestUtils {
         let config = Config::builder()
             .api_key("test-api-key")
             .api_base("http://localhost:1234") // Mock server URL
-            .timeout_seconds(5)
             .max_retries(2)
             .build();
 

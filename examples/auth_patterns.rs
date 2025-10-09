@@ -188,23 +188,42 @@ fn proxy_config() -> Result<()> {
 }
 
 fn multiple_clients() -> Result<()> {
+    use reqwest_middleware::ClientBuilder;
+    use std::time::Duration;
+
     // Create multiple clients for different use cases
 
     // Production client with retries and longer timeout
+    let prod_http_client = ClientBuilder::new(
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()
+            .expect("Failed to build reqwest client"),
+    )
+    .build();
+
     let prod_config = Config::builder()
         .api_key("prod-api-key")
         .organization("org-prod")
-        .timeout_seconds(60)
+        .http_client(prod_http_client)
         .max_retries(5)
         .build();
     let prod_client = Client::builder(prod_config)?.build();
 
-    // Development client with debug logging
+    // Development client with debug logging and shorter timeout
+    let dev_http_client = ClientBuilder::new(
+        reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .expect("Failed to build reqwest client"),
+    )
+    .build();
+
     let dev_config = Config::builder()
         .api_key("dev-api-key")
         .organization("org-dev")
         .api_base("https://api.openai-dev.com") // Custom endpoint
-        .timeout_seconds(10)
+        .http_client(dev_http_client)
         .build();
     let dev_client = Client::builder(dev_config)?.build();
 
