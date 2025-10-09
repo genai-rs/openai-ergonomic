@@ -24,7 +24,6 @@ use opentelemetry_sdk::{
     runtime::Tokio,
     trace::{span_processor_with_async_runtime::BatchSpanProcessor, SdkTracerProvider},
 };
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -53,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. Create the OpenAI client and add the Langfuse interceptor
     // Keep a reference to the interceptor so we can update context later
-    let client = Client::from_env()?.with_interceptor(Box::new(langfuse_interceptor.clone()));
+    let client = Client::from_env()?.with_typed_interceptor(Box::new(langfuse_interceptor.clone()));
 
     println!("🚀 OpenAI client initialized with Langfuse observability");
     println!("📊 Traces will be sent to Langfuse for monitoring\n");

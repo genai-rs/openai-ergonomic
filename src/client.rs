@@ -60,7 +60,6 @@ use openai_client_base::{
     },
 };
 use reqwest::Client as HttpClient;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
@@ -204,7 +203,8 @@ impl<T> std::fmt::Debug for Client<T> {
     }
 }
 
-impl<T> Client<T> {
+// Implementation for Client<()> - the default client without custom interceptor state
+impl Client {
     /// Create a new client with the given configuration.
     pub fn new(config: Config) -> Result<Self> {
         // Use custom HTTP client if provided, otherwise build a default one
@@ -244,6 +244,9 @@ impl<T> Client<T> {
     pub fn from_env() -> Result<Self> {
         Self::new(Config::from_env()?)
     }
+}
+
+impl<T> Client<T> {
 
     /// Add an interceptor to the client.
     ///
@@ -277,6 +280,38 @@ impl<T> Client<T> {
             chain.add(interceptor);
         });
         self
+    }
+
+    /// Transform this client to use a different state type with an interceptor.
+    ///
+    /// This method is useful when you want to add an interceptor that requires a specific
+    /// state type. It creates a new client with the same configuration but with a different
+    /// type parameter, and adds the interceptor.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use openai_ergonomic::{Client, LangfuseInterceptor, LangfuseState};
+    ///
+    /// let interceptor = LangfuseInterceptor::new(tracer, config);
+    /// let client: Client<LangfuseState<_>> = Client::from_env()?
+    ///     .with_typed_interceptor(Box::new(interceptor));
+    /// ```
+    #[must_use]
+    pub fn with_typed_interceptor<U>(self, interceptor: Box<dyn crate::interceptor::Interceptor<U>>) -> Client<U> {
+        let new_client = Client {
+            config: self.config,
+            http: self.http,
+            base_configuration: self.base_configuration,
+            interceptors: Arc::new(RwLock::new(InterceptorChain::new())),
+        };
+
+        // Use futures::executor::block_on which works both inside and outside tokio runtime
+        futures::executor::block_on(async {
+            let mut chain = new_client.interceptors.write().await;
+            chain.add(interceptor);
+        });
+        new_client
     }
 
     /// Get a reference to the client configuration.
@@ -602,7 +637,7 @@ impl<T: Default + Send + Sync> Client<T> {
     }
 }
 
-impl<T: Default + Send + Sync> AudioClient<\'_, T> {
+impl<T: Default + Send + Sync> AudioClient<'_, T> {
     /// Create a speech builder for text-to-speech generation.
     #[must_use]
     pub fn speech(
@@ -833,7 +868,7 @@ impl<T: Default + Send + Sync> AudioClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> EmbeddingsClient<\'_, T> {
+impl<T: Default + Send + Sync> EmbeddingsClient<'_, T> {
     /// Start a builder for creating embeddings requests with the given model.
     #[must_use]
     pub fn builder(&self, model: impl Into<String>) -> EmbeddingsBuilder {
@@ -906,7 +941,7 @@ impl<T: Default + Send + Sync> EmbeddingsClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> ImagesClient<\'_, T> {
+impl<T: Default + Send + Sync> ImagesClient<'_, T> {
     /// Create a builder for image generation requests.
     #[must_use]
     pub fn generate(&self, prompt: impl Into<String>) -> ImageGenerationBuilder {
@@ -1138,7 +1173,7 @@ impl<T: Default + Send + Sync> ImagesClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> ThreadsClient<\'_, T> {
+impl<T: Default + Send + Sync> ThreadsClient<'_, T> {
     /// Start building a new thread request.
     #[must_use]
     pub fn builder(&self) -> ThreadRequestBuilder {
@@ -1196,7 +1231,7 @@ impl<T: Default + Send + Sync> ThreadsClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> UploadsClient<\'_, T> {
+impl<T: Default + Send + Sync> UploadsClient<'_, T> {
     /// Create a new upload builder for the given file metadata.
     #[must_use]
     pub fn builder(
@@ -1260,7 +1295,7 @@ impl<T: Default + Send + Sync> UploadsClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> ModerationsClient<\'_, T> {
+impl<T: Default + Send + Sync> ModerationsClient<'_, T> {
     /// Create a moderation builder for checking text content.
     ///
     /// # Example
@@ -1387,7 +1422,7 @@ impl<T: Default + Send + Sync> ModerationsClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> FilesClient<\'_, T> {
+impl<T: Default + Send + Sync> FilesClient<'_, T> {
     /// Upload a file to `OpenAI`.
     ///
     /// # Example
@@ -1822,7 +1857,7 @@ impl<T: Default + Send + Sync> FilesClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> VectorStoresClient<\'_, T> {
+impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     /// Create a new vector store.
     ///
     /// # Example
@@ -2573,7 +2608,7 @@ impl<T: Default + Send + Sync> VectorStoresClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> BatchClient<\'_, T> {
+impl<T: Default + Send + Sync> BatchClient<'_, T> {
     /// Create a new batch job.
     ///
     /// # Example
@@ -2851,7 +2886,7 @@ impl<T: Default + Send + Sync> BatchClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> FineTuningClient<\'_, T> {
+impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
     /// Create a new fine-tuning job.
     ///
     /// # Example
@@ -3498,7 +3533,7 @@ pub struct AssistantsClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
-impl<T: Default + Send + Sync> AssistantsClient<\'_, T> {
+impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     /// Create a new assistant.
     ///
     /// # Example
@@ -4607,88 +4642,88 @@ impl<T: Default + Send + Sync> AssistantsClient<\'_, T> {
 /// Client for audio API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct AudioClient<\'a, T = ()> {
+pub struct AudioClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for embeddings API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct EmbeddingsClient<\'a, T = ()> {
+pub struct EmbeddingsClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for images API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct ImagesClient<\'a, T = ()> {
+pub struct ImagesClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for files API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct FilesClient<\'a, T = ()> {
+pub struct FilesClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for fine-tuning API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct FineTuningClient<\'a, T = ()> {
+pub struct FineTuningClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for batch API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct BatchClient<\'a, T = ()> {
+pub struct BatchClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for vector stores API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct VectorStoresClient<\'a, T = ()> {
+pub struct VectorStoresClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for moderations API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct ModerationsClient<\'a, T = ()> {
+pub struct ModerationsClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for threads API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct ThreadsClient<\'a, T = ()> {
+pub struct ThreadsClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for uploads API.
 #[derive(Debug, Clone, Copy)]
 #[allow(dead_code)]
-pub struct UploadsClient<\'a, T = ()> {
+pub struct UploadsClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for models API.
 #[derive(Debug, Clone, Copy)]
-pub struct ModelsClient<\'a, T = ()> {
+pub struct ModelsClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for completions API.
 #[derive(Debug, Clone, Copy)]
-pub struct CompletionsClient<\'a, T = ()> {
+pub struct CompletionsClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
 /// Client for usage API.
 #[derive(Debug, Clone, Copy)]
-pub struct UsageClient<\'a, T = ()> {
+pub struct UsageClient<'a, T = ()> {
     client: &'a Client<T>,
 }
 
@@ -4708,7 +4743,7 @@ impl_interceptor_helpers!(ModelsClient<'_, T>);
 impl_interceptor_helpers!(CompletionsClient<'_, T>);
 impl_interceptor_helpers!(UsageClient<'_, T>);
 
-impl<T: Default + Send + Sync> ModelsClient<\'_, T> {
+impl<T: Default + Send + Sync> ModelsClient<'_, T> {
     /// List all available models.
     ///
     /// # Example
@@ -4908,7 +4943,7 @@ impl<T: Default + Send + Sync> ModelsClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> CompletionsClient<\'_, T> {
+impl<T: Default + Send + Sync> CompletionsClient<'_, T> {
     /// Create a completions builder for the specified model.
     ///
     /// # Example
@@ -4998,7 +5033,7 @@ impl<T: Default + Send + Sync> CompletionsClient<\'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> UsageClient<\'_, T> {
+impl<T: Default + Send + Sync> UsageClient<'_, T> {
     /// Get usage data for audio speeches.
     ///
     /// # Example

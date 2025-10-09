@@ -280,6 +280,7 @@ impl<T> InterceptorChain<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
@@ -448,7 +449,7 @@ mod tests {
             }
         }
 
-        let chain = InterceptorChain::new();
+        let chain: InterceptorChain<()> = InterceptorChain::new();
         let error = crate::Error::Internal("Test".to_string());
         let ctx = ErrorContext {
             operation: "test",
