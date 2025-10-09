@@ -35,7 +35,8 @@
 //! }
 //!
 //! let client = Client::from_env()?
-//!     .with_interceptor(Box::new(LoggingInterceptor));
+//!     .with_interceptor(Box::new(LoggingInterceptor))
+//!     .build();
 //! ```
 
 use crate::Result;
