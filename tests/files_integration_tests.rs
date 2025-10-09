@@ -198,7 +198,7 @@ fn test_file_upload_builder_content_methods() {
 async fn test_files_upload_and_delete() -> Result<(), Box<dyn std::error::Error>> {
     use openai_ergonomic::Client;
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Upload a test file
     let content = "This is a test file for the Files API integration test.";
@@ -224,7 +224,7 @@ async fn test_files_upload_and_delete() -> Result<(), Box<dyn std::error::Error>
 async fn test_files_list() -> Result<(), Box<dyn std::error::Error>> {
     use openai_ergonomic::Client;
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client.files().list_builder().limit(10);
     let response = client.files().list(builder).await?;
@@ -240,7 +240,7 @@ async fn test_files_list() -> Result<(), Box<dyn std::error::Error>> {
 async fn test_files_list_with_purpose() -> Result<(), Box<dyn std::error::Error>> {
     use openai_ergonomic::Client;
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .files()
@@ -265,7 +265,7 @@ async fn test_files_list_with_purpose() -> Result<(), Box<dyn std::error::Error>
 async fn test_files_retrieve() -> Result<(), Box<dyn std::error::Error>> {
     use openai_ergonomic::Client;
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // First, upload a file to retrieve
     let content = "Test content for retrieval";
@@ -293,7 +293,7 @@ async fn test_files_retrieve() -> Result<(), Box<dyn std::error::Error>> {
 async fn test_files_download() -> Result<(), Box<dyn std::error::Error>> {
     use openai_ergonomic::Client;
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Upload a file to download
     let original_content = "This is the content we will download back.";
@@ -323,7 +323,7 @@ async fn test_files_download() -> Result<(), Box<dyn std::error::Error>> {
 async fn test_files_upload_json() -> Result<(), Box<dyn std::error::Error>> {
     use openai_ergonomic::Client;
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Create JSON content
     let json_data = serde_json::json!({
@@ -355,7 +355,7 @@ async fn test_files_upload_json() -> Result<(), Box<dyn std::error::Error>> {
 async fn test_files_complete_workflow() -> Result<(), Box<dyn std::error::Error>> {
     use openai_ergonomic::Client;
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // 1. Upload a file
     let content = "Complete workflow test file.";

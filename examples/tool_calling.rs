@@ -94,7 +94,7 @@ fn execute_time_function(timezone: &str) -> String {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize client from environment
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     println!("=== Tool Calling Example ===\n");
 

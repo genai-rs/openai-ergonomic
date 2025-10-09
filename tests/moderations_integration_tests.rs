@@ -92,7 +92,7 @@ fn test_moderation_result() {
 /*
 #[tokio::test]
 async fn test_moderations_api_integration() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .moderations()
@@ -108,7 +108,7 @@ async fn test_moderations_api_integration() -> Result<(), Box<dyn std::error::Er
 
 #[tokio::test]
 async fn test_moderations_with_custom_model() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .moderations()
@@ -126,7 +126,7 @@ async fn test_moderations_with_custom_model() -> Result<(), Box<dyn std::error::
 
 #[tokio::test]
 async fn test_moderations_flagging() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Test with safe content
     let safe_builder = client.moderations().check("Hello, how are you today?");
