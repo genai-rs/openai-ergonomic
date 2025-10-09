@@ -4,6 +4,7 @@
 //! including API key management, base URLs, timeouts, and retry settings.
 
 use crate::{errors::Result, Error};
+use reqwest_middleware::ClientWithMiddleware;
 use std::env;
 use tokio::time::Duration;
 
@@ -44,7 +45,7 @@ pub struct Config {
     timeout_seconds: u64,
     max_retries: u32,
     default_model: String,
-    http_client: Option<reqwest::Client>,
+    http_client: Option<ClientWithMiddleware>,
 }
 
 impl std::fmt::Debug for Config {
@@ -59,7 +60,7 @@ impl std::fmt::Debug for Config {
             .field("default_model", &self.default_model)
             .field(
                 "http_client",
-                &self.http_client.as_ref().map(|_| "<reqwest::Client>"),
+                &self.http_client.as_ref().map(|_| "<ClientWithMiddleware>"),
             )
             .finish()
     }
@@ -173,7 +174,7 @@ impl Config {
     }
 
     /// Get the custom HTTP client, if set.
-    pub fn http_client(&self) -> Option<&reqwest::Client> {
+    pub fn http_client(&self) -> Option<&ClientWithMiddleware> {
         self.http_client.as_ref()
     }
 }
@@ -203,7 +204,7 @@ pub struct ConfigBuilder {
     timeout_seconds: Option<u64>,
     max_retries: Option<u32>,
     default_model: Option<String>,
-    http_client: Option<reqwest::Client>,
+    http_client: Option<ClientWithMiddleware>,
 }
 
 impl ConfigBuilder {
@@ -258,13 +259,13 @@ impl ConfigBuilder {
 
     /// Set a custom HTTP client.
     ///
-    /// This allows you to provide a pre-configured `reqwest::Client` with
+    /// This allows you to provide a pre-configured `ClientWithMiddleware` with
     /// custom settings like retry policies, connection pooling, proxies, etc.
     ///
     /// # Example
     ///
     /// ```rust,ignore
-    /// use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+    /// use reqwest_middleware::ClientBuilder;
     /// use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
     ///
     /// let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
@@ -274,11 +275,11 @@ impl ConfigBuilder {
     ///
     /// let config = Config::builder()
     ///     .api_key("sk-...")
-    ///     .http_client(client.into())
+    ///     .http_client(client)
     ///     .build();
     /// ```
     #[must_use]
-    pub fn http_client(mut self, client: reqwest::Client) -> Self {
+    pub fn http_client(mut self, client: ClientWithMiddleware) -> Self {
         self.http_client = Some(client);
         self
     }
@@ -334,10 +335,13 @@ mod tests {
 
     #[test]
     fn test_config_with_custom_http_client() {
-        let http_client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .unwrap();
+        let http_client = reqwest_middleware::ClientBuilder::new(
+            reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build()
+                .unwrap(),
+        )
+        .build();
 
         let config = Config::builder()
             .api_key("test-key")
@@ -368,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_config_debug_with_http_client() {
-        let http_client = reqwest::Client::new();
+        let http_client = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
         let config = Config::builder()
             .api_key("test-key")
             .http_client(http_client)
@@ -377,6 +381,6 @@ mod tests {
         let debug_output = format!("{config:?}");
 
         // Should show placeholder for HTTP client
-        assert!(debug_output.contains("<reqwest::Client>"));
+        assert!(debug_output.contains("<ClientWithMiddleware>"));
     }
 }
