@@ -40,7 +40,7 @@ async fn images_client_create_hits_generation_endpoint() {
         .api_base(server.url())
         .default_model("gpt-image-1")
         .build();
-    let client = Client::new(config).expect("client builds");
+    let client = Client::builder(config).expect("client builds").build();
 
     let builder = ImageGenerationBuilder::new("A cat on a surfboard").model("gpt-image-1");
     let response = client
@@ -93,7 +93,7 @@ async fn images_client_create_edit_posts_multipart() {
         .api_base(server.url())
         .default_model("gpt-image-1")
         .build();
-    let client = Client::new(config).expect("client builds");
+    let client = Client::builder(config).expect("client builds").build();
 
     let builder = ImageEditBuilder::new(image.path(), "Remove background").model("gpt-image-1");
     let response = client
@@ -138,7 +138,7 @@ async fn images_client_create_variation_posts_multipart() {
         .api_base(server.url())
         .default_model("gpt-image-1")
         .build();
-    let client = Client::new(config).expect("client builds");
+    let client = Client::builder(config).expect("client builds").build();
 
     let builder = ImageVariationBuilder::new(image.path()).model("dall-e-2");
     let response = client

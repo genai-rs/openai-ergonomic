@@ -233,7 +233,10 @@ impl<T> InterceptorChain<T> {
     }
 
     /// Execute the `after_response` hook for all interceptors.
-    pub async fn after_response(&self, ctx: &AfterResponseContext<'_, T>) -> Result<()> {
+    pub async fn after_response(&self, ctx: &AfterResponseContext<'_, T>) -> Result<()>
+    where
+        T: Sync,
+    {
         for interceptor in &self.interceptors {
             interceptor.after_response(ctx).await?;
         }
@@ -241,7 +244,10 @@ impl<T> InterceptorChain<T> {
     }
 
     /// Execute the `on_stream_chunk` hook for all interceptors.
-    pub async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_, T>) -> Result<()> {
+    pub async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_, T>) -> Result<()>
+    where
+        T: Sync,
+    {
         for interceptor in &self.interceptors {
             interceptor.on_stream_chunk(ctx).await?;
         }
@@ -249,7 +255,10 @@ impl<T> InterceptorChain<T> {
     }
 
     /// Execute the `on_stream_end` hook for all interceptors.
-    pub async fn on_stream_end(&self, ctx: &StreamEndContext<'_, T>) -> Result<()> {
+    pub async fn on_stream_end(&self, ctx: &StreamEndContext<'_, T>) -> Result<()>
+    where
+        T: Sync,
+    {
         for interceptor in &self.interceptors {
             interceptor.on_stream_end(ctx).await?;
         }
@@ -260,7 +269,10 @@ impl<T> InterceptorChain<T> {
     ///
     /// Errors in individual interceptors are ignored to prevent
     /// cascading failures during error handling.
-    pub async fn on_error(&self, ctx: &ErrorContext<'_, T>) {
+    pub async fn on_error(&self, ctx: &ErrorContext<'_, T>)
+    where
+        T: Sync,
+    {
         for interceptor in &self.interceptors {
             // Ignore errors in error handlers to prevent cascading failures
             interceptor.on_error(ctx).await;

@@ -26,7 +26,7 @@ fn get_test_time_range() -> (i32, i32) {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completions_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -42,7 +42,7 @@ async fn test_completions_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_embeddings_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -57,7 +57,7 @@ async fn test_embeddings_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_audio_speeches_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -72,7 +72,7 @@ async fn test_audio_speeches_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_audio_transcriptions_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -87,7 +87,7 @@ async fn test_audio_transcriptions_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_images_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -102,7 +102,7 @@ async fn test_images_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_moderations_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -117,7 +117,7 @@ async fn test_moderations_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_vector_stores_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -132,7 +132,7 @@ async fn test_vector_stores_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_code_interpreter_sessions_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -147,7 +147,7 @@ async fn test_code_interpreter_sessions_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_costs_usage() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time));
@@ -162,7 +162,7 @@ async fn test_costs_usage() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_usage_with_bucket_width() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time)).bucket_width(BucketWidth::Day);
@@ -178,7 +178,7 @@ async fn test_usage_with_bucket_width() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_usage_with_model_filter() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time)).model("gpt-4");
@@ -194,7 +194,7 @@ async fn test_usage_with_model_filter() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_usage_with_group_by() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time)).group_by(GroupBy::Model);
@@ -210,7 +210,7 @@ async fn test_usage_with_group_by() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_usage_with_limit() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let (start_time, end_time) = get_test_time_range();
 
     let builder = UsageBuilder::new(start_time, Some(end_time)).limit(10);

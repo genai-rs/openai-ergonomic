@@ -49,9 +49,9 @@ async fn main() -> Result<()> {
 
     // The simplest way to get started - reads OPENAI_API_KEY from environment
     let client = match Client::from_env() {
-        Ok(client) => {
+        Ok(client_builder) => {
             println!("✅ Client created successfully!");
-            client
+            client_builder.build()
         }
         Err(e) => {
             eprintln!("❌ Failed to create client: {e}");

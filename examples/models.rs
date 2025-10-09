@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
     println!("=== Model Listing and Selection ===\n");
 
     // Initialize client
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Example 0: List models from API (commented out to avoid API calls)
     // println!("0. Fetching Models from API:");

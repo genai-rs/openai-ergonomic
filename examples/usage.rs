@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
     println!("=== Usage API Examples ===\n");
 
     // Initialize client
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Get current time and time 30 days ago (in Unix timestamp seconds)
     // Using hardcoded timestamps for demonstration

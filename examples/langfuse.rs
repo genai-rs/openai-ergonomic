@@ -17,7 +17,9 @@
 //! cargo run --example langfuse
 //! ```
 
-use openai_ergonomic::{Builder, ChatCompletionBuilder, Client, LangfuseConfig, LangfuseInterceptor};
+use openai_ergonomic::{
+    Builder, ChatCompletionBuilder, Client, LangfuseConfig, LangfuseInterceptor,
+};
 use opentelemetry::{global, trace::TracerProvider};
 use opentelemetry_langfuse::ExporterBuilder;
 use opentelemetry_sdk::{
@@ -48,7 +50,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Get tracer and create interceptor
     let tracer = provider.tracer("openai-ergonomic");
-    let langfuse_interceptor = std::sync::Arc::new(LangfuseInterceptor::new(tracer, LangfuseConfig::new()));
+    let langfuse_interceptor =
+        std::sync::Arc::new(LangfuseInterceptor::new(tracer, LangfuseConfig::new()));
 
     // 4. Create the OpenAI client and add the Langfuse interceptor
     // Keep a reference to the interceptor so we can update context later

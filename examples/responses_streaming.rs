@@ -226,7 +226,7 @@ async fn example_basic_streaming() -> Result<()> {
     // requires integration with openai-client-base streaming API
     println!("Creating client and streaming request...");
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Build a streaming request
     let _streaming_request = client
@@ -375,7 +375,7 @@ fn example_streaming_error_handling() {
 async fn example_streaming_tool_calls() -> Result<()> {
     println!("=== Streaming Tool Calls Example ===");
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Create a tool for getting weather information
     let weather_tool = openai_ergonomic::responses::tool_function(

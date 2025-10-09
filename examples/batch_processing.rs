@@ -637,7 +637,7 @@ async fn main() -> Result<()> {
     info!("Starting batch processing example");
 
     // Create client from environment
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Initialize batch processor with custom configuration
     let batch_processor = BatchProcessor::new(client).with_config(

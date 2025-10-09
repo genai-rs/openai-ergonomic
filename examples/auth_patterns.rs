@@ -73,7 +73,7 @@ async fn env_var_auth() -> Result<()> {
     }
 
     // Create client from environment
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     println!("Client created from environment variables");
 
     // Test the client
@@ -95,7 +95,7 @@ async fn direct_api_key() -> Result<()> {
     // Create client with direct API key
     let api_key = "sk-your-api-key-here"; // Replace with actual key
     let config = Config::builder().api_key(api_key).build();
-    let client = Client::new(config)?;
+    let client = Client::builder(config)?.build();
 
     println!("Client created with direct API key");
 
@@ -121,7 +121,7 @@ fn organization_config() -> Result<()> {
         .organization("org-123456789")
         .build();
 
-    let _client = Client::new(config)?;
+    let _client = Client::builder(config)?.build();
     println!("Client configured with organization ID");
 
     // Organization ID is sent in headers with all requests
@@ -140,7 +140,7 @@ fn project_config() -> Result<()> {
         .project("proj-abc123")
         .build();
 
-    let _client = Client::new(config)?;
+    let _client = Client::builder(config)?.build();
     println!("Client configured with project ID");
 
     // Project ID helps with:
@@ -160,7 +160,7 @@ fn custom_headers() -> Result<()> {
 
     let config = Config::builder().api_key("your-api-key").build();
 
-    let _client = Client::new(config)?;
+    let _client = Client::builder(config)?.build();
     println!("Client configured (custom headers not yet supported)");
 
     // TODO: Add support for custom headers in the future
@@ -178,7 +178,7 @@ fn proxy_config() -> Result<()> {
 
     let config = Config::builder().api_key("your-api-key").build();
 
-    let _client = Client::new(config)?;
+    let _client = Client::builder(config)?.build();
     println!("Client configured (proxy support not yet available)");
 
     // TODO: Add proxy support in the future
@@ -197,7 +197,7 @@ fn multiple_clients() -> Result<()> {
         .timeout_seconds(60)
         .max_retries(5)
         .build();
-    let prod_client = Client::new(prod_config)?;
+    let prod_client = Client::builder(prod_config)?.build();
 
     // Development client with debug logging
     let dev_config = Config::builder()
@@ -206,14 +206,14 @@ fn multiple_clients() -> Result<()> {
         .api_base("https://api.openai-dev.com") // Custom endpoint
         .timeout_seconds(10)
         .build();
-    let dev_client = Client::new(dev_config)?;
+    let dev_client = Client::builder(dev_config)?.build();
 
     // Test client with mocked responses
     let test_config = Config::builder()
         .api_key("test-api-key")
         .api_base("http://localhost:8080") // Local mock server
         .build();
-    let _test_client = Client::new(test_config)?;
+    let _test_client = Client::builder(test_config)?.build();
 
     println!("Created multiple clients:");
     println!("- Production client with retries");
@@ -270,7 +270,7 @@ fn config_validation() -> Result<()> {
             .organization(org_id)
             .build();
 
-        let _client = Client::new(config)?;
+        let _client = Client::builder(config)?.build();
         println!("Configuration validated and client created");
     }
 

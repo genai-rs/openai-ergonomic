@@ -66,7 +66,7 @@ mod tests {
         let config = Config::builder().api_key(api_key).build();
         let (interceptor, before_count, after_count, _error_count) = CountingInterceptor::new();
 
-        let client = Client::new(config)
+        let client = Client::builder(config)
             .unwrap()
             .with_interceptor(Box::new(interceptor))
             .build();
@@ -100,7 +100,7 @@ mod tests {
 
         let (interceptor, before_count, _after_count, error_count) = CountingInterceptor::new();
 
-        let client = Client::new(config)
+        let client = Client::builder(config)
             .unwrap()
             .with_interceptor(Box::new(interceptor))
             .build();
@@ -133,7 +133,7 @@ mod tests {
         let (interceptor1, before1, _, _) = CountingInterceptor::new();
         let (interceptor2, before2, _, _) = CountingInterceptor::new();
 
-        let client = Client::new(config)
+        let client = Client::builder(config)
             .unwrap()
             .add_interceptor(Box::new(interceptor1))
             .add_interceptor(Box::new(interceptor2))

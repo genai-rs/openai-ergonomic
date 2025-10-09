@@ -220,7 +220,10 @@ impl<T: Tracer + Send + Sync> Interceptor<LangfuseState<T::Span>> for LangfuseIn
 where
     T::Span: Send + Sync + 'static,
 {
-    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+    async fn before_request(
+        &self,
+        ctx: &mut BeforeRequestContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
         let tracer = self.tracer.as_ref();
 
         // Build initial attributes
@@ -235,7 +238,10 @@ where
 
         // Parse request JSON and add relevant attributes
         if let Ok(params) = Self::extract_request_params(ctx.request_json) {
-            if let Some(temperature) = params.get("temperature").and_then(serde_json::Value::as_f64) {
+            if let Some(temperature) = params
+                .get("temperature")
+                .and_then(serde_json::Value::as_f64)
+            {
                 attributes.push(KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temperature));
             }
             if let Some(max_tokens) = params.get("max_tokens").and_then(serde_json::Value::as_i64) {
@@ -258,10 +264,8 @@ where
                             .to_string();
 
                         attributes.push(KeyValue::new(format!("gen_ai.prompt.{i}.role"), role));
-                        attributes.push(KeyValue::new(
-                            format!("gen_ai.prompt.{i}.content"),
-                            content,
-                        ));
+                        attributes
+                            .push(KeyValue::new(format!("gen_ai.prompt.{i}.content"), content));
                     }
                 }
             }
@@ -284,7 +288,12 @@ where
         Ok(())
     }
 
-    async fn after_response(&self, ctx: &AfterResponseContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+    async fn after_response(
+        &self,
+        ctx: &AfterResponseContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
+        use opentelemetry::trace::Span;
+
         // Take the span from state so we can end it
         let Some(mut span) = ctx.state.span.lock().unwrap().take() else {
             if self.config.debug {
@@ -294,7 +303,6 @@ where
         };
 
         // Add response attributes to the span
-        use opentelemetry::trace::Span;
 
         #[allow(clippy::cast_possible_truncation)]
         {
@@ -320,16 +328,22 @@ where
             }
 
             // Add completion content
-            if let Some(choices) = response.get("choices").and_then(serde_json::Value::as_array) {
+            if let Some(choices) = response
+                .get("choices")
+                .and_then(serde_json::Value::as_array)
+            {
                 for (i, choice) in choices.iter().enumerate() {
                     if let Some(message) = choice.get("message") {
-                        if let Some(role) = message.get("role").and_then(serde_json::Value::as_str) {
+                        if let Some(role) = message.get("role").and_then(serde_json::Value::as_str)
+                        {
                             span.set_attribute(KeyValue::new(
                                 format!("gen_ai.completion.{i}.role"),
                                 role.to_string(),
                             ));
                         }
-                        if let Some(content) = message.get("content").and_then(serde_json::Value::as_str) {
+                        if let Some(content) =
+                            message.get("content").and_then(serde_json::Value::as_str)
+                        {
                             span.set_attribute(KeyValue::new(
                                 format!("gen_ai.completion.{i}.content"),
                                 content.to_string(),
@@ -350,27 +364,40 @@ where
         Ok(())
     }
 
-    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+    async fn on_stream_chunk(
+        &self,
+        _ctx: &StreamChunkContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
         // Stream chunks can add attributes to the current span if needed
         // For now, we just let them pass through
         Ok(())
     }
 
-    async fn on_stream_end(&self, ctx: &StreamEndContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+    async fn on_stream_end(
+        &self,
+        ctx: &StreamEndContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
+        use opentelemetry::trace::Span;
+
         // Take the span from state so we can end it
         let Some(mut span) = ctx.state.span.lock().unwrap().take() else {
             if self.config.debug {
-                debug!("No span found in state for stream operation: {}", ctx.operation);
+                debug!(
+                    "No span found in state for stream operation: {}",
+                    ctx.operation
+                );
             }
             return Ok(());
         };
 
         // Add final streaming attributes
-        use opentelemetry::trace::Span;
 
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
         {
-            span.set_attribute(KeyValue::new("stream.total_chunks", ctx.total_chunks as i64));
+            span.set_attribute(KeyValue::new(
+                "stream.total_chunks",
+                ctx.total_chunks as i64,
+            ));
             span.set_attribute(KeyValue::new(
                 "stream.duration_ms",
                 ctx.duration.as_millis() as i64,
@@ -398,23 +425,30 @@ where
     }
 
     async fn on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
+        use opentelemetry::trace::{Span, Status};
+
         // Take the span from state if available
         let Some(state) = ctx.state else {
             if self.config.debug {
-                debug!("No state available for error in operation: {}", ctx.operation);
+                debug!(
+                    "No state available for error in operation: {}",
+                    ctx.operation
+                );
             }
             return;
         };
 
         let Some(mut span) = state.span.lock().unwrap().take() else {
             if self.config.debug {
-                debug!("No span found in state for error in operation: {}", ctx.operation);
+                debug!(
+                    "No span found in state for error in operation: {}",
+                    ctx.operation
+                );
             }
             return;
         };
 
         // Set the span status to error
-        use opentelemetry::trace::{Span, Status};
         span.set_status(Status::error(ctx.error.to_string()));
 
         // Add error attributes to the span
@@ -443,24 +477,36 @@ impl<T: Tracer + Send + Sync> Interceptor<LangfuseState<T::Span>> for Arc<Langfu
 where
     T::Span: Send + Sync + 'static,
 {
-    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+    async fn before_request(
+        &self,
+        ctx: &mut BeforeRequestContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
         (**self).before_request(ctx).await
     }
 
-    async fn after_response(&self, ctx: &AfterResponseContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+    async fn after_response(
+        &self,
+        ctx: &AfterResponseContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
         (**self).after_response(ctx).await
     }
 
-    async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+    async fn on_stream_chunk(
+        &self,
+        ctx: &StreamChunkContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
         (**self).on_stream_chunk(ctx).await
     }
 
-    async fn on_stream_end(&self, ctx: &StreamEndContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+    async fn on_stream_end(
+        &self,
+        ctx: &StreamEndContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
         (**self).on_stream_end(ctx).await
     }
 
     async fn on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
-        (**self).on_error(ctx).await
+        (**self).on_error(ctx).await;
     }
 }
 

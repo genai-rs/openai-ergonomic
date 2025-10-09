@@ -10,7 +10,7 @@ use openai_ergonomic::{builders::completions::CompletionsBuilder, Builder, Clien
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_basic_completion() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
@@ -36,7 +36,7 @@ async fn test_basic_completion() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_temperature() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
@@ -56,7 +56,7 @@ async fn test_completion_with_temperature() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_stop_sequence() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
@@ -77,7 +77,7 @@ async fn test_completion_with_stop_sequence() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_multiple_choices() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
@@ -101,7 +101,7 @@ async fn test_completion_with_multiple_choices() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_echo() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let prompt_text = "Echo test:";
     let builder = client
@@ -123,7 +123,7 @@ async fn test_completion_with_echo() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_suffix() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
@@ -144,7 +144,7 @@ async fn test_completion_with_suffix() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_logprobs() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
@@ -220,7 +220,7 @@ fn test_completions_builder_with_stop_sequences() {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_frequency_penalty() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
@@ -240,7 +240,7 @@ async fn test_completion_with_frequency_penalty() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_presence_penalty() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
@@ -260,7 +260,7 @@ async fn test_completion_with_presence_penalty() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_completion_with_best_of() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .completions()
