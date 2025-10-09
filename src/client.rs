@@ -59,7 +59,7 @@ use openai_client_base::{
         VectorStoreFileObject, VectorStoreObject, VectorStoreSearchResultsPage,
     },
 };
-use reqwest::Client as HttpClient;
+use reqwest_middleware::ClientWithMiddleware as HttpClient;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::time::Duration;
@@ -226,11 +226,12 @@ impl ClientBuilder {
         let http_client = if let Some(client) = config.http_client() {
             client.clone()
         } else {
-            HttpClient::builder()
+            let reqwest_client = reqwest::Client::builder()
                 .timeout(Duration::from_secs(config.timeout_seconds()))
                 .user_agent(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")))
                 .build()
-                .map_err(Error::Http)?
+                .map_err(Error::Http)?;
+            reqwest_middleware::ClientBuilder::new(reqwest_client).build()
         };
 
         // Create openai-client-base configuration

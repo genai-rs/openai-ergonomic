@@ -105,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create OpenAI client with custom HTTP client
     let config = Config::builder()
         .api_key("your-api-key")
-        .http_client(http_client.into())
+        .http_client(http_client)
         .build();
 
     let client = Client::new(config)?.build();
