@@ -68,7 +68,8 @@ mod tests {
 
         let client = Client::new(config)
             .unwrap()
-            .with_interceptor(Box::new(interceptor));
+            .with_interceptor(Box::new(interceptor))
+            .build();
 
         // Make a simple request
         let result = client
@@ -101,7 +102,8 @@ mod tests {
 
         let client = Client::new(config)
             .unwrap()
-            .with_interceptor(Box::new(interceptor));
+            .with_interceptor(Box::new(interceptor))
+            .build();
 
         // This should fail with an authentication error
         let result = client.send_chat(client.chat_simple("test")).await;
@@ -133,8 +135,9 @@ mod tests {
 
         let client = Client::new(config)
             .unwrap()
-            .with_interceptor(Box::new(interceptor1))
-            .with_interceptor(Box::new(interceptor2));
+            .add_interceptor(Box::new(interceptor1))
+            .add_interceptor(Box::new(interceptor2))
+            .build();
 
         // Make a request
         let _ = client.send_chat(client.chat_simple("Say 'test'")).await;

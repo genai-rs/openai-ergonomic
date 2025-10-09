@@ -62,7 +62,6 @@ use openai_client_base::{
 use reqwest::Client as HttpClient;
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::RwLock;
 use tokio::time::Duration;
 
 // Helper macro to generate interceptor helper methods for sub-clients
@@ -77,15 +76,14 @@ macro_rules! impl_interceptor_helpers {
                 request_json: &str,
                 state: &mut T,
             ) -> Result<()> {
-                let chain = self.client.interceptors.read().await;
-                if !chain.is_empty() {
+                if !self.client.interceptors.is_empty() {
                     let mut ctx = BeforeRequestContext {
                         operation,
                         model,
                         request_json,
                         state,
                     };
-                    if let Err(e) = chain.before_request(&mut ctx).await {
+                    if let Err(e) = self.client.interceptors.before_request(&mut ctx).await {
                         let error_ctx = ErrorContext {
                             operation,
                             model: Some(model),
@@ -93,12 +91,10 @@ macro_rules! impl_interceptor_helpers {
                             error: &e,
                             state: Some(state),
                         };
-                        chain.on_error(&error_ctx).await;
-                        drop(chain); // Explicitly drop the guard
+                        self.client.interceptors.on_error(&error_ctx).await;
                         return Err(e);
                     }
                 }
-                drop(chain); // Explicitly drop the guard
                 Ok(())
             }
 
@@ -113,8 +109,7 @@ macro_rules! impl_interceptor_helpers {
             ) -> Error {
                 let error = map_api_error(error);
 
-                let chain = self.client.interceptors.read().await;
-                if !chain.is_empty() {
+                if !self.client.interceptors.is_empty() {
                     let error_ctx = ErrorContext {
                         operation,
                         model: Some(model),
@@ -122,9 +117,8 @@ macro_rules! impl_interceptor_helpers {
                         error: &error,
                         state: Some(state),
                     };
-                    chain.on_error(&error_ctx).await;
+                    self.client.interceptors.on_error(&error_ctx).await;
                 }
-                drop(chain); // Explicitly drop the guard
 
                 error
             }
@@ -143,8 +137,7 @@ macro_rules! impl_interceptor_helpers {
             ) where
                 R: serde::Serialize + Sync,
             {
-                let chain = self.client.interceptors.read().await;
-                if !chain.is_empty() {
+                if !self.client.interceptors.is_empty() {
                     let response_json = serde_json::to_string(response).unwrap_or_default();
                     let ctx = AfterResponseContext {
                         operation,
@@ -156,14 +149,33 @@ macro_rules! impl_interceptor_helpers {
                         output_tokens,
                         state,
                     };
-                    if let Err(e) = chain.after_response(&ctx).await {
+                    if let Err(e) = self.client.interceptors.after_response(&ctx).await {
                         tracing::warn!("Interceptor after_response failed: {}", e);
                     }
                 }
-                drop(chain); // Explicitly drop the guard
             }
         }
     };
+}
+
+/// Builder for creating a `Client` with interceptors.
+///
+/// The builder pattern allows you to configure interceptors before the client
+/// is created. Once built, the interceptors are immutable, eliminating the need
+/// for runtime locking.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let client = Client::from_env()?
+///     .with_interceptor(Box::new(my_interceptor))
+///     .build();
+/// ```
+pub struct ClientBuilder<T = ()> {
+    config: Arc<Config>,
+    http: HttpClient,
+    base_configuration: Configuration,
+    interceptors: InterceptorChain<T>,
 }
 
 /// Main client for interacting with the `OpenAI` API.
@@ -172,13 +184,16 @@ macro_rules! impl_interceptor_helpers {
 /// with built-in retry logic, rate limiting, error handling, and support
 /// for middleware through interceptors.
 ///
+/// Use `Client::from_env()` or `Client::new()` to create a builder, then call
+/// `.build()` to create the client.
+///
 /// # Example
 ///
 /// ```rust,ignore
 /// # use openai_ergonomic::{Client, Config};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let client = Client::new(Config::default())?;
+/// let client = Client::from_env()?.build();
 /// // TODO: Add usage example once builders are implemented
 /// # Ok(())
 /// # }
@@ -188,7 +203,7 @@ pub struct Client<T = ()> {
     config: Arc<Config>,
     http: HttpClient,
     base_configuration: Configuration,
-    interceptors: Arc<RwLock<InterceptorChain<T>>>,
+    interceptors: Arc<InterceptorChain<T>>,
 }
 
 // Custom Debug implementation since InterceptorChain doesn't implement Debug
@@ -203,9 +218,9 @@ impl<T> std::fmt::Debug for Client<T> {
     }
 }
 
-// Implementation for Client<()> - the default client without custom interceptor state
-impl Client {
-    /// Create a new client with the given configuration.
+// Implementation for ClientBuilder with default state type ()
+impl ClientBuilder {
+    /// Create a new client builder with the given configuration.
     pub fn new(config: Config) -> Result<Self> {
         // Use custom HTTP client if provided, otherwise build a default one
         let http_client = if let Some(client) = config.http_client() {
@@ -236,25 +251,28 @@ impl Client {
             config: Arc::new(config),
             http: http_client,
             base_configuration,
-            interceptors: Arc::new(RwLock::new(InterceptorChain::new())),
+            interceptors: InterceptorChain::new(),
         })
     }
 
-    /// Create a new client with default configuration from environment variables.
+    /// Create a new client builder with default configuration from environment variables.
     pub fn from_env() -> Result<Self> {
         Self::new(Config::from_env()?)
     }
 }
 
-impl<T> Client<T> {
+// Implementation for ClientBuilder with any state type
+impl<T> ClientBuilder<T> {
 
-    /// Add an interceptor to the client.
+    /// Add an interceptor to the builder.
     ///
-    /// Creates a new client with the interceptor's state type. The interceptor provides
+    /// Creates a new builder with the interceptor's state type. The interceptor provides
     /// hooks into the request/response lifecycle for observability, logging, and custom
     /// processing.
     ///
-    /// For multiple interceptors with different state types, use a composite interceptor.
+    /// Note: This method transforms the builder's type, so it can only be called once.
+    /// For multiple interceptors with the same state type, use a composite interceptor
+    /// or call this method multiple times (each will replace the previous chain).
     ///
     /// # Examples
     ///
@@ -273,7 +291,8 @@ impl<T> Client<T> {
     /// }
     ///
     /// let client = Client::from_env()?
-    ///     .with_interceptor(Box::new(LoggingInterceptor));
+    ///     .with_interceptor(Box::new(LoggingInterceptor))
+    ///     .build();
     /// ```
     ///
     /// Interceptor with custom state:
@@ -282,25 +301,69 @@ impl<T> Client<T> {
     ///
     /// let interceptor = LangfuseInterceptor::new(tracer, config);
     /// let client: Client<LangfuseState<_>> = Client::from_env()?
-    ///     .with_interceptor(Box::new(interceptor));
+    ///     .with_interceptor(Box::new(interceptor))
+    ///     .build();
     /// ```
     #[must_use]
-    pub fn with_interceptor<U>(self, interceptor: Box<dyn crate::interceptor::Interceptor<U>>) -> Client<U> {
-        let new_client = Client {
+    pub fn with_interceptor<U>(self, interceptor: Box<dyn crate::interceptor::Interceptor<U>>) -> ClientBuilder<U> {
+        let mut new_chain = InterceptorChain::new();
+        new_chain.add(interceptor);
+
+        ClientBuilder {
             config: self.config,
             http: self.http,
             base_configuration: self.base_configuration,
-            interceptors: Arc::new(RwLock::new(InterceptorChain::new())),
-        };
-
-        // Use futures::executor::block_on which works both inside and outside tokio runtime
-        futures::executor::block_on(async {
-            let mut chain = new_client.interceptors.write().await;
-            chain.add(interceptor);
-        });
-        new_client
+            interceptors: new_chain,
+        }
     }
 
+    /// Add an interceptor that uses the same state type.
+    ///
+    /// This allows chaining multiple interceptors with the same state type without
+    /// type transformation.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let client = Client::from_env()?
+    ///     .add_interceptor(Box::new(logger))
+    ///     .add_interceptor(Box::new(metrics))
+    ///     .build();
+    /// ```
+    #[must_use]
+    pub fn add_interceptor(mut self, interceptor: Box<dyn crate::interceptor::Interceptor<T>>) -> Self {
+        self.interceptors.add(interceptor);
+        self
+    }
+
+    /// Build the client with the configured interceptors.
+    ///
+    /// After building, the interceptors are immutable, eliminating runtime locking overhead.
+    #[must_use]
+    pub fn build(self) -> Client<T> {
+        Client {
+            config: self.config,
+            http: self.http,
+            base_configuration: self.base_configuration,
+            interceptors: Arc::new(self.interceptors),
+        }
+    }
+}
+
+// Implementation for Client
+impl Client {
+    /// Create a new client builder with the given configuration.
+    pub fn new(config: Config) -> Result<ClientBuilder> {
+        ClientBuilder::new(config)
+    }
+
+    /// Create a new client builder with default configuration from environment variables.
+    pub fn from_env() -> Result<ClientBuilder> {
+        ClientBuilder::from_env()
+    }
+}
+
+impl<T> Client<T> {
     /// Get a reference to the client configuration.
     pub fn config(&self) -> &Config {
         &self.config
@@ -309,14 +372,6 @@ impl<T> Client<T> {
     /// Get a reference to the HTTP client.
     pub fn http_client(&self) -> &HttpClient {
         &self.http
-    }
-
-    /// Get a reference to the interceptor chain.
-    ///
-    /// This is primarily for internal use when executing requests.
-    #[allow(dead_code)]
-    pub(crate) fn interceptors(&self) -> &Arc<RwLock<InterceptorChain<T>>> {
-        &self.interceptors
     }
 }
 
@@ -330,16 +385,14 @@ impl<T: Default + Send + Sync> Client<T> {
         request_json: &str,
         state: &mut T,
     ) -> Result<()> {
-        let chain = self.interceptors.read().await;
-        if !chain.is_empty() {
+        if !self.interceptors.is_empty() {
             let mut ctx = BeforeRequestContext {
                 operation,
                 model,
                 request_json,
                 state,
             };
-            if let Err(e) = chain.before_request(&mut ctx).await {
-                // If before_request fails, call error hook and return error
+            if let Err(e) = self.interceptors.before_request(&mut ctx).await {
                 let error_ctx = ErrorContext {
                     operation,
                     model: Some(model),
@@ -347,12 +400,10 @@ impl<T: Default + Send + Sync> Client<T> {
                     error: &e,
                     state: Some(state),
                 };
-                chain.on_error(&error_ctx).await;
-                drop(chain); // Explicitly drop the guard
+                self.interceptors.on_error(&error_ctx).await;
                 return Err(e);
             }
         }
-        drop(chain); // Explicitly drop the guard
         Ok(())
     }
 
@@ -367,9 +418,7 @@ impl<T: Default + Send + Sync> Client<T> {
     ) -> Error {
         let error = map_api_error(error);
 
-        // Call error hook
-        let chain = self.interceptors.read().await;
-        if !chain.is_empty() {
+        if !self.interceptors.is_empty() {
             let error_ctx = ErrorContext {
                 operation,
                 model: Some(model),
@@ -377,9 +426,8 @@ impl<T: Default + Send + Sync> Client<T> {
                 error: &error,
                 state: Some(state),
             };
-            chain.on_error(&error_ctx).await;
+            self.interceptors.on_error(&error_ctx).await;
         }
-        drop(chain); // Explicitly drop the guard
 
         error
     }
@@ -398,8 +446,7 @@ impl<T: Default + Send + Sync> Client<T> {
     ) where
         R: serde::Serialize + Sync,
     {
-        let chain = self.interceptors.read().await;
-        if !chain.is_empty() {
+        if !self.interceptors.is_empty() {
             let response_json = serde_json::to_string(response).unwrap_or_default();
             let ctx = AfterResponseContext {
                 operation,
@@ -411,12 +458,10 @@ impl<T: Default + Send + Sync> Client<T> {
                 output_tokens,
                 state,
             };
-            if let Err(e) = chain.after_response(&ctx).await {
-                // If after_response fails, we still return the response but log the error
+            if let Err(e) = self.interceptors.after_response(&ctx).await {
                 tracing::warn!("Interceptor after_response failed: {}", e);
             }
         }
-        drop(chain); // Explicitly drop the guard
     }
 }
 
