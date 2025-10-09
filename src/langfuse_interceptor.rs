@@ -13,6 +13,7 @@
 //! # use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 //! # use opentelemetry_sdk::trace::SdkTracerProvider;
 //! # use opentelemetry::global;
+//! # use opentelemetry::trace::TracerProvider;
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 1. Build Langfuse exporter
 //! let exporter = ExporterBuilder::from_env()?.build()?;
@@ -27,7 +28,7 @@
 //! // 3. Create interceptor with tracer
 //! let tracer = provider.tracer("openai-ergonomic");
 //! let interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
-//! let client = Client::from_env()?.with_interceptor(Box::new(interceptor));
+//! let client = Client::from_env()?.with_typed_interceptor(Box::new(interceptor));
 //!
 //! // Traces are automatically sent to Langfuse
 //! let request = client.chat_simple("Hello!").build()?;
@@ -45,15 +46,36 @@ use opentelemetry::{
     trace::{SpanKind, Tracer},
     KeyValue,
 };
-use opentelemetry_langfuse::{span_storage, LangfuseContext};
+use opentelemetry_langfuse::LangfuseContext;
 use opentelemetry_semantic_conventions::attribute::{
     GEN_AI_OPERATION_NAME, GEN_AI_REQUEST_MAX_TOKENS, GEN_AI_REQUEST_MODEL,
     GEN_AI_REQUEST_TEMPERATURE, GEN_AI_RESPONSE_ID, GEN_AI_SYSTEM, GEN_AI_USAGE_INPUT_TOKENS,
     GEN_AI_USAGE_OUTPUT_TOKENS,
 };
 use serde_json::Value;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tracing::{debug, error, info};
+
+/// State managed by the Langfuse interceptor across the request lifecycle.
+///
+/// This state is passed through the interceptor hooks to maintain
+/// span information without requiring global state.
+///
+/// Uses `Mutex` for interior mutability to ensure thread-safety in async contexts.
+///
+/// The generic type `S` is the Span type from the tracer.
+pub struct LangfuseState<S = opentelemetry::global::BoxedSpan> {
+    /// The active span for this request (uses Mutex for thread-safe interior mutability)
+    pub(crate) span: Mutex<Option<S>>,
+}
+
+impl<S> Default for LangfuseState<S> {
+    fn default() -> Self {
+        Self {
+            span: Mutex::new(None),
+        }
+    }
+}
 
 /// Configuration for the Langfuse interceptor.
 #[derive(Debug, Clone)]
@@ -113,6 +135,7 @@ where
     ///
     /// ```no_run
     /// use opentelemetry::global;
+    /// use opentelemetry::trace::TracerProvider;
     /// use opentelemetry_langfuse::ExporterBuilder;
     /// use opentelemetry_sdk::runtime::Tokio;
     /// use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
@@ -193,11 +216,11 @@ where
 }
 
 #[async_trait::async_trait]
-impl<T: Tracer + Send + Sync> Interceptor<std::collections::HashMap<String, String>> for LangfuseInterceptor<T>
+impl<T: Tracer + Send + Sync> Interceptor<LangfuseState<T::Span>> for LangfuseInterceptor<T>
 where
     T::Span: Send + Sync + 'static,
 {
-    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
+    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, LangfuseState<T::Span>>) -> Result<()> {
         let tracer = self.tracer.as_ref();
 
         // Build initial attributes
@@ -244,16 +267,15 @@ where
             }
         }
 
-        // Create and store the span in global registry
-        let span_id = span_storage::create_and_store_span(
-            tracer,
-            ctx.operation.to_string(),
-            SpanKind::Client,
-            attributes,
-        );
+        // Create span and store it in state
+        let span = tracer
+            .span_builder(ctx.operation.to_string())
+            .with_kind(SpanKind::Client)
+            .with_attributes(attributes)
+            .start(tracer);
 
-        // Store span ID in metadata so after_response can retrieve it
-        ctx.state.insert("langfuse_span_id".to_string(), span_id);
+        // Store span directly in state
+        *ctx.state.span.lock().unwrap() = Some(span);
 
         if self.config.debug {
             debug!("Started Langfuse span for operation: {}", ctx.operation);
@@ -262,35 +284,39 @@ where
         Ok(())
     }
 
-    async fn after_response(&self, ctx: &AfterResponseContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
-        // Retrieve span ID from metadata
-        let Some(span_id) = ctx.state.get("langfuse_span_id") else {
+    async fn after_response(&self, ctx: &AfterResponseContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+        // Take the span from state so we can end it
+        let Some(mut span) = ctx.state.span.lock().unwrap().take() else {
             if self.config.debug {
-                debug!("No span ID found in metadata for operation: {}", ctx.operation);
+                debug!("No span found in state for operation: {}", ctx.operation);
             }
             return Ok(());
         };
 
-        // Add response attributes to the existing span
+        // Add response attributes to the span
+        use opentelemetry::trace::Span;
+
         #[allow(clippy::cast_possible_truncation)]
-        let mut attributes = vec![KeyValue::new(
-            "duration_ms",
-            ctx.duration.as_millis() as i64,
-        )];
+        {
+            span.set_attribute(KeyValue::new(
+                "duration_ms",
+                ctx.duration.as_millis() as i64,
+            ));
+        }
 
         // Add usage metrics if available
         if let Some(input_tokens) = ctx.input_tokens {
-            attributes.push(KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens));
+            span.set_attribute(KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens));
         }
         if let Some(output_tokens) = ctx.output_tokens {
-            attributes.push(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
+            span.set_attribute(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
         }
 
         // Parse response and add completion content
         if let Ok(response) = Self::extract_request_params(ctx.response_json) {
             // Add response ID if available
             if let Some(id) = response.get("id").and_then(serde_json::Value::as_str) {
-                attributes.push(KeyValue::new(GEN_AI_RESPONSE_ID, id.to_string()));
+                span.set_attribute(KeyValue::new(GEN_AI_RESPONSE_ID, id.to_string()));
             }
 
             // Add completion content
@@ -298,13 +324,13 @@ where
                 for (i, choice) in choices.iter().enumerate() {
                     if let Some(message) = choice.get("message") {
                         if let Some(role) = message.get("role").and_then(serde_json::Value::as_str) {
-                            attributes.push(KeyValue::new(
+                            span.set_attribute(KeyValue::new(
                                 format!("gen_ai.completion.{i}.role"),
                                 role.to_string(),
                             ));
                         }
                         if let Some(content) = message.get("content").and_then(serde_json::Value::as_str) {
-                            attributes.push(KeyValue::new(
+                            span.set_attribute(KeyValue::new(
                                 format!("gen_ai.completion.{i}.content"),
                                 content.to_string(),
                             ));
@@ -314,9 +340,8 @@ where
             }
         }
 
-        // Add attributes and end the span
-        span_storage::add_span_attributes(span_id, attributes);
-        span_storage::end_span(span_id, vec![]);
+        // End the span
+        span.end();
 
         if self.config.debug {
             debug!("Completed Langfuse span for operation: {}", ctx.operation);
@@ -325,37 +350,42 @@ where
         Ok(())
     }
 
-    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
+    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_, LangfuseState<T::Span>>) -> Result<()> {
         // Stream chunks can add attributes to the current span if needed
         // For now, we just let them pass through
         Ok(())
     }
 
-    async fn on_stream_end(&self, ctx: &StreamEndContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
-        // Retrieve span ID from metadata
-        let Some(span_id) = ctx.state.get("langfuse_span_id") else {
+    async fn on_stream_end(&self, ctx: &StreamEndContext<'_, LangfuseState<T::Span>>) -> Result<()> {
+        // Take the span from state so we can end it
+        let Some(mut span) = ctx.state.span.lock().unwrap().take() else {
             if self.config.debug {
-                debug!("No span ID found in metadata for stream operation: {}", ctx.operation);
+                debug!("No span found in state for stream operation: {}", ctx.operation);
             }
             return Ok(());
         };
 
-        // Similar to after_response, add final streaming attributes
+        // Add final streaming attributes
+        use opentelemetry::trace::Span;
+
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        let mut attributes = vec![
-            KeyValue::new("stream.total_chunks", ctx.total_chunks as i64),
-            KeyValue::new("stream.duration_ms", ctx.duration.as_millis() as i64),
-        ];
+        {
+            span.set_attribute(KeyValue::new("stream.total_chunks", ctx.total_chunks as i64));
+            span.set_attribute(KeyValue::new(
+                "stream.duration_ms",
+                ctx.duration.as_millis() as i64,
+            ));
+        }
 
         if let Some(input_tokens) = ctx.input_tokens {
-            attributes.push(KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens));
+            span.set_attribute(KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens));
         }
         if let Some(output_tokens) = ctx.output_tokens {
-            attributes.push(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
+            span.set_attribute(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
         }
 
-        span_storage::add_span_attributes(span_id, attributes);
-        span_storage::end_span(span_id, vec![]);
+        // End the span
+        span.end();
 
         if self.config.debug {
             info!(
@@ -367,37 +397,36 @@ where
         Ok(())
     }
 
-    async fn on_error(&self, ctx: &ErrorContext<'_, std::collections::HashMap<String, String>>) {
-        // Retrieve span ID from metadata if available
-        let Some(metadata) = ctx.state else {
+    async fn on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
+        // Take the span from state if available
+        let Some(state) = ctx.state else {
             if self.config.debug {
-                debug!("No metadata available for error in operation: {}", ctx.operation);
+                debug!("No state available for error in operation: {}", ctx.operation);
             }
             return;
         };
 
-        let Some(span_id) = metadata.get("langfuse_span_id") else {
+        let Some(mut span) = state.span.lock().unwrap().take() else {
             if self.config.debug {
-                debug!("No span ID found in metadata for error in operation: {}", ctx.operation);
+                debug!("No span found in state for error in operation: {}", ctx.operation);
             }
             return;
         };
 
-        // Set the span status to error (required for Langfuse to flag it as error)
-        span_storage::set_span_error(span_id, ctx.error.to_string());
+        // Set the span status to error
+        use opentelemetry::trace::{Span, Status};
+        span.set_status(Status::error(ctx.error.to_string()));
 
         // Add error attributes to the span
-        let mut attributes = vec![
-            KeyValue::new("error.type", format!("{:?}", ctx.error)),
-            KeyValue::new("error.message", ctx.error.to_string()),
-        ];
+        span.set_attribute(KeyValue::new("error.type", format!("{:?}", ctx.error)));
+        span.set_attribute(KeyValue::new("error.message", ctx.error.to_string()));
 
         if let Some(model) = ctx.model {
-            attributes.push(KeyValue::new(GEN_AI_REQUEST_MODEL, model.to_string()));
+            span.set_attribute(KeyValue::new(GEN_AI_REQUEST_MODEL, model.to_string()));
         }
 
-        span_storage::add_span_attributes(span_id, attributes);
-        span_storage::end_span(span_id, vec![]);
+        // End the span
+        span.end();
 
         if self.config.debug {
             error!(
@@ -410,27 +439,27 @@ where
 
 // Implement Interceptor for Arc<LangfuseInterceptor<T>> to allow sharing the interceptor
 #[async_trait::async_trait]
-impl<T: Tracer + Send + Sync> Interceptor<std::collections::HashMap<String, String>> for Arc<LangfuseInterceptor<T>>
+impl<T: Tracer + Send + Sync> Interceptor<LangfuseState<T::Span>> for Arc<LangfuseInterceptor<T>>
 where
     T::Span: Send + Sync + 'static,
 {
-    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
+    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_, LangfuseState<T::Span>>) -> Result<()> {
         (**self).before_request(ctx).await
     }
 
-    async fn after_response(&self, ctx: &AfterResponseContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
+    async fn after_response(&self, ctx: &AfterResponseContext<'_, LangfuseState<T::Span>>) -> Result<()> {
         (**self).after_response(ctx).await
     }
 
-    async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
+    async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_, LangfuseState<T::Span>>) -> Result<()> {
         (**self).on_stream_chunk(ctx).await
     }
 
-    async fn on_stream_end(&self, ctx: &StreamEndContext<'_, std::collections::HashMap<String, String>>) -> Result<()> {
+    async fn on_stream_end(&self, ctx: &StreamEndContext<'_, LangfuseState<T::Span>>) -> Result<()> {
         (**self).on_stream_end(ctx).await
     }
 
-    async fn on_error(&self, ctx: &ErrorContext<'_, std::collections::HashMap<String, String>>) {
+    async fn on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
         (**self).on_error(ctx).await
     }
 }
