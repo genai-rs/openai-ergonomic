@@ -39,9 +39,8 @@ use openai_ergonomic::{Client, Config};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::from_env()?
-        .api_key("your-api-key-here")
-        .build();
+    // Build client from environment variables
+    let client = Client::from_env()?.build();
 
     let response = client
         .chat_completions()
@@ -63,9 +62,8 @@ use futures::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::from_env()?
-        .api_key("your-api-key-here")
-        .build();
+    // Build client from environment variables
+    let client = Client::from_env()?.build();
 
     let mut stream = client
         .chat_completions()
@@ -110,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .http_client(http_client.into())
         .build();
 
-    let client = Client::new(config)?;
+    let client = Client::new(config)?.build();
 
     // Use the client normally - retries are handled automatically
     let response = client.chat_simple("Hello!").await?;
