@@ -13,7 +13,7 @@ use openai_ergonomic::{builders::models::*, Client, Result};
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_list_models() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let response = client.models().list().await?;
 
     // Verify we got models
@@ -30,7 +30,7 @@ async fn test_list_models() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_get_model() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Get a known model
     let model = client.models().get("gpt-3.5-turbo").await?;
@@ -45,7 +45,7 @@ async fn test_get_model() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_get_model_with_builder() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = ModelRetrievalBuilder::new("gpt-4");
     let model = client.models().retrieve(builder).await?;
@@ -60,7 +60,7 @@ async fn test_get_model_with_builder() -> Result<()> {
 async fn test_delete_model() -> Result<()> {
     // Note: This test requires a fine-tuned model that can be deleted.
     // In practice, you should create a model first before testing deletion.
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // This would fail if you don't have a model to delete
     // let model_id = "ft:gpt-3.5-turbo:my-org:custom:id";
@@ -104,7 +104,7 @@ fn test_model_delete_builder_with_string() {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_list_models_contains_common_models() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     let response = client.models().list().await?;
 
     let model_ids: Vec<String> = response.data.iter().map(|m| m.id.clone()).collect();
@@ -134,7 +134,7 @@ async fn test_list_models_contains_common_models() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_get_embedding_model() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let model = client.models().get("text-embedding-3-small").await?;
 
@@ -146,7 +146,7 @@ async fn test_get_embedding_model() -> Result<()> {
 #[tokio::test]
 #[ignore] // Ignore by default to avoid API calls
 async fn test_get_whisper_model() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let model = client.models().get("whisper-1").await?;
 

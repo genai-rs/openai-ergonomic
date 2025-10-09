@@ -141,7 +141,7 @@ impl MockOpenAIServer {
             .api_base(&self.base_url())
             .build();
 
-        Client::new(config)
+        Ok(Client::builder(config)?.build())
     }
 
     /// Configure error simulation
@@ -315,7 +315,7 @@ impl TestUtils {
             .max_retries(2)
             .build();
 
-        Client::new(config)
+        Ok(Client::builder(config)?.build())
     }
 
     /// Assert that a response contains expected content
@@ -516,7 +516,7 @@ impl IntegrationTestRunner {
             // Test with invalid API key to trigger authentication error
             let bad_config = Config::builder().api_key("invalid-key").build();
 
-            let _bad_client = Client::new(bad_config)?;
+            let _bad_client = Client::builder(bad_config)?.build();
 
             // This should fail with an authentication error
             // bad_client.chat_simple("Test").await

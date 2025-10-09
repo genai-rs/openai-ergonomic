@@ -42,7 +42,7 @@ fn execute_weather_function(params: &WeatherParams) -> String {
 async fn main() -> Result<()> {
     println!("=== Tool Calling Example ===");
 
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     // Simple tool call
     let builder = client

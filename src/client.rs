@@ -263,7 +263,6 @@ impl ClientBuilder {
 
 // Implementation for ClientBuilder with any state type
 impl<T> ClientBuilder<T> {
-
     /// Add an interceptor to the builder.
     ///
     /// Creates a new builder with the interceptor's state type. The interceptor provides
@@ -305,7 +304,10 @@ impl<T> ClientBuilder<T> {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn with_interceptor<U>(self, interceptor: Box<dyn crate::interceptor::Interceptor<U>>) -> ClientBuilder<U> {
+    pub fn with_interceptor<U>(
+        self,
+        interceptor: Box<dyn crate::interceptor::Interceptor<U>>,
+    ) -> ClientBuilder<U> {
         let mut new_chain = InterceptorChain::new();
         new_chain.add(interceptor);
 
@@ -331,7 +333,10 @@ impl<T> ClientBuilder<T> {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn add_interceptor(mut self, interceptor: Box<dyn crate::interceptor::Interceptor<T>>) -> Self {
+    pub fn add_interceptor(
+        mut self,
+        interceptor: Box<dyn crate::interceptor::Interceptor<T>>,
+    ) -> Self {
         self.interceptors.add(interceptor);
         self
     }
@@ -353,7 +358,7 @@ impl<T> ClientBuilder<T> {
 // Implementation for Client
 impl Client {
     /// Create a new client builder with the given configuration.
-    pub fn new(config: Config) -> Result<ClientBuilder> {
+    pub fn builder(config: Config) -> Result<ClientBuilder> {
         ClientBuilder::new(config)
     }
 

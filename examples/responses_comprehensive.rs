@@ -39,9 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize client from environment variables
     let client = match Client::from_env() {
-        Ok(client) => {
+        Ok(client_builder) => {
             println!("✅ Client initialized successfully");
-            client
+            client_builder.build()
         }
         Err(e) => {
             eprintln!("❌ Failed to initialize client: {e}");
