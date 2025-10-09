@@ -41,7 +41,7 @@ use openai_ergonomic::Client;
 
 #[tokio::main]
 async fn main() -> openai_ergonomic::Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
     println!("Client ready: default model = {:?}", client.config().default_model());
     Ok(())
 }
@@ -61,7 +61,7 @@ async fn main() -> openai_ergonomic::Result<()> {
         .timeout_seconds(30)
         .build();
 
-    let client = Client::new(config)?;
+    let client = Client::new(config)?.build();
     // Use the client …
     Ok(())
 }
@@ -74,7 +74,7 @@ use openai_ergonomic::{Client, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .responses()
@@ -98,7 +98,7 @@ use openai_ergonomic::{Client, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let builder = client
         .chat()
@@ -119,7 +119,7 @@ use openai_ergonomic::{Client, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let speech = client
         .audio()
@@ -141,7 +141,7 @@ use openai_ergonomic::{Client, Result, TimestampGranularity};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let transcription = client
         .audio()
@@ -163,7 +163,7 @@ use openai_ergonomic::{Client, Result, Size, Style};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     let request = client
         .images()
@@ -215,7 +215,7 @@ use openai_ergonomic::{Client, Error, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let client = Client::from_env()?;
+    let client = Client::from_env()?.build();
 
     match client.send_chat(client.chat().user("Hello?")).await {
         Ok(resp) => println!("{}", resp.primary_text()),
