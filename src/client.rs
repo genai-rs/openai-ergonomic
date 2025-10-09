@@ -250,12 +250,15 @@ impl<T> Client<T> {
 
     /// Add an interceptor to the client.
     ///
-    /// Interceptors are executed in the order they are added. They provide hooks
-    /// into the request/response lifecycle for observability, logging, and custom
+    /// Creates a new client with the interceptor's state type. The interceptor provides
+    /// hooks into the request/response lifecycle for observability, logging, and custom
     /// processing.
     ///
-    /// # Example
+    /// For multiple interceptors with different state types, use a composite interceptor.
     ///
+    /// # Examples
+    ///
+    /// Simple interceptor (no state):
     /// ```rust,ignore
     /// use openai_ergonomic::{Client, Interceptor, BeforeRequestContext};
     ///
@@ -272,33 +275,17 @@ impl<T> Client<T> {
     /// let client = Client::from_env()?
     ///     .with_interceptor(Box::new(LoggingInterceptor));
     /// ```
-    #[must_use]
-    pub fn with_interceptor(self, interceptor: Box<dyn crate::interceptor::Interceptor<T>>) -> Self {
-        // Use futures::executor::block_on which works both inside and outside tokio runtime
-        futures::executor::block_on(async {
-            let mut chain = self.interceptors.write().await;
-            chain.add(interceptor);
-        });
-        self
-    }
-
-    /// Transform this client to use a different state type with an interceptor.
     ///
-    /// This method is useful when you want to add an interceptor that requires a specific
-    /// state type. It creates a new client with the same configuration but with a different
-    /// type parameter, and adds the interceptor.
-    ///
-    /// # Example
-    ///
+    /// Interceptor with custom state:
     /// ```rust,ignore
     /// use openai_ergonomic::{Client, LangfuseInterceptor, LangfuseState};
     ///
     /// let interceptor = LangfuseInterceptor::new(tracer, config);
     /// let client: Client<LangfuseState<_>> = Client::from_env()?
-    ///     .with_typed_interceptor(Box::new(interceptor));
+    ///     .with_interceptor(Box::new(interceptor));
     /// ```
     #[must_use]
-    pub fn with_typed_interceptor<U>(self, interceptor: Box<dyn crate::interceptor::Interceptor<U>>) -> Client<U> {
+    pub fn with_interceptor<U>(self, interceptor: Box<dyn crate::interceptor::Interceptor<U>>) -> Client<U> {
         let new_client = Client {
             config: self.config,
             http: self.http,
