@@ -43,7 +43,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 regex = "1.5"
 tempfile = "3.10"
 rand = "0.8"
-reqwest-retry = "0.6"
+reqwest-retry = "0.7"
 
 [features]
 default = ["rustls-tls"]
