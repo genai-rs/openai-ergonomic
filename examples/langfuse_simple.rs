@@ -50,7 +50,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let langfuse_interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
 
     // 4. Create the OpenAI client and add the Langfuse interceptor
-    let client = Client::from_env()?.with_interceptor(Box::new(langfuse_interceptor));
+    let client = Client::from_env()?
+        .with_interceptor(Box::new(langfuse_interceptor))
+        .build();
 
     println!("✅ Client initialized successfully!");
     println!("📊 Traces will be sent to Langfuse for monitoring\n");
