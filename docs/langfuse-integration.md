@@ -70,7 +70,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create client with Langfuse interceptor
     let client = Client::from_env()?
-        .with_interceptor(Box::new(langfuse_interceptor));
+        .with_interceptor(Box::new(langfuse_interceptor))
+        .build();
 
     // Make API calls - traces are automatically sent to Langfuse
     let request = client
@@ -102,7 +103,8 @@ let interceptor = LangfuseInterceptorBuilder::new()
     .build()?;
 
 let client = Client::from_env()?
-    .with_interceptor(Box::new(interceptor));
+    .with_interceptor(Box::new(interceptor))
+    .build();
 ```
 
 ## Traced Operations
