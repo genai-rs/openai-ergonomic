@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.3.0...v0.3.1) - 2025-10-10
+
+### Other
+
+- *(deps)* Update Rust crate rand to 0.9
+- *(deps)* Update github-actions to v5
+- *(deps)* remove unused dependencies and configure cargo-udeps
+- add Renovate and project configuration files
+
 ## [0.3.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.2.0...v0.3.0) - 2025-10-10
 
 ### Added
