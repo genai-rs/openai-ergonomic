@@ -1,6 +1,6 @@
-//! Comprehensive Azure OpenAI API Test
+//! Comprehensive Azure `OpenAI` API Test
 //!
-//! This example tests various Azure OpenAI endpoints to verify that the
+//! This example tests various Azure `OpenAI` endpoints to verify that the
 //! integration works correctly across different API features.
 
 use openai_ergonomic::Client;
@@ -19,10 +19,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.send_chat(builder).await {
         Ok(response) => {
             if let Some(content) = response.content() {
-                println!("   ✓ Chat completion: {}", content);
+                println!("   ✓ Chat completion: {content}");
             }
         }
-        Err(e) => println!("   ✗ Chat completion failed: {}", e),
+        Err(e) => println!("   ✗ Chat completion failed: {e}"),
     }
 
     // Test 2: Chat with system message
@@ -34,10 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.send_chat(builder).await {
         Ok(response) => {
             if let Some(content) = response.content() {
-                println!("   ✓ System message chat: {}", content);
+                println!("   ✓ System message chat: {content}");
             }
         }
-        Err(e) => println!("   ✗ System message chat failed: {}", e),
+        Err(e) => println!("   ✗ System message chat failed: {e}"),
     }
 
     // Test 3: Chat with temperature
@@ -50,10 +50,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.send_chat(builder).await {
         Ok(response) => {
             if let Some(content) = response.content() {
-                println!("   ✓ Custom parameters: {}", content);
+                println!("   ✓ Custom parameters: {content}");
             }
         }
-        Err(e) => println!("   ✗ Custom parameters failed: {}", e),
+        Err(e) => println!("   ✗ Custom parameters failed: {e}"),
     }
 
     // Test 4: Multiple messages conversation
@@ -67,10 +67,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.send_chat(builder).await {
         Ok(response) => {
             if let Some(content) = response.content() {
-                println!("   ✓ Multi-message: {}", content);
+                println!("   ✓ Multi-message: {content}");
             }
         }
-        Err(e) => println!("   ✗ Multi-message failed: {}", e),
+        Err(e) => println!("   ✗ Multi-message failed: {e}"),
     }
 
     // Test 5: Chat with max_tokens limit
@@ -79,11 +79,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.send_chat(builder).await {
         Ok(response) => {
             if let Some(content) = response.content() {
-                println!("   ✓ Limited tokens: {}", content);
+                println!("   ✓ Limited tokens: {content}");
                 println!("   (Note: response is truncated due to max_tokens=20)");
             }
         }
-        Err(e) => println!("   ✗ Max tokens test failed: {}", e),
+        Err(e) => println!("   ✗ Max tokens test failed: {e}"),
     }
 
     // Test 6: Using responses API
@@ -92,10 +92,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match client.send_responses(builder).await {
         Ok(response) => {
             if let Some(content) = response.content() {
-                println!("   ✓ Responses API: {}", content);
+                println!("   ✓ Responses API: {content}");
             }
         }
-        Err(e) => println!("   ✗ Responses API failed: {}", e),
+        Err(e) => println!("   ✗ Responses API failed: {e}"),
     }
 
     println!("\n=== Test Summary ===");
