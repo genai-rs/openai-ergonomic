@@ -115,7 +115,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("\n All audio speech examples completed! Check the output files in the current directory.");
+    println!(
+        "\n All audio speech examples completed! Check the output files in the current directory."
+    );
     Ok(())
 }
 
