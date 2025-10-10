@@ -83,55 +83,55 @@ impl ThreadInfo {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 OpenAI Ergonomic - Comprehensive Threads Example\n");
+    println!(" OpenAI Ergonomic - Comprehensive Threads Example\n");
 
     // Initialize client from environment variables
-    println!("📝 Initializing OpenAI client...");
+    println!(" Initializing OpenAI client...");
     let client = match Client::from_env() {
         Ok(c) => {
-            println!("✅ Client initialized successfully\n");
+            println!(" Client initialized successfully\n");
             c.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {}", e);
-            eprintln!("💡 Make sure OPENAI_API_KEY is set");
+            eprintln!(" Failed to initialize client: {}", e);
+            eprintln!(" Make sure OPENAI_API_KEY is set");
             return Ok(());
         }
     };
 
     // Example 1: Create a simple thread
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 1: Create Simple Thread");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("");
+    println!(" Example 1: Create Simple Thread");
+    println!("\n");
 
     println!("Creating new thread...");
 
     let builder = ThreadRequestBuilder::new();
 
-    println!("\n💡 Note: This would create a real thread with your API key.");
+    println!("\n Note: This would create a real thread with your API key.");
     println!("   Commented out to avoid accidental API calls.\n");
 
     // Uncomment to actually create thread:
     // match client.threads().create(builder).await {
     //     Ok(thread) => {
-    //         println!("✅ Thread created successfully!");
+    //         println!(" Thread created successfully!");
     //         println!("  Thread ID: {}", thread.id);
     //         println!("  Created At: {}", thread.created_at);
     //     }
     //     Err(e) => {
-    //         eprintln!("❌ Failed to create thread: {}", e);
+    //         eprintln!(" Failed to create thread: {}", e);
     //     }
     // }
 
     // Simulate thread creation for demonstration
     let demo_thread = ThreadInfo::new("thread_demo123");
-    println!("📊 Demo Thread Created:");
+    println!(" Demo Thread Created:");
     demo_thread.display();
 
     // Example 2: Create thread with metadata
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 2: Create Thread with Metadata");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 2: Create Thread with Metadata");
+    println!("\n");
 
     println!("Creating thread with metadata...");
 
@@ -148,11 +148,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Uncomment to actually create thread:
     // match client.threads().create(builder_with_metadata).await {
     //     Ok(thread) => {
-    //         println!("\n✅ Thread with metadata created!");
+    //         println!("\n Thread with metadata created!");
     //         println!("  Thread ID: {}", thread.id);
     //     }
     //     Err(e) => {
-    //         eprintln!("❌ Failed to create thread: {}", e);
+    //         eprintln!(" Failed to create thread: {}", e);
     //     }
     // }
 
@@ -161,13 +161,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_metadata("session_id", "session_abc")
         .with_metadata("context", "customer_support");
 
-    println!("\n📊 Demo Thread Created:");
+    println!("\n Demo Thread Created:");
     demo_thread_with_meta.display();
 
     // Example 3: Create thread with initial messages
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 3: Create Thread with Initial Messages");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 3: Create Thread with Initial Messages");
+    println!("\n");
 
     println!("Creating thread with initial messages...");
 
@@ -180,12 +180,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // In a real implementation, you would add messages like:
     // .message("user", "Hello, I need help getting started")
 
-    println!("\n💡 Note: Messages can be added during thread creation or afterwards");
+    println!("\n Note: Messages can be added during thread creation or afterwards");
 
     // Example 4: Thread lifecycle management
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 4: Thread Lifecycle");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 4: Thread Lifecycle");
+    println!("\n");
 
     println!("Typical thread lifecycle:");
     println!("  1. Create thread (ThreadRequestBuilder)");
@@ -196,47 +196,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  6. Thread persists until deleted");
 
     // Example 5: Thread use cases
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 5: Common Thread Use Cases");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 5: Common Thread Use Cases");
+    println!("\n");
 
-    println!("💬 Customer Support:");
+    println!(" Customer Support:");
     println!("  • Create thread per customer session");
     println!("  • Metadata: customer_id, ticket_id");
     println!("  • Maintain conversation history");
     println!("  • Allow agents to review past interactions\n");
 
-    println!("🤖 Chatbot Conversations:");
+    println!(" Chatbot Conversations:");
     println!("  • One thread per user session");
     println!("  • Metadata: user_id, session_start");
     println!("  • Preserve context across messages");
     println!("  • Support multi-turn conversations\n");
 
-    println!("📝 Document Q&A:");
+    println!(" Document Q&A:");
     println!("  • Thread per document discussion");
     println!("  • Metadata: document_id, user_id");
     println!("  • Allow follow-up questions");
     println!("  • Maintain question history\n");
 
-    println!("🎓 Tutoring/Education:");
+    println!(" Tutoring/Education:");
     println!("  • Thread per learning session");
     println!("  • Metadata: student_id, subject, lesson");
     println!("  • Track learning progression");
     println!("  • Review past explanations");
 
     // Example 6: Thread metadata strategies
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 6: Metadata Strategies");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 6: Metadata Strategies");
+    println!("\n");
 
     println!("Recommended metadata fields:\n");
 
-    println!("🔑 Identification:");
+    println!(" Identification:");
     println!("  user_id: Identify the user");
     println!("  session_id: Track specific sessions");
     println!("  organization_id: Multi-tenant applications\n");
 
-    println!("📊 Classification:");
+    println!(" Classification:");
     println!("  category: customer_support, sales, etc.");
     println!("  priority: low, medium, high, urgent");
     println!("  language: en, es, fr, etc.\n");
@@ -246,24 +246,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  last_active: Last interaction time");
     println!("  expires_at: When to auto-cleanup\n");
 
-    println!("🎯 Business Context:");
+    println!(" Business Context:");
     println!("  product_id: Related product");
     println!("  ticket_id: Support ticket number");
     println!("  campaign_id: Marketing campaign");
 
     // Example 7: Thread best practices
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 7: Best Practices");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 7: Best Practices");
+    println!("\n");
 
-    println!("✅ Do:");
+    println!(" Do:");
     println!("  • Create one thread per conversation");
     println!("  • Add meaningful metadata for filtering");
     println!("  • Reuse threads for ongoing conversations");
     println!("  • Clean up old/expired threads");
     println!("  • Use metadata for analytics\n");
 
-    println!("❌ Don't:");
+    println!(" Don't:");
     println!("  • Create new threads for each message");
     println!("  • Store sensitive data in metadata");
     println!("  • Let threads accumulate indefinitely");
@@ -271,19 +271,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  • Mix different conversations in one thread");
 
     // Summary
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📊 Summary");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Summary");
+    println!("\n");
 
-    println!("✅ Threads API examples completed!");
-    println!("\n📚 Key Takeaways:");
+    println!(" Threads API examples completed!");
+    println!("\n Key Takeaways:");
     println!("  • Threads maintain conversation state");
     println!("  • Metadata enables organization and filtering");
     println!("  • One thread per conversation is recommended");
     println!("  • Threads persist until explicitly deleted");
     println!("  • Perfect for multi-turn conversations");
 
-    println!("\n💡 Integration Pattern:");
+    println!("\n Integration Pattern:");
     println!("  1. Create thread at conversation start");
     println!("  2. Store thread ID in your database");
     println!("  3. Add messages as user interacts");
@@ -291,13 +291,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  5. Retrieve messages to display conversation");
     println!("  6. Reuse thread for entire conversation");
 
-    println!("\n🔗 Related APIs:");
+    println!("\n Related APIs:");
     println!("  • Messages API: Add/retrieve messages in threads");
     println!("  • Runs API: Process messages with assistants");
     println!("  • Assistants API: Create AI assistants");
     println!("  • Vector Stores: Add knowledge to assistants");
 
-    println!("\n🎉 Example completed successfully!");
+    println!("\n Example completed successfully!");
 
     Ok(())
 }

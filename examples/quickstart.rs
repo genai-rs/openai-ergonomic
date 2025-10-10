@@ -38,24 +38,24 @@ async fn main() -> Result<()> {
     // Initialize logging to see what's happening under the hood
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    println!("🚀 OpenAI Ergonomic Quickstart");
+    println!(" OpenAI Ergonomic Quickstart");
     println!("==============================\n");
 
     // ==========================================
     // 1. ENVIRONMENT SETUP & CLIENT CREATION
     // ==========================================
 
-    println!("📋 Step 1: Setting up the client");
+    println!(" Step 1: Setting up the client");
 
     // The simplest way to get started - reads OPENAI_API_KEY from environment
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client created successfully!");
+            println!(" Client created successfully!");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to create client: {e}");
-            eprintln!("💡 Make sure you've set OPENAI_API_KEY environment variable");
+            eprintln!(" Failed to create client: {e}");
+            eprintln!(" Make sure you've set OPENAI_API_KEY environment variable");
             eprintln!("   Example: export OPENAI_API_KEY=\"sk-your-key-here\"");
             return Err(e);
         }
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
     // 2. BASIC CHAT COMPLETION
     // ==========================================
 
-    println!("\n📋 Step 2: Basic chat completion");
+    println!("\n Step 2: Basic chat completion");
 
     // The simplest way to get a response from ChatGPT
     let builder = client.chat_simple("What is Rust programming language in one sentence?");
@@ -73,21 +73,21 @@ async fn main() -> Result<()> {
 
     match response {
         Ok(chat_response) => {
-            println!("✅ Got response!");
+            println!(" Got response!");
             if let Some(content) = chat_response.content() {
-                println!("🤖 AI: {content}");
+                println!(" AI: {content}");
             }
 
             // Show usage information for cost tracking
             if let Some(usage) = &chat_response.inner().usage {
                 println!(
-                    "📊 Usage: {} prompt + {} completion = {} total tokens",
+                    " Usage: {} prompt + {} completion = {} total tokens",
                     usage.prompt_tokens, usage.completion_tokens, usage.total_tokens
                 );
             }
         }
         Err(e) => {
-            println!("❌ Chat completion failed: {e}");
+            println!(" Chat completion failed: {e}");
             // Continue with other examples even if this one fails
         }
     }
@@ -96,7 +96,7 @@ async fn main() -> Result<()> {
     // 3. CHAT WITH SYSTEM MESSAGE
     // ==========================================
 
-    println!("\n📋 Step 3: Chat with system context");
+    println!("\n Step 3: Chat with system context");
 
     // System messages help set the AI's behavior and context
     let builder = client.chat_with_system(
@@ -107,13 +107,13 @@ async fn main() -> Result<()> {
 
     match response {
         Ok(chat_response) => {
-            println!("✅ Got contextual response!");
+            println!(" Got contextual response!");
             if let Some(content) = chat_response.content() {
-                println!("👨‍🏫 Mentor: {content}");
+                println!("‍ Mentor: {content}");
             }
         }
         Err(e) => {
-            println!("❌ Contextual chat failed: {e}");
+            println!(" Contextual chat failed: {e}");
         }
     }
 
@@ -121,11 +121,11 @@ async fn main() -> Result<()> {
     // 4. STREAMING RESPONSES
     // ==========================================
 
-    println!("\n📋 Step 4: Streaming response (real-time)");
+    println!("\n Step 4: Streaming response (real-time)");
 
     // Streaming lets you see the response as it's being generated
     // This is great for chatbots and interactive applications
-    print!("🔄 AI is typing");
+    print!(" AI is typing");
     io::stdout().flush().unwrap();
 
     let builder = client
@@ -154,7 +154,7 @@ async fn main() -> Result<()> {
             println!(); // New line after "streaming"
         }
         Err(e) => {
-            println!("\n❌ Failed to get streaming response: {e}");
+            println!("\n Failed to get streaming response: {e}");
         }
     }
 
@@ -162,7 +162,7 @@ async fn main() -> Result<()> {
     // 5. FUNCTION/TOOL CALLING
     // ==========================================
 
-    println!("\n📋 Step 5: Using tools/functions");
+    println!("\n Step 5: Using tools/functions");
 
     // Tools let the AI call external functions to get real data
     // Here we define a weather function as an example
@@ -194,12 +194,12 @@ async fn main() -> Result<()> {
 
     match response {
         Ok(chat_response) => {
-            println!("✅ Got response with potential tool calls!");
+            println!(" Got response with potential tool calls!");
 
             // Check if the AI wants to call our weather function
             let tool_calls = chat_response.tool_calls();
             if !tool_calls.is_empty() {
-                println!("🔧 AI requested tool calls:");
+                println!(" AI requested tool calls:");
                 for tool_call in tool_calls {
                     let function_name = tool_call.function_name();
                     println!("   Function: {function_name}");
@@ -208,14 +208,14 @@ async fn main() -> Result<()> {
 
                     // In a real app, you'd execute the function here
                     // and send the result back to the AI
-                    println!("   💡 In a real app, you'd call your weather API here");
+                    println!("    In a real app, you'd call your weather API here");
                 }
             } else if let Some(content) = chat_response.content() {
-                println!("🤖 AI: {content}");
+                println!(" AI: {content}");
             }
         }
         Err(e) => {
-            println!("❌ Tool calling example failed: {e}");
+            println!(" Tool calling example failed: {e}");
         }
     }
 
@@ -223,7 +223,7 @@ async fn main() -> Result<()> {
     // 6. ERROR HANDLING PATTERNS
     // ==========================================
 
-    println!("\n📋 Step 6: Error handling patterns");
+    println!("\n Step 6: Error handling patterns");
 
     // Show how to handle different types of errors gracefully
     let builder = client.chat_simple(""); // Empty message might cause an error
@@ -231,28 +231,28 @@ async fn main() -> Result<()> {
 
     match bad_response {
         Ok(response) => {
-            println!("✅ Unexpectedly succeeded with empty message");
+            println!(" Unexpectedly succeeded with empty message");
             if let Some(content) = response.content() {
-                println!("🤖 AI: {content}");
+                println!(" AI: {content}");
             }
         }
         Err(Error::Api {
             status, message, ..
         }) => {
-            println!("❌ API Error (HTTP {status}):");
+            println!(" API Error (HTTP {status}):");
             println!("   Message: {message}");
-            println!("💡 This is normal - we sent an invalid request");
+            println!(" This is normal - we sent an invalid request");
         }
         Err(Error::RateLimit { .. }) => {
-            println!("❌ Rate limited - you're sending requests too fast");
-            println!("💡 In a real app, you'd implement exponential backoff");
+            println!(" Rate limited - you're sending requests too fast");
+            println!(" In a real app, you'd implement exponential backoff");
         }
         Err(Error::Http(_)) => {
-            println!("❌ HTTP/Network error");
-            println!("💡 Check your internet connection and API key");
+            println!(" HTTP/Network error");
+            println!(" Check your internet connection and API key");
         }
         Err(e) => {
-            println!("❌ Other error: {e}");
+            println!(" Other error: {e}");
         }
     }
 
@@ -260,7 +260,7 @@ async fn main() -> Result<()> {
     // 7. COMPLETE REAL-WORLD EXAMPLE
     // ==========================================
 
-    println!("\n📋 Step 7: Complete real-world example");
+    println!("\n Step 7: Complete real-world example");
     println!("Building a simple AI assistant that can:");
     println!("- Answer questions with context");
     println!("- Track conversation costs");
@@ -276,7 +276,7 @@ async fn main() -> Result<()> {
     ];
 
     for (i, question) in questions.iter().enumerate() {
-        println!("\n👤 User: {question}");
+        println!("\n User: {question}");
 
         let builder = client
             .responses()
@@ -290,20 +290,20 @@ async fn main() -> Result<()> {
         match response {
             Ok(chat_response) => {
                 if let Some(content) = chat_response.content() {
-                    println!("🤖 Assistant: {content}");
+                    println!(" Assistant: {content}");
                 }
 
                 // Track token usage for cost monitoring
                 if let Some(usage) = chat_response.usage() {
                     total_tokens += usage.total_tokens;
                     println!(
-                        "📊 This exchange: {} tokens (Running total: {})",
+                        " This exchange: {} tokens (Running total: {})",
                         usage.total_tokens, total_tokens
                     );
                 }
             }
             Err(e) => {
-                println!("❌ Question {} failed: {}", i + 1, e);
+                println!(" Question {} failed: {}", i + 1, e);
                 // In a real app, you might retry or log this error
             }
         }
@@ -313,22 +313,22 @@ async fn main() -> Result<()> {
     // 8. WRAP UP & NEXT STEPS
     // ==========================================
 
-    println!("\n🎉 Quickstart Complete!");
+    println!("\n Quickstart Complete!");
     println!("======================");
     println!("You've successfully:");
-    println!("✅ Created an OpenAI client");
-    println!("✅ Made basic chat completions");
-    println!("✅ Used streaming responses");
-    println!("✅ Implemented tool/function calling");
-    println!("✅ Handled errors gracefully");
-    println!("✅ Built a complete conversational AI");
-    println!("\n📊 Total tokens used in examples: {total_tokens}");
+    println!(" Created an OpenAI client");
+    println!(" Made basic chat completions");
+    println!(" Used streaming responses");
+    println!(" Implemented tool/function calling");
+    println!(" Handled errors gracefully");
+    println!(" Built a complete conversational AI");
+    println!("\n Total tokens used in examples: {total_tokens}");
     println!(
-        "💰 Estimated cost: ~${:.4} (assuming GPT-4 pricing)",
+        " Estimated cost: ~${:.4} (assuming GPT-4 pricing)",
         f64::from(total_tokens) * 0.03 / 1000.0
     );
 
-    println!("\n🚀 Next Steps:");
+    println!("\n Next Steps:");
     println!("- Check out other examples in the examples/ directory");
     println!("- Read the documentation: https://docs.rs/openai-ergonomic");
     println!("- Explore advanced features like vision, audio, and assistants");

@@ -136,11 +136,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✓ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("✗ Failed to initialize client: {e}");
+            eprintln!(" Failed to initialize client: {e}");
             eprintln!("Make sure OPENAI_API_KEY environment variable is set");
             return Err(e.into());
         }
@@ -154,8 +154,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut conversation = ConversationManager::new(Some(system_message), 10);
 
-    println!("✓ Conversation manager initialized (max history: 10 messages)");
-    println!("✓ System message configured");
+    println!(" Conversation manager initialized (max history: 10 messages)");
+    println!(" System message configured");
     println!();
 
     // Demonstrate conversation features
@@ -168,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Final conversation summary
     conversation.display_history();
 
-    println!("🎉 Chat comprehensive example completed successfully!");
+    println!(" Chat comprehensive example completed successfully!");
     println!("This example demonstrated:");
     println!("  • Multi-turn conversation management");
     println!("  • Message history tracking and rotation");
@@ -185,7 +185,7 @@ async fn demonstrate_basic_chat(
     client: &Client,
     conversation: &mut ConversationManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("📝 Example 1: Basic Chat Completion");
+    println!(" Example 1: Basic Chat Completion");
     println!("----------------------------------");
 
     let user_message = "Hello! Can you explain what you can help me with?";
@@ -232,7 +232,7 @@ async fn demonstrate_multi_turn_chat(
     client: &Client,
     conversation: &mut ConversationManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("💬 Example 2: Multi-turn Conversation");
+    println!(" Example 2: Multi-turn Conversation");
     println!("------------------------------------");
 
     let questions = vec![
@@ -286,7 +286,7 @@ async fn demonstrate_streaming_chat(
     _client: &Client,
     conversation: &mut ConversationManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔄 Example 3: Streaming Chat Response");
+    println!(" Example 3: Streaming Chat Response");
     println!("------------------------------------");
 
     // Add user message for streaming example
@@ -298,7 +298,7 @@ async fn demonstrate_streaming_chat(
 
     // Note: Streaming is not yet fully implemented in the client
     // This is a placeholder showing the intended API
-    println!("🚧 Streaming functionality is being implemented...");
+    println!(" Streaming functionality is being implemented...");
     println!("Future implementation will show real-time token-by-token responses");
 
     // Simulate what streaming would look like
@@ -323,7 +323,7 @@ async fn demonstrate_token_tracking(
     client: &Client,
     conversation: &mut ConversationManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("📊 Example 4: Token Usage Tracking");
+    println!(" Example 4: Token Usage Tracking");
     println!("---------------------------------");
 
     let efficiency_question = "In one sentence, what is machine learning?";
@@ -353,7 +353,7 @@ async fn demonstrate_token_tracking(
 
         // Display detailed token usage
         if let Some(usage) = response.usage() {
-            println!("\n📈 Token Usage Breakdown:");
+            println!("\n Token Usage Breakdown:");
             println!("  Prompt tokens: {}", usage.prompt_tokens);
             println!("  Completion tokens: {}", usage.completion_tokens);
             println!("  Total tokens: {}", usage.total_tokens);
@@ -372,7 +372,7 @@ async fn demonstrate_token_tracking(
 
 /// Demonstrate error handling patterns.
 async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    println!("⚠️  Example 5: Error Handling Patterns");
+    println!("  Example 5: Error Handling Patterns");
     println!("------------------------------------");
 
     println!("Testing various error scenarios...\n");
@@ -386,21 +386,21 @@ async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::
         .temperature(0.7);
 
     match client.send_chat(invalid_model_builder).await {
-        Ok(_) => println!("✓ Request succeeded (model validation not yet implemented)"),
+        Ok(_) => println!(" Request succeeded (model validation not yet implemented)"),
         Err(e) => match &e {
             Error::Api {
                 status, message, ..
             } => {
-                println!("✗ API Error ({status}): {message}");
+                println!(" API Error ({status}): {message}");
             }
             Error::Http(reqwest_err) => {
-                println!("✗ HTTP Error: {reqwest_err}");
+                println!(" HTTP Error: {reqwest_err}");
             }
             Error::InvalidRequest(msg) => {
-                println!("✗ Invalid Request: {msg}");
+                println!(" Invalid Request: {msg}");
             }
             _ => {
-                println!("✗ Unexpected Error: {e}");
+                println!(" Unexpected Error: {e}");
             }
         },
     }
@@ -410,20 +410,20 @@ async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::
     let empty_builder = client.chat(); // No messages added
 
     match client.send_chat(empty_builder).await {
-        Ok(_) => println!("✗ Empty request unexpectedly succeeded"),
+        Ok(_) => println!(" Empty request unexpectedly succeeded"),
         Err(Error::InvalidRequest(msg)) => {
-            println!("✓ Validation caught empty request: {msg}");
+            println!(" Validation caught empty request: {msg}");
         }
         Err(e) => {
-            println!("✗ Unexpected error type: {e}");
+            println!(" Unexpected error type: {e}");
         }
     }
 
     // Test 3: Configuration errors
     println!("\nTest 3: Configuration validation");
-    println!("✓ Client configuration is valid (created successfully)");
+    println!(" Client configuration is valid (created successfully)");
 
-    println!("\n🛡️  Error handling patterns demonstrated:");
+    println!("\n  Error handling patterns demonstrated:");
     println!("  • API error classification");
     println!("  • Request validation");
     println!("  • Network error handling");

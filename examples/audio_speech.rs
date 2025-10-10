@@ -40,82 +40,82 @@ use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔊 OpenAI Ergonomic - Audio Speech (Text-to-Speech) Example\n");
+    println!(" OpenAI Ergonomic - Audio Speech (Text-to-Speech) Example\n");
 
     // Initialize client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
 
     // Example 1: Basic Text-to-Speech
-    println!("\n🎙️ Example 1: Basic Text-to-Speech");
+    println!("\n Example 1: Basic Text-to-Speech");
     println!("===================================");
 
     match basic_text_to_speech(&client).await {
-        Ok(()) => println!("✅ Basic TTS example completed"),
+        Ok(()) => println!(" Basic TTS example completed"),
         Err(e) => {
-            eprintln!("❌ Basic TTS example failed: {e}");
+            eprintln!(" Basic TTS example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 2: Voice Comparison
-    println!("\n🎭 Example 2: Voice Comparison");
+    println!("\n Example 2: Voice Comparison");
     println!("===============================");
 
     match voice_comparison_example(&client).await {
-        Ok(()) => println!("✅ Voice comparison example completed"),
+        Ok(()) => println!(" Voice comparison example completed"),
         Err(e) => {
-            eprintln!("❌ Voice comparison example failed: {e}");
+            eprintln!(" Voice comparison example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 3: Audio Format Options
-    println!("\n🎵 Example 3: Audio Format Options");
+    println!("\n Example 3: Audio Format Options");
     println!("===================================");
 
     match audio_format_example(&client).await {
-        Ok(()) => println!("✅ Audio format example completed"),
+        Ok(()) => println!(" Audio format example completed"),
         Err(e) => {
-            eprintln!("❌ Audio format example failed: {e}");
+            eprintln!(" Audio format example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 4: Speed Control
-    println!("\n⚡ Example 4: Speed Control");
+    println!("\n Example 4: Speed Control");
     println!("===========================");
 
     match speed_control_example(&client).await {
-        Ok(()) => println!("✅ Speed control example completed"),
+        Ok(()) => println!(" Speed control example completed"),
         Err(e) => {
-            eprintln!("❌ Speed control example failed: {e}");
+            eprintln!(" Speed control example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 5: Streaming Audio (Note: requires model support)
-    println!("\n📡 Example 5: Streaming Audio");
+    println!("\n Example 5: Streaming Audio");
     println!("==============================");
 
     match streaming_audio_example(&client).await {
-        Ok(()) => println!("✅ Streaming audio example completed"),
+        Ok(()) => println!(" Streaming audio example completed"),
         Err(e) => {
-            eprintln!("❌ Streaming audio example failed: {e}");
+            eprintln!(" Streaming audio example failed: {e}");
             handle_api_error(&e);
         }
     }
 
-    println!("\n🎉 All audio speech examples completed! Check the output files in the current directory.");
+    println!("\n All audio speech examples completed! Check the output files in the current directory.");
     Ok(())
 }
 
@@ -163,7 +163,7 @@ async fn basic_text_to_speech(client: &Client) -> Result<(), Error> {
     let filename = "basic_speech.mp3";
     save_audio_file(&audio_data, filename)?;
 
-    println!("🎵 Generated speech saved to: {filename}");
+    println!(" Generated speech saved to: {filename}");
     println!("   Text: \"{text}\"");
     println!("   Voice: alloy");
     println!("   Format: mp3");
@@ -182,7 +182,7 @@ async fn voice_comparison_example(client: &Client) -> Result<(), Error> {
     let configuration = create_configuration(client);
 
     for voice in &voices {
-        println!("  🎤 Generating with voice: {voice}");
+        println!("   Generating with voice: {voice}");
 
         let request = CreateSpeechRequest::builder()
             .model("tts-1".to_string())
@@ -201,15 +201,15 @@ async fn voice_comparison_example(client: &Client) -> Result<(), Error> {
                 let audio_data = response.bytes().await.map_err(Error::Http)?;
                 let filename = format!("voice_{voice}.mp3");
                 save_audio_file(&audio_data, &filename)?;
-                println!("     ✅ Saved to: {filename} ({} bytes)", audio_data.len());
+                println!("      Saved to: {filename} ({} bytes)", audio_data.len());
             }
             Err(e) => {
-                eprintln!("     ❌ Failed to generate audio for voice {voice}: {e}");
+                eprintln!("      Failed to generate audio for voice {voice}: {e}");
             }
         }
     }
 
-    println!("\n💡 Note: Listen to the generated files to compare different voice characteristics");
+    println!("\n Note: Listen to the generated files to compare different voice characteristics");
 
     Ok(())
 }
@@ -231,7 +231,7 @@ async fn audio_format_example(client: &Client) -> Result<(), Error> {
     let configuration = create_configuration(client);
 
     for (format, extension) in &formats {
-        println!("  🎵 Generating in format: {extension}");
+        println!("   Generating in format: {extension}");
 
         let request = CreateSpeechRequest::builder()
             .model("tts-1".to_string())
@@ -250,15 +250,15 @@ async fn audio_format_example(client: &Client) -> Result<(), Error> {
                 let audio_data = response.bytes().await.map_err(Error::Http)?;
                 let filename = format!("format_example.{extension}");
                 save_audio_file(&audio_data, &filename)?;
-                println!("     ✅ Saved to: {filename} ({} bytes)", audio_data.len());
+                println!("      Saved to: {filename} ({} bytes)", audio_data.len());
             }
             Err(e) => {
-                eprintln!("     ❌ Failed to generate audio in format {extension}: {e}");
+                eprintln!("      Failed to generate audio in format {extension}: {e}");
             }
         }
     }
 
-    println!("\n💡 Note: Different formats have different quality/compression trade-offs:");
+    println!("\n Note: Different formats have different quality/compression trade-offs:");
     println!("   - MP3: Good compression, widely supported");
     println!("   - OPUS: Excellent compression for voice, modern codec");
     println!("   - AAC: Good compression, Apple ecosystem friendly");
@@ -279,7 +279,7 @@ async fn speed_control_example(client: &Client) -> Result<(), Error> {
     let configuration = create_configuration(client);
 
     for &speed in &speeds {
-        println!("  ⚡ Generating at speed: {speed}x");
+        println!("   Generating at speed: {speed}x");
 
         let request = CreateSpeechRequest::builder()
             .model("tts-1".to_string())
@@ -299,15 +299,15 @@ async fn speed_control_example(client: &Client) -> Result<(), Error> {
                 let audio_data = response.bytes().await.map_err(Error::Http)?;
                 let filename = format!("speed_{speed}.mp3");
                 save_audio_file(&audio_data, &filename)?;
-                println!("     ✅ Saved to: {filename} ({} bytes)", audio_data.len());
+                println!("      Saved to: {filename} ({} bytes)", audio_data.len());
             }
             Err(e) => {
-                eprintln!("     ❌ Failed to generate audio at speed {speed}x: {e}");
+                eprintln!("      Failed to generate audio at speed {speed}x: {e}");
             }
         }
     }
 
-    println!("\n💡 Note: Speed range is 0.25x to 4.0x normal speed");
+    println!("\n Note: Speed range is 0.25x to 4.0x normal speed");
     println!("   - 0.25x: Very slow, good for learning pronunciation");
     println!("   - 1.0x: Normal speed");
     println!("   - 4.0x: Very fast, good for quick content consumption");
@@ -332,7 +332,7 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
         .stream_format(StreamFormat::Audio)
         .build();
 
-    println!("  📡 Attempting streaming generation...");
+    println!("   Attempting streaming generation...");
 
     match audio_api::create_speech()
         .configuration(&configuration)
@@ -345,17 +345,17 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
             let filename = "streaming_example.mp3";
             save_audio_file(&audio_data, filename)?;
             println!(
-                "     ✅ Streaming audio saved to: {filename} ({} bytes)",
+                "      Streaming audio saved to: {filename} ({} bytes)",
                 audio_data.len()
             );
 
-            println!("\n💡 Note: In a real streaming implementation, you would:");
+            println!("\n Note: In a real streaming implementation, you would:");
             println!("   - Process audio chunks as they arrive");
             println!("   - Start playback before full generation is complete");
             println!("   - Handle streaming format appropriately");
         }
         Err(e) => {
-            eprintln!("     ⚠️ Streaming with gpt-4o-mini-tts failed, trying fallback: {e}");
+            eprintln!("      Streaming with gpt-4o-mini-tts failed, trying fallback: {e}");
 
             // Fallback to regular generation
             let fallback_request = CreateSpeechRequest::builder()
@@ -376,18 +376,18 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
                     let filename = "fallback_example.mp3";
                     save_audio_file(&audio_data, filename)?;
                     println!(
-                        "     ✅ Fallback audio saved to: {filename} ({} bytes)",
+                        "      Fallback audio saved to: {filename} ({} bytes)",
                         audio_data.len()
                     );
                 }
                 Err(e) => {
-                    eprintln!("     ❌ Fallback generation also failed: {e}");
+                    eprintln!("      Fallback generation also failed: {e}");
                 }
             }
         }
     }
 
-    println!("\n💡 Note: Streaming support varies by model:");
+    println!("\n Note: Streaming support varies by model:");
     println!("   - gpt-4o-mini-tts: Supports streaming");
     println!("   - tts-1, tts-1-hd: No streaming support");
     println!("   - Stream formats: 'sse' (Server-Sent Events) or 'audio' (raw audio chunks)");
@@ -432,7 +432,7 @@ fn handle_api_error(error: &Error) {
             error_type,
             error_code,
         } => {
-            eprintln!("🚫 API Error [{status}]: {message}");
+            eprintln!(" API Error [{status}]: {message}");
             if let Some(error_type) = error_type {
                 eprintln!("   Type: {error_type}");
             }
@@ -442,64 +442,64 @@ fn handle_api_error(error: &Error) {
 
             // Provide specific guidance based on error type
             match *status {
-                401 => eprintln!("💡 Check your API key: export OPENAI_API_KEY=\"your-key\""),
-                429 => eprintln!("💡 Rate limited - try again in a moment"),
-                500..=599 => eprintln!("💡 Server error - try again later"),
+                401 => eprintln!(" Check your API key: export OPENAI_API_KEY=\"your-key\""),
+                429 => eprintln!(" Rate limited - try again in a moment"),
+                500..=599 => eprintln!(" Server error - try again later"),
                 _ => {}
             }
         }
         Error::InvalidRequest(msg) => {
-            eprintln!("🚫 Invalid Request: {msg}");
-            eprintln!("💡 Check your request parameters");
+            eprintln!(" Invalid Request: {msg}");
+            eprintln!(" Check your request parameters");
         }
         Error::Config(msg) => {
-            eprintln!("🚫 Configuration Error: {msg}");
-            eprintln!("💡 Check your client configuration");
+            eprintln!(" Configuration Error: {msg}");
+            eprintln!(" Check your client configuration");
         }
         Error::Http(err) => {
-            eprintln!("🚫 HTTP Error: {err}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" HTTP Error: {err}");
+            eprintln!(" Check your network connection");
         }
         Error::Json(err) => {
-            eprintln!("🚫 JSON Error: {err}");
-            eprintln!("💡 Response parsing failed - may be a temporary issue");
+            eprintln!(" JSON Error: {err}");
+            eprintln!(" Response parsing failed - may be a temporary issue");
         }
         Error::Authentication(msg) => {
-            eprintln!("🚫 Authentication Error: {msg}");
-            eprintln!("💡 Check your API key");
+            eprintln!(" Authentication Error: {msg}");
+            eprintln!(" Check your API key");
         }
         Error::RateLimit(msg) => {
-            eprintln!("🚫 Rate Limit Error: {msg}");
-            eprintln!("💡 Try again in a moment");
+            eprintln!(" Rate Limit Error: {msg}");
+            eprintln!(" Try again in a moment");
         }
         Error::Stream(msg) => {
-            eprintln!("🚫 Stream Error: {msg}");
-            eprintln!("💡 Connection issue with streaming");
+            eprintln!(" Stream Error: {msg}");
+            eprintln!(" Connection issue with streaming");
         }
         Error::File(err) => {
-            eprintln!("🚫 File Error: {err}");
-            eprintln!("💡 Check file permissions and paths");
+            eprintln!(" File Error: {err}");
+            eprintln!(" Check file permissions and paths");
         }
         Error::Builder(msg) => {
-            eprintln!("🚫 Builder Error: {msg}");
-            eprintln!("💡 Check your request builder configuration");
+            eprintln!(" Builder Error: {msg}");
+            eprintln!(" Check your request builder configuration");
         }
         Error::Internal(msg) => {
-            eprintln!("🚫 Internal Error: {msg}");
-            eprintln!("💡 This may be a bug, please report it");
+            eprintln!(" Internal Error: {msg}");
+            eprintln!(" This may be a bug, please report it");
         }
         Error::StreamConnection { message } => {
-            eprintln!("🚫 Stream Connection Error: {message}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" Stream Connection Error: {message}");
+            eprintln!(" Check your network connection");
         }
         Error::StreamParsing { message, chunk } => {
-            eprintln!("🚫 Stream Parsing Error: {message}");
+            eprintln!(" Stream Parsing Error: {message}");
             eprintln!("   Problematic chunk: {chunk}");
-            eprintln!("💡 The response stream may be corrupted");
+            eprintln!(" The response stream may be corrupted");
         }
         Error::StreamBuffer { message } => {
-            eprintln!("🚫 Stream Buffer Error: {message}");
-            eprintln!("💡 The stream buffer encountered an issue");
+            eprintln!(" Stream Buffer Error: {message}");
+            eprintln!(" The stream buffer encountered an issue");
         }
     }
 }

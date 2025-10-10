@@ -186,7 +186,7 @@ fn multilingual_moderation(_client: &Client) {
         ("Spanish", "Este es un mensaje de prueba"),
         ("French", "Ceci est un message de test"),
         ("German", "Dies ist eine Testnachricht"),
-        ("Japanese", "これはテストメッセージです"),
+        ("Japanese", ""),
     ];
 
     for (language, content) in multilingual_tests {
@@ -243,7 +243,7 @@ async fn response_filtering(client: &Client) -> Result<()> {
 
         if moderation_result.flagged {
             println!(
-                "⚠️  Response flagged! Categories: {:?}",
+                "  Response flagged! Categories: {:?}",
                 moderation_result.categories
             );
             println!("Action: Response blocked or regenerated");
@@ -260,7 +260,7 @@ async fn response_filtering(client: &Client) -> Result<()> {
                 println!("Regenerated safe response: '{}'", safe_content);
             }
         } else {
-            println!("✓ Response passed moderation");
+            println!(" Response passed moderation");
         }
     }
 
@@ -295,9 +295,9 @@ fn policy_enforcement(_client: &Client) {
         let action = apply_policy(&result, &policy);
 
         match action {
-            PolicyAction::Approve => println!("  ✓ Approved"),
-            PolicyAction::Reject(reason) => println!("  ✗ Rejected: {}", reason),
-            PolicyAction::Review(reason) => println!("  ⚠ Human review needed: {}", reason),
+            PolicyAction::Approve => println!("   Approved"),
+            PolicyAction::Reject(reason) => println!("   Rejected: {}", reason),
+            PolicyAction::Review(reason) => println!("   Human review needed: {}", reason),
         }
     }
 }
@@ -330,9 +330,9 @@ async fn moderation_pipeline(client: &Client) -> Result<()> {
     println!("1. Pre-filters:");
     for (i, filter) in pipeline.pre_filters.iter().enumerate() {
         if filter(user_input) {
-            println!("  ✓ Pre-filter {} passed", i + 1);
+            println!("   Pre-filter {} passed", i + 1);
         } else {
-            println!("  ✗ Pre-filter {} failed", i + 1);
+            println!("   Pre-filter {} failed", i + 1);
             return Ok(());
         }
     }
@@ -341,10 +341,10 @@ async fn moderation_pipeline(client: &Client) -> Result<()> {
     println!("2. API moderation:");
     let moderation_result = simulate_moderation(user_input);
     if moderation_result.flagged {
-        println!("  ✗ Content flagged by API");
+        println!("   Content flagged by API");
         return Ok(());
     }
-    println!("  ✓ Passed API moderation");
+    println!("   Passed API moderation");
 
     // Step 3: Generate response
     println!("3. Generating response:");
@@ -358,9 +358,9 @@ async fn moderation_pipeline(client: &Client) -> Result<()> {
         println!("4. Post-filters:");
         for (i, filter) in pipeline.post_filters.iter().enumerate() {
             if filter(content) {
-                println!("  ✓ Post-filter {} passed", i + 1);
+                println!("   Post-filter {} passed", i + 1);
             } else {
-                println!("  ✗ Post-filter {} failed", i + 1);
+                println!("   Post-filter {} failed", i + 1);
                 return Ok(());
             }
         }
@@ -369,9 +369,9 @@ async fn moderation_pipeline(client: &Client) -> Result<()> {
         println!("5. Response moderation:");
         let response_moderation = simulate_moderation(content);
         if response_moderation.flagged {
-            println!("  ✗ Response flagged");
+            println!("   Response flagged");
         } else {
-            println!("  ✓ Response approved");
+            println!("   Response approved");
             println!("\nFinal output: '{}'", content);
         }
     }

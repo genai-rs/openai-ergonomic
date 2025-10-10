@@ -36,95 +36,95 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🏗️  OpenAI Ergonomic - Structured Outputs Example\n");
+    println!("  OpenAI Ergonomic - Structured Outputs Example\n");
 
     // Initialize client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
 
     // Example 1: Simple JSON Mode
-    println!("\n📝 Example 1: Simple JSON Mode");
+    println!("\n Example 1: Simple JSON Mode");
     println!("==============================");
 
     match simple_json_mode_example(&client).await {
-        Ok(()) => println!("✅ Simple JSON mode example completed"),
+        Ok(()) => println!(" Simple JSON mode example completed"),
         Err(e) => {
-            eprintln!("❌ Simple JSON mode example failed: {e}");
+            eprintln!(" Simple JSON mode example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 2: Schema-Based Data Extraction
-    println!("\n🔍 Example 2: Schema-Based Data Extraction");
+    println!("\n Example 2: Schema-Based Data Extraction");
     println!("==========================================");
 
     match data_extraction_example(&client).await {
-        Ok(()) => println!("✅ Data extraction example completed"),
+        Ok(()) => println!(" Data extraction example completed"),
         Err(e) => {
-            eprintln!("❌ Data extraction example failed: {e}");
+            eprintln!(" Data extraction example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 3: Complex Nested Structures
-    println!("\n🏢 Example 3: Complex Nested Structures");
+    println!("\n Example 3: Complex Nested Structures");
     println!("=======================================");
 
     match complex_structure_example(&client).await {
-        Ok(()) => println!("✅ Complex structure example completed"),
+        Ok(()) => println!(" Complex structure example completed"),
         Err(e) => {
-            eprintln!("❌ Complex structure example failed: {e}");
+            eprintln!(" Complex structure example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 4: Content Classification
-    println!("\n🏷️  Example 4: Content Classification");
+    println!("\n  Example 4: Content Classification");
     println!("=====================================");
 
     match classification_example(&client).await {
-        Ok(()) => println!("✅ Classification example completed"),
+        Ok(()) => println!(" Classification example completed"),
         Err(e) => {
-            eprintln!("❌ Classification example failed: {e}");
+            eprintln!(" Classification example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 5: Mathematical Analysis
-    println!("\n🧮 Example 5: Mathematical Analysis");
+    println!("\n Example 5: Mathematical Analysis");
     println!("===================================");
 
     match math_analysis_example(&client).await {
-        Ok(()) => println!("✅ Mathematical analysis example completed"),
+        Ok(()) => println!(" Mathematical analysis example completed"),
         Err(e) => {
-            eprintln!("❌ Mathematical analysis example failed: {e}");
+            eprintln!(" Mathematical analysis example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 6: Schema Validation Error Handling
-    println!("\n⚠️  Example 6: Schema Validation & Error Handling");
+    println!("\n  Example 6: Schema Validation & Error Handling");
     println!("=================================================");
 
     match validation_error_example(&client).await {
-        Ok(()) => println!("✅ Validation error example completed"),
+        Ok(()) => println!(" Validation error example completed"),
         Err(e) => {
-            eprintln!("❌ Validation error example failed: {e}");
+            eprintln!(" Validation error example failed: {e}");
             handle_api_error(&e);
         }
     }
 
-    println!("\n🎉 All structured output examples completed!");
-    println!("📊 Check the console output above for JSON-formatted results.");
+    println!("\n All structured output examples completed!");
+    println!(" Check the console output above for JSON-formatted results.");
     Ok(())
 }
 
@@ -143,7 +143,7 @@ async fn simple_json_mode_example(client: &Client) -> Result<(), Error> {
     let response = client.send_responses(builder).await?;
 
     if let Some(content) = response.content() {
-        println!("📊 JSON Analysis Result:");
+        println!(" JSON Analysis Result:");
 
         // Try to parse and pretty-print the JSON
         match serde_json::from_str::<serde_json::Value>(content) {
@@ -152,17 +152,17 @@ async fn simple_json_mode_example(client: &Client) -> Result<(), Error> {
 
                 // Demonstrate accessing specific fields
                 if let Some(sentiment) = json.get("sentiment").and_then(|s| s.as_str()) {
-                    println!("\n🎯 Extracted sentiment: {sentiment}");
+                    println!("\n Extracted sentiment: {sentiment}");
                 }
                 if let Some(confidence) = json
                     .get("confidence_score")
                     .and_then(serde_json::Value::as_f64)
                 {
-                    println!("🎯 Confidence score: {confidence:.2}");
+                    println!(" Confidence score: {confidence:.2}");
                 }
             }
             Err(e) => {
-                println!("⚠️  Failed to parse JSON: {e}");
+                println!("  Failed to parse JSON: {e}");
                 println!("Raw response: {content}");
             }
         }
@@ -234,7 +234,7 @@ async fn data_extraction_example(client: &Client) -> Result<(), Error> {
     let response = client.send_responses(builder).await?;
 
     if let Some(content) = response.content() {
-        println!("📊 Extracted Contact Information:");
+        println!(" Extracted Contact Information:");
 
         match serde_json::from_str::<serde_json::Value>(content) {
             Ok(json) => {
@@ -242,22 +242,22 @@ async fn data_extraction_example(client: &Client) -> Result<(), Error> {
 
                 // Demonstrate accessing the structured data
                 if let Some(contacts) = json.get("contacts").and_then(|c| c.as_array()) {
-                    println!("\n🎯 Summary: Found {} contact(s)", contacts.len());
+                    println!("\n Summary: Found {} contact(s)", contacts.len());
                     for (i, contact) in contacts.iter().enumerate() {
                         if let Some(name) = contact.get("name").and_then(|n| n.as_str()) {
                             println!("   {}. {name}", i + 1);
                             if let Some(email) = contact.get("email").and_then(|e| e.as_str()) {
-                                println!("      📧 {email}");
+                                println!("       {email}");
                             }
                             if let Some(company) = contact.get("company").and_then(|c| c.as_str()) {
-                                println!("      🏢 {company}");
+                                println!("       {company}");
                             }
                         }
                     }
                 }
             }
             Err(e) => {
-                println!("⚠️  Failed to parse JSON: {e}");
+                println!("  Failed to parse JSON: {e}");
                 println!("Raw response: {content}");
             }
         }
@@ -401,7 +401,7 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
     let response = client.send_responses(builder).await?;
 
     if let Some(content) = response.content() {
-        println!("📊 Event Plan:");
+        println!(" Event Plan:");
 
         match serde_json::from_str::<serde_json::Value>(content) {
             Ok(json) => {
@@ -410,7 +410,7 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                 // Extract and display key information
                 if let Some(event) = json.get("event") {
                     if let Some(name) = event.get("name").and_then(|n| n.as_str()) {
-                        println!("\n🎯 Event: {name}");
+                        println!("\n Event: {name}");
                     }
                     if let Some(venue) = event.get("venue") {
                         if let Some(venue_name) = venue.get("name").and_then(|n| n.as_str()) {
@@ -418,21 +418,21 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                                 .get("capacity")
                                 .and_then(serde_json::Value::as_i64)
                                 .unwrap_or(0);
-                            println!("🏢 Venue: {venue_name} (Capacity: {capacity})");
+                            println!(" Venue: {venue_name} (Capacity: {capacity})");
                         }
                     }
                     if let Some(agenda) = event.get("agenda").and_then(|a| a.as_array()) {
-                        println!("📅 Agenda has {} activities", agenda.len());
+                        println!(" Agenda has {} activities", agenda.len());
                     }
                     if let Some(cost) = event.get("estimated_cost") {
                         if let Some(total) = cost.get("total").and_then(serde_json::Value::as_f64) {
-                            println!("💰 Estimated total cost: ${total:.2}");
+                            println!(" Estimated total cost: ${total:.2}");
                         }
                     }
                 }
             }
             Err(e) => {
-                println!("⚠️  Failed to parse JSON: {e}");
+                println!("  Failed to parse JSON: {e}");
                 println!("Raw response: {content}");
             }
         }
@@ -516,7 +516,7 @@ async fn classification_example(client: &Client) -> Result<(), Error> {
     let response = client.send_responses(builder).await?;
 
     if let Some(content) = response.content() {
-        println!("📊 Content Classification:");
+        println!(" Content Classification:");
 
         match serde_json::from_str::<serde_json::Value>(content) {
             Ok(json) => {
@@ -524,33 +524,33 @@ async fn classification_example(client: &Client) -> Result<(), Error> {
 
                 // Extract classification details
                 if let Some(classification) = json.get("classification") {
-                    println!("\n🎯 Classification Summary:");
+                    println!("\n Classification Summary:");
                     if let Some(category) = classification.get("category").and_then(|c| c.as_str())
                     {
-                        println!("   📂 Category: {category}");
+                        println!("    Category: {category}");
                     }
                     if let Some(sentiment) =
                         classification.get("sentiment").and_then(|s| s.as_str())
                     {
-                        println!("   😊 Sentiment: {sentiment}");
+                        println!("    Sentiment: {sentiment}");
                     }
                     if let Some(audience) = classification
                         .get("target_audience")
                         .and_then(|a| a.as_str())
                     {
-                        println!("   👥 Target Audience: {audience}");
+                        println!("    Target Audience: {audience}");
                     }
                     if let Some(complexity) = classification
                         .get("complexity_level")
                         .and_then(|c| c.as_str())
                     {
-                        println!("   🎓 Complexity: {complexity}");
+                        println!("    Complexity: {complexity}");
                     }
                     if let Some(confidence) = classification
                         .get("confidence_score")
                         .and_then(serde_json::Value::as_f64)
                     {
-                        println!("   🎯 Confidence: {:.2}%", confidence * 100.0);
+                        println!("    Confidence: {:.2}%", confidence * 100.0);
                     }
                     if let Some(topics) = classification.get("topics").and_then(|t| t.as_array()) {
                         let topic_strings: Vec<String> = topics
@@ -558,12 +558,12 @@ async fn classification_example(client: &Client) -> Result<(), Error> {
                             .filter_map(|t| t.as_str())
                             .map(std::string::ToString::to_string)
                             .collect();
-                        println!("   🏷️  Topics: {}", topic_strings.join(", "));
+                        println!("     Topics: {}", topic_strings.join(", "));
                     }
                 }
             }
             Err(e) => {
-                println!("⚠️  Failed to parse JSON: {e}");
+                println!("  Failed to parse JSON: {e}");
                 println!("Raw response: {content}");
             }
         }
@@ -664,7 +664,7 @@ async fn math_analysis_example(client: &Client) -> Result<(), Error> {
     let response = client.send_responses(builder).await?;
 
     if let Some(content) = response.content() {
-        println!("📊 Mathematical Analysis:");
+        println!(" Mathematical Analysis:");
 
         match serde_json::from_str::<serde_json::Value>(content) {
             Ok(json) => {
@@ -672,16 +672,16 @@ async fn math_analysis_example(client: &Client) -> Result<(), Error> {
 
                 // Extract and display solution steps
                 if let Some(analysis) = json.get("analysis") {
-                    println!("\n🎯 Solution Summary:");
+                    println!("\n Solution Summary:");
 
                     if let Some(problem_type) =
                         analysis.get("problem_type").and_then(|p| p.as_str())
                     {
-                        println!("   📚 Problem Type: {problem_type}");
+                        println!("    Problem Type: {problem_type}");
                     }
 
                     if let Some(steps) = analysis.get("solution_steps").and_then(|s| s.as_array()) {
-                        println!("   📝 Solution Steps: {} steps", steps.len());
+                        println!("    Solution Steps: {} steps", steps.len());
                         for step in steps {
                             if let (Some(step_num), Some(desc)) = (
                                 step.get("step_number").and_then(serde_json::Value::as_i64),
@@ -691,14 +691,14 @@ async fn math_analysis_example(client: &Client) -> Result<(), Error> {
                                 if let Some(equation) =
                                     step.get("equation").and_then(|e| e.as_str())
                                 {
-                                    println!("         📐 {equation}");
+                                    println!("          {equation}");
                                 }
                             }
                         }
                     }
 
                     if let Some(answer) = analysis.get("final_answer").and_then(|a| a.as_str()) {
-                        println!("   ✅ Final Answer: {answer}");
+                        println!("    Final Answer: {answer}");
                     }
 
                     if let Some(verification) = analysis.get("verification") {
@@ -707,11 +707,11 @@ async fn math_analysis_example(client: &Client) -> Result<(), Error> {
                             .and_then(serde_json::Value::as_bool)
                         {
                             let status = if is_correct {
-                                "✅ Verified"
+                                " Verified"
                             } else {
-                                "❌ Needs Review"
+                                " Needs Review"
                             };
-                            println!("   🔍 Verification: {status}");
+                            println!("    Verification: {status}");
                         }
                     }
 
@@ -722,12 +722,12 @@ async fn math_analysis_example(client: &Client) -> Result<(), Error> {
                             .filter_map(|c| c.as_str())
                             .map(std::string::ToString::to_string)
                             .collect();
-                        println!("   🧠 Concepts Used: {}", concept_strings.join(", "));
+                        println!("    Concepts Used: {}", concept_strings.join(", "));
                     }
                 }
             }
             Err(e) => {
-                println!("⚠️  Failed to parse JSON: {e}");
+                println!("  Failed to parse JSON: {e}");
                 println!("Raw response: {content}");
             }
         }
@@ -778,7 +778,7 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
         "additionalProperties": false
     });
 
-    println!("💡 Using a strict schema with specific constraints...");
+    println!(" Using a strict schema with specific constraints...");
 
     let builder = client
         .responses()
@@ -791,33 +791,33 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
     let response = client.send_responses(builder).await?;
 
     if let Some(content) = response.content() {
-        println!("📊 Schema Validation Test:");
+        println!(" Schema Validation Test:");
 
         match serde_json::from_str::<serde_json::Value>(content) {
             Ok(json) => {
                 println!("{}", serde_json::to_string_pretty(&json)?);
 
                 // Manual validation of the generated data
-                println!("\n🔍 Manual Validation:");
+                println!("\n Manual Validation:");
                 let mut validation_passed = true;
 
                 // Check numbers array
                 if let Some(numbers) = json.get("numbers").and_then(|n| n.as_array()) {
-                    println!("   📊 Numbers array: {} items", numbers.len());
+                    println!("    Numbers array: {} items", numbers.len());
                     if numbers.len() < 3 || numbers.len() > 5 {
-                        println!("   ❌ Array size constraint violated");
+                        println!("    Array size constraint violated");
                         validation_passed = false;
                     }
                     for (i, num) in numbers.iter().enumerate() {
                         if let Some(val) = num.as_i64() {
                             if !(1..=100).contains(&val) {
-                                println!("   ❌ Number {i} ({val}) outside valid range [1-100]");
+                                println!("    Number {i} ({val}) outside valid range [1-100]");
                                 validation_passed = false;
                             }
                         }
                     }
                 } else {
-                    println!("   ❌ Numbers array missing or invalid");
+                    println!("    Numbers array missing or invalid");
                     validation_passed = false;
                 }
 
@@ -826,40 +826,40 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
                     .get("precision_value")
                     .and_then(serde_json::Value::as_f64)
                 {
-                    println!("   🎯 Precision value: {precision}");
+                    println!("    Precision value: {precision}");
                     if !(0.0..=1.0).contains(&precision) {
-                        println!("   ❌ Precision value outside range [0-1]");
+                        println!("    Precision value outside range [0-1]");
                         validation_passed = false;
                     }
                 }
 
                 // Check enum value
                 if let Some(enum_val) = json.get("strict_enum").and_then(|e| e.as_str()) {
-                    println!("   🏷️  Enum value: {enum_val}");
+                    println!("     Enum value: {enum_val}");
                     if !["alpha", "beta", "gamma"].contains(&enum_val) {
-                        println!("   ❌ Enum value not in allowed set");
+                        println!("    Enum value not in allowed set");
                         validation_passed = false;
                     }
                 }
 
                 // Check pattern
                 if let Some(pattern_val) = json.get("required_pattern").and_then(|p| p.as_str()) {
-                    println!("   🔤 Pattern value: {pattern_val}");
+                    println!("    Pattern value: {pattern_val}");
                     let regex = regex::Regex::new(r"^[A-Z]{2}[0-9]{4}$").unwrap();
                     if !regex.is_match(pattern_val) {
-                        println!("   ❌ Pattern does not match required format");
+                        println!("    Pattern does not match required format");
                         validation_passed = false;
                     }
                 }
 
                 if validation_passed {
-                    println!("   ✅ All manual validations passed!");
+                    println!("    All manual validations passed!");
                 } else {
-                    println!("   ⚠️  Some validation constraints were not met");
+                    println!("     Some validation constraints were not met");
                 }
             }
             Err(e) => {
-                println!("⚠️  JSON parsing failed: {e}");
+                println!("  JSON parsing failed: {e}");
                 println!("This demonstrates how schema constraints can sometimes be challenging for the model");
                 println!("Raw response: {content}");
             }
@@ -867,7 +867,7 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
     }
 
     // Demonstrate handling of intentionally problematic schema
-    println!("\n🧪 Testing with intentionally problematic request...");
+    println!("\n Testing with intentionally problematic request...");
 
     let problematic_builder = client
         .responses()
@@ -891,13 +891,13 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
     match client.send_responses(problematic_builder).await {
         Ok(problematic_response) => {
             if let Some(content) = problematic_response.content() {
-                println!("📊 Problematic request result:");
+                println!(" Problematic request result:");
                 println!("{content}");
-                println!("💡 The model likely still attempted to follow the schema despite conflicting instructions");
+                println!(" The model likely still attempted to follow the schema despite conflicting instructions");
             }
         }
         Err(e) => {
-            println!("⚠️  Problematic request failed as expected: {e}");
+            println!("  Problematic request failed as expected: {e}");
         }
     }
 
@@ -913,7 +913,7 @@ fn handle_api_error(error: &Error) {
             error_type,
             error_code,
         } => {
-            eprintln!("🚫 API Error [{status}]: {message}");
+            eprintln!(" API Error [{status}]: {message}");
             if let Some(error_type) = error_type {
                 eprintln!("   Type: {error_type}");
             }
@@ -923,67 +923,67 @@ fn handle_api_error(error: &Error) {
 
             // Provide specific guidance based on error type
             match *status {
-                400 => eprintln!("💡 Bad Request - Check your JSON schema or request parameters"),
-                401 => eprintln!("💡 Check your API key: export OPENAI_API_KEY=\"your-key\""),
-                403 => eprintln!("💡 Forbidden - Check your API permissions and model access"),
-                422 => eprintln!("💡 Invalid schema or request format - verify your JSON schema"),
-                429 => eprintln!("💡 Rate limited - try again in a moment"),
-                500..=599 => eprintln!("💡 Server error - try again later"),
+                400 => eprintln!(" Bad Request - Check your JSON schema or request parameters"),
+                401 => eprintln!(" Check your API key: export OPENAI_API_KEY=\"your-key\""),
+                403 => eprintln!(" Forbidden - Check your API permissions and model access"),
+                422 => eprintln!(" Invalid schema or request format - verify your JSON schema"),
+                429 => eprintln!(" Rate limited - try again in a moment"),
+                500..=599 => eprintln!(" Server error - try again later"),
                 _ => {}
             }
         }
         Error::InvalidRequest(msg) => {
-            eprintln!("🚫 Invalid Request: {msg}");
-            eprintln!("💡 Check your request parameters and JSON schema format");
+            eprintln!(" Invalid Request: {msg}");
+            eprintln!(" Check your request parameters and JSON schema format");
         }
         Error::Config(msg) => {
-            eprintln!("🚫 Configuration Error: {msg}");
-            eprintln!("💡 Check your client configuration");
+            eprintln!(" Configuration Error: {msg}");
+            eprintln!(" Check your client configuration");
         }
         Error::Http(err) => {
-            eprintln!("🚫 HTTP Error: {err}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" HTTP Error: {err}");
+            eprintln!(" Check your network connection");
         }
         Error::Json(err) => {
-            eprintln!("🚫 JSON Error: {err}");
-            eprintln!("💡 Response parsing failed - the model may have generated invalid JSON");
+            eprintln!(" JSON Error: {err}");
+            eprintln!(" Response parsing failed - the model may have generated invalid JSON");
         }
         Error::Authentication(msg) => {
-            eprintln!("🚫 Authentication Error: {msg}");
-            eprintln!("💡 Check your API key");
+            eprintln!(" Authentication Error: {msg}");
+            eprintln!(" Check your API key");
         }
         Error::RateLimit(msg) => {
-            eprintln!("🚫 Rate Limit Error: {msg}");
-            eprintln!("💡 Try again in a moment or upgrade your plan");
+            eprintln!(" Rate Limit Error: {msg}");
+            eprintln!(" Try again in a moment or upgrade your plan");
         }
         Error::Stream(msg) => {
-            eprintln!("🚫 Stream Error: {msg}");
-            eprintln!("💡 Connection issue with streaming");
+            eprintln!(" Stream Error: {msg}");
+            eprintln!(" Connection issue with streaming");
         }
         Error::File(err) => {
-            eprintln!("🚫 File Error: {err}");
-            eprintln!("💡 Check file permissions and paths");
+            eprintln!(" File Error: {err}");
+            eprintln!(" Check file permissions and paths");
         }
         Error::Builder(msg) => {
-            eprintln!("🚫 Builder Error: {msg}");
-            eprintln!("💡 Check your request builder configuration");
+            eprintln!(" Builder Error: {msg}");
+            eprintln!(" Check your request builder configuration");
         }
         Error::Internal(msg) => {
-            eprintln!("🚫 Internal Error: {msg}");
-            eprintln!("💡 This may be a bug, please report it");
+            eprintln!(" Internal Error: {msg}");
+            eprintln!(" This may be a bug, please report it");
         }
         Error::StreamConnection { message } => {
-            eprintln!("🚫 Stream Connection Error: {message}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" Stream Connection Error: {message}");
+            eprintln!(" Check your network connection");
         }
         Error::StreamParsing { message, chunk } => {
-            eprintln!("🚫 Stream Parsing Error: {message}");
+            eprintln!(" Stream Parsing Error: {message}");
             eprintln!("   Problematic chunk: {chunk}");
-            eprintln!("💡 The response stream may be corrupted");
+            eprintln!(" The response stream may be corrupted");
         }
         Error::StreamBuffer { message } => {
-            eprintln!("🚫 Stream Buffer Error: {message}");
-            eprintln!("💡 The stream buffer encountered an issue");
+            eprintln!(" Stream Buffer Error: {message}");
+            eprintln!(" The stream buffer encountered an issue");
         }
     }
 }

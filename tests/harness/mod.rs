@@ -273,7 +273,7 @@ pub fn content_type_tests() -> Vec<(&'static str, Value)> {
     vec![
         ("simple_text", json!("Hello, world!")),
         ("empty_text", json!("")),
-        ("unicode_text", json!("Hello 🌍! Здравствуй мир!")),
+        ("unicode_text", json!("Hello ! Здравствуй мир!")),
         ("json_object", json!({"key": "value", "number": 42})),
         ("json_array", json!(["item1", "item2", "item3"])),
         ("multiline_text", json!("Line 1\nLine 2\nLine 3")),

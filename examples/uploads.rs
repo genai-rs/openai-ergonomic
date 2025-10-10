@@ -103,26 +103,26 @@ impl UploadInfo {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 OpenAI Ergonomic - Comprehensive Uploads Example\n");
+    println!(" OpenAI Ergonomic - Comprehensive Uploads Example\n");
 
     // Initialize client from environment variables
-    println!("📝 Initializing OpenAI client...");
+    println!(" Initializing OpenAI client...");
     let client = match Client::from_env() {
         Ok(c) => {
-            println!("✅ Client initialized successfully\n");
+            println!(" Client initialized successfully\n");
             c.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {}", e);
-            eprintln!("💡 Make sure OPENAI_API_KEY is set");
+            eprintln!(" Failed to initialize client: {}", e);
+            eprintln!(" Make sure OPENAI_API_KEY is set");
             return Ok(());
         }
     };
 
     // Example 1: Create multipart upload for a large file
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 1: Create Multipart Upload");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("");
+    println!(" Example 1: Create Multipart Upload");
+    println!("\n");
 
     // Simulate a large file
     let filename = "large_training_dataset.jsonl";
@@ -143,19 +143,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         mime_type,
     );
 
-    println!("\n💡 Note: This would create a real multipart upload session.");
+    println!("\n Note: This would create a real multipart upload session.");
     println!("   Commented out to avoid accidental API calls.\n");
 
     // Uncomment to actually create upload:
     // match client.uploads().create(builder).await {
     //     Ok(upload) => {
-    //         println!("✅ Upload session created successfully!");
+    //         println!(" Upload session created successfully!");
     //         println!("  Upload ID: {}", upload.id);
     //         println!("  Status: {}", upload.status);
     //         println!("  Expires At: {}", upload.expires_at);
     //     }
     //     Err(e) => {
-    //         eprintln!("❌ Failed to create upload: {}", e);
+    //         eprintln!(" Failed to create upload: {}", e);
     //     }
     // }
 
@@ -167,13 +167,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "fine-tune",
         "pending",
     );
-    println!("📊 Demo Upload Created:");
+    println!(" Demo Upload Created:");
     demo_upload.display();
 
     // Example 2: Upload file parts
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 2: Upload File Parts");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 2: Upload File Parts");
+    println!("\n");
 
     let upload_id = "upload-demo123";
     let part_size_mb = 64; // Upload in 64 MB chunks
@@ -188,7 +188,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let progress_percent = (part_num as f64 / total_parts as f64) * 100.0;
 
         println!(
-            "📤 Uploading part {}/{} ({:.1}% complete)",
+            " Uploading part {}/{} ({:.1}% complete)",
             part_num, total_parts, progress_percent
         );
 
@@ -201,47 +201,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // let part_data = read_file_chunk(filename, part_num, part_size_mb)?;
         // match upload_part(upload_id, part_num, &part_data).await {
         //     Ok(part_id) => {
-        //         println!("  ✅ Part {} uploaded (ID: {})", part_num, part_id);
+        //         println!("   Part {} uploaded (ID: {})", part_num, part_id);
         //     }
         //     Err(e) => {
-        //         eprintln!("  ❌ Failed to upload part {}: {}", part_num, e);
+        //         eprintln!("   Failed to upload part {}: {}", part_num, e);
         //         break;
         //     }
         // }
     }
 
-    println!("\n✅ All {} parts uploaded successfully", total_parts);
+    println!("\n All {} parts uploaded successfully", total_parts);
 
     // Example 3: Complete the upload
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 3: Complete Upload");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 3: Complete Upload");
+    println!("\n");
 
     println!("Completing upload: {}\n", upload_id);
 
     // Uncomment to actually complete upload:
     // match complete_upload(upload_id, part_ids).await {
     //     Ok(file) => {
-    //         println!("✅ Upload completed successfully!");
+    //         println!(" Upload completed successfully!");
     //         println!("  File ID: {}", file.id);
     //         println!("  Filename: {}", file.filename);
     //         println!("  Status: ready");
     //         println!("  Purpose: {}", file.purpose);
     //     }
     //     Err(e) => {
-    //         eprintln!("❌ Failed to complete upload: {}", e);
+    //         eprintln!(" Failed to complete upload: {}", e);
     //     }
     // }
 
-    println!("💡 Demo: Would finalize the upload and create a file object");
+    println!(" Demo: Would finalize the upload and create a file object");
     println!("  File ID: file-abc123");
     println!("  Filename: {}", filename);
     println!("  Status: ready");
 
     // Example 4: Upload smaller file (alternative approach)
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 4: Upload Smaller File");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 4: Upload Smaller File");
+    println!("\n");
 
     let small_filename = "training_data.jsonl";
     let small_size_mb = 10;
@@ -259,13 +259,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "application/jsonl",
     );
 
-    println!("\n💡 Note: For files < 512 MB, consider using the regular Files API");
+    println!("\n Note: For files < 512 MB, consider using the regular Files API");
     println!("   The Uploads API is optimized for large files.");
 
     // Example 5: Error handling and retry
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 5: Error Handling & Retry");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 5: Error Handling & Retry");
+    println!("\n");
 
     println!("Demonstrating retry logic for failed part uploads...\n");
 
@@ -273,32 +273,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let failed_part = 5;
 
     for retry in 1..=max_retries {
-        println!("🔄 Attempt {} to upload part {}", retry, failed_part);
+        println!(" Attempt {} to upload part {}", retry, failed_part);
 
         // Simulate upload attempt
         // In a real implementation:
         // match upload_part(upload_id, failed_part, &part_data).await {
         //     Ok(part_id) => {
-        //         println!("  ✅ Upload succeeded");
+        //         println!("   Upload succeeded");
         //         break;
         //     }
         //     Err(e) => {
         //         if retry < max_retries {
-        //             println!("  ⚠️  Upload failed, retrying... ({})", e);
+        //             println!("    Upload failed, retrying... ({})", e);
         //             tokio::time::sleep(Duration::from_secs(2_u64.pow(retry))).await;
         //         } else {
-        //             eprintln!("  ❌ Upload failed after {} attempts: {}", max_retries, e);
+        //             eprintln!("   Upload failed after {} attempts: {}", max_retries, e);
         //         }
         //     }
         // }
     }
 
-    println!("\n💡 Tip: Implement exponential backoff for retry logic");
+    println!("\n Tip: Implement exponential backoff for retry logic");
 
     // Example 6: Upload progress tracking
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📌 Example 6: Progress Tracking");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Example 6: Progress Tracking");
+    println!("\n");
 
     struct UploadProgress {
         total_bytes: i32,
@@ -323,8 +323,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let empty = progress_bar_width - filled;
 
             print!("  [");
-            print!("{}", "█".repeat(filled));
-            print!("{}", "░".repeat(empty));
+            print!("{}", "".repeat(filled));
+            print!("{}", "".repeat(empty));
             print!("] ");
 
             println!(
@@ -349,32 +349,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     progress.display(10.0 * 1024.0 * 1024.0); // 10 MB/s
 
     // Summary
-    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("📊 Summary");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    println!("\n");
+    println!(" Summary");
+    println!("\n");
 
-    println!("✅ Uploads API examples completed!");
-    println!("\n📚 Key Takeaways:");
+    println!(" Uploads API examples completed!");
+    println!("\n Key Takeaways:");
     println!("  • Uploads API is designed for large files (>512 MB)");
     println!("  • Files are uploaded in parts for reliability");
     println!("  • Each part can be retried independently");
     println!("  • Progress can be tracked during upload");
     println!("  • Upload must be completed after all parts are uploaded");
 
-    println!("\n💡 Best Practices:");
+    println!("\n Best Practices:");
     println!("  1. Use appropriate part sizes (typically 64 MB)");
     println!("  2. Implement retry logic with exponential backoff");
     println!("  3. Track progress and provide user feedback");
     println!("  4. Handle upload cancellation gracefully");
     println!("  5. Verify file integrity after upload");
 
-    println!("\n🎯 When to Use:");
+    println!("\n When to Use:");
     println!("  • Large training datasets for fine-tuning");
     println!("  • Big files for assistants (>512 MB)");
     println!("  • Batch processing input files");
     println!("  • Any file where reliability is critical");
 
-    println!("\n🎉 Example completed successfully!");
+    println!("\n Example completed successfully!");
 
     Ok(())
 }

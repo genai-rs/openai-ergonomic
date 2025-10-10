@@ -52,17 +52,17 @@ use openai_ergonomic::{
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔍 OpenAI Ergonomic - File Search Assistant Example (RAG)\n");
+    println!(" OpenAI Ergonomic - File Search Assistant Example (RAG)\n");
 
     // Initialize client from environment variables
     let _client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
@@ -74,13 +74,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     run_citation_example()?;
     run_multi_document_analysis_example()?;
 
-    println!("\n🎉 File Search RAG examples completed successfully!");
+    println!("\n File Search RAG examples completed successfully!");
     Ok(())
 }
 
 /// Example 1: Building a Knowledge Base Assistant
 fn run_knowledge_base_example() -> Result<(), Error> {
-    println!("📚 Example 1: Building a Knowledge Base Assistant");
+    println!(" Example 1: Building a Knowledge Base Assistant");
     println!("{}", "=".repeat(60));
 
     // Create a knowledge base vector store
@@ -89,7 +89,7 @@ fn run_knowledge_base_example() -> Result<(), Error> {
         .metadata("department", "engineering")
         .expires_after_days(365); // Expire after 1 year
 
-    println!("🗄️ Created knowledge base vector store:");
+    println!(" Created knowledge base vector store:");
     println!("   Name: {}", knowledge_store.name_ref().unwrap());
     println!("   Type: Internal documentation");
     println!("   Expiration: 365 days");
@@ -104,7 +104,7 @@ fn run_knowledge_base_example() -> Result<(), Error> {
 
     let populated_store = vector_store_with_files("Engineering Knowledge Base", file_ids.clone());
 
-    println!("\n📁 Knowledge Base Contents:");
+    println!("\n Knowledge Base Contents:");
     for (i, file_id) in populated_store.file_ids_ref().iter().enumerate() {
         println!("   {}. {}", i + 1, file_id);
     }
@@ -119,21 +119,21 @@ fn run_knowledge_base_example() -> Result<(), Error> {
     .description("Internal knowledge base assistant for engineering teams")
     .add_tool(tool_file_search());
 
-    println!("\n🤖 Created knowledge base assistant:");
+    println!("\n Created knowledge base assistant:");
     println!("   Name: {}", kb_assistant.name_ref().unwrap());
     println!("   Capability: File search through engineering documents");
 
-    println!("\n💭 Example Knowledge Base Query:");
+    println!("\n Example Knowledge Base Query:");
     println!("   'What are our coding standards for API documentation?'");
 
-    println!("\n🔄 RAG Workflow for Knowledge Base:");
-    println!("   1. 🔍 Search vector store for relevant documents");
-    println!("   2. 📄 Retrieve matching sections from coding standards");
-    println!("   3. 🧠 Generate response based on retrieved content");
-    println!("   4. 📎 Provide citations to specific documents");
-    println!("   5. 💡 Suggest related topics or documents");
+    println!("\n RAG Workflow for Knowledge Base:");
+    println!("   1.  Search vector store for relevant documents");
+    println!("   2.  Retrieve matching sections from coding standards");
+    println!("   3.  Generate response based on retrieved content");
+    println!("   4.  Provide citations to specific documents");
+    println!("   5.  Suggest related topics or documents");
 
-    println!("\n✨ Expected Knowledge Base Response:");
+    println!("\n Expected Knowledge Base Response:");
     println!("   • Specific coding standards for API documentation");
     println!("   • Citations: 'coding-standards-456.md, section 3.2'");
     println!("   • Examples from deployment guide");
@@ -144,7 +144,7 @@ fn run_knowledge_base_example() -> Result<(), Error> {
 
 /// Example 2: Document Q&A Assistant
 fn run_document_qa_example() -> Result<(), Error> {
-    println!("\n❓ Example 2: Document Q&A Assistant");
+    println!("\n Example 2: Document Q&A Assistant");
     println!("{}", "=".repeat(60));
 
     // Create specialized document Q&A assistant
@@ -156,7 +156,7 @@ fn run_document_qa_example() -> Result<(), Error> {
         )
         .add_tool(tool_file_search());
 
-    println!("❓ Created Document Q&A assistant:");
+    println!(" Created Document Q&A assistant:");
     println!("   Specialty: Precise question answering from documents");
 
     // Create a temporary vector store for this Q&A session
@@ -167,12 +167,12 @@ fn run_document_qa_example() -> Result<(), Error> {
         .metadata("session_id", "qa-session-123")
         .metadata("user", "researcher-001");
 
-    println!("\n📚 Q&A Document Store:");
+    println!("\n Q&A Document Store:");
     println!("   Files: {} documents loaded", qa_store.file_count());
     println!("   Expiration: 7 days (temporary session)");
     println!("   Session ID: qa-session-123");
 
-    println!("\n💭 Example Q&A Queries:");
+    println!("\n Example Q&A Queries:");
     let queries = vec![
         "What is the maximum throughput mentioned in the technical specifications?",
         "How do I configure the authentication system according to the user manual?",
@@ -184,27 +184,27 @@ fn run_document_qa_example() -> Result<(), Error> {
         println!("   {}. {}", i + 1, query);
     }
 
-    println!("\n🔄 Document Q&A RAG Workflow:");
-    println!("   1. 📝 Process user question");
-    println!("   2. 🔍 Generate search queries for vector store");
-    println!("   3. 📄 Retrieve relevant document sections");
-    println!("   4. ⚖️ Rank and filter results by relevance");
-    println!("   5. 🧠 Generate answer from retrieved context");
-    println!("   6. 📎 Add citations and confidence indicators");
+    println!("\n Document Q&A RAG Workflow:");
+    println!("   1.  Process user question");
+    println!("   2.  Generate search queries for vector store");
+    println!("   3.  Retrieve relevant document sections");
+    println!("   4.  Rank and filter results by relevance");
+    println!("   5.  Generate answer from retrieved context");
+    println!("   6.  Add citations and confidence indicators");
 
-    println!("\n✨ Expected Q&A Response Format:");
-    println!("   📝 Direct answer to the question");
-    println!("   📎 Citations: [technical-spec-003.pdf, page 15]");
-    println!("   🎯 Confidence: High (90%)");
-    println!("   🔗 Related information: See also user-manual-002.pdf, section 4.3");
-    println!("   ⚠️  Limitations: No information found about edge cases");
+    println!("\n Expected Q&A Response Format:");
+    println!("    Direct answer to the question");
+    println!("    Citations: [technical-spec-003.pdf, page 15]");
+    println!("    Confidence: High (90%)");
+    println!("    Related information: See also user-manual-002.pdf, section 4.3");
+    println!("     Limitations: No information found about edge cases");
 
     Ok(())
 }
 
 /// Example 3: Research Assistant with Advanced RAG
 fn run_research_assistant_example() -> Result<(), Error> {
-    println!("\n🔬 Example 3: Research Assistant with Advanced RAG");
+    println!("\n Example 3: Research Assistant with Advanced RAG");
     println!("{}", "=".repeat(60));
 
     // Create research-focused assistant
@@ -215,7 +215,7 @@ fn run_research_assistant_example() -> Result<(), Error> {
     )
     .add_tool(tool_file_search());
 
-    println!("🔬 Created research assistant:");
+    println!(" Created research assistant:");
     println!("   Focus: Literature review and cross-document analysis");
 
     // Create a comprehensive research vector store
@@ -230,25 +230,25 @@ fn run_research_assistant_example() -> Result<(), Error> {
         .metadata("papers_count", "50")
         .metadata("date_range", "2020-2024");
 
-    println!("\n📖 Research Literature Database:");
+    println!("\n Research Literature Database:");
     println!("   Domain: AI Ethics and Responsible AI");
     println!("   Papers: 5 documents loaded (representing 50 papers)");
     println!("   Date range: 2020-2024");
 
-    println!("\n💭 Research Query:");
+    println!("\n Research Query:");
     println!(
         "   'What are the current approaches to addressing algorithmic bias in machine learning?'"
     );
     println!("   'Please provide a comprehensive overview with citations.'");
 
-    println!("\n🔄 Advanced RAG Research Workflow:");
-    println!("   1. 🎯 Query analysis and decomposition");
-    println!("   2. 🔍 Multi-faceted search across all documents");
-    println!("   3. 📊 Semantic clustering of results");
-    println!("   4. 🔗 Cross-reference analysis between papers");
-    println!("   5. 📈 Identify trends and patterns");
-    println!("   6. 🧠 Synthesize comprehensive overview");
-    println!("   7. 📎 Provide detailed citations and references");
+    println!("\n Advanced RAG Research Workflow:");
+    println!("   1.  Query analysis and decomposition");
+    println!("   2.  Multi-faceted search across all documents");
+    println!("   3.  Semantic clustering of results");
+    println!("   4.  Cross-reference analysis between papers");
+    println!("   5.  Identify trends and patterns");
+    println!("   6.  Synthesize comprehensive overview");
+    println!("   7.  Provide detailed citations and references");
 
     // Demonstrate search refinement
     let refined_search =
@@ -256,28 +256,28 @@ fn run_research_assistant_example() -> Result<(), Error> {
             .filter("category", "methodology")
             .filter("confidence", "high");
 
-    println!("\n🎯 Search Refinement:");
+    println!("\n Search Refinement:");
     println!("   Query: algorithmic bias mitigation");
     println!("   Limit: {} results", refined_search.limit_ref().unwrap());
     println!("   Filters: category=methodology, confidence=high");
 
-    println!("\n✨ Expected Research Response:");
-    println!("   📋 Executive Summary:");
+    println!("\n Expected Research Response:");
+    println!("    Executive Summary:");
     println!("      • Overview of current bias mitigation approaches");
     println!("      • Key methodological categories identified");
     println!("      • Emerging trends and best practices");
     println!("   ");
-    println!("   📊 Detailed Analysis:");
+    println!("    Detailed Analysis:");
     println!("      • Pre-processing techniques (data augmentation, sampling)");
     println!("      • In-processing methods (fairness constraints, adversarial training)");
     println!("      • Post-processing approaches (threshold optimization, calibration)");
     println!("   ");
-    println!("   📎 Comprehensive Citations:");
+    println!("    Comprehensive Citations:");
     println!("      • [Smith et al., 2023] - Fairness constraints in ML training");
     println!("      • [Johnson & Lee, 2024] - Bias detection in neural networks");
     println!("      • [Research Survey, 2024] - Comprehensive bias mitigation review");
     println!("   ");
-    println!("   🔮 Future Research Directions:");
+    println!("    Future Research Directions:");
     println!("      • Intersectional bias analysis");
     println!("      • Real-time bias monitoring");
     println!("      • Domain-specific mitigation strategies");
@@ -287,7 +287,7 @@ fn run_research_assistant_example() -> Result<(), Error> {
 
 /// Example 4: Citation and Source Attribution
 fn run_citation_example() -> Result<(), Error> {
-    println!("\n📎 Example 4: Citation and Source Attribution");
+    println!("\n Example 4: Citation and Source Attribution");
     println!("{}", "=".repeat(60));
 
     // Create citation-focused assistant
@@ -299,7 +299,7 @@ fn run_citation_example() -> Result<(), Error> {
         )
         .add_tool(tool_file_search());
 
-    println!("📎 Created citation specialist assistant:");
+    println!(" Created citation specialist assistant:");
     println!("   Focus: Accurate source attribution and citation formatting");
 
     // Create thread for citation-heavy work
@@ -308,46 +308,46 @@ fn run_citation_example() -> Result<(), Error> {
         .metadata("requirement", "academic_standards")
         .metadata("verification", "enabled");
 
-    println!("\n📚 Citation Requirements:");
+    println!("\n Citation Requirements:");
     println!("   Style: APA format");
     println!("   Standards: Academic-level accuracy");
     println!("   Verification: Enabled for all sources");
 
-    println!("\n💭 Citation Query:");
+    println!("\n Citation Query:");
     println!("   'Provide a summary of the key arguments about privacy in AI systems,'");
     println!("   'with detailed citations for each point made.'");
 
-    println!("\n🔄 Citation-Focused RAG Workflow:");
-    println!("   1. 🔍 Search for relevant content across documents");
-    println!("   2. 📄 Extract content with precise location data");
-    println!("   3. 🧠 Generate response with inline citations");
-    println!("   4. ✅ Verify citation accuracy and completeness");
-    println!("   5. 📋 Format citations according to specified style");
-    println!("   6. 🔗 Cross-check for citation consistency");
+    println!("\n Citation-Focused RAG Workflow:");
+    println!("   1.  Search for relevant content across documents");
+    println!("   2.  Extract content with precise location data");
+    println!("   3.  Generate response with inline citations");
+    println!("   4.  Verify citation accuracy and completeness");
+    println!("   5.  Format citations according to specified style");
+    println!("   6.  Cross-check for citation consistency");
 
     // Demonstrate different citation formats
-    println!("\n📖 Citation Format Examples:");
-    println!("   🎯 Direct Quote:");
+    println!("\n Citation Format Examples:");
+    println!("    Direct Quote:");
     println!(
         "      \"Privacy-preserving AI requires careful balance between utility and protection\""
     );
     println!("      (Johnson, 2024, p. 15)");
     println!("   ");
-    println!("   📝 Paraphrased Content:");
+    println!("    Paraphrased Content:");
     println!("      Recent research indicates that differential privacy methods show promise");
     println!("      for protecting individual data in ML training (Smith & Lee, 2023).");
     println!("   ");
-    println!("   📊 Multiple Source Synthesis:");
+    println!("    Multiple Source Synthesis:");
     println!("      Several studies have demonstrated the effectiveness of federated learning");
     println!("      approaches (Chen et al., 2023; Rodriguez, 2024; Brown & Wilson, 2023).");
 
-    println!("\n✨ Expected Citation Response:");
-    println!("   📋 Structured Summary with Citations:");
+    println!("\n Expected Citation Response:");
+    println!("    Structured Summary with Citations:");
     println!("      • Privacy challenges in AI systems (Anderson, 2024, pp. 23-25)");
     println!("      • Technical solutions: differential privacy (Johnson et al., 2023)");
     println!("      • Regulatory considerations (Privacy Commission Report, 2024, §3.2)");
     println!("   ");
-    println!("   📎 Reference List:");
+    println!("    Reference List:");
     println!(
         "      Anderson, M. (2024). AI Privacy Challenges. Tech Ethics Journal, 15(3), 20-30."
     );
@@ -359,7 +359,7 @@ fn run_citation_example() -> Result<(), Error> {
 
 /// Example 5: Multi-Document Analysis and Synthesis
 fn run_multi_document_analysis_example() -> Result<(), Error> {
-    println!("\n📄 Example 5: Multi-Document Analysis and Synthesis");
+    println!("\n Example 5: Multi-Document Analysis and Synthesis");
     println!("{}", "=".repeat(60));
 
     // Create multi-document analysis assistant
@@ -370,7 +370,7 @@ fn run_multi_document_analysis_example() -> Result<(), Error> {
     )
     .add_tool(tool_file_search());
 
-    println!("📄 Created document analysis assistant:");
+    println!(" Created document analysis assistant:");
     println!("   Specialty: Cross-document comparison and synthesis");
 
     // Create comprehensive document store for analysis
@@ -386,24 +386,24 @@ fn run_multi_document_analysis_example() -> Result<(), Error> {
         .metadata("documents", "6")
         .metadata("perspectives", "multiple");
 
-    println!("\n📊 Multi-Document Analysis Setup:");
+    println!("\n Multi-Document Analysis Setup:");
     println!("   Documents: 6 files representing different perspectives");
     println!("   Analysis type: Policy proposal comparison");
     println!("   Perspectives: Technical, legal, financial, stakeholder");
 
-    println!("\n💭 Multi-Document Analysis Query:");
+    println!("\n Multi-Document Analysis Query:");
     println!("   'Compare the two policy proposals and analyze how stakeholder feedback'");
     println!("   'has been incorporated. Identify any conflicts between the legal review'");
     println!("   'and technical assessment.'");
 
-    println!("\n🔄 Multi-Document RAG Analysis Workflow:");
-    println!("   1. 🎯 Identify key comparison dimensions");
-    println!("   2. 🔍 Search each document type systematically");
-    println!("   3. 📊 Create comparison matrix across documents");
-    println!("   4. ⚔️ Identify conflicts and contradictions");
-    println!("   5. 🔗 Find connections and dependencies");
-    println!("   6. 🧠 Synthesize comprehensive analysis");
-    println!("   7. 📈 Provide recommendations based on synthesis");
+    println!("\n Multi-Document RAG Analysis Workflow:");
+    println!("   1.  Identify key comparison dimensions");
+    println!("   2.  Search each document type systematically");
+    println!("   3.  Create comparison matrix across documents");
+    println!("   4.  Identify conflicts and contradictions");
+    println!("   5.  Find connections and dependencies");
+    println!("   6.  Synthesize comprehensive analysis");
+    println!("   7.  Provide recommendations based on synthesis");
 
     // Demonstrate advanced search patterns
     let _comparative_search =
@@ -411,28 +411,28 @@ fn run_multi_document_analysis_example() -> Result<(), Error> {
             .filter("document_type", "technical,legal")
             .filter("section", "risks");
 
-    println!("\n🔍 Advanced Search Pattern:");
+    println!("\n Advanced Search Pattern:");
     println!("   Query: risk assessment comparison");
     println!("   Target documents: technical + legal reviews");
     println!("   Focus section: risk analysis sections");
 
-    println!("\n✨ Expected Multi-Document Analysis:");
-    println!("   📊 Comparative Analysis:");
+    println!("\n Expected Multi-Document Analysis:");
+    println!("    Comparative Analysis:");
     println!("      Policy Proposal Comparison:");
     println!("      • V1 focuses on immediate implementation (Technical Assessment)");
     println!("      • V2 incorporates phased approach (Stakeholder Feedback)");
     println!("   ");
-    println!("   ⚔️ Identified Conflicts:");
+    println!("    Identified Conflicts:");
     println!("      • Legal review flags compliance issues with V1 approach");
     println!("      • Technical assessment questions feasibility of V2 timeline");
     println!("      • Cost analysis shows budget misalignment between proposals");
     println!("   ");
-    println!("   🔗 Stakeholder Integration:");
+    println!("    Stakeholder Integration:");
     println!("      • 73% of feedback incorporated in V2 (Stakeholder Feedback doc)");
     println!("      • Privacy concerns addressed through technical modifications");
     println!("      • Cost concerns partially resolved via phased implementation");
     println!("   ");
-    println!("   💡 Synthesis Recommendations:");
+    println!("    Synthesis Recommendations:");
     println!("      • Hybrid approach combining V1 technical framework with V2 timeline");
     println!("      • Address legal compliance through additional technical review");
     println!("      • Require budget revision to align with stakeholder expectations");

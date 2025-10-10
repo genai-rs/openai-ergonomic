@@ -40,7 +40,7 @@ impl ImageManager {
         // Create output directory if it doesn't exist
         if !output_dir.exists() {
             fs::create_dir_all(&output_dir)?;
-            println!("✓ Created output directory: {}", output_dir.display());
+            println!(" Created output directory: {}", output_dir.display());
         }
 
         Ok(Self {
@@ -58,7 +58,7 @@ impl ImageManager {
         let image_path = self.output_dir.join(filename);
         fs::write(&image_path, image_data)?;
         self.generated_images.push(image_path.clone());
-        println!("✓ Saved image: {}", image_path.display());
+        println!(" Saved image: {}", image_path.display());
         Ok(image_path)
     }
 
@@ -70,7 +70,7 @@ impl ImageManager {
 
     /// List all generated images.
     fn list_images(&self) {
-        println!("\n📂 Generated Images:");
+        println!("\n Generated Images:");
         for (i, path) in self.generated_images.iter().enumerate() {
             println!("  {}. {}", i + 1, path.display());
         }
@@ -78,7 +78,7 @@ impl ImageManager {
 
     /// Clean up generated images.
     fn cleanup(&self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("\n🧹 Cleaning up generated images...");
+        println!("\n Cleaning up generated images...");
         for path in &self.generated_images {
             if path.exists() {
                 fs::remove_file(path)?;
@@ -98,11 +98,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✓ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("✗ Failed to initialize client: {e}");
+            eprintln!(" Failed to initialize client: {e}");
             eprintln!("Make sure OPENAI_API_KEY environment variable is set");
             return Err(e.into());
         }
@@ -122,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Summary and cleanup
     image_manager.list_images();
 
-    println!("\n🎉 Images comprehensive example completed!");
+    println!("\n Images comprehensive example completed!");
     println!("This example demonstrated:");
     println!("  • Image generation with multiple models");
     println!("  • Different sizes, qualities, and formats");
@@ -150,7 +150,7 @@ async fn demonstrate_basic_generation(
     _client: &Client,
     image_manager: &mut ImageManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🎨 Example 1: Basic Image Generation");
+    println!(" Example 1: Basic Image Generation");
     println!("----------------------------------");
 
     // DALL-E 3 generation (high quality, single image)
@@ -158,7 +158,7 @@ async fn demonstrate_basic_generation(
     let _dalle3_prompt = "A serene mountain landscape at sunset with a crystal clear lake reflecting the orange and pink sky";
 
     // Note: This demonstrates the intended API once images builders are implemented
-    println!("🚧 DALL-E 3 generation would be implemented like this:");
+    println!(" DALL-E 3 generation would be implemented like this:");
     println!("```rust");
     println!("let response = client.images()");
     println!("    .generate()");
@@ -178,7 +178,7 @@ async fn demonstrate_basic_generation(
     println!("\n1.2: DALL-E 2 Generation (Multiple Images)");
     let _dalle2_prompt = "A cute robot reading a book in a cozy library";
 
-    println!("🚧 DALL-E 2 multiple image generation would be:");
+    println!(" DALL-E 2 multiple image generation would be:");
     println!("```rust");
     println!("let response = client.images()");
     println!("    .generate()");
@@ -199,7 +199,7 @@ async fn demonstrate_basic_generation(
     println!("\n1.3: GPT-Image-1 Generation");
     let _gpt_image_prompt = "A futuristic cityscape with flying cars and neon lights";
 
-    println!("🚧 GPT-Image-1 generation would be:");
+    println!(" GPT-Image-1 generation would be:");
     println!("```rust");
     println!("let response = client.images()");
     println!("    .generate()");
@@ -215,7 +215,7 @@ async fn demonstrate_basic_generation(
     let simulated_gpt_data = b"simulated_gpt_image_data";
     image_manager.save_image(simulated_gpt_data, "gpt_image_cityscape.webp")?;
 
-    println!("\n✓ Basic generation examples completed");
+    println!("\n Basic generation examples completed");
     Ok(())
 }
 
@@ -224,7 +224,7 @@ async fn demonstrate_advanced_generation(
     _client: &Client,
     image_manager: &mut ImageManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n🚀 Example 2: Advanced Generation Options");
+    println!("\n Example 2: Advanced Generation Options");
     println!("---------------------------------------");
 
     // Different sizes and aspect ratios
@@ -238,7 +238,7 @@ async fn demonstrate_advanced_generation(
 
     for (size, description) in sizes_demo {
         println!("  • {} - {}", size, description);
-        println!("    🚧 Implementation: .size(\"{}\")", size);
+        println!("     Implementation: .size(\"{}\")", size);
 
         let simulated_data = format!("simulated_{}_{}", size.replace('x', "_"), "art").into_bytes();
         let filename = format!("size_demo_{}.png", size.replace('x', "_"));
@@ -256,7 +256,7 @@ async fn demonstrate_advanced_generation(
 
     for (quality, description) in quality_demo {
         println!("  • {} - {}", quality, description);
-        println!("    🚧 Implementation: .quality(\"{}\")", quality);
+        println!("     Implementation: .quality(\"{}\")", quality);
     }
 
     // Output formats (GPT-Image-1)
@@ -269,7 +269,7 @@ async fn demonstrate_advanced_generation(
 
     for (format, description) in format_demo {
         println!("  • {} - {}", format, description);
-        println!("    🚧 Implementation: .output_format(\"{}\")", format);
+        println!("     Implementation: .output_format(\"{}\")", format);
 
         let simulated_data = format!("simulated_format_demo_{}", format).into_bytes();
         let filename = format!("format_demo.{}", format);
@@ -280,9 +280,9 @@ async fn demonstrate_advanced_generation(
     println!("\n2.4: Content Moderation (GPT-Image-1)");
     println!("  • auto - Default moderation level");
     println!("  • low - Less restrictive filtering");
-    println!("    🚧 Implementation: .content_filter(\"low\")");
+    println!("     Implementation: .content_filter(\"low\")");
 
-    println!("\n✓ Advanced generation options demonstrated");
+    println!("\n Advanced generation options demonstrated");
     Ok(())
 }
 
@@ -291,7 +291,7 @@ async fn demonstrate_image_editing(
     _client: &Client,
     image_manager: &mut ImageManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n✏️  Example 3: Image Editing");
+    println!("\n  Example 3: Image Editing");
     println!("---------------------------");
 
     // Create a sample image file for editing demonstrations
@@ -304,7 +304,7 @@ async fn demonstrate_image_editing(
     println!("Original image: {}", original_path.display());
     println!("Edit prompt: Add a rainbow in the sky");
 
-    println!("🚧 Image editing would be implemented like this:");
+    println!(" Image editing would be implemented like this:");
     println!("```rust");
     println!("let response = client.images()");
     println!("    .edit()");
@@ -327,7 +327,7 @@ async fn demonstrate_image_editing(
     println!("Mask: {}", mask_path.display());
     println!("Edit prompt: Replace the masked area with a beautiful garden");
 
-    println!("🚧 Masked editing would be:");
+    println!(" Masked editing would be:");
     println!("```rust");
     println!("let response = client.images()");
     println!("    .edit()");
@@ -345,7 +345,7 @@ async fn demonstrate_image_editing(
 
     // Background replacement (GPT-Image-1)
     println!("\n3.4: Background Replacement (GPT-Image-1)");
-    println!("🚧 Background replacement would be:");
+    println!(" Background replacement would be:");
     println!("```rust");
     println!("let response = client.images()");
     println!("    .edit()");
@@ -359,7 +359,7 @@ async fn demonstrate_image_editing(
     let background_edit_data = b"simulated_background_replaced";
     image_manager.save_image(background_edit_data, "background_replaced.png")?;
 
-    println!("\n✓ Image editing examples completed");
+    println!("\n Image editing examples completed");
     Ok(())
 }
 
@@ -368,7 +368,7 @@ async fn demonstrate_image_variations(
     _client: &Client,
     image_manager: &mut ImageManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n🔄 Example 4: Image Variations");
+    println!("\n Example 4: Image Variations");
     println!("-----------------------------");
 
     // Use an existing image for variations
@@ -378,7 +378,7 @@ async fn demonstrate_image_variations(
     println!("\n4.1: Creating Variations");
     println!("Base image: {}", base_path.display());
 
-    println!("🚧 Image variations would be implemented like this:");
+    println!(" Image variations would be implemented like this:");
     println!("```rust");
     println!("let response = client.images()");
     println!("    .variations()");
@@ -394,7 +394,7 @@ async fn demonstrate_image_variations(
     for i in 1..=4 {
         let variation_data = format!("simulated_variation_{}", i).into_bytes();
         image_manager.save_image(&variation_data, &format!("variation_{}.png", i))?;
-        println!("  ✓ Generated variation {}", i);
+        println!("   Generated variation {}", i);
     }
 
     println!("\n4.2: Variations with Different Sizes");
@@ -402,7 +402,7 @@ async fn demonstrate_image_variations(
 
     for size in sizes {
         println!("Creating variation with size: {}", size);
-        println!("🚧 Implementation: .size(\"{}\")", size);
+        println!(" Implementation: .size(\"{}\")", size);
 
         let size_variation_data =
             format!("simulated_variation_{}", size.replace('x', "_")).into_bytes();
@@ -410,7 +410,7 @@ async fn demonstrate_image_variations(
         image_manager.save_image(&size_variation_data, &filename)?;
     }
 
-    println!("\n✓ Image variations examples completed");
+    println!("\n Image variations examples completed");
     Ok(())
 }
 
@@ -419,13 +419,13 @@ async fn demonstrate_streaming_generation(
     _client: &Client,
     image_manager: &mut ImageManager,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n📡 Example 5: Streaming Image Generation");
+    println!("\n Example 5: Streaming Image Generation");
     println!("--------------------------------------");
 
     println!("\n5.1: Streaming with Partial Images (GPT-Image-1)");
     println!("Prompt: A detailed architectural drawing of a modern house");
 
-    println!("🚧 Streaming image generation would be:");
+    println!(" Streaming image generation would be:");
     println!("```rust");
     println!("let mut stream = client.images()");
     println!("    .generate()");
@@ -452,19 +452,19 @@ async fn demonstrate_streaming_generation(
     println!("```");
 
     // Simulate streaming with partial images
-    println!("\n📊 Simulating streaming progress:");
+    println!("\n Simulating streaming progress:");
     let progress_steps = [25, 50, 75, 100];
 
     for progress in &progress_steps {
         tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
 
         if *progress < 100 {
-            println!("📥 Partial image received: {}% complete", progress);
+            println!(" Partial image received: {}% complete", progress);
             let partial_data = format!("simulated_partial_image_{}", progress).into_bytes();
             let filename = format!("streaming_partial_{}.png", progress);
             image_manager.save_image(&partial_data, &filename)?;
         } else {
-            println!("✅ Final image received: 100% complete");
+            println!(" Final image received: 100% complete");
             let final_data = b"simulated_final_streaming_image";
             image_manager.save_image(final_data, "streaming_final.png")?;
         }
@@ -474,8 +474,8 @@ async fn demonstrate_streaming_generation(
         let empty = 25 - filled;
         println!(
             "   [{}{}] {}%",
-            "█".repeat(filled),
-            "░".repeat(empty),
+            "".repeat(filled),
+            "".repeat(empty),
             progress
         );
     }
@@ -486,20 +486,20 @@ async fn demonstrate_streaming_generation(
     println!("• Progressive image refinement visibility");
     println!("• Better user experience for complex prompts");
 
-    println!("\n✓ Streaming image generation demonstrated");
+    println!("\n Streaming image generation demonstrated");
     Ok(())
 }
 
 /// Demonstrate error handling patterns for images API.
 async fn demonstrate_error_handling(_client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n⚠️  Example 6: Error Handling Patterns");
+    println!("\n  Example 6: Error Handling Patterns");
     println!("------------------------------------");
 
     println!("\n6.1: Common Error Scenarios");
 
     // Test 1: Invalid model
     println!("\nTest 1: Invalid model name");
-    println!("🚧 Error handling would look like:");
+    println!(" Error handling would look like:");
     println!("```rust");
     println!("match client.images().generate()");
     println!("    .model(\"invalid-model\")");
@@ -520,7 +520,7 @@ async fn demonstrate_error_handling(_client: &Client) -> Result<(), Box<dyn std:
 
     // Test 2: Invalid image file
     println!("\nTest 2: Invalid image file for editing/variations");
-    println!("🚧 File validation would be:");
+    println!(" File validation would be:");
     println!("```rust");
     println!("let image_path = PathBuf::from(\"nonexistent.png\");");
     println!("match client.images().edit()");
@@ -541,7 +541,7 @@ async fn demonstrate_error_handling(_client: &Client) -> Result<(), Box<dyn std:
 
     // Test 3: Rate limiting
     println!("\nTest 3: Rate limiting");
-    println!("🚧 Rate limit handling would be:");
+    println!(" Rate limit handling would be:");
     println!("```rust");
     println!("match client.images().generate()");
     println!("    .prompt(\"High-resolution detailed artwork\")");
@@ -559,7 +559,7 @@ async fn demonstrate_error_handling(_client: &Client) -> Result<(), Box<dyn std:
 
     // Test 4: Content policy violations
     println!("\nTest 4: Content policy violations");
-    println!("🚧 Content policy error handling:");
+    println!(" Content policy error handling:");
     println!("```rust");
     println!("match client.images().generate()");
     println!("    .prompt(\"inappropriate content\")");
@@ -589,6 +589,6 @@ async fn demonstrate_error_handling(_client: &Client) -> Result<(), Box<dyn std:
     println!("• Cache successful responses to avoid redundant API calls");
     println!("• Monitor API usage to stay within rate limits");
 
-    println!("\n✓ Error handling patterns demonstrated");
+    println!("\n Error handling patterns demonstrated");
     Ok(())
 }

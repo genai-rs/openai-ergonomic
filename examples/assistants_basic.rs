@@ -37,17 +37,17 @@ use std::io::{self, Write};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🤖 OpenAI Ergonomic - Basic Assistants API Example\n");
+    println!(" OpenAI Ergonomic - Basic Assistants API Example\n");
 
     // Initialize client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
@@ -56,57 +56,57 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     check_implementation_status();
 
     // Example 1: Creating an Assistant
-    println!("\n🎯 Example 1: Creating an Assistant");
+    println!("\n Example 1: Creating an Assistant");
     println!("==================================");
 
     create_assistant_example(&client);
-    println!("✅ Assistant creation example completed");
+    println!(" Assistant creation example completed");
 
     // Example 2: Managing Threads
-    println!("\n🧵 Example 2: Thread Management");
+    println!("\n Example 2: Thread Management");
     println!("==============================");
 
     thread_management_example(&client);
-    println!("✅ Thread management example completed");
+    println!(" Thread management example completed");
 
     // Example 3: Message Handling
-    println!("\n💬 Example 3: Message Handling");
+    println!("\n Example 3: Message Handling");
     println!("=============================");
 
     match message_handling_example(&client).await {
-        Ok(()) => println!("✅ Message handling example completed"),
+        Ok(()) => println!(" Message handling example completed"),
         Err(e) => {
-            eprintln!("❌ Message handling example failed: {e}");
+            eprintln!(" Message handling example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 4: Tool Integration
-    println!("\n🔧 Example 4: Tool Integration");
+    println!("\n Example 4: Tool Integration");
     println!("=============================");
 
     match tool_integration_example(&client).await {
-        Ok(()) => println!("✅ Tool integration example completed"),
+        Ok(()) => println!(" Tool integration example completed"),
         Err(e) => {
-            eprintln!("❌ Tool integration example failed: {e}");
+            eprintln!(" Tool integration example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 5: Conversation Simulation
-    println!("\n💭 Example 5: Complete Conversation Flow");
+    println!("\n Example 5: Complete Conversation Flow");
     println!("========================================");
 
     match conversation_flow_example(&client).await {
-        Ok(()) => println!("✅ Conversation flow example completed"),
+        Ok(()) => println!(" Conversation flow example completed"),
         Err(e) => {
-            eprintln!("❌ Conversation flow example failed: {e}");
+            eprintln!(" Conversation flow example failed: {e}");
             handle_api_error(&e);
         }
     }
 
-    println!("\n🎉 All examples completed!");
-    println!("\n📚 This example demonstrated the intended Assistants API usage:");
+    println!("\n All examples completed!");
+    println!("\n This example demonstrated the intended Assistants API usage:");
     println!("  • Assistant creation with custom instructions");
     println!("  • Thread lifecycle management");
     println!("  • Message sending and retrieval");
@@ -114,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  • Tool integration patterns");
     println!("  • Error handling strategies");
 
-    println!("\n🚧 Implementation Status:");
+    println!("\n Implementation Status:");
     println!("  • The Assistants API builders and response types are placeholders");
     println!("  • This example serves as a design template for future implementation");
     println!("  • Actual API calls will be available once the builders are implemented");
@@ -124,14 +124,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Check and display the current implementation status
 fn check_implementation_status() {
-    println!("🔍 Implementation Status Check");
+    println!(" Implementation Status Check");
     println!("=============================");
-    println!("✅ Client infrastructure: Ready");
-    println!("🚧 Assistants builders: Not yet implemented");
-    println!("🚧 Threads builders: Not yet implemented");
-    println!("🚧 Assistants responses: Not yet implemented");
+    println!(" Client infrastructure: Ready");
+    println!(" Assistants builders: Not yet implemented");
+    println!(" Threads builders: Not yet implemented");
+    println!(" Assistants responses: Not yet implemented");
     println!();
-    println!("📝 This example demonstrates the intended API design");
+    println!(" This example demonstrates the intended API design");
     println!("   and will work once the builders are implemented.");
 }
 
@@ -176,7 +176,7 @@ fn create_assistant_example(_client: &Client) {
 
     let assistant = client.send_assistants(assistant_builder).await?;
 
-    println!("🤖 Assistant created successfully!");
+    println!(" Assistant created successfully!");
     println!("   ID: {}", assistant.id());
     println!("   Name: {}", assistant.name().unwrap_or("Unnamed"));
     println!("   Model: {}", assistant.model());
@@ -184,14 +184,14 @@ fn create_assistant_example(_client: &Client) {
     */
 
     // Simulated output for now
-    println!("🤖 [Simulated] Assistant created successfully!");
+    println!(" [Simulated] Assistant created successfully!");
     println!("   ID: asst_abc123def456");
     println!("   Name: Math Tutor");
     println!("   Model: gpt-4");
     println!("   Tools: 2 configured (code_interpreter, calculate_fibonacci)");
     println!("   Instructions: Custom math tutoring instructions set");
 
-    println!("\n📋 Assistant Configuration:");
+    println!("\n Assistant Configuration:");
     println!("   • Model: GPT-4 for advanced reasoning");
     println!("   • Code Interpreter: Enabled for calculations");
     println!("   • Custom Function: Fibonacci calculator");
@@ -215,7 +215,7 @@ fn thread_management_example(_client: &Client) {
 
     let thread = client.send_threads(thread_builder).await?;
 
-    println!("🧵 Thread created: {}", thread.id());
+    println!(" Thread created: {}", thread.id());
 
     // Retrieve thread information
     let thread_info = client
@@ -223,7 +223,7 @@ fn thread_management_example(_client: &Client) {
         .retrieve(thread.id())
         .await?;
 
-    println!("📊 Thread info retrieved:");
+    println!(" Thread info retrieved:");
     println!("   Created: {}", thread_info.created_at());
     println!("   Metadata: {}", thread_info.metadata());
 
@@ -234,18 +234,18 @@ fn thread_management_example(_client: &Client) {
         .limit(10)
         .await?;
 
-    println!("📝 Found {} threads", threads.data().len());
+    println!(" Found {} threads", threads.data().len());
     */
 
     // Simulated output
-    println!("🧵 [Simulated] Thread created: thread_abc123xyz789");
-    println!("📊 Thread information:");
+    println!(" [Simulated] Thread created: thread_abc123xyz789");
+    println!(" Thread information:");
     println!("   Status: Active");
     println!("   Created: 2024-01-15T10:30:00Z");
     println!("   Messages: 0 (new thread)");
     println!("   Metadata: {{\"user_id\": \"user_123\", \"session\": \"math_help_session\"}}");
 
-    println!("\n🔧 Thread Management Features:");
+    println!("\n Thread Management Features:");
     println!("   • Unique thread ID for session tracking");
     println!("   • Metadata for context preservation");
     println!("   • Message history maintained automatically");
@@ -272,7 +272,7 @@ async fn message_handling_example(_client: &Client) -> Result<(), Error> {
 
     let message = client.send_thread_message(message_builder).await?;
 
-    println!("📝 Message added: {}", message.id());
+    println!(" Message added: {}", message.id());
 
     // Create a run to get assistant response
     let run_builder = client
@@ -285,7 +285,7 @@ async fn message_handling_example(_client: &Client) -> Result<(), Error> {
 
     let run = client.send_thread_run(run_builder).await?;
 
-    println!("🏃 Run created: {}", run.id());
+    println!(" Run created: {}", run.id());
 
     // Poll for completion
     let completed_run = poll_run_completion(client, thread_id, run.id()).await?;
@@ -300,7 +300,7 @@ async fn message_handling_example(_client: &Client) -> Result<(), Error> {
             .await?;
 
         for message in messages.data().iter().rev() {
-            println!("💬 {}: {}", message.role(), message.content());
+            println!(" {}: {}", message.role(), message.content());
         }
     }
     */
@@ -308,11 +308,11 @@ async fn message_handling_example(_client: &Client) -> Result<(), Error> {
     let thread_id = "thread_abc123xyz789"; // From previous example
 
     // Simulated conversation flow
-    println!("📝 [Simulated] Adding user message to thread: {thread_id}");
+    println!(" [Simulated] Adding user message to thread: {thread_id}");
     println!("   Message: 'Can you help me solve this equation: 2x + 5 = 13?'");
     println!("   Message ID: msg_user123abc");
 
-    println!("\n🏃 [Simulated] Creating run for assistant response...");
+    println!("\n [Simulated] Creating run for assistant response...");
     print!("   Status: ");
     io::stdout().flush()?;
 
@@ -328,7 +328,7 @@ async fn message_handling_example(_client: &Client) -> Result<(), Error> {
     }
     println!();
 
-    println!("\n💬 [Simulated] Assistant Response:");
+    println!("\n [Simulated] Assistant Response:");
     println!("   I'd be happy to help you solve the equation 2x + 5 = 13!");
     println!();
     println!("   Let's solve this step by step:");
@@ -338,9 +338,9 @@ async fn message_handling_example(_client: &Client) -> Result<(), Error> {
     println!("   4. Divide both sides by 2: x = 8/2");
     println!("   5. Final answer: x = 4");
     println!();
-    println!("   To verify: 2(4) + 5 = 8 + 5 = 13 ✓");
+    println!("   To verify: 2(4) + 5 = 8 + 5 = 13 ");
 
-    println!("\n📊 Message Flow Summary:");
+    println!("\n Message Flow Summary:");
     println!("   • User message successfully added to thread");
     println!("   • Run created and executed with assistant");
     println!("   • Step-by-step mathematical solution provided");
@@ -384,10 +384,10 @@ async fn tool_integration_example(_client: &Client) -> Result<(), Error> {
     let assistant_id = "asst_abc123def456";
 
     // Simulated tool integration
-    println!("📝 [Simulated] User request: Calculate 10th Fibonacci number with visualization");
+    println!(" [Simulated] User request: Calculate 10th Fibonacci number with visualization");
     println!("   Thread: {thread_id}, Assistant: {assistant_id}");
 
-    println!("\n🔧 [Simulated] Tool Execution Flow:");
+    println!("\n [Simulated] Tool Execution Flow:");
     println!("   1. Custom Function Call: calculate_fibonacci(n=10)");
     print!("      Result: ");
     io::stdout().flush()?;
@@ -413,22 +413,22 @@ async fn tool_integration_example(_client: &Client) -> Result<(), Error> {
     }
     println!();
 
-    println!("\n💬 [Simulated] Assistant Response with Tool Results:");
+    println!("\n [Simulated] Assistant Response with Tool Results:");
     println!("   I've calculated the 10th Fibonacci number and created a visualization for you!");
     println!();
-    println!("   📊 Results:");
+    println!("    Results:");
     println!("   • The 10th Fibonacci number is: 55");
     println!("   • Complete sequence (1-10): [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]");
     println!();
-    println!("   📈 I've also generated a graph showing the exponential growth pattern");
+    println!("    I've also generated a graph showing the exponential growth pattern");
     println!("   of the Fibonacci sequence. The visualization clearly shows how each");
     println!("   number rapidly increases as the sequence progresses.");
     println!();
-    println!("   🔧 Tools Used:");
+    println!("    Tools Used:");
     println!("   1. Custom fibonacci function for precise calculation");
     println!("   2. Code interpreter for data visualization");
 
-    println!("\n🎯 Tool Integration Benefits:");
+    println!("\n Tool Integration Benefits:");
     println!("   • Custom functions provide domain-specific capabilities");
     println!("   • Code interpreter enables dynamic computation and visualization");
     println!("   • Seamless integration in conversation flow");
@@ -442,7 +442,7 @@ async fn conversation_flow_example(_client: &Client) -> Result<(), Error> {
     println!("Demonstrating a complete conversation flow with an assistant...");
 
     // Simulate creating a new thread for a fresh conversation
-    println!("🧵 [Simulated] Creating new thread for complete conversation...");
+    println!(" [Simulated] Creating new thread for complete conversation...");
     let thread_id = "thread_conversation_demo";
     println!("   Thread ID: {thread_id}");
 
@@ -455,7 +455,7 @@ async fn conversation_flow_example(_client: &Client) -> Result<(), Error> {
         ("user", "Could you calculate the ratio between consecutive Fibonacci numbers to show this?"),
     ];
 
-    println!("\n💭 [Simulated] Conversation Flow:");
+    println!("\n [Simulated] Conversation Flow:");
     println!("================================");
 
     for (i, (role, message)) in conversation.iter().enumerate() {
@@ -479,7 +479,7 @@ async fn conversation_flow_example(_client: &Client) -> Result<(), Error> {
     }
 
     // Demonstrate tool usage in the final response
-    println!("\n🔧 [Simulated] Final Response with Tool Integration:");
+    println!("\n [Simulated] Final Response with Tool Integration:");
     println!("Assistant: I'll calculate the ratios between consecutive Fibonacci numbers to demonstrate the golden ratio convergence!");
 
     print!("\n   [Using fibonacci function and code interpreter");
@@ -515,11 +515,11 @@ async fn conversation_flow_example(_client: &Client) -> Result<(), Error> {
         );
     }
 
-    println!("\n   📊 As you can see, the ratio converges to φ ≈ 1.618 (the golden ratio)!");
+    println!("\n    As you can see, the ratio converges to φ ≈ 1.618 (the golden ratio)!");
     println!("   This demonstrates the beautiful mathematical relationship between");
     println!("   the Fibonacci sequence and the golden ratio.");
 
-    println!("\n🎯 Complete Conversation Summary:");
+    println!("\n Complete Conversation Summary:");
     println!("   • Natural conversation flow with context preservation");
     println!("   • Assistant understanding of complex mathematical concepts");
     println!("   • Seamless tool integration for calculations and demonstrations");
@@ -538,7 +538,7 @@ fn handle_api_error(error: &Error) {
             error_type,
             error_code,
         } => {
-            eprintln!("🚫 API Error [{status}]: {message}");
+            eprintln!(" API Error [{status}]: {message}");
             if let Some(error_type) = error_type {
                 eprintln!("   Type: {error_type}");
             }
@@ -549,46 +549,46 @@ fn handle_api_error(error: &Error) {
             // Provide specific guidance for assistants API errors
             match *status {
                 400 => {
-                    eprintln!("💡 Check your request parameters (assistant ID, thread ID, etc.)");
+                    eprintln!(" Check your request parameters (assistant ID, thread ID, etc.)");
                 }
-                401 => eprintln!("💡 Check your API key: export OPENAI_API_KEY=\"your-key\""),
-                404 => eprintln!("💡 Assistant or thread not found - verify IDs are correct"),
-                429 => eprintln!("💡 Rate limited - assistants API has specific rate limits"),
-                500..=599 => eprintln!("💡 Server error - try again later"),
+                401 => eprintln!(" Check your API key: export OPENAI_API_KEY=\"your-key\""),
+                404 => eprintln!(" Assistant or thread not found - verify IDs are correct"),
+                429 => eprintln!(" Rate limited - assistants API has specific rate limits"),
+                500..=599 => eprintln!(" Server error - try again later"),
                 _ => {}
             }
         }
         Error::InvalidRequest(msg) => {
-            eprintln!("🚫 Invalid Request: {msg}");
-            eprintln!("💡 Check your assistant/thread/message parameters");
+            eprintln!(" Invalid Request: {msg}");
+            eprintln!(" Check your assistant/thread/message parameters");
         }
         Error::Config(msg) => {
-            eprintln!("🚫 Configuration Error: {msg}");
-            eprintln!("💡 Check your client configuration");
+            eprintln!(" Configuration Error: {msg}");
+            eprintln!(" Check your client configuration");
         }
         Error::Http(err) => {
-            eprintln!("🚫 HTTP Error: {err}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" HTTP Error: {err}");
+            eprintln!(" Check your network connection");
         }
         Error::Json(err) => {
-            eprintln!("🚫 JSON Error: {err}");
-            eprintln!("💡 Response parsing failed - may be a temporary issue");
+            eprintln!(" JSON Error: {err}");
+            eprintln!(" Response parsing failed - may be a temporary issue");
         }
         Error::Authentication(msg) => {
-            eprintln!("🚫 Authentication Error: {msg}");
-            eprintln!("💡 Check your API key and organization ID");
+            eprintln!(" Authentication Error: {msg}");
+            eprintln!(" Check your API key and organization ID");
         }
         Error::RateLimit(msg) => {
-            eprintln!("🚫 Rate Limit Error: {msg}");
-            eprintln!("💡 Assistants API has specific rate limits - wait before retrying");
+            eprintln!(" Rate Limit Error: {msg}");
+            eprintln!(" Assistants API has specific rate limits - wait before retrying");
         }
         Error::Builder(msg) => {
-            eprintln!("🚫 Builder Error: {msg}");
-            eprintln!("💡 Check your assistant/thread builder configuration");
+            eprintln!(" Builder Error: {msg}");
+            eprintln!(" Check your assistant/thread builder configuration");
         }
         _ => {
-            eprintln!("🚫 Unexpected Error: {error}");
-            eprintln!("💡 This may be a bug, please report it");
+            eprintln!(" Unexpected Error: {error}");
+            eprintln!(" This may be a bug, please report it");
         }
     }
 }
