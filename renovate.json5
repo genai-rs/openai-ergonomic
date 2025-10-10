@@ -1,0 +1,150 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    ':dependencyDashboard',
+    ':semanticCommitTypeAll(chore)',
+    ':rebaseStalePrs',
+    ':prConcurrentLimit10',
+  ],
+  timezone: 'UTC',
+  schedule: [
+    'after 2am and before 6am on monday',
+  ],
+  enabledManagers: [
+    'cargo',
+    'github-actions',
+  ],
+  labels: [
+    'dependencies',
+  ],
+  commitMessagePrefix: 'chore(deps):',
+  prBodyTemplate: 'This PR updates dependencies. See the [Dependency Dashboard](../../issues) for details.',
+  rangeStrategy: 'auto',
+  packageRules: [
+    {
+      matchCategories: [
+        'rust',
+      ],
+      enabled: true,
+      rangeStrategy: 'update-lockfile',
+    },
+    {
+      description: 'Group all Rust patch updates',
+      matchManagers: [
+        'cargo',
+      ],
+      matchUpdateTypes: [
+        'patch',
+      ],
+      groupName: 'rust patch updates',
+      automerge: true,
+    },
+    {
+      description: 'Group all Rust minor updates',
+      matchManagers: [
+        'cargo',
+      ],
+      matchUpdateTypes: [
+        'minor',
+      ],
+      groupName: 'rust minor updates',
+      automerge: true,
+    },
+    {
+      description: 'Rust major updates - require manual review',
+      matchManagers: [
+        'cargo',
+      ],
+      matchUpdateTypes: [
+        'major',
+      ],
+      labels: [
+        'dependencies',
+        'breaking',
+      ],
+      automerge: false,
+    },
+    {
+      description: 'Group all GitHub Actions updates',
+      matchManagers: [
+        'github-actions',
+      ],
+      groupName: 'github-actions',
+      automerge: true,
+    },
+    {
+      description: 'Security updates - merge immediately',
+      matchUpdateTypes: [
+        'security',
+      ],
+      labels: [
+        'security',
+        'dependencies',
+      ],
+      automerge: true,
+      prPriority: 10,
+      schedule: [
+        'at any time',
+      ],
+      minimumReleaseAge: '0 days',
+    },
+    {
+      description: 'Core dependencies - manual review required',
+      matchPackageNames: [
+        'serde',
+        'reqwest',
+        'tokio',
+        'bon',
+        'openai-client-base',
+      ],
+      labels: [
+        'dependencies',
+        'core',
+      ],
+      automerge: false,
+      assignees: [
+        'timvw',
+      ],
+    },
+    {
+      description: 'Dev dependencies - auto-merge all',
+      matchDepTypes: [
+        'devDependencies',
+      ],
+      automerge: true,
+      labels: [
+        'dependencies',
+        'dev',
+      ],
+    },
+    {
+      description: 'OpenAI base client - manual review',
+      matchPackageNames: [
+        'openai-client-base',
+      ],
+      labels: [
+        'dependencies',
+        'openai-base',
+      ],
+      automerge: false,
+      assignees: [
+        'timvw',
+      ],
+      prBodyNotes: [
+        ' **OpenAI Base Client Update**',
+        'This updates the underlying OpenAPI-generated client.',
+        'Please review for API compatibility changes.',
+      ],
+    },
+  ],
+  vulnerabilityAlerts: {
+    enabled: true,
+    labels: [
+      'security',
+    ],
+    assignees: [
+      'timvw',
+    ],
+  },
+}
