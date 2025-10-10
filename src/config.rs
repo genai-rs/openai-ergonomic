@@ -14,11 +14,18 @@ use std::env;
 ///
 /// # Environment Variables
 ///
+/// ## Standard `OpenAI`
 /// - `OPENAI_API_KEY`: The `OpenAI` API key (required)
 /// - `OPENAI_API_BASE`: Custom base URL for the API (optional)
 /// - `OPENAI_ORGANIZATION`: Organization ID (optional)
 /// - `OPENAI_PROJECT`: Project ID (optional)
 /// - `OPENAI_MAX_RETRIES`: Maximum number of retries (optional, default: 3)
+///
+/// ## Azure `OpenAI`
+/// - `AZURE_OPENAI_API_KEY`: The Azure `OpenAI` API key (alternative to `OPENAI_API_KEY`)
+/// - `AZURE_OPENAI_ENDPOINT`: Azure `OpenAI` endpoint (e.g., `<https://my-resource.openai.azure.com>`)
+/// - `AZURE_OPENAI_DEPLOYMENT`: Deployment name (required for Azure)
+/// - `AZURE_OPENAI_API_VERSION`: API version (optional, default: 2024-02-01)
 ///
 /// # Example
 ///
@@ -27,10 +34,18 @@ use std::env;
 /// // From environment variables
 /// let config = Config::from_env().unwrap();
 ///
-/// // Manual configuration
+/// // Manual configuration for OpenAI
 /// let config = Config::builder()
 ///     .api_key("your-api-key")
 ///     .max_retries(5)
+///     .build();
+///
+/// // Manual configuration for Azure OpenAI
+/// let config = Config::builder()
+///     .api_key("your-azure-api-key")
+///     .api_base("https://my-resource.openai.azure.com")
+///     .azure_deployment("my-deployment")
+///     .azure_api_version("2024-02-01")
 ///     .build();
 /// ```
 #[derive(Clone)]
@@ -42,6 +57,8 @@ pub struct Config {
     max_retries: u32,
     default_model: String,
     http_client: Option<ClientWithMiddleware>,
+    azure_deployment: Option<String>,
+    azure_api_version: Option<String>,
 }
 
 impl std::fmt::Debug for Config {
@@ -57,6 +74,8 @@ impl std::fmt::Debug for Config {
                 "http_client",
                 &self.http_client.as_ref().map(|_| "<ClientWithMiddleware>"),
             )
+            .field("azure_deployment", &self.azure_deployment)
+            .field("azure_api_version", &self.azure_api_version)
             .finish()
     }
 }
@@ -69,13 +88,35 @@ impl Config {
     }
 
     /// Create configuration from environment variables.
+    ///
+    /// Supports both standard `OpenAI` and Azure `OpenAI` configurations.
+    /// For Azure `OpenAI`, set `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_OPENAI_DEPLOYMENT`.
     pub fn from_env() -> Result<Self> {
-        let api_key = env::var("OPENAI_API_KEY").map_err(|_| {
-            Error::Config("OPENAI_API_KEY environment variable is required".to_string())
-        })?;
+        // Check for Azure OpenAI configuration first
+        let azure_endpoint = env::var("AZURE_OPENAI_ENDPOINT").ok();
+        let azure_deployment = env::var("AZURE_OPENAI_DEPLOYMENT").ok();
+        let azure_api_version = env::var("AZURE_OPENAI_API_VERSION").ok();
 
-        let api_base =
-            env::var("OPENAI_API_BASE").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+        let (api_key, api_base) = if let Some(endpoint) = azure_endpoint {
+            // Azure OpenAI configuration
+            let key = env::var("AZURE_OPENAI_API_KEY")
+                .or_else(|_| env::var("OPENAI_API_KEY"))
+                .map_err(|_| {
+                    Error::Config(
+                        "AZURE_OPENAI_API_KEY or OPENAI_API_KEY environment variable is required"
+                            .to_string(),
+                    )
+                })?;
+            (key, endpoint)
+        } else {
+            // Standard OpenAI configuration
+            let key = env::var("OPENAI_API_KEY").map_err(|_| {
+                Error::Config("OPENAI_API_KEY environment variable is required".to_string())
+            })?;
+            let base = env::var("OPENAI_API_BASE")
+                .unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+            (key, base)
+        };
 
         let organization = env::var("OPENAI_ORGANIZATION").ok();
         let project = env::var("OPENAI_PROJECT").ok();
@@ -96,6 +137,8 @@ impl Config {
             max_retries,
             default_model,
             http_client: None,
+            azure_deployment,
+            azure_api_version,
         })
     }
 
@@ -156,6 +199,21 @@ impl Config {
     pub fn http_client(&self) -> Option<&ClientWithMiddleware> {
         self.http_client.as_ref()
     }
+
+    /// Get the Azure deployment name, if set.
+    pub fn azure_deployment(&self) -> Option<&str> {
+        self.azure_deployment.as_deref()
+    }
+
+    /// Get the Azure API version, if set.
+    pub fn azure_api_version(&self) -> Option<&str> {
+        self.azure_api_version.as_deref()
+    }
+
+    /// Check if this configuration is for Azure `OpenAI`.
+    pub fn is_azure(&self) -> bool {
+        self.azure_deployment.is_some() || self.api_base.contains(".openai.azure.com")
+    }
 }
 
 impl Default for Config {
@@ -168,6 +226,8 @@ impl Default for Config {
             max_retries: 3,
             default_model: "gpt-4".to_string(),
             http_client: None,
+            azure_deployment: None,
+            azure_api_version: None,
         }
     }
 }
@@ -182,6 +242,8 @@ pub struct ConfigBuilder {
     max_retries: Option<u32>,
     default_model: Option<String>,
     http_client: Option<ClientWithMiddleware>,
+    azure_deployment: Option<String>,
+    azure_api_version: Option<String>,
 }
 
 impl ConfigBuilder {
@@ -254,6 +316,24 @@ impl ConfigBuilder {
         self
     }
 
+    /// Set the Azure deployment name.
+    ///
+    /// Required when using Azure `OpenAI`.
+    #[must_use]
+    pub fn azure_deployment(mut self, deployment: impl Into<String>) -> Self {
+        self.azure_deployment = Some(deployment.into());
+        self
+    }
+
+    /// Set the Azure API version.
+    ///
+    /// Defaults to "2024-02-01" if not specified.
+    #[must_use]
+    pub fn azure_api_version(mut self, version: impl Into<String>) -> Self {
+        self.azure_api_version = Some(version.into());
+        self
+    }
+
     /// Build the configuration.
     #[must_use]
     pub fn build(self) -> Config {
@@ -267,6 +347,8 @@ impl ConfigBuilder {
             max_retries: self.max_retries.unwrap_or(3),
             default_model: self.default_model.unwrap_or_else(|| "gpt-4".to_string()),
             http_client: self.http_client,
+            azure_deployment: self.azure_deployment,
+            azure_api_version: self.azure_api_version,
         }
     }
 }
