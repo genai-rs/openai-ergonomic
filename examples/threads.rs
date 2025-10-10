@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Example 1: Create a simple thread
-    println!("");
+    println!();
     println!(" Example 1: Create Simple Thread");
     println!("\n");
 

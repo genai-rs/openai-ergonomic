@@ -120,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Example 1: Create multipart upload for a large file
-    println!("");
+    println!();
     println!(" Example 1: Create Multipart Upload");
     println!("\n");
 
