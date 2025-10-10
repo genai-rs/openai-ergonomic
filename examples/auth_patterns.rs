@@ -331,9 +331,9 @@ fn secure_key_management() {
 
     for (env_name, env_var) in keys_by_env {
         if env::var(env_var).is_ok() {
-            println!("   ✓ {} key configured", env_name);
+            println!("    {} key configured", env_name);
         } else {
-            println!("   ✗ {} key not found", env_name);
+            println!("    {} key not found", env_name);
         }
     }
 

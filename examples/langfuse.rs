@@ -59,8 +59,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_interceptor(Box::new(langfuse_interceptor.clone()))
         .build();
 
-    println!("🚀 OpenAI client initialized with Langfuse observability");
-    println!("📊 Traces will be sent to Langfuse for monitoring\n");
+    println!(" OpenAI client initialized with Langfuse observability");
+    println!(" Traces will be sent to Langfuse for monitoring\n");
 
     // Example 1: Simple chat completion
     println!("Example 1: Simple chat completion");
@@ -139,8 +139,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Clear context for subsequent calls
     langfuse_interceptor.clear_context();
 
-    println!("✅ All examples completed!");
-    println!("📊 Check your Langfuse dashboard to see the traces");
+    println!(" All examples completed!");
+    println!(" Check your Langfuse dashboard to see the traces");
     println!("   - Look for traces with operation name 'chat'");
     println!("   - Each trace includes request/response details, token usage, and timing");
     println!("   - Example 6 will have custom session_id, user_id, and tags");

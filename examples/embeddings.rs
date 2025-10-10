@@ -374,94 +374,94 @@ impl Default for EmbeddingCollection {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 OpenAI Ergonomic - Comprehensive Embeddings Example\n");
+    println!(" OpenAI Ergonomic - Comprehensive Embeddings Example\n");
 
     // Initialize client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
 
     // Example 1: Basic Embedding Generation
-    println!("\n📝 Example 1: Basic Embedding Generation");
+    println!("\n Example 1: Basic Embedding Generation");
     println!("=========================================");
 
     match basic_embedding_example(&client).await {
-        Ok(()) => println!("✅ Basic embedding example completed"),
+        Ok(()) => println!(" Basic embedding example completed"),
         Err(e) => {
-            eprintln!("❌ Basic embedding example failed: {e}");
+            eprintln!(" Basic embedding example failed: {e}");
             handle_embedding_error(e.as_ref());
         }
     }
 
     // Example 2: Model Comparison
-    println!("\n🔬 Example 2: Model Comparison");
+    println!("\n Example 2: Model Comparison");
     println!("===============================");
 
     match model_comparison_example(&client).await {
-        Ok(()) => println!("✅ Model comparison example completed"),
+        Ok(()) => println!(" Model comparison example completed"),
         Err(e) => {
-            eprintln!("❌ Model comparison example failed: {e}");
+            eprintln!(" Model comparison example failed: {e}");
             handle_embedding_error(e.as_ref());
         }
     }
 
     // Example 3: Batch Processing
-    println!("\n📦 Example 3: Batch Processing");
+    println!("\n Example 3: Batch Processing");
     println!("===============================");
 
     match batch_processing_example(&client).await {
-        Ok(()) => println!("✅ Batch processing example completed"),
+        Ok(()) => println!(" Batch processing example completed"),
         Err(e) => {
-            eprintln!("❌ Batch processing example failed: {e}");
+            eprintln!(" Batch processing example failed: {e}");
             handle_embedding_error(e.as_ref());
         }
     }
 
     // Example 4: Dimension Reduction
-    println!("\n📏 Example 4: Dimension Reduction");
+    println!("\n Example 4: Dimension Reduction");
     println!("==================================");
 
     match dimension_reduction_example(&client).await {
-        Ok(()) => println!("✅ Dimension reduction example completed"),
+        Ok(()) => println!(" Dimension reduction example completed"),
         Err(e) => {
-            eprintln!("❌ Dimension reduction example failed: {e}");
+            eprintln!(" Dimension reduction example failed: {e}");
             handle_embedding_error(e.as_ref());
         }
     }
 
     // Example 5: Similarity Search
-    println!("\n🔍 Example 5: Similarity Search");
+    println!("\n Example 5: Similarity Search");
     println!("================================");
 
     match similarity_search_example(&client).await {
-        Ok(()) => println!("✅ Similarity search example completed"),
+        Ok(()) => println!(" Similarity search example completed"),
         Err(e) => {
-            eprintln!("❌ Similarity search example failed: {e}");
+            eprintln!(" Similarity search example failed: {e}");
             handle_embedding_error(e.as_ref());
         }
     }
 
     // Example 6: Testing Patterns
-    println!("\n🧪 Example 6: Testing Patterns");
+    println!("\n Example 6: Testing Patterns");
     println!("===============================");
 
     match testing_patterns_example().await {
-        Ok(()) => println!("✅ Testing patterns example completed"),
+        Ok(()) => println!(" Testing patterns example completed"),
         Err(e) => {
-            eprintln!("❌ Testing patterns example failed: {e}");
+            eprintln!(" Testing patterns example failed: {e}");
             handle_embedding_error(e.as_ref());
         }
     }
 
-    println!("\n🎉 All examples completed! Check the console output above for results.");
+    println!("\n All examples completed! Check the console output above for results.");
     println!("\nNote: This example simulates API responses. Swap the simulated sections with");
     println!("real `client.embeddings().create(...)` calls when you're ready to hit the API.");
 
@@ -482,24 +482,24 @@ async fn basic_embedding_example(_client: &Client) -> Result<(), Box<dyn std::er
     let text = "The quick brown fox jumps over the lazy dog";
     let model = EmbeddingModel::TextEmbedding3Small;
 
-    println!("📝 Input text: \"{}\"", text);
-    println!("🤖 Model: {}", model.as_str());
-    println!("📊 Expected dimensions: {}", model.default_dimensions());
+    println!(" Input text: \"{}\"", text);
+    println!(" Model: {}", model.as_str());
+    println!(" Expected dimensions: {}", model.default_dimensions());
 
     // Simulate embedding generation
     let simulated_embedding = simulate_embedding(text, model);
 
     println!(
-        "✅ Generated embedding with {} dimensions",
+        " Generated embedding with {} dimensions",
         simulated_embedding.dimensions()
     );
     println!(
-        "📈 First 5 values: {:?}",
+        " First 5 values: {:?}",
         &simulated_embedding.vector[..5.min(simulated_embedding.vector.len())]
     );
 
     if let Some(token_count) = simulated_embedding.token_count {
-        println!("🎯 Token count: {}", token_count);
+        println!(" Token count: {}", token_count);
     }
 
     Ok(())
@@ -516,7 +516,7 @@ async fn model_comparison_example(_client: &Client) -> Result<(), Box<dyn std::e
         EmbeddingModel::Ada002,
     ];
 
-    println!("📝 Input text: \"{}\"", text);
+    println!(" Input text: \"{}\"", text);
     println!();
 
     for model in models {
@@ -525,19 +525,19 @@ async fn model_comparison_example(_client: &Client) -> Result<(), Box<dyn std::e
         // Simulate embedding generation for each model
         let embedding = simulate_embedding(text, model);
 
-        println!("  📊 Dimensions: {}", embedding.dimensions());
+        println!("   Dimensions: {}", embedding.dimensions());
         println!(
-            "  🎯 Supports dimension reduction: {}",
+            "   Supports dimension reduction: {}",
             model.supports_dimensions()
         );
         println!(
-            "  📈 Vector norm: {:.6}",
+            "   Vector norm: {:.6}",
             calculate_vector_norm(&embedding.vector)
         );
         println!();
     }
 
-    println!("💡 Different models produce embeddings with different characteristics:");
+    println!(" Different models produce embeddings with different characteristics:");
     println!("   - text-embedding-3-small: Balanced performance and cost");
     println!("   - text-embedding-3-large: Higher quality, more expensive");
     println!("   - ada-002: Legacy model, still widely used");
@@ -557,7 +557,7 @@ async fn batch_processing_example(_client: &Client) -> Result<(), Box<dyn std::e
         "The ocean is vast and mysterious".to_string(),
     ];
 
-    println!("📦 Processing {} texts in batch:", texts.len());
+    println!(" Processing {} texts in batch:", texts.len());
     for (i, text) in texts.iter().enumerate() {
         println!("  {}. \"{}\"", i + 1, text);
     }
@@ -581,12 +581,12 @@ async fn batch_processing_example(_client: &Client) -> Result<(), Box<dyn std::e
         embeddings.push(embedding);
     }
 
-    println!("\n✅ Generated {} embeddings", embeddings.len());
-    println!("🎯 Total tokens used: {}", total_tokens);
+    println!("\n Generated {} embeddings", embeddings.len());
+    println!(" Total tokens used: {}", total_tokens);
     #[allow(clippy::cast_precision_loss)]
     {
         println!(
-            "📊 Average tokens per text: {:.1}",
+            " Average tokens per text: {:.1}",
             total_tokens as f32 / texts.len() as f32
         );
     }
@@ -599,9 +599,9 @@ async fn batch_processing_example(_client: &Client) -> Result<(), Box<dyn std::e
         .sum::<f32>()
         / embeddings.len() as f32;
 
-    println!("📈 Average vector norm: {:.6}", avg_norm);
+    println!(" Average vector norm: {:.6}", avg_norm);
 
-    println!("\n💡 Batch processing is more efficient for multiple texts:");
+    println!("\n Batch processing is more efficient for multiple texts:");
     println!("   - Reduced API calls and latency");
     println!("   - Better throughput for large datasets");
     println!("   - Cost-effective for bulk operations");
@@ -618,9 +618,9 @@ async fn dimension_reduction_example(_client: &Client) -> Result<(), Box<dyn std
     let original_dims = model.default_dimensions();
     let reduced_dims = [512, 256, 128];
 
-    println!("📝 Input text: \"{}\"", text);
+    println!(" Input text: \"{}\"", text);
     println!(
-        "🤖 Model: {} (default: {} dimensions)",
+        " Model: {} (default: {} dimensions)",
         model.as_str(),
         original_dims
     );
@@ -628,7 +628,7 @@ async fn dimension_reduction_example(_client: &Client) -> Result<(), Box<dyn std
     // Generate original embedding
     let original_embedding = simulate_embedding(text, model);
     println!(
-        "\n📊 Original embedding: {} dimensions",
+        "\n Original embedding: {} dimensions",
         original_embedding.dimensions()
     );
 
@@ -644,25 +644,25 @@ async fn dimension_reduction_example(_client: &Client) -> Result<(), Box<dyn std
         // Simulate dimension reduction
         let reduced_embedding = simulate_reduced_embedding(text, model, dims).unwrap();
 
-        println!("📏 Reduced to {} dimensions:", dims);
+        println!(" Reduced to {} dimensions:", dims);
 
         // Calculate similarity between original and reduced
         if let Ok(similarity) = original_embedding.cosine_similarity(&reduced_embedding) {
-            println!("   🔗 Similarity to original: {:.4}", similarity);
+            println!("    Similarity to original: {:.4}", similarity);
         }
 
         #[allow(clippy::cast_precision_loss)]
         let compression_ratio = dims as f32 / original_dims as f32;
-        println!("   📦 Compression ratio: {:.1}%", compression_ratio * 100.0);
+        println!("    Compression ratio: {:.1}%", compression_ratio * 100.0);
 
         let storage_savings = (1.0 - compression_ratio) * 100.0;
-        println!("   💾 Storage savings: {:.1}%", storage_savings);
+        println!("    Storage savings: {:.1}%", storage_savings);
     }
 
-    println!("\n💡 Dimension reduction trade-offs:");
-    println!("   ✅ Pros: Reduced storage, faster search, lower memory usage");
-    println!("   ⚠️  Cons: Some semantic information loss");
-    println!("   🎯 Best practice: Test different dimensions for your use case");
+    println!("\n Dimension reduction trade-offs:");
+    println!("    Pros: Reduced storage, faster search, lower memory usage");
+    println!("     Cons: Some semantic information loss");
+    println!("    Best practice: Test different dimensions for your use case");
 
     Ok(())
 }
@@ -684,7 +684,7 @@ async fn similarity_search_example(_client: &Client) -> Result<(), Box<dyn std::
     ];
 
     let model = EmbeddingModel::TextEmbedding3Small;
-    println!("📚 Document collection ({} items):", documents.len());
+    println!(" Document collection ({} items):", documents.len());
     for (i, doc) in documents.iter().enumerate() {
         println!("  {}. \"{}\"", i + 1, doc);
     }
@@ -702,7 +702,7 @@ async fn similarity_search_example(_client: &Client) -> Result<(), Box<dyn std::
     }
 
     println!(
-        "\n✅ Created embedding collection with {} items",
+        "\n Created embedding collection with {} items",
         collection.len()
     );
 
@@ -715,7 +715,7 @@ async fn similarity_search_example(_client: &Client) -> Result<(), Box<dyn std::
     ];
 
     for query in queries {
-        println!("\n🔍 Query: \"{}\"", query);
+        println!("\n Query: \"{}\"", query);
 
         let query_embedding = simulate_embedding(query, model);
         let results = collection.find_similar(&query_embedding, 3)?;
@@ -737,11 +737,11 @@ async fn similarity_search_example(_client: &Client) -> Result<(), Box<dyn std::
         }
     }
 
-    println!("\n💡 Similarity search applications:");
-    println!("   🔍 Semantic search engines");
-    println!("   📝 Document retrieval systems");
-    println!("   🤖 Recommendation engines");
-    println!("   🎯 Content deduplication");
+    println!("\n Similarity search applications:");
+    println!("    Semantic search engines");
+    println!("    Document retrieval systems");
+    println!("    Recommendation engines");
+    println!("    Content deduplication");
 
     Ok(())
 }
@@ -751,7 +751,7 @@ async fn testing_patterns_example() -> Result<(), Box<dyn std::error::Error>> {
     println!("Demonstrating testing patterns for embeddings...");
 
     // Test 1: Embedding properties
-    println!("\n🧪 Test 1: Embedding Properties");
+    println!("\n Test 1: Embedding Properties");
     let text = "Test embedding generation";
     let model = EmbeddingModel::TextEmbedding3Small;
     let embedding = simulate_embedding(text, model);
@@ -759,10 +759,10 @@ async fn testing_patterns_example() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(embedding.dimensions(), model.default_dimensions());
     assert_eq!(embedding.text, text);
     assert_eq!(embedding.model, model);
-    println!("   ✅ Embedding properties test passed");
+    println!("    Embedding properties test passed");
 
     // Test 2: Similarity calculations
-    println!("\n🧪 Test 2: Similarity Calculations");
+    println!("\n Test 2: Similarity Calculations");
     let text1 = "Hello world";
     let text2 = "Hello world"; // Identical
     let text3 = "Goodbye world"; // Different
@@ -782,7 +782,7 @@ async fn testing_patterns_example() -> Result<(), Box<dyn std::error::Error>> {
         different_similarity < identical_similarity,
         "Different texts should have lower similarity"
     );
-    println!("   ✅ Similarity calculation test passed");
+    println!("    Similarity calculation test passed");
     println!(
         "      Identical texts similarity: {:.4}",
         identical_similarity
@@ -793,14 +793,14 @@ async fn testing_patterns_example() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Test 3: Dimension mismatch error
-    println!("\n🧪 Test 3: Error Handling");
+    println!("\n Test 3: Error Handling");
     let small_embed =
         simulate_reduced_embedding("test", EmbeddingModel::TextEmbedding3Small, 256).unwrap();
     let large_embed = simulate_embedding("test", EmbeddingModel::TextEmbedding3Large);
 
     match small_embed.cosine_similarity(&large_embed) {
         Err(EmbeddingError::DimensionMismatch { expected, actual }) => {
-            println!("   ✅ Dimension mismatch error handled correctly");
+            println!("    Dimension mismatch error handled correctly");
             println!("      Expected: {}, Actual: {}", expected, actual);
         }
         Ok(_) => panic!("Should have failed with dimension mismatch"),
@@ -808,7 +808,7 @@ async fn testing_patterns_example() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Test 4: Collection operations
-    println!("\n🧪 Test 4: Collection Operations");
+    println!("\n Test 4: Collection Operations");
     let mut collection = EmbeddingCollection::new();
     assert!(collection.is_empty());
 
@@ -818,22 +818,22 @@ async fn testing_patterns_example() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(collection.len(), 1);
     assert!(!collection.is_empty());
 
-    println!("   ✅ Collection operations test passed");
+    println!("    Collection operations test passed");
 
     // Test 5: Model capabilities
-    println!("\n🧪 Test 5: Model Capabilities");
+    println!("\n Test 5: Model Capabilities");
     assert!(EmbeddingModel::TextEmbedding3Small.supports_dimensions());
     assert!(EmbeddingModel::TextEmbedding3Large.supports_dimensions());
     assert!(!EmbeddingModel::Ada002.supports_dimensions());
 
-    println!("   ✅ Model capabilities test passed");
+    println!("    Model capabilities test passed");
 
-    println!("\n💡 Testing best practices:");
-    println!("   🎯 Test embedding properties and dimensions");
-    println!("   🔍 Validate similarity calculations");
-    println!("   🚫 Test error conditions and edge cases");
-    println!("   📊 Test with known similar/dissimilar text pairs");
-    println!("   🤖 Use deterministic test data for reproducible results");
+    println!("\n Testing best practices:");
+    println!("    Test embedding properties and dimensions");
+    println!("    Validate similarity calculations");
+    println!("    Test error conditions and edge cases");
+    println!("    Test with known similar/dissimilar text pairs");
+    println!("    Use deterministic test data for reproducible results");
 
     Ok(())
 }
@@ -935,14 +935,14 @@ impl XorShift64Star {
 /// Handle embedding-specific errors with helpful context
 fn handle_embedding_error(error: &dyn std::error::Error) {
     // This is simplified - in a real implementation you'd match on specific error types
-    eprintln!("🚫 Embedding Error: {}", error);
+    eprintln!(" Embedding Error: {}", error);
 
     if let Some(source) = error.source() {
         eprintln!("   Caused by: {}", source);
     }
 
     // Provide context-specific guidance
-    eprintln!("💡 Troubleshooting tips:");
+    eprintln!(" Troubleshooting tips:");
     eprintln!("   - Check your API key and network connection");
     eprintln!("   - Verify text input is not empty");
     eprintln!("   - Ensure model supports requested features");
