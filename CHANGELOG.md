@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.2.0...v0.2.1) - 2025-10-10
+
+### Added
+
+- add comprehensive Azure OpenAI API test
+- add Azure OpenAI support
+
+### Fixed
+
+- resolve clippy warnings in azure_comprehensive example
+- complete Azure OpenAI middleware implementation
+- resolve clippy and formatting issues after emoji removal
+
+### Other
+
+- add Azure OpenAI support documentation to README
+- remove emojis from code, scripts, and tests
+- remove emojis from documentation
+
 ## [0.2.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.1.0...v0.2.0) - 2025-10-09
 
 ### Added
