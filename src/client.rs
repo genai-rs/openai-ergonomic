@@ -222,6 +222,9 @@ impl<T> std::fmt::Debug for Client<T> {
 impl ClientBuilder {
     /// Create a new client builder with the given configuration.
     pub fn new(config: Config) -> Result<Self> {
+        // Check if we're using Azure OpenAI
+        let is_azure = config.is_azure();
+
         // Use custom HTTP client if provided, otherwise build a default one
         let http_client = if let Some(client) = config.http_client() {
             client.clone()
@@ -231,15 +234,35 @@ impl ClientBuilder {
                 .user_agent(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")))
                 .build()
                 .map_err(Error::Http)?;
-            reqwest_middleware::ClientBuilder::new(reqwest_client).build()
+
+            let mut client_builder = reqwest_middleware::ClientBuilder::new(reqwest_client);
+
+            // Add Azure authentication middleware if using Azure OpenAI
+            if is_azure {
+                let azure_middleware = crate::azure_middleware::AzureAuthMiddleware::new(
+                    config.api_key().to_string(),
+                    config.azure_api_version().map(String::from),
+                    config.azure_deployment().map(String::from),
+                );
+                client_builder = client_builder.with(azure_middleware);
+            }
+
+            client_builder.build()
         };
 
         // Create openai-client-base configuration
         let mut base_configuration = Configuration::new();
-        base_configuration.bearer_access_token = Some(config.api_key().to_string());
+
+        // For Azure OpenAI, we don't use bearer token (handled by middleware)
+        // For standard OpenAI, use bearer token
+        if !is_azure {
+            base_configuration.bearer_access_token = Some(config.api_key().to_string());
+        }
+
         if let Some(base_url) = config.base_url() {
             base_configuration.base_path = base_url.to_string();
         }
+
         if let Some(org_id) = config.organization_id() {
             base_configuration.user_agent = Some(format!(
                 "openai-ergonomic/{} org/{}",

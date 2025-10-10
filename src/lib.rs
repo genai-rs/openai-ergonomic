@@ -134,6 +134,7 @@
 pub use bon;
 
 // Core modules
+pub mod azure_middleware;
 pub mod builders;
 pub mod client;
 pub mod config;
