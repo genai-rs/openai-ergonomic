@@ -253,6 +253,9 @@ impl ClientBuilder {
         // Create openai-client-base configuration
         let mut base_configuration = Configuration::new();
 
+        // Set the custom HTTP client (with Azure middleware if configured)
+        base_configuration.client = http_client.clone();
+
         // For Azure OpenAI, we don't use bearer token (handled by middleware)
         // For standard OpenAI, use bearer token
         if !is_azure {
