@@ -48,51 +48,51 @@ use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🎤 OpenAI Ergonomic - Audio Transcription (Speech-to-Text) Example\n");
+    println!(" OpenAI Ergonomic - Audio Transcription (Speech-to-Text) Example\n");
 
     // Initialize client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
 
     // First, create some sample audio files if they don't exist
-    println!("\n🎵 Preparing sample audio files...");
+    println!("\n Preparing sample audio files...");
     match create_sample_audio_files(&client).await {
-        Ok(()) => println!("✅ Sample audio files ready"),
+        Ok(()) => println!(" Sample audio files ready"),
         Err(e) => {
-            eprintln!("❌ Failed to create sample audio files: {e}");
-            eprintln!("💡 You may need to provide your own audio files");
+            eprintln!(" Failed to create sample audio files: {e}");
+            eprintln!(" You may need to provide your own audio files");
         }
     }
 
     // Example 1: Basic Speech-to-Text
-    println!("\n📝 Example 1: Basic Speech-to-Text Transcription");
+    println!("\n Example 1: Basic Speech-to-Text Transcription");
     println!("===============================================");
 
     match basic_transcription_example(&client).await {
-        Ok(()) => println!("✅ Basic transcription example completed"),
+        Ok(()) => println!(" Basic transcription example completed"),
         Err(e) => {
-            eprintln!("❌ Basic transcription example failed: {e}");
+            eprintln!(" Basic transcription example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 2: Response Format Comparison
-    println!("\n📄 Example 2: Response Format Comparison");
+    println!("\n Example 2: Response Format Comparison");
     println!("==========================================");
 
     match response_format_example(&client).await {
-        Ok(()) => println!("✅ Response format example completed"),
+        Ok(()) => println!(" Response format example completed"),
         Err(e) => {
-            eprintln!("❌ Response format example failed: {e}");
+            eprintln!(" Response format example failed: {e}");
             handle_api_error(&e);
         }
     }
@@ -102,38 +102,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("==================================================");
 
     match detailed_transcription_example(&client).await {
-        Ok(()) => println!("✅ Detailed transcription example completed"),
+        Ok(()) => println!(" Detailed transcription example completed"),
         Err(e) => {
-            eprintln!("❌ Detailed transcription example failed: {e}");
+            eprintln!(" Detailed transcription example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 4: Audio Translation
-    println!("\n🌍 Example 4: Audio Translation to English");
+    println!("\n Example 4: Audio Translation to English");
     println!("===========================================");
 
     match translation_example(&client).await {
-        Ok(()) => println!("✅ Translation example completed"),
+        Ok(()) => println!(" Translation example completed"),
         Err(e) => {
-            eprintln!("❌ Translation example failed: {e}");
+            eprintln!(" Translation example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 5: Advanced Options
-    println!("\n⚙️ Example 5: Advanced Transcription Options");
+    println!("\n Example 5: Advanced Transcription Options");
     println!("============================================");
 
     match advanced_options_example(&client).await {
-        Ok(()) => println!("✅ Advanced options example completed"),
+        Ok(()) => println!(" Advanced options example completed"),
         Err(e) => {
-            eprintln!("❌ Advanced options example failed: {e}");
+            eprintln!(" Advanced options example failed: {e}");
             handle_api_error(&e);
         }
     }
 
-    println!("\n🎉 All audio transcription examples completed! Check the console output above for results.");
+    println!("\n All audio transcription examples completed! Check the console output above for results.");
     Ok(())
 }
 
@@ -150,9 +150,9 @@ async fn create_sample_audio_files(client: &Client) -> Result<(), Error> {
     for (filename, text) in &sample_files {
         let path = PathBuf::from(filename);
         if path.exists() {
-            println!("  ✅ Sample audio already exists: {filename}");
+            println!("   Sample audio already exists: {filename}");
         } else {
-            println!("  🔊 Creating sample audio: {filename}");
+            println!("   Creating sample audio: {filename}");
 
             let request = CreateSpeechRequest::builder()
                 .model("tts-1".to_string())
@@ -171,10 +171,10 @@ async fn create_sample_audio_files(client: &Client) -> Result<(), Error> {
                 Ok(response) => {
                     let audio_data = response.bytes().await.map_err(Error::Http)?;
                     save_audio_file(&audio_data, filename)?;
-                    println!("     ✅ Created: {filename}");
+                    println!("      Created: {filename}");
                 }
                 Err(e) => {
-                    eprintln!("     ⚠️ Failed to create {filename}: {e}");
+                    eprintln!("      Failed to create {filename}: {e}");
                 }
             }
         }
@@ -189,8 +189,8 @@ async fn basic_transcription_example(client: &Client) -> Result<(), Error> {
 
     let audio_file = PathBuf::from("sample_english.mp3");
     if !audio_file.exists() {
-        eprintln!("⚠️ Audio file not found: {}", audio_file.display());
-        eprintln!("💡 Run the audio creation step first or provide your own audio file");
+        eprintln!(" Audio file not found: {}", audio_file.display());
+        eprintln!(" Run the audio creation step first or provide your own audio file");
         return Ok(());
     }
 
@@ -206,7 +206,7 @@ async fn basic_transcription_example(client: &Client) -> Result<(), Error> {
 
     let configuration = create_configuration(client);
 
-    println!("  🎤 Transcribing: {}", audio_file.display());
+    println!("   Transcribing: {}", audio_file.display());
 
     match audio_api::create_transcription()
         .configuration(&configuration)
@@ -217,7 +217,7 @@ async fn basic_transcription_example(client: &Client) -> Result<(), Error> {
         .await
     {
         Ok(response) => {
-            println!("  📝 Transcription Results:");
+            println!("   Transcription Results:");
             println!("     Text: \"{}\"", response.text);
             println!("     Language: {}", response.language);
             println!("     Duration: {:.2} seconds", response.duration);
@@ -229,10 +229,10 @@ async fn basic_transcription_example(client: &Client) -> Result<(), Error> {
             // Save transcription to file
             let output_file = "basic_transcription.txt";
             save_text_file(&response.text, output_file)?;
-            println!("     ✅ Saved transcription to: {output_file}");
+            println!("      Saved transcription to: {output_file}");
         }
         Err(e) => {
-            eprintln!("     ❌ Transcription failed: {e}");
+            eprintln!("      Transcription failed: {e}");
             return Err(Error::Api {
                 status: 0,
                 message: e.to_string(),
@@ -251,7 +251,7 @@ async fn response_format_example(client: &Client) -> Result<(), Error> {
 
     let audio_file = PathBuf::from("sample_english.mp3");
     if !audio_file.exists() {
-        eprintln!("⚠️ Audio file not found: {}", audio_file.display());
+        eprintln!(" Audio file not found: {}", audio_file.display());
         return Ok(());
     }
 
@@ -274,7 +274,7 @@ async fn response_format_example(client: &Client) -> Result<(), Error> {
     let configuration = create_configuration(client);
 
     for (format, extension, description) in &formats {
-        println!("  📄 Testing format: {description}");
+        println!("   Testing format: {description}");
 
         match audio_api::create_transcription()
             .configuration(&configuration)
@@ -291,38 +291,38 @@ async fn response_format_example(client: &Client) -> Result<(), Error> {
                     AudioResponseFormat::Text => {
                         // For text format, the response is just the text
                         save_text_file(&response.text, &filename)?;
-                        println!("     ✅ Saved as: {filename}");
+                        println!("      Saved as: {filename}");
                     }
                     AudioResponseFormat::Json | AudioResponseFormat::VerboseJson => {
                         // For JSON formats, save the full structured response
                         let json_output = serde_json::to_string_pretty(&response)
                             .unwrap_or_else(|_| response.text.clone());
                         save_text_file(&json_output, &filename)?;
-                        println!("     ✅ Saved as: {filename}");
+                        println!("      Saved as: {filename}");
 
                         if *format == AudioResponseFormat::VerboseJson {
                             if let Some(segments) = &response.segments {
-                                println!("     📊 Found {} segments", segments.len());
+                                println!("      Found {} segments", segments.len());
                             }
                             if let Some(words) = &response.words {
-                                println!("     🔤 Found {} words with timestamps", words.len());
+                                println!("      Found {} words with timestamps", words.len());
                             }
                         }
                     }
                     AudioResponseFormat::Srt | AudioResponseFormat::Vtt => {
                         // For subtitle formats, the text contains the formatted output
                         save_text_file(&response.text, &filename)?;
-                        println!("     ✅ Saved as: {filename}");
+                        println!("      Saved as: {filename}");
                     }
                 }
             }
             Err(e) => {
-                eprintln!("     ❌ Failed to transcribe in format {extension}: {e}");
+                eprintln!("      Failed to transcribe in format {extension}: {e}");
             }
         }
     }
 
-    println!("\n💡 Note: Different formats serve different purposes:");
+    println!("\n Note: Different formats serve different purposes:");
     println!("   - JSON: Basic transcription with metadata");
     println!("   - Text: Just the transcribed text, no metadata");
     println!("   - SRT: SubRip subtitle format for video");
@@ -338,13 +338,13 @@ async fn detailed_transcription_example(client: &Client) -> Result<(), Error> {
 
     let audio_file = PathBuf::from("sample_long.mp3");
     if !audio_file.exists() {
-        eprintln!("⚠️ Audio file not found: {}", audio_file.display());
+        eprintln!(" Audio file not found: {}", audio_file.display());
         return Ok(());
     }
 
     let configuration = create_configuration(client);
 
-    println!("  🎤 Transcribing with detailed timing information...");
+    println!("   Transcribing with detailed timing information...");
 
     // Request detailed transcription with timestamps
     match audio_api::create_transcription()
@@ -359,14 +359,14 @@ async fn detailed_transcription_example(client: &Client) -> Result<(), Error> {
         .await
     {
         Ok(response) => {
-            println!("  📝 Detailed Transcription Results:");
+            println!("   Detailed Transcription Results:");
             println!("     Text: \"{}\"", response.text);
             println!("     Language: {}", response.language);
             println!("     Duration: {:.2} seconds", response.duration);
 
             // Display segment information
             if let Some(segments) = &response.segments {
-                println!("\n  📊 Segment Analysis ({} segments):", segments.len());
+                println!("\n   Segment Analysis ({} segments):", segments.len());
                 for (i, segment) in segments.iter().enumerate() {
                     println!(
                         "     Segment {}: [{:.2}s - {:.2}s] \"{}\"",
@@ -384,7 +384,7 @@ async fn detailed_transcription_example(client: &Client) -> Result<(), Error> {
 
             // Display word-level timestamps
             if let Some(words) = &response.words {
-                println!("\n  🔤 Word-level Timestamps (first 10 words):");
+                println!("\n   Word-level Timestamps (first 10 words):");
                 for (i, word) in words.iter().take(10).enumerate() {
                     println!(
                         "     {}: [{:.2}s - {:.2}s] \"{}\"",
@@ -403,10 +403,10 @@ async fn detailed_transcription_example(client: &Client) -> Result<(), Error> {
             let json_output =
                 serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.text.clone());
             save_text_file(&json_output, "detailed_transcription.json")?;
-            println!("     ✅ Saved detailed results to: detailed_transcription.json");
+            println!("      Saved detailed results to: detailed_transcription.json");
         }
         Err(e) => {
-            eprintln!("     ❌ Detailed transcription failed: {e}");
+            eprintln!("      Detailed transcription failed: {e}");
             return Err(Error::Api {
                 status: 0,
                 message: e.to_string(),
@@ -427,13 +427,13 @@ async fn translation_example(client: &Client) -> Result<(), Error> {
     // In a real scenario, you might have audio in different languages
     let audio_file = PathBuf::from("sample_english.mp3");
     if !audio_file.exists() {
-        eprintln!("⚠️ Audio file not found: {}", audio_file.display());
+        eprintln!(" Audio file not found: {}", audio_file.display());
         return Ok(());
     }
 
     let configuration = create_configuration(client);
 
-    println!("  🌍 Translating audio to English...");
+    println!("   Translating audio to English...");
     println!("     Note: This example uses English audio, but translation works with any language");
 
     match audio_api::create_translation()
@@ -446,14 +446,14 @@ async fn translation_example(client: &Client) -> Result<(), Error> {
         .await
     {
         Ok(response) => {
-            println!("  📝 Translation Results:");
+            println!("   Translation Results:");
             println!("     Translated Text: \"{}\"", response.text);
 
             // Save translation
             save_text_file(&response.text, "translation_result.txt")?;
-            println!("     ✅ Saved translation to: translation_result.txt");
+            println!("      Saved translation to: translation_result.txt");
 
-            println!("\n💡 Translation Notes:");
+            println!("\n Translation Notes:");
             println!("   - Translation always outputs English text regardless of input language");
             println!(
                 "   - It's different from transcription which preserves the original language"
@@ -462,7 +462,7 @@ async fn translation_example(client: &Client) -> Result<(), Error> {
             println!("   - Works with the same audio formats as transcription");
         }
         Err(e) => {
-            eprintln!("     ❌ Translation failed: {e}");
+            eprintln!("      Translation failed: {e}");
             return Err(Error::Api {
                 status: 0,
                 message: e.to_string(),
@@ -481,14 +481,14 @@ async fn advanced_options_example(client: &Client) -> Result<(), Error> {
 
     let audio_file = PathBuf::from("sample_numbers.mp3");
     if !audio_file.exists() {
-        eprintln!("⚠️ Audio file not found: {}", audio_file.display());
+        eprintln!(" Audio file not found: {}", audio_file.display());
         return Ok(());
     }
 
     let configuration = create_configuration(client);
 
     // Example with language specification and prompt
-    println!("  🎯 Advanced transcription with language and prompt...");
+    println!("   Advanced transcription with language and prompt...");
 
     let prompt = "This audio contains numbers and phone numbers. Please transcribe them accurately as digits where appropriate.";
 
@@ -506,7 +506,7 @@ async fn advanced_options_example(client: &Client) -> Result<(), Error> {
         .await
     {
         Ok(response) => {
-            println!("  📝 Advanced Transcription Results:");
+            println!("   Advanced Transcription Results:");
             println!("     Text: \"{}\"", response.text);
             println!("     Language: {}", response.language);
             println!("     Duration: {:.2} seconds", response.duration);
@@ -521,7 +521,7 @@ async fn advanced_options_example(client: &Client) -> Result<(), Error> {
 
             // Analyze segments for number detection
             if let Some(segments) = &response.segments {
-                println!("\n  🔢 Number Detection Analysis:");
+                println!("\n   Number Detection Analysis:");
                 for (i, segment) in segments.iter().enumerate() {
                     let contains_numbers = segment.text.chars().any(|c| c.is_ascii_digit());
                     if contains_numbers {
@@ -542,10 +542,10 @@ async fn advanced_options_example(client: &Client) -> Result<(), Error> {
             let json_output =
                 serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.text.clone());
             save_text_file(&json_output, "advanced_transcription.json")?;
-            println!("     ✅ Saved advanced results to: advanced_transcription.json");
+            println!("      Saved advanced results to: advanced_transcription.json");
         }
         Err(e) => {
-            eprintln!("     ❌ Advanced transcription failed: {e}");
+            eprintln!("      Advanced transcription failed: {e}");
             return Err(Error::Api {
                 status: 0,
                 message: e.to_string(),
@@ -555,7 +555,7 @@ async fn advanced_options_example(client: &Client) -> Result<(), Error> {
         }
     }
 
-    println!("\n💡 Advanced Options Summary:");
+    println!("\n Advanced Options Summary:");
     println!("   - Language: Specify input language for better accuracy");
     println!("   - Prompt: Provide context to guide transcription style");
     println!("   - Temperature: Control randomness (0.0 = deterministic)");
@@ -611,7 +611,7 @@ fn handle_api_error(error: &Error) {
             error_type,
             error_code,
         } => {
-            eprintln!("🚫 API Error [{status}]: {message}");
+            eprintln!(" API Error [{status}]: {message}");
             if let Some(error_type) = error_type {
                 eprintln!("   Type: {error_type}");
             }
@@ -621,64 +621,64 @@ fn handle_api_error(error: &Error) {
 
             // Provide specific guidance based on error type
             match *status {
-                401 => eprintln!("💡 Check your API key: export OPENAI_API_KEY=\"your-key\""),
-                429 => eprintln!("💡 Rate limited - try again in a moment"),
-                500..=599 => eprintln!("💡 Server error - try again later"),
+                401 => eprintln!(" Check your API key: export OPENAI_API_KEY=\"your-key\""),
+                429 => eprintln!(" Rate limited - try again in a moment"),
+                500..=599 => eprintln!(" Server error - try again later"),
                 _ => {}
             }
         }
         Error::InvalidRequest(msg) => {
-            eprintln!("🚫 Invalid Request: {msg}");
-            eprintln!("💡 Check your request parameters and audio file format");
+            eprintln!(" Invalid Request: {msg}");
+            eprintln!(" Check your request parameters and audio file format");
         }
         Error::Config(msg) => {
-            eprintln!("🚫 Configuration Error: {msg}");
-            eprintln!("💡 Check your client configuration");
+            eprintln!(" Configuration Error: {msg}");
+            eprintln!(" Check your client configuration");
         }
         Error::Http(err) => {
-            eprintln!("🚫 HTTP Error: {err}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" HTTP Error: {err}");
+            eprintln!(" Check your network connection");
         }
         Error::Json(err) => {
-            eprintln!("🚫 JSON Error: {err}");
-            eprintln!("💡 Response parsing failed - may be a temporary issue");
+            eprintln!(" JSON Error: {err}");
+            eprintln!(" Response parsing failed - may be a temporary issue");
         }
         Error::Authentication(msg) => {
-            eprintln!("🚫 Authentication Error: {msg}");
-            eprintln!("💡 Check your API key");
+            eprintln!(" Authentication Error: {msg}");
+            eprintln!(" Check your API key");
         }
         Error::RateLimit(msg) => {
-            eprintln!("🚫 Rate Limit Error: {msg}");
-            eprintln!("💡 Try again in a moment");
+            eprintln!(" Rate Limit Error: {msg}");
+            eprintln!(" Try again in a moment");
         }
         Error::Stream(msg) => {
-            eprintln!("🚫 Stream Error: {msg}");
-            eprintln!("💡 Connection issue with streaming");
+            eprintln!(" Stream Error: {msg}");
+            eprintln!(" Connection issue with streaming");
         }
         Error::File(err) => {
-            eprintln!("🚫 File Error: {err}");
-            eprintln!("💡 Check file permissions and paths, ensure audio file exists");
+            eprintln!(" File Error: {err}");
+            eprintln!(" Check file permissions and paths, ensure audio file exists");
         }
         Error::Builder(msg) => {
-            eprintln!("🚫 Builder Error: {msg}");
-            eprintln!("💡 Check your request builder configuration");
+            eprintln!(" Builder Error: {msg}");
+            eprintln!(" Check your request builder configuration");
         }
         Error::Internal(msg) => {
-            eprintln!("🚫 Internal Error: {msg}");
-            eprintln!("💡 This may be a bug, please report it");
+            eprintln!(" Internal Error: {msg}");
+            eprintln!(" This may be a bug, please report it");
         }
         Error::StreamConnection { message } => {
-            eprintln!("🚫 Stream Connection Error: {message}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" Stream Connection Error: {message}");
+            eprintln!(" Check your network connection");
         }
         Error::StreamParsing { message, chunk } => {
-            eprintln!("🚫 Stream Parsing Error: {message}");
+            eprintln!(" Stream Parsing Error: {message}");
             eprintln!("   Problematic chunk: {chunk}");
-            eprintln!("💡 The response stream may be corrupted");
+            eprintln!(" The response stream may be corrupted");
         }
         Error::StreamBuffer { message } => {
-            eprintln!("🚫 Stream Buffer Error: {message}");
-            eprintln!("💡 The stream buffer encountered an issue");
+            eprintln!(" Stream Buffer Error: {message}");
+            eprintln!(" The stream buffer encountered an issue");
         }
     }
 }

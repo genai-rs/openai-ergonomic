@@ -42,17 +42,17 @@ use openai_ergonomic::{
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("📊 OpenAI Ergonomic - Code Interpreter Assistant Example\n");
+    println!(" OpenAI Ergonomic - Code Interpreter Assistant Example\n");
 
     // Initialize client from environment variables
     let _client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
@@ -63,13 +63,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     run_visualization_example()?;
     run_file_processing_example()?;
 
-    println!("\n🎉 Code Interpreter examples completed successfully!");
+    println!("\n Code Interpreter examples completed successfully!");
     Ok(())
 }
 
 /// Example 1: Data Analysis with CSV Processing
 fn run_data_analysis_example() -> Result<(), Error> {
-    println!("📈 Example 1: Data Analysis with CSV Processing");
+    println!(" Example 1: Data Analysis with CSV Processing");
     println!("{}", "=".repeat(60));
 
     // Create an assistant specifically for data analysis
@@ -81,7 +81,7 @@ fn run_data_analysis_example() -> Result<(), Error> {
     .description("A specialized assistant for data analysis tasks")
     .add_tool(tool_code_interpreter());
 
-    println!("🤖 Created data analysis assistant:");
+    println!(" Created data analysis assistant:");
     println!("   Model: {}", assistant.model());
     println!("   Name: {}", assistant.name_ref().unwrap_or("unnamed"));
     println!(
@@ -92,21 +92,21 @@ fn run_data_analysis_example() -> Result<(), Error> {
     // Create a thread for the data analysis conversation
     let _thread = simple_thread().metadata("purpose", "data-analysis");
 
-    println!("\n📝 Created thread with metadata:");
+    println!("\n Created thread with metadata:");
     println!("   Purpose: data-analysis");
 
     // Simulate data analysis workflow
-    println!("\n💭 Analysis Request:");
+    println!("\n Analysis Request:");
     println!("   'I have sales data from the last quarter. Please analyze trends, identify top-performing products, and create visualizations showing monthly performance.'");
 
-    println!("\n🔄 Code Interpreter Workflow:");
-    println!("   1. 📁 Assistant receives and processes CSV data");
-    println!("   2. 🐍 Executes Python code for data analysis");
-    println!("   3. 📊 Generates visualizations (charts, graphs)");
-    println!("   4. 📈 Calculates key metrics and trends");
-    println!("   5. 📋 Provides summary report with insights");
+    println!("\n Code Interpreter Workflow:");
+    println!("   1.  Assistant receives and processes CSV data");
+    println!("   2.  Executes Python code for data analysis");
+    println!("   3.  Generates visualizations (charts, graphs)");
+    println!("   4.  Calculates key metrics and trends");
+    println!("   5.  Provides summary report with insights");
 
-    println!("\n✨ Expected Outputs:");
+    println!("\n Expected Outputs:");
     println!("   • Data summary statistics");
     println!("   • Trend analysis charts");
     println!("   • Top product performance metrics");
@@ -118,7 +118,7 @@ fn run_data_analysis_example() -> Result<(), Error> {
 
 /// Example 2: Mathematical Computations and Modeling
 fn run_mathematical_computation_example() -> Result<(), Error> {
-    println!("\n🔢 Example 2: Mathematical Computations and Modeling");
+    println!("\n Example 2: Mathematical Computations and Modeling");
     println!("{}", "=".repeat(60));
 
     // Create an assistant for mathematical tasks
@@ -128,7 +128,7 @@ fn run_mathematical_computation_example() -> Result<(), Error> {
         .instructions("You are a mathematics expert. Solve complex mathematical problems, create models, perform numerical analysis, and explain mathematical concepts clearly. Always show your work step by step.")
         .add_tool(tool_code_interpreter());
 
-    println!("🧮 Created mathematics assistant:");
+    println!(" Created mathematics assistant:");
     println!("   Name: {}", math_assistant.name_ref().unwrap());
     println!("   Focus: Complex mathematical computations");
 
@@ -137,30 +137,30 @@ fn run_mathematical_computation_example() -> Result<(), Error> {
         .metadata("type", "mathematics")
         .metadata("complexity", "advanced");
 
-    println!("\n📝 Mathematics Problem:");
+    println!("\n Mathematics Problem:");
     println!("   'Solve the differential equation dy/dx = x*y with initial condition y(0) = 1.'");
     println!("   'Then plot the solution and analyze its behavior.'");
 
-    println!("\n🔬 Code Interpreter Mathematics Workflow:");
-    println!("   1. 📐 Parse the differential equation");
-    println!("   2. 🧮 Apply analytical or numerical methods");
-    println!("   3. 💻 Implement solution in Python/SymPy");
-    println!("   4. 📊 Generate solution plots");
-    println!("   5. 📝 Provide step-by-step explanation");
+    println!("\n Code Interpreter Mathematics Workflow:");
+    println!("   1.  Parse the differential equation");
+    println!("   2.  Apply analytical or numerical methods");
+    println!("   3.  Implement solution in Python/SymPy");
+    println!("   4.  Generate solution plots");
+    println!("   5.  Provide step-by-step explanation");
 
     // Simulate creating a run for mathematical computation
     let math_run = simple_run("assistant-math-123")
         .instructions("Focus on providing clear mathematical explanations alongside code execution")
         .temperature(0.1); // Lower temperature for mathematical precision
 
-    println!("\n🎯 Run Configuration:");
+    println!("\n Run Configuration:");
     println!("   Assistant ID: {}", math_run.assistant_id());
     println!(
         "   Temperature: {:?} (low for precision)",
         math_run.temperature_ref()
     );
 
-    println!("\n✨ Expected Mathematical Outputs:");
+    println!("\n Expected Mathematical Outputs:");
     println!("   • Step-by-step solution derivation");
     println!("   • Python code for numerical verification");
     println!("   • Interactive plots showing solution behavior");
@@ -172,7 +172,7 @@ fn run_mathematical_computation_example() -> Result<(), Error> {
 
 /// Example 3: Data Visualization and Chart Generation
 fn run_visualization_example() -> Result<(), Error> {
-    println!("\n📊 Example 3: Data Visualization and Chart Generation");
+    println!("\n Example 3: Data Visualization and Chart Generation");
     println!("{}", "=".repeat(60));
 
     // Create visualization-focused assistant
@@ -184,25 +184,25 @@ fn run_visualization_example() -> Result<(), Error> {
     .description("Creates professional data visualizations and charts")
     .add_tool(tool_code_interpreter());
 
-    println!("📈 Created visualization assistant:");
+    println!(" Created visualization assistant:");
     println!("   Specialty: Data visualization and chart creation");
 
-    println!("\n📝 Visualization Request:");
+    println!("\n Visualization Request:");
     println!("   'Create a comprehensive dashboard showing website traffic data:'");
     println!("   • Monthly visitor trends (line chart)");
     println!("   • Traffic sources breakdown (pie chart)");
     println!("   • Page performance heatmap");
     println!("   • Conversion funnel visualization");
 
-    println!("\n🎨 Code Interpreter Visualization Workflow:");
-    println!("   1. 📋 Analyze data structure and requirements");
-    println!("   2. 🎯 Select appropriate visualization types");
-    println!("   3. 🐍 Generate Python code using matplotlib/seaborn/plotly");
-    println!("   4. 🎨 Apply professional styling and color schemes");
-    println!("   5. 📊 Create interactive or static visualizations");
-    println!("   6. 💾 Export charts in various formats (PNG, SVG, HTML)");
+    println!("\n Code Interpreter Visualization Workflow:");
+    println!("   1.  Analyze data structure and requirements");
+    println!("   2.  Select appropriate visualization types");
+    println!("   3.  Generate Python code using matplotlib/seaborn/plotly");
+    println!("   4.  Apply professional styling and color schemes");
+    println!("   5.  Create interactive or static visualizations");
+    println!("   6.  Export charts in various formats (PNG, SVG, HTML)");
 
-    println!("\n✨ Expected Visualization Outputs:");
+    println!("\n Expected Visualization Outputs:");
     println!("   • Professional-quality charts and graphs");
     println!("   • Interactive dashboards (when using plotly)");
     println!("   • Downloadable image files");
@@ -214,7 +214,7 @@ fn run_visualization_example() -> Result<(), Error> {
 
 /// Example 4: File Processing and Analysis
 fn run_file_processing_example() -> Result<(), Error> {
-    println!("\n📁 Example 4: File Processing and Analysis");
+    println!("\n Example 4: File Processing and Analysis");
     println!("{}", "=".repeat(60));
 
     // Create file processing assistant
@@ -226,34 +226,34 @@ fn run_file_processing_example() -> Result<(), Error> {
         )
         .add_tool(tool_code_interpreter());
 
-    println!("📄 Created file processing assistant:");
+    println!(" Created file processing assistant:");
     println!("   Capabilities: Multi-format file processing and analysis");
 
-    println!("\n📋 File Processing Tasks:");
+    println!("\n File Processing Tasks:");
     println!("   • Process uploaded CSV files with sales data");
     println!("   • Clean and validate data integrity");
     println!("   • Transform data formats (CSV → JSON → Excel)");
     println!("   • Generate summary statistics");
     println!("   • Create processed output files");
 
-    println!("\n⚙️ Code Interpreter File Processing Workflow:");
-    println!("   1. 📁 Accept and validate uploaded files");
-    println!("   2. 🔍 Inspect file structure and content");
-    println!("   3. 🧹 Clean and preprocess data");
-    println!("   4. 🔄 Transform between formats");
-    println!("   5. 📊 Perform statistical analysis");
-    println!("   6. 📤 Generate processed output files");
-    println!("   7. 📋 Provide processing summary and quality report");
+    println!("\n Code Interpreter File Processing Workflow:");
+    println!("   1.  Accept and validate uploaded files");
+    println!("   2.  Inspect file structure and content");
+    println!("   3.  Clean and preprocess data");
+    println!("   4.  Transform between formats");
+    println!("   5.  Perform statistical analysis");
+    println!("   6.  Generate processed output files");
+    println!("   7.  Provide processing summary and quality report");
 
     // Demonstrate error handling for file processing
-    println!("\n🛡️ Error Handling for File Processing:");
+    println!("\n Error Handling for File Processing:");
     println!("   • File format validation");
     println!("   • Data type checking and conversion");
     println!("   • Missing value handling");
     println!("   • Memory-efficient processing for large files");
     println!("   • Graceful handling of corrupted data");
 
-    println!("\n✨ Expected File Processing Outputs:");
+    println!("\n Expected File Processing Outputs:");
     println!("   • Cleaned and validated datasets");
     println!("   • Multiple output formats (CSV, JSON, Excel)");
     println!("   • Data quality reports");

@@ -473,7 +473,7 @@ cargo run --example completions
 
 **Prerequisites:** `OPENAI_API_KEY`
 
-⚠️ **Note:** Legacy API. Use Chat Completions for new applications.
+**Note:** Legacy API. Use Chat Completions for new applications.
 
 ---
 
@@ -686,23 +686,23 @@ OPENAI_ORG_ID=org-...  # Optional
 
 | Category | Examples | Status |
 |----------|----------|--------|
-| **Chat** | 4 | ✅ Complete |
-| **Responses** | 3 | ✅ Complete |
-| **Audio** | 2 | ✅ Complete |
-| **Images** | 1 | ✅ Complete |
-| **Embeddings** | 1 | ✅ Complete |
-| **Assistants** | 3 | ✅ Complete |
-| **Vector Stores** | 1 | ✅ Complete |
-| **Batch** | 1 | ✅ Complete |
-| **Moderations** | 1 | ✅ Complete |
-| **Models** | 1 | ✅ Complete |
-| **Fine-tuning** | 1 | ✅ Complete |
-| **Uploads** | 1 | ✅ Complete |
-| **Threads** | 1 | ✅ Complete |
-| **Completions** | 1 | ✅ Complete |
-| **Usage** | 1 | ✅ Complete |
-| **Files** | 1 | ✅ Complete |
-| **Patterns** | 7 | ✅ Complete |
+| **Chat** | 4 | Complete |
+| **Responses** | 3 | Complete |
+| **Audio** | 2 | Complete |
+| **Images** | 1 | Complete |
+| **Embeddings** | 1 | Complete |
+| **Assistants** | 3 | Complete |
+| **Vector Stores** | 1 | Complete |
+| **Batch** | 1 | Complete |
+| **Moderations** | 1 | Complete |
+| **Models** | 1 | Complete |
+| **Fine-tuning** | 1 | Complete |
+| **Uploads** | 1 | Complete |
+| **Threads** | 1 | Complete |
+| **Completions** | 1 | Complete |
+| **Usage** | 1 | Complete |
+| **Files** | 1 | Complete |
+| **Patterns** | 7 | Complete |
 | **Total** | **32** | **100% fully implemented** |
 
 ---

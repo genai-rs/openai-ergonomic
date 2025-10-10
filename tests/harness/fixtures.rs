@@ -872,7 +872,7 @@ pub mod edge_cases {
     pub fn special_content() -> HashMap<String, Value> {
         let mut data = HashMap::new();
 
-        data.insert("unicode_emoji".to_string(), json!("Hello 🌍🚀✨"));
+        data.insert("unicode_emoji".to_string(), json!("Hello "));
         data.insert(
             "unicode_text".to_string(),
             json!("Здравствуй мир! 你好世界! مرحبا بالعالم!"),

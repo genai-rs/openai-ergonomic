@@ -35,17 +35,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✓ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("✗ Failed to initialize client: {e}");
+            eprintln!(" Failed to initialize client: {e}");
             eprintln!("Make sure OPENAI_API_KEY environment variable is set");
             return Err(e.into());
         }
     };
 
-    println!("✓ Using vision-capable model for image understanding");
+    println!(" Using vision-capable model for image understanding");
     println!();
 
     // Demonstrate various vision capabilities
@@ -56,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     demonstrate_conversation_with_images(&client).await?;
     demonstrate_error_handling(&client).await?;
 
-    println!("🎉 Vision chat example completed successfully!");
+    println!(" Vision chat example completed successfully!");
     println!("This example demonstrated:");
     println!("  • Basic image understanding with URLs");
     println!("  • Multiple image analysis in single messages");
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn demonstrate_basic_image_analysis(
     client: &Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🖼️  Example 1: Basic Image Analysis");
+    println!("  Example 1: Basic Image Analysis");
     println!("----------------------------------");
 
     let image_url = SAMPLE_IMAGE_URLS[0];
@@ -97,7 +97,7 @@ async fn demonstrate_basic_image_analysis(
 
         // Show usage information
         if let Some(usage) = response.usage() {
-            println!("\n📊 Token usage:");
+            println!("\n Token usage:");
             println!("  Prompt tokens: {}", usage.prompt_tokens);
             println!("  Completion tokens: {}", usage.completion_tokens);
             println!("  Total tokens: {}", usage.total_tokens);
@@ -112,7 +112,7 @@ async fn demonstrate_basic_image_analysis(
 
 /// Demonstrate analysis of multiple images in a single message.
 async fn demonstrate_multiple_images(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🖼️🖼️ Example 2: Multiple Image Analysis");
+    println!(" Example 2: Multiple Image Analysis");
     println!("---------------------------------------");
 
     let question = "Compare these two images. What are the differences and similarities?";
@@ -150,7 +150,7 @@ async fn demonstrate_multiple_images(client: &Client) -> Result<(), Box<dyn std:
 
 /// Demonstrate different detail levels for image analysis.
 async fn demonstrate_detail_levels(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔍 Example 3: Different Detail Levels");
+    println!(" Example 3: Different Detail Levels");
     println!("------------------------------------");
 
     let image_url = SAMPLE_IMAGE_URLS[0];
@@ -188,7 +188,7 @@ async fn demonstrate_detail_levels(client: &Client) -> Result<(), Box<dyn std::e
 
 /// Demonstrate base64 image encoding and analysis.
 async fn demonstrate_base64_image(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    println!("🔢 Example 4: Base64 Image Analysis");
+    println!(" Example 4: Base64 Image Analysis");
     println!("-----------------------------------");
 
     let question = "What is this image? It's very small, what can you tell about it?";
@@ -226,7 +226,7 @@ async fn demonstrate_base64_image(client: &Client) -> Result<(), Box<dyn std::er
 async fn demonstrate_conversation_with_images(
     client: &Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("💬 Example 5: Conversation Context with Images");
+    println!(" Example 5: Conversation Context with Images");
     println!("----------------------------------------------");
 
     let image_url = SAMPLE_IMAGE_URLS[0];
@@ -294,7 +294,7 @@ async fn demonstrate_conversation_with_images(
 
 /// Demonstrate error handling patterns for vision requests.
 async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
-    println!("⚠️  Example 6: Error Handling Patterns");
+    println!("  Example 6: Error Handling Patterns");
     println!("------------------------------------");
 
     println!("Testing various error scenarios...\n");
@@ -309,21 +309,21 @@ async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::
         .temperature(0.3);
 
     match client.send_chat(invalid_builder).await {
-        Ok(_) => println!("✗ Invalid URL request unexpectedly succeeded"),
+        Ok(_) => println!(" Invalid URL request unexpectedly succeeded"),
         Err(e) => match &e {
             Error::Api {
                 status, message, ..
             } => {
-                println!("✓ API properly rejected invalid URL ({status}): {message}");
+                println!(" API properly rejected invalid URL ({status}): {message}");
             }
             Error::Http(reqwest_err) => {
-                println!("✓ HTTP error caught: {reqwest_err}");
+                println!(" HTTP error caught: {reqwest_err}");
             }
             Error::InvalidRequest(msg) => {
-                println!("✓ Validation caught invalid URL: {msg}");
+                println!(" Validation caught invalid URL: {msg}");
             }
             _ => {
-                println!("ℹ️  Other error type: {e}");
+                println!("ℹ  Other error type: {e}");
             }
         },
     }
@@ -339,13 +339,13 @@ async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::
         Ok(response) => {
             if let Some(content) = response.content() {
                 println!(
-                    "✓ API handled empty text gracefully: {}",
+                    " API handled empty text gracefully: {}",
                     content.chars().take(50).collect::<String>()
                 );
             }
         }
         Err(e) => {
-            println!("ℹ️  Empty text error: {e}");
+            println!("ℹ  Empty text error: {e}");
         }
     }
 
@@ -360,20 +360,20 @@ async fn demonstrate_error_handling(client: &Client) -> Result<(), Box<dyn std::
     let malformed_builder = client.chat().user_with_parts(malformed_parts);
 
     match client.send_chat(malformed_builder).await {
-        Ok(_) => println!("✗ Malformed base64 unexpectedly succeeded"),
+        Ok(_) => println!(" Malformed base64 unexpectedly succeeded"),
         Err(e) => match &e {
             Error::Api {
                 status, message, ..
             } => {
-                println!("✓ API properly rejected malformed base64 ({status}): {message}");
+                println!(" API properly rejected malformed base64 ({status}): {message}");
             }
             _ => {
-                println!("ℹ️  Other error for malformed base64: {e}");
+                println!("ℹ  Other error for malformed base64: {e}");
             }
         },
     }
 
-    println!("\n🛡️  Error handling patterns demonstrated:");
+    println!("\n  Error handling patterns demonstrated:");
     println!("  • Invalid image URL handling");
     println!("  • Empty text with image handling");
     println!("  • Malformed base64 data validation");

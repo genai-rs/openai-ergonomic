@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .init();
 
-    println!("🚀 Initializing OpenAI client with Langfuse observability...\n");
+    println!(" Initializing OpenAI client with Langfuse observability...\n");
 
     // 1. Build Langfuse exporter from environment variables
     let exporter = ExporterBuilder::from_env()?.build()?;
@@ -54,19 +54,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_interceptor(Box::new(langfuse_interceptor))
         .build();
 
-    println!("✅ Client initialized successfully!");
-    println!("📊 Traces will be sent to Langfuse for monitoring\n");
+    println!(" Client initialized successfully!");
+    println!(" Traces will be sent to Langfuse for monitoring\n");
 
     // Make a simple chat completion - tracing is automatic!
-    println!("📝 Making a simple chat completion request...");
+    println!(" Making a simple chat completion request...");
     let request = client
         .chat_simple("What is 2 + 2? Answer with just the number.")
         .build()?;
     let response = client.execute_chat(request).await?;
 
-    println!("🤖 Response: {:?}", response.content());
+    println!(" Response: {:?}", response.content());
 
-    println!("\n✨ Done! Check your Langfuse dashboard to see the traces.");
+    println!("\n Done! Check your Langfuse dashboard to see the traces.");
     println!("   - Look for traces with the operation name 'chat'");
     println!("   - Each trace includes request/response details and token usage");
 
