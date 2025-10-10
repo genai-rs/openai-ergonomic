@@ -718,6 +718,6 @@ OPENAI_ORG_ID=org-...  # Optional
 
 ## Need Help?
 
-- 📖 [Full Documentation](https://docs.rs/openai-ergonomic)
-- 🐛 [Report Issues](https://github.com/genai-rs/openai-ergonomic/issues)
-- 💬 [Discussions](https://github.com/genai-rs/openai-ergonomic/discussions)
+- [Full Documentation](https://docs.rs/openai-ergonomic)
+- [Report Issues](https://github.com/genai-rs/openai-ergonomic/issues)
+- [Discussions](https://github.com/genai-rs/openai-ergonomic/discussions)
