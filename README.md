@@ -128,8 +128,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 - [Getting Started Guide](docs/getting-started.md)
 - [Architecture Overview](docs/architecture.md)
-- **[📊 API Coverage Status](docs/api-coverage.md)** - See what APIs are available
-- **[📚 Examples Index](docs/examples-index.md)** - Browse all examples by category
+- **[API Coverage Status](docs/api-coverage.md)** - See what APIs are available
+- **[Examples Index](docs/examples-index.md)** - Browse all examples by category
 - [Responses-First Workflows](docs/responses_workflows.md)
 - [Tool Orchestration](docs/tool_orchestration.md)
 - [Vector Store Operations](docs/vector_store_operations.md)
