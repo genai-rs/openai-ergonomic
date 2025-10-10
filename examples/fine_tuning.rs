@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // Example 1: Create a fine-tuning job
-    println!("");
+    println!();
     println!(" Example 1: Create Fine-tuning Job");
     println!("\n");
 
