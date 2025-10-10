@@ -293,14 +293,14 @@ async fn example_buffered_streaming() -> Result<()> {
 
         // Check if buffer is getting full
         if buffer.is_high_water() {
-            println!("  ⚠️  Buffer high water mark reached, consider processing");
+            println!("    Buffer high water mark reached, consider processing");
 
             // In a real application, you might:
             // 1. Process the current content
             // 2. Send to downstream consumers
             // 3. Compact the buffer
             buffer.compact(100); // Keep last 100 chars for context
-            println!("  🔄 Buffer compacted to {:.1}%", buffer.utilization());
+            println!("   Buffer compacted to {:.1}%", buffer.utilization());
         }
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -333,8 +333,8 @@ fn example_streaming_error_handling() {
 
     match connection_result {
         Err(Error::StreamConnection { message }) => {
-            println!("   ❌ Connection error handled: {message}");
-            println!("   🔄 Would implement retry logic here");
+            println!("    Connection error handled: {message}");
+            println!("    Would implement retry logic here");
         }
         _ => unreachable!(),
     }
@@ -344,11 +344,11 @@ fn example_streaming_error_handling() {
     let malformed_chunk = "data: {invalid json}";
     match StreamChunk::parse(malformed_chunk) {
         Err(Error::StreamParsing { message, chunk }) => {
-            println!("   ❌ Parse error handled: {message}");
-            println!("   📄 Problematic chunk: {chunk}");
-            println!("   🔄 Would skip chunk and continue");
+            println!("    Parse error handled: {message}");
+            println!("    Problematic chunk: {chunk}");
+            println!("    Would skip chunk and continue");
         }
-        _ => println!("   ✅ Chunk parsed successfully"),
+        _ => println!("    Chunk parsed successfully"),
     }
 
     // 3. Buffer overflow
@@ -358,17 +358,17 @@ fn example_streaming_error_handling() {
 
     match small_buffer.append(large_chunk) {
         Err(Error::StreamBuffer { message }) => {
-            println!("   ❌ Buffer error handled: {message}");
-            println!("   🔄 Would implement buffer resizing or chunking");
+            println!("    Buffer error handled: {message}");
+            println!("    Would implement buffer resizing or chunking");
         }
-        Ok(()) => println!("   ✅ Content added to buffer"),
-        Err(e) => println!("   ❌ Unexpected error: {e}"),
+        Ok(()) => println!("    Content added to buffer"),
+        Err(e) => println!("    Unexpected error: {e}"),
     }
 
     // 4. Timeout handling
     println!("\n4. Timeout Handling:");
-    println!("   ⏱️  Would implement timeout for stream chunks");
-    println!("   🔄 Would retry or fail gracefully on timeout");
+    println!("   ⏱  Would implement timeout for stream chunks");
+    println!("    Would retry or fail gracefully on timeout");
 }
 
 /// Demonstrates tool calling in streaming responses
@@ -438,8 +438,8 @@ async fn example_streaming_tool_calls() -> Result<()> {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
-    println!("\n✅ Complete tool call arguments: {tool_call_buffer}");
-    println!("🔧 Would now execute get_weather(location='San Francisco')");
+    println!("\n Complete tool call arguments: {tool_call_buffer}");
+    println!(" Would now execute get_weather(location='San Francisco')");
 
     Ok(())
 }
@@ -499,7 +499,7 @@ async fn example_chunk_processing_patterns() -> Result<()> {
 
     metrics.processing_time = start_time.elapsed();
 
-    println!("\n📊 Stream Processing Metrics:");
+    println!("\n Stream Processing Metrics:");
     println!("   Total chunks: {}", metrics.total_chunks);
     println!("   Content chunks: {}", metrics.content_chunks);
     println!("   Tool call chunks: {}", metrics.tool_chunks);
@@ -518,7 +518,7 @@ async fn main() -> Result<()> {
     // Initialize tracing for better debugging
     tracing_subscriber::fmt::init();
 
-    println!("🤖 OpenAI Ergonomic - Streaming Responses Examples");
+    println!(" OpenAI Ergonomic - Streaming Responses Examples");
     println!("================================================\n");
 
     // Note: These examples demonstrate streaming patterns and error handling
@@ -552,15 +552,15 @@ async fn main() -> Result<()> {
         eprintln!("Chunk processing example failed: {e}");
     }
 
-    println!("\n✅ All streaming examples completed!");
-    println!("\n💡 Key Takeaways:");
+    println!("\n All streaming examples completed!");
+    println!("\n Key Takeaways:");
     println!("   • SSE streaming requires careful chunk parsing");
     println!("   • Buffer management prevents memory issues");
     println!("   • Error handling is crucial for robust streaming");
     println!("   • Tool calls can be streamed incrementally");
     println!("   • Metrics help optimize streaming performance");
 
-    println!("\n🔗 Next Steps:");
+    println!("\n Next Steps:");
     println!("   • Integrate with openai-client-base streaming API");
     println!("   • Add real streaming request execution");
     println!("   • Implement automatic retry logic");

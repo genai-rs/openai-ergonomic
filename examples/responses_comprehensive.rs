@@ -35,82 +35,82 @@ use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🚀 OpenAI Ergonomic - Comprehensive Responses API Example\n");
+    println!(" OpenAI Ergonomic - Comprehensive Responses API Example\n");
 
     // Initialize client from environment variables
     let client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
 
     // Example 1: Basic Responses API Usage
-    println!("\n📝 Example 1: Basic Responses API Usage");
+    println!("\n Example 1: Basic Responses API Usage");
     println!("=====================================");
 
     match basic_responses_example(&client).await {
-        Ok(()) => println!("✅ Basic responses example completed"),
+        Ok(()) => println!(" Basic responses example completed"),
         Err(e) => {
-            eprintln!("❌ Basic responses example failed: {e}");
+            eprintln!(" Basic responses example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 2: Function Calling
-    println!("\n🔧 Example 2: Function Calling");
+    println!("\n Example 2: Function Calling");
     println!("===============================");
 
     match function_calling_example(&client).await {
-        Ok(()) => println!("✅ Function calling example completed"),
+        Ok(()) => println!(" Function calling example completed"),
         Err(e) => {
-            eprintln!("❌ Function calling example failed: {e}");
+            eprintln!(" Function calling example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 3: Web Search Integration
-    println!("\n🌐 Example 3: Web Search Integration");
+    println!("\n Example 3: Web Search Integration");
     println!("====================================");
 
     match web_search_example(&client).await {
-        Ok(()) => println!("✅ Web search example completed"),
+        Ok(()) => println!(" Web search example completed"),
         Err(e) => {
-            eprintln!("❌ Web search example failed: {e}");
+            eprintln!(" Web search example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 4: Structured Outputs
-    println!("\n📊 Example 4: Structured JSON Outputs");
+    println!("\n Example 4: Structured JSON Outputs");
     println!("======================================");
 
     match structured_output_example(&client).await {
-        Ok(()) => println!("✅ Structured output example completed"),
+        Ok(()) => println!(" Structured output example completed"),
         Err(e) => {
-            eprintln!("❌ Structured output example failed: {e}");
+            eprintln!(" Structured output example failed: {e}");
             handle_api_error(&e);
         }
     }
 
     // Example 5: Advanced Configuration
-    println!("\n⚙️  Example 5: Advanced Configuration");
+    println!("\n  Example 5: Advanced Configuration");
     println!("====================================");
 
     match advanced_configuration_example(&client).await {
-        Ok(()) => println!("✅ Advanced configuration example completed"),
+        Ok(()) => println!(" Advanced configuration example completed"),
         Err(e) => {
-            eprintln!("❌ Advanced configuration example failed: {e}");
+            eprintln!(" Advanced configuration example failed: {e}");
             handle_api_error(&e);
         }
     }
 
-    println!("\n🎉 All examples completed! Check the console output above for results.");
+    println!("\n All examples completed! Check the console output above for results.");
     Ok(())
 }
 
@@ -130,13 +130,13 @@ async fn basic_responses_example(client: &Client) -> Result<(), Error> {
 
     // Extract and display the response
     if let Some(content) = response.content() {
-        println!("🤖 Assistant: {content}");
+        println!(" Assistant: {content}");
     } else {
-        println!("⚠️  No content in response");
+        println!("  No content in response");
     }
 
     // Show response metadata
-    println!("📊 Response metadata:");
+    println!(" Response metadata:");
     println!("   - Model: {}", response.model().unwrap_or("unknown"));
     println!(
         "   - Finish reason: {}",
@@ -213,7 +213,7 @@ async fn function_calling_example(client: &Client) -> Result<(), Error> {
     // Check if the model wants to call functions
     let tool_calls = response.tool_calls();
     if !tool_calls.is_empty() {
-        println!("🔧 Model requested {} tool call(s):", tool_calls.len());
+        println!(" Model requested {} tool call(s):", tool_calls.len());
 
         for (i, tool_call) in tool_calls.iter().enumerate() {
             println!("   {}. Function: {}", i + 1, tool_call.function_name());
@@ -237,7 +237,7 @@ async fn function_calling_example(client: &Client) -> Result<(), Error> {
             }
         }
     } else if let Some(content) = response.content() {
-        println!("🤖 Assistant response: {content}");
+        println!(" Assistant response: {content}");
     }
 
     Ok(())
@@ -265,7 +265,7 @@ async fn web_search_example(client: &Client) -> Result<(), Error> {
     // Handle the response
     let tool_calls = response.tool_calls();
     if !tool_calls.is_empty() {
-        println!("🌐 Model requested web search:");
+        println!(" Model requested web search:");
 
         for tool_call in &tool_calls {
             if tool_call.function_name() == "web_search" {
@@ -281,10 +281,10 @@ async fn web_search_example(client: &Client) -> Result<(), Error> {
             }
         }
     } else if let Some(content) = response.content() {
-        println!("🤖 Assistant response: {content}");
+        println!(" Assistant response: {content}");
     }
 
-    println!("💡 Note: Web search requires additional implementation to execute actual searches");
+    println!(" Note: Web search requires additional implementation to execute actual searches");
 
     Ok(())
 }
@@ -352,7 +352,7 @@ async fn structured_output_example(client: &Client) -> Result<(), Error> {
     let response = client.send_responses(builder).await?;
 
     if let Some(content) = response.content() {
-        println!("📊 Structured recipe output:");
+        println!(" Structured recipe output:");
 
         // Try to parse and pretty-print the JSON
         match serde_json::from_str::<serde_json::Value>(content) {
@@ -366,7 +366,7 @@ async fn structured_output_example(client: &Client) -> Result<(), Error> {
     }
 
     // Example of simple JSON mode (without schema)
-    println!("\n📝 Simple JSON mode example:");
+    println!("\n Simple JSON mode example:");
     let simple_builder = client
         .responses()
         .system("Respond in valid JSON format with keys: summary, key_points, sentiment")
@@ -377,7 +377,7 @@ async fn structured_output_example(client: &Client) -> Result<(), Error> {
     let simple_response = client.send_responses(simple_builder).await?;
 
     if let Some(content) = simple_response.content() {
-        println!("📊 Analysis result: {content}");
+        println!(" Analysis result: {content}");
     }
 
     Ok(())
@@ -404,13 +404,13 @@ async fn advanced_configuration_example(client: &Client) -> Result<(), Error> {
 
     let response = client.send_responses(builder).await?;
 
-    println!("🎨 Creative tagline generation:");
+    println!(" Creative tagline generation:");
     if let Some(content) = response.content() {
         println!("   Result: {content}");
     }
 
     // Example with reasoning effort (for o3 models)
-    println!("\n🧠 Example with reasoning effort (o3 models):");
+    println!("\n Example with reasoning effort (o3 models):");
     let reasoning_builder = client
         .responses()
         .system("You are a logic puzzle solver. Think through problems step by step.")
@@ -427,7 +427,7 @@ async fn advanced_configuration_example(client: &Client) -> Result<(), Error> {
     }
 
     // Show model information
-    println!("\n📋 Model and usage information:");
+    println!("\n Model and usage information:");
     println!("   Model used: {}", response.model().unwrap_or("unknown"));
     if let Some(usage) = response.usage() {
         println!(
@@ -448,7 +448,7 @@ fn handle_api_error(error: &Error) {
             error_type,
             error_code,
         } => {
-            eprintln!("🚫 API Error [{status}]: {message}");
+            eprintln!(" API Error [{status}]: {message}");
             if let Some(error_type) = error_type {
                 eprintln!("   Type: {error_type}");
             }
@@ -458,64 +458,64 @@ fn handle_api_error(error: &Error) {
 
             // Provide specific guidance based on error type
             match *status {
-                401 => eprintln!("💡 Check your API key: export OPENAI_API_KEY=\"your-key\""),
-                429 => eprintln!("💡 Rate limited - try again in a moment"),
-                500..=599 => eprintln!("💡 Server error - try again later"),
+                401 => eprintln!(" Check your API key: export OPENAI_API_KEY=\"your-key\""),
+                429 => eprintln!(" Rate limited - try again in a moment"),
+                500..=599 => eprintln!(" Server error - try again later"),
                 _ => {}
             }
         }
         Error::InvalidRequest(msg) => {
-            eprintln!("🚫 Invalid Request: {msg}");
-            eprintln!("💡 Check your request parameters");
+            eprintln!(" Invalid Request: {msg}");
+            eprintln!(" Check your request parameters");
         }
         Error::Config(msg) => {
-            eprintln!("🚫 Configuration Error: {msg}");
-            eprintln!("💡 Check your client configuration");
+            eprintln!(" Configuration Error: {msg}");
+            eprintln!(" Check your client configuration");
         }
         Error::Http(err) => {
-            eprintln!("🚫 HTTP Error: {err}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" HTTP Error: {err}");
+            eprintln!(" Check your network connection");
         }
         Error::Json(err) => {
-            eprintln!("🚫 JSON Error: {err}");
-            eprintln!("💡 Response parsing failed - may be a temporary issue");
+            eprintln!(" JSON Error: {err}");
+            eprintln!(" Response parsing failed - may be a temporary issue");
         }
         Error::Authentication(msg) => {
-            eprintln!("🚫 Authentication Error: {msg}");
-            eprintln!("💡 Check your API key");
+            eprintln!(" Authentication Error: {msg}");
+            eprintln!(" Check your API key");
         }
         Error::RateLimit(msg) => {
-            eprintln!("🚫 Rate Limit Error: {msg}");
-            eprintln!("💡 Try again in a moment");
+            eprintln!(" Rate Limit Error: {msg}");
+            eprintln!(" Try again in a moment");
         }
         Error::Stream(msg) => {
-            eprintln!("🚫 Stream Error: {msg}");
-            eprintln!("💡 Connection issue with streaming");
+            eprintln!(" Stream Error: {msg}");
+            eprintln!(" Connection issue with streaming");
         }
         Error::File(err) => {
-            eprintln!("🚫 File Error: {err}");
-            eprintln!("💡 Check file permissions and paths");
+            eprintln!(" File Error: {err}");
+            eprintln!(" Check file permissions and paths");
         }
         Error::Builder(msg) => {
-            eprintln!("🚫 Builder Error: {msg}");
-            eprintln!("💡 Check your request builder configuration");
+            eprintln!(" Builder Error: {msg}");
+            eprintln!(" Check your request builder configuration");
         }
         Error::Internal(msg) => {
-            eprintln!("🚫 Internal Error: {msg}");
-            eprintln!("💡 This may be a bug, please report it");
+            eprintln!(" Internal Error: {msg}");
+            eprintln!(" This may be a bug, please report it");
         }
         Error::StreamConnection { message } => {
-            eprintln!("🚫 Stream Connection Error: {message}");
-            eprintln!("💡 Check your network connection");
+            eprintln!(" Stream Connection Error: {message}");
+            eprintln!(" Check your network connection");
         }
         Error::StreamParsing { message, chunk } => {
-            eprintln!("🚫 Stream Parsing Error: {message}");
+            eprintln!(" Stream Parsing Error: {message}");
             eprintln!("   Problematic chunk: {chunk}");
-            eprintln!("💡 The response stream may be corrupted");
+            eprintln!(" The response stream may be corrupted");
         }
         Error::StreamBuffer { message } => {
-            eprintln!("🚫 Stream Buffer Error: {message}");
-            eprintln!("💡 The stream buffer encountered an issue");
+            eprintln!(" Stream Buffer Error: {message}");
+            eprintln!(" The stream buffer encountered an issue");
         }
     }
 }

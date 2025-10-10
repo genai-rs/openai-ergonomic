@@ -901,7 +901,7 @@ async fn main() -> Result<()> {
     // Verify responses are identical and second is faster
     assert_eq!(response1, response2);
     info!(
-        "✓ Cache working: responses identical, second request {:?} faster",
+        " Cache working: responses identical, second request {:?} faster",
         first_duration.saturating_sub(second_duration)
     );
 
@@ -936,7 +936,7 @@ async fn main() -> Result<()> {
         .chat_completion(user_params, Some("user1".to_string()))
         .await?;
     assert_eq!(user1_response, user1_cached);
-    info!("✓ User-specific caching working");
+    info!(" User-specific caching working");
 
     // Example 3: Conditional caching based on parameters
     info!("\n=== Example 3: Conditional Caching ===");

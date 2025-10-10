@@ -147,14 +147,14 @@ fn model_capabilities() {
             println!(
                 "{:<20} {:>8} {:>8} {:>10} {:>10}",
                 name,
-                if info.supports_vision { "✓" } else { "✗" },
+                if info.supports_vision { "" } else { "" },
                 if info.supports_function_calling {
-                    "✓"
+                    ""
                 } else {
-                    "✗"
+                    ""
                 },
-                "✓", // All support streaming
-                "✓", // All support JSON mode
+                "", // All support streaming
+                "", // All support JSON mode
             );
         }
     }

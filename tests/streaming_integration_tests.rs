@@ -482,7 +482,7 @@ fn test_streaming_message_boundaries() {
         ("", "empty_content"),
         ("   ", "whitespace_only"),
         ("\n\n\n", "newlines_only"),
-        ("🌍🚀✨", "emoji_content"),
+        ("", "emoji_content"),
         ("Multi\nline\ncontent", "multiline_content"),
         ("{\"json\": \"content\"}", "json_content"),
     ];

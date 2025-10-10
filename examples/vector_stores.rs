@@ -51,17 +51,17 @@ use openai_ergonomic::{
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("🗄️ OpenAI Ergonomic - Vector Stores Example\n");
+    println!(" OpenAI Ergonomic - Vector Stores Example\n");
 
     // Initialize client from environment variables
     let _client = match Client::from_env() {
         Ok(client_builder) => {
-            println!("✅ Client initialized successfully");
+            println!(" Client initialized successfully");
             client_builder.build()
         }
         Err(e) => {
-            eprintln!("❌ Failed to initialize client: {e}");
-            eprintln!("💡 Make sure OPENAI_API_KEY is set in your environment");
+            eprintln!(" Failed to initialize client: {e}");
+            eprintln!(" Make sure OPENAI_API_KEY is set in your environment");
             return Err(e.into());
         }
     };
@@ -74,13 +74,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     run_vector_store_lifecycle_example()?;
     run_advanced_search_patterns_example()?;
 
-    println!("\n🎉 Vector Stores examples completed successfully!");
+    println!("\n Vector Stores examples completed successfully!");
     Ok(())
 }
 
 /// Example 1: Basic Vector Store Operations
 fn run_basic_vector_store_example() -> Result<(), Error> {
-    println!("🔧 Example 1: Basic Vector Store Operations");
+    println!(" Example 1: Basic Vector Store Operations");
     println!("{}", "=".repeat(60));
 
     // Create a simple vector store
@@ -88,7 +88,7 @@ fn run_basic_vector_store_example() -> Result<(), Error> {
         .metadata("purpose", "tutorial")
         .metadata("created_by", "openai_ergonomic_example");
 
-    println!("📁 Created basic vector store:");
+    println!(" Created basic vector store:");
     println!("   Name: {}", basic_store.name_ref().unwrap());
     println!(
         "   Purpose: {}",
@@ -102,14 +102,14 @@ fn run_basic_vector_store_example() -> Result<(), Error> {
         .add_file("file-getting-started-002")
         .add_file("file-basic-examples-003");
 
-    println!("\n📄 Added files to vector store:");
+    println!("\n Added files to vector store:");
     for (i, file_id) in store_with_files.file_ids_ref().iter().enumerate() {
         println!("   {}. {}", i + 1, file_id);
     }
     println!("   Total files: {}", store_with_files.file_count());
 
     // Demonstrate vector store properties
-    println!("\n📊 Vector Store Properties:");
+    println!("\n Vector Store Properties:");
     println!("   Has files: {}", store_with_files.has_files());
     println!(
         "   Metadata entries: {}",
@@ -124,19 +124,19 @@ fn run_basic_vector_store_example() -> Result<(), Error> {
         }
     );
 
-    println!("\n🔄 Basic Operations:");
-    println!("   ✅ Create vector store");
-    println!("   ✅ Add metadata");
-    println!("   ✅ Add files");
-    println!("   ✅ Query properties");
-    println!("   🔄 Ready for search operations");
+    println!("\n Basic Operations:");
+    println!("    Create vector store");
+    println!("    Add metadata");
+    println!("    Add files");
+    println!("    Query properties");
+    println!("    Ready for search operations");
 
     Ok(())
 }
 
 /// Example 2: Document Management and Batch Operations
 fn run_document_management_example() -> Result<(), Error> {
-    println!("\n📚 Example 2: Document Management and Batch Operations");
+    println!("\n Example 2: Document Management and Batch Operations");
     println!("{}", "=".repeat(60));
 
     // Simulate a large document collection
@@ -161,7 +161,7 @@ fn run_document_management_example() -> Result<(), Error> {
     .metadata("version", "v2.1")
     .expires_after_days(180); // 6 months retention
 
-    println!("📚 Created documentation vector store:");
+    println!(" Created documentation vector store:");
     println!("   Name: {}", doc_store.name_ref().unwrap());
     println!("   Documents: {} files", doc_store.file_count());
     println!(
@@ -173,12 +173,12 @@ fn run_document_management_example() -> Result<(), Error> {
     // Demonstrate individual file operations
     let individual_file_op = add_file_to_vector_store("doc-store-123", "file-new-feature-009");
 
-    println!("\n📄 Individual File Operations:");
+    println!("\n Individual File Operations:");
     println!("   Adding file: {}", individual_file_op.file_id());
     println!("   To store: {}", individual_file_op.vector_store_id());
 
     // Simulate file organization strategies
-    println!("\n🗂️ Document Organization Strategies:");
+    println!("\n Document Organization Strategies:");
 
     let categorized_stores = vec![
         (
@@ -207,22 +207,22 @@ fn run_document_management_example() -> Result<(), Error> {
         .metadata("category", category.to_lowercase().replace(" ", "_"))
         .metadata("auto_managed", "true");
 
-        println!("   📁 {}: {} files", category, category_store.file_count());
+        println!("    {}: {} files", category, category_store.file_count());
     }
 
-    println!("\n🔄 Document Management Workflow:");
-    println!("   1. 📥 Batch upload documents by category");
-    println!("   2. 🏷️ Apply consistent metadata tagging");
+    println!("\n Document Management Workflow:");
+    println!("   1.  Batch upload documents by category");
+    println!("   2.  Apply consistent metadata tagging");
     println!("   3. ⏰ Set appropriate retention policies");
-    println!("   4. 🔄 Enable automatic organization");
-    println!("   5. 📊 Monitor storage usage and performance");
+    println!("   4.  Enable automatic organization");
+    println!("   5.  Monitor storage usage and performance");
 
     Ok(())
 }
 
 /// Example 3: Semantic Search and Similarity Queries
 fn run_semantic_search_example() -> Result<(), Error> {
-    println!("\n🔍 Example 3: Semantic Search and Similarity Queries");
+    println!("\n Example 3: Semantic Search and Similarity Queries");
     println!("{}", "=".repeat(60));
 
     // Create a search-optimized vector store
@@ -235,13 +235,13 @@ fn run_semantic_search_example() -> Result<(), Error> {
         .metadata("domain", "machine_learning")
         .metadata("search_optimized", "true");
 
-    println!("🔍 Created search-optimized vector store:");
+    println!(" Created search-optimized vector store:");
     println!("   Name: {}", search_store.name_ref().unwrap());
     println!("   Domain: Machine Learning");
     println!("   Documents: {} files", search_store.file_count());
 
     // Demonstrate various search patterns
-    println!("\n🎯 Search Query Examples:");
+    println!("\n Search Query Examples:");
 
     // Basic semantic search
     let basic_search = search_vector_store("search-store-123", "neural network architectures");
@@ -279,15 +279,15 @@ fn run_semantic_search_example() -> Result<(), Error> {
     }
 
     // Demonstrate search result processing
-    println!("\n📊 Search Result Processing:");
-    println!("   🎯 Semantic similarity ranking");
-    println!("   📄 Document excerpt extraction");
-    println!("   🔢 Relevance score calculation");
-    println!("   📍 Source location identification");
-    println!("   🔗 Related content suggestions");
+    println!("\n Search Result Processing:");
+    println!("    Semantic similarity ranking");
+    println!("    Document excerpt extraction");
+    println!("    Relevance score calculation");
+    println!("    Source location identification");
+    println!("    Related content suggestions");
 
     // Show different query types
-    println!("\n🧠 Query Type Examples:");
+    println!("\n Query Type Examples:");
     let query_examples = vec![
         (
             "Conceptual",
@@ -317,7 +317,7 @@ fn run_semantic_search_example() -> Result<(), Error> {
     ];
 
     for (query_type, query, description) in query_examples {
-        println!("   🎯 {}: '{}'", query_type, query);
+        println!("    {}: '{}'", query_type, query);
         println!("      Purpose: {}", description);
     }
 
@@ -326,15 +326,15 @@ fn run_semantic_search_example() -> Result<(), Error> {
 
 /// Example 4: Enterprise Knowledge Base
 fn run_enterprise_knowledge_base_example() -> Result<(), Error> {
-    println!("\n🏢 Example 4: Enterprise Knowledge Base");
+    println!("\n Example 4: Enterprise Knowledge Base");
     println!("{}", "=".repeat(60));
 
     // Create enterprise-scale vector stores
     let enterprise_stores = create_enterprise_knowledge_base()?;
 
-    println!("🏢 Enterprise Knowledge Base Architecture:");
+    println!(" Enterprise Knowledge Base Architecture:");
     for (department, store) in enterprise_stores {
-        println!("   📂 {}", department);
+        println!("    {}", department);
         println!("      Files: {} documents", store.file_count());
         println!(
             "      Retention: {} days",
@@ -352,7 +352,7 @@ fn run_enterprise_knowledge_base_example() -> Result<(), Error> {
     }
 
     // Demonstrate cross-departmental search
-    println!("🔍 Cross-Departmental Search Examples:");
+    println!(" Cross-Departmental Search Examples:");
 
     let cross_searches = vec![
         (
@@ -378,24 +378,24 @@ fn run_enterprise_knowledge_base_example() -> Result<(), Error> {
     ];
 
     for (topic, query, departments) in cross_searches {
-        println!("   📊 {}: '{}'", topic, query);
+        println!("    {}: '{}'", topic, query);
         println!("      Search scope: {}", departments.join(", "));
     }
 
-    println!("\n🛡️ Enterprise Features:");
-    println!("   🔐 Role-based access control");
-    println!("   📊 Usage analytics and monitoring");
-    println!("   🔄 Automated content lifecycle management");
-    println!("   📈 Search performance optimization");
-    println!("   💾 Backup and disaster recovery");
-    println!("   🏷️ Compliance and audit trails");
+    println!("\n Enterprise Features:");
+    println!("    Role-based access control");
+    println!("    Usage analytics and monitoring");
+    println!("    Automated content lifecycle management");
+    println!("    Search performance optimization");
+    println!("    Backup and disaster recovery");
+    println!("    Compliance and audit trails");
 
     Ok(())
 }
 
 /// Example 5: Vector Store Lifecycle Management
 fn run_vector_store_lifecycle_example() -> Result<(), Error> {
-    println!("\n♻️ Example 5: Vector Store Lifecycle Management");
+    println!("\n Example 5: Vector Store Lifecycle Management");
     println!("{}", "=".repeat(60));
 
     // Demonstrate different lifecycle patterns
@@ -407,10 +407,10 @@ fn run_vector_store_lifecycle_example() -> Result<(), Error> {
         .metadata("session_id", "sess_12345")
         .metadata("user_id", "user_67890");
 
-    println!("   🕐 Session-based (1 day):");
+    println!("    Session-based (1 day):");
     println!("      Purpose: Temporary user context");
     println!("      Files: {}", session_store.file_count());
-    println!("      Auto-cleanup: ✅");
+    println!("      Auto-cleanup: ");
 
     // Project stores
     let project_store = temporary_vector_store("Project Alpha Documentation", 90)
@@ -420,7 +420,7 @@ fn run_vector_store_lifecycle_example() -> Result<(), Error> {
         .metadata("project_id", "proj_alpha_2024")
         .metadata("phase", "development");
 
-    println!("   📅 Project-based (90 days):");
+    println!("    Project-based (90 days):");
     println!("      Purpose: Project lifecycle documentation");
     println!("      Files: {}", project_store.file_count());
     println!("      Cleanup: After project completion");
@@ -434,34 +434,34 @@ fn run_vector_store_lifecycle_example() -> Result<(), Error> {
         .metadata("backup", "enabled")
         .metadata("compliance", "required");
 
-    println!("   🏛️ Institutional (permanent):");
+    println!("    Institutional (permanent):");
     println!("      Purpose: Long-term organizational knowledge");
     println!("      Files: {}", knowledge_store.file_count());
     println!("      Cleanup: Manual review only");
 
     // Demonstrate lifecycle events
-    println!("\n🔄 Lifecycle Event Handling:");
-    println!("   📥 Creation: Automatic indexing and optimization");
-    println!("   🔄 Updates: Incremental re-indexing of modified files");
-    println!("   📊 Monitoring: Usage tracking and performance metrics");
-    println!("   ⚠️ Warnings: Expiration notifications and alerts");
-    println!("   🗑️ Cleanup: Automatic or manual deletion processes");
-    println!("   💾 Archival: Long-term storage for compliance");
+    println!("\n Lifecycle Event Handling:");
+    println!("    Creation: Automatic indexing and optimization");
+    println!("    Updates: Incremental re-indexing of modified files");
+    println!("    Monitoring: Usage tracking and performance metrics");
+    println!("    Warnings: Expiration notifications and alerts");
+    println!("    Cleanup: Automatic or manual deletion processes");
+    println!("    Archival: Long-term storage for compliance");
 
     // Show cost optimization strategies
-    println!("\n💰 Cost Optimization Strategies:");
-    println!("   🎯 Smart expiration policies based on usage");
-    println!("   📊 Analytics-driven storage optimization");
-    println!("   🗜️ Automatic compression for archived content");
-    println!("   🔄 Tiered storage (hot, warm, cold)");
-    println!("   📈 Usage-based scaling recommendations");
+    println!("\n Cost Optimization Strategies:");
+    println!("    Smart expiration policies based on usage");
+    println!("    Analytics-driven storage optimization");
+    println!("    Automatic compression for archived content");
+    println!("    Tiered storage (hot, warm, cold)");
+    println!("    Usage-based scaling recommendations");
 
     Ok(())
 }
 
 /// Example 6: Advanced Search Patterns and Optimization
 fn run_advanced_search_patterns_example() -> Result<(), Error> {
-    println!("\n🚀 Example 6: Advanced Search Patterns and Optimization");
+    println!("\n Example 6: Advanced Search Patterns and Optimization");
     println!("{}", "=".repeat(60));
 
     // Create optimized search store
@@ -475,16 +475,16 @@ fn run_advanced_search_patterns_example() -> Result<(), Error> {
         .metadata("indexing", "enhanced")
         .metadata("caching", "enabled");
 
-    println!("🚀 Created advanced search store:");
+    println!(" Created advanced search store:");
     println!("   Optimization: Enhanced indexing");
     println!("   Caching: Enabled");
     println!("   Files: {} documents", optimized_store.file_count());
 
     // Demonstrate advanced search patterns
-    println!("\n🧠 Advanced Search Patterns:");
+    println!("\n Advanced Search Patterns:");
 
     // Multi-stage search
-    println!("   1. 🎯 Multi-stage Search:");
+    println!("   1.  Multi-stage Search:");
     println!("      Stage 1: Broad semantic search (100 results)");
     println!("      Stage 2: Filtered refinement (20 results)");
     println!("      Stage 3: Relevance re-ranking (5 top results)");
@@ -502,7 +502,7 @@ fn run_advanced_search_patterns_example() -> Result<(), Error> {
     );
 
     // Contextual search
-    println!("   2. 🎭 Contextual Search:");
+    println!("   2.  Contextual Search:");
     println!("      Context: User role, project phase, domain expertise");
     println!("      Adaptation: Results tailored to user context");
 
@@ -517,26 +517,26 @@ fn run_advanced_search_patterns_example() -> Result<(), Error> {
     println!("      Domain: cloud_infrastructure");
 
     // Hybrid search approaches
-    println!("   3. 🔀 Hybrid Search Approaches:");
+    println!("   3.  Hybrid Search Approaches:");
     println!("      Semantic similarity + keyword matching");
     println!("      Vector search + traditional full-text search");
     println!("      AI-enhanced query understanding");
 
     // Search performance optimization
-    println!("\n⚡ Search Performance Optimization:");
-    println!("   🎯 Query optimization and caching");
-    println!("   📊 Result pre-computation for common queries");
-    println!("   🔄 Incremental index updates");
-    println!("   📈 Load balancing across vector stores");
-    println!("   🧠 Machine learning-based relevance tuning");
+    println!("\n Search Performance Optimization:");
+    println!("    Query optimization and caching");
+    println!("    Result pre-computation for common queries");
+    println!("    Incremental index updates");
+    println!("    Load balancing across vector stores");
+    println!("    Machine learning-based relevance tuning");
 
     // Quality metrics and monitoring
-    println!("\n📊 Search Quality Metrics:");
-    println!("   🎯 Relevance scores and user feedback");
-    println!("   ⏱️ Query response time analysis");
-    println!("   🔍 Search success rate tracking");
-    println!("   📈 Usage pattern analysis");
-    println!("   🛠️ Continuous improvement recommendations");
+    println!("\n Search Quality Metrics:");
+    println!("    Relevance scores and user feedback");
+    println!("   ⏱ Query response time analysis");
+    println!("    Search success rate tracking");
+    println!("    Usage pattern analysis");
+    println!("    Continuous improvement recommendations");
 
     Ok(())
 }

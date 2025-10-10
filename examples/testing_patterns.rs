@@ -434,7 +434,7 @@ impl IntegrationTestRunner {
 
         let test_result = match result {
             Ok(response) => {
-                info!("✓ Basic chat completion test passed in {:?}", duration);
+                info!(" Basic chat completion test passed in {:?}", duration);
                 IntegrationTestResult {
                     test_name: test_name.to_string(),
                     success: true,
@@ -444,7 +444,7 @@ impl IntegrationTestRunner {
                 }
             }
             Err(e) => {
-                error!("✗ Basic chat completion test failed: {}", e);
+                error!(" Basic chat completion test failed: {}", e);
                 IntegrationTestResult {
                     test_name: test_name.to_string(),
                     success: false,
@@ -481,7 +481,7 @@ impl IntegrationTestRunner {
 
         let test_result = match result {
             Ok(response) => {
-                info!("✓ Streaming completion test passed in {:?}", duration);
+                info!(" Streaming completion test passed in {:?}", duration);
                 IntegrationTestResult {
                     test_name: test_name.to_string(),
                     success: true,
@@ -491,7 +491,7 @@ impl IntegrationTestRunner {
                 }
             }
             Err(e) => {
-                error!("✗ Streaming completion test failed: {}", e);
+                error!(" Streaming completion test failed: {}", e);
                 IntegrationTestResult {
                     test_name: test_name.to_string(),
                     success: false,
@@ -540,7 +540,7 @@ impl IntegrationTestRunner {
             }
             Err(e) => {
                 info!(
-                    "✓ Error handling test passed (correctly failed) in {:?}",
+                    " Error handling test passed (correctly failed) in {:?}",
                     duration
                 );
                 IntegrationTestResult {
@@ -830,7 +830,7 @@ async fn main() -> Result<()> {
     // Note: This would work with real implementation
     // let response = client.chat_simple("Hello, world!").await?;
     // TestUtils::assert_response_content(&response, "Hi there!");
-    info!("✓ Mock server test would pass with real implementation");
+    info!(" Mock server test would pass with real implementation");
 
     // Test streaming responses
     info!("Setting up streaming mock");
@@ -899,7 +899,7 @@ async fn main() -> Result<()> {
             parsed["usage"]["total_tokens"].is_number(),
             "Response must have token usage"
         );
-        info!("✓ Contract validation passed for response schema");
+        info!(" Contract validation passed for response schema");
     }
 
     // Example 5: Test data generation and validation
@@ -923,7 +923,7 @@ async fn main() -> Result<()> {
     info!("Testing with empty input");
 
     // Test with special characters
-    let special_chars = "Testing with émojis 🚀 and spëcial çharacters!";
+    let special_chars = "Testing with émojis  and spëcial çharacters!";
     info!("Testing with special characters: {}", special_chars);
 
     // Test with very large batch
