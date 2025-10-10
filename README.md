@@ -15,6 +15,7 @@ Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder pattern
 - **Async/await** - built on `tokio` and `reqwest` for modern async Rust
 - **Streaming** - first-class support for streaming responses
 - **Comprehensive** - covers all `OpenAI` API endpoints
+- **Azure `OpenAI`** - seamless support for Azure `OpenAI` deployments
 - **Well-tested** - extensive test coverage with mock support
 - **Well-documented** - rich documentation with examples
 
@@ -123,6 +124,58 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### Azure `OpenAI` Support
+
+The crate seamlessly supports Azure `OpenAI` deployments. Azure-specific configuration can be provided through environment variables or programmatically.
+
+#### Using Environment Variables
+
+```bash
+export AZURE_OPENAI_ENDPOINT="https://my-resource.openai.azure.com"
+export AZURE_OPENAI_API_KEY="your-azure-api-key"
+export AZURE_OPENAI_DEPLOYMENT="gpt-4"
+export AZURE_OPENAI_API_VERSION="2024-02-01"  # Optional, defaults to 2024-02-01
+```
+
+```rust,ignore
+use openai_ergonomic::Client;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Build client from Azure environment variables
+    let client = Client::from_env()?.build();
+
+    // Use exactly the same API as standard OpenAI
+    let response = client.chat_simple("Hello from Azure!").await?;
+    println!("{}", response);
+    Ok(())
+}
+```
+
+#### Manual Configuration
+
+```rust,ignore
+use openai_ergonomic::{Client, Config};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Config::builder()
+        .api_key("your-azure-api-key")
+        .api_base("https://my-resource.openai.azure.com")
+        .azure_deployment("gpt-4")
+        .azure_api_version("2024-02-01")
+        .build();
+
+    let client = Client::new(config)?.build();
+
+    let response = client.chat_simple("Hello!").await?;
+    println!("{}", response);
+    Ok(())
+}
+```
+
+**Note:** The library automatically handles the differences between Azure `OpenAI` and standard `OpenAI` (authentication, URL paths, API versioning). You use the same API regardless of the provider.
 
 ## Documentation
 
