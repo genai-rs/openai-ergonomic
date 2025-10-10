@@ -45,11 +45,20 @@ impl Middleware for AzureAuthMiddleware {
 
         // Azure `OpenAI` uses paths like: /openai/deployments/{deployment-id}/chat/completions
         // Standard `OpenAI` uses: /v1/chat/completions
-        // We need to transform /v1/* to /openai/deployments/{deployment}/*
+        // We need to transform both /v1/* and /* to /openai/deployments/{deployment}/*
         if let Some(deployment) = self.deployment.as_ref() {
-            if path.starts_with("/v1/") {
-                let new_path =
-                    path.replacen("/v1/", &format!("/openai/deployments/{deployment}/"), 1);
+            let new_path = if path.starts_with("/v1/") {
+                // Handle /v1/chat/completions -> /openai/deployments/{deployment}/chat/completions
+                path.replacen("/v1/", &format!("/openai/deployments/{deployment}/"), 1)
+            } else if !path.starts_with("/openai/") {
+                // Handle /chat/completions -> /openai/deployments/{deployment}/chat/completions
+                format!("/openai/deployments/{deployment}{path}")
+            } else {
+                // Path already in correct format
+                path.to_string()
+            };
+
+            if new_path != path {
                 let mut new_url = url.clone();
                 new_url.set_path(&new_path);
 

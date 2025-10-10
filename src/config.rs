@@ -107,6 +107,8 @@ impl Config {
                             .to_string(),
                     )
                 })?;
+            // Trim trailing slash from Azure endpoint
+            let endpoint = endpoint.trim_end_matches('/').to_string();
             (key, endpoint)
         } else {
             // Standard OpenAI configuration
