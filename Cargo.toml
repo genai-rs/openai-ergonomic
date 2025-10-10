@@ -34,6 +34,7 @@ bytes = "1.5"
 uuid = { version = "1.10", features = ["v4"] }
 tokio-stream = { version = "0.1", features = ["io-util"] }
 mockito = { version = "1.2", optional = true }
+http = "1.3"
 
 [dev-dependencies]
 tokio-test = "0.4"
