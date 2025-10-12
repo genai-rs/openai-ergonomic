@@ -86,6 +86,9 @@ impl ChatCompletionResponseExt for CreateChatCompletionResponse {
 
 /// Extension trait for tool calls.
 pub trait ToolCallExt {
+    /// Get the tool call ID.
+    fn id(&self) -> &str;
+
     /// Get the function name from the tool call.
     fn function_name(&self) -> &str;
 
@@ -97,6 +100,17 @@ pub trait ToolCallExt {
 }
 
 impl ToolCallExt for ChatCompletionMessageToolCallsInner {
+    fn id(&self) -> &str {
+        match self {
+            ChatCompletionMessageToolCallsInner::ChatCompletionMessageToolCall(tool_call) => {
+                &tool_call.id
+            }
+            ChatCompletionMessageToolCallsInner::ChatCompletionMessageCustomToolCall(tool_call) => {
+                &tool_call.id
+            }
+        }
+    }
+
     fn function_name(&self) -> &str {
         match self {
             ChatCompletionMessageToolCallsInner::ChatCompletionMessageToolCall(tool_call) => {
