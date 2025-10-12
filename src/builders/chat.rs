@@ -8,7 +8,8 @@ use openai_client_base::models::{
     ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPartImage,
     ChatCompletionRequestMessageContentPartImageImageUrl,
     ChatCompletionRequestMessageContentPartText, ChatCompletionRequestSystemMessage,
-    ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
+    ChatCompletionRequestSystemMessageContent, ChatCompletionRequestToolMessage,
+    ChatCompletionRequestToolMessageContent, ChatCompletionRequestUserMessage,
     ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,
     ChatCompletionTool, ChatCompletionToolChoiceOption, CreateChatCompletionRequest,
     CreateChatCompletionRequestAllOfTools, FunctionObject,
@@ -16,6 +17,7 @@ use openai_client_base::models::{
 // Import the specific Role enums for each message type
 use openai_client_base::models::chat_completion_request_assistant_message::Role as AssistantRole;
 use openai_client_base::models::chat_completion_request_system_message::Role as SystemRole;
+use openai_client_base::models::chat_completion_request_tool_message::Role as ToolRole;
 use openai_client_base::models::chat_completion_request_user_message::Role as UserRole;
 // Import the Type enums for content parts
 use openai_client_base::models::chat_completion_request_message_content_part_image::Type as ImageType;
@@ -186,6 +188,56 @@ impl ChatCompletionBuilder {
         };
         self.messages.push(
             ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(Box::new(message)),
+        );
+        self
+    }
+
+    /// Add an assistant message with tool calls to the conversation.
+    ///
+    /// This is used when the assistant wants to call tools. Each tool call
+    /// should be represented as a tuple of (tool_call_id, function_name, function_arguments).
+    #[must_use]
+    pub fn assistant_with_tool_calls(
+        mut self,
+        content: impl Into<String>,
+        tool_calls: Vec<openai_client_base::models::ChatCompletionMessageToolCallsInner>,
+    ) -> Self {
+        let content_str = content.into();
+        let message = ChatCompletionRequestAssistantMessage {
+            content: if content_str.is_empty() {
+                None
+            } else {
+                Some(Some(Box::new(
+                    ChatCompletionRequestAssistantMessageContent::TextContent(content_str),
+                )))
+            },
+            role: AssistantRole::Assistant,
+            name: None,
+            tool_calls: Some(tool_calls),
+            function_call: None,
+            audio: None,
+            refusal: None,
+        };
+        self.messages.push(
+            ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(Box::new(message)),
+        );
+        self
+    }
+
+    /// Add a tool result message to the conversation.
+    ///
+    /// This is used to provide the result of a tool call back to the assistant.
+    #[must_use]
+    pub fn tool(mut self, tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
+        let message = ChatCompletionRequestToolMessage {
+            role: ToolRole::Tool,
+            content: Box::new(ChatCompletionRequestToolMessageContent::TextContent(
+                content.into(),
+            )),
+            tool_call_id: tool_call_id.into(),
+        };
+        self.messages.push(
+            ChatCompletionRequestMessage::ChatCompletionRequestToolMessage(Box::new(message)),
         );
         self
     }
