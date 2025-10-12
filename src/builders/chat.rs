@@ -195,7 +195,7 @@ impl ChatCompletionBuilder {
     /// Add an assistant message with tool calls to the conversation.
     ///
     /// This is used when the assistant wants to call tools. Each tool call
-    /// should be represented as a tuple of (tool_call_id, function_name, function_arguments).
+    /// should be represented as a tuple of (`tool_call_id`, `function_name`, `function_arguments`).
     #[must_use]
     pub fn assistant_with_tool_calls(
         mut self,
