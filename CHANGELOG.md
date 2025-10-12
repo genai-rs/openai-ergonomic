@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.3.0...v0.4.0) - 2025-10-12
+
+### Added
+
+- add id() method to ToolCallExt trait
+- add support for multi-turn tool calling
+
+### Fixed
+
+- add missing backticks in doc comments
+
+### Other
+
+- upgrade openai-client-base to 0.5
+- *(deps)* Update Rust crate rand to 0.9
+- *(deps)* Update github-actions to v5
+- *(deps)* remove unused dependencies and configure cargo-udeps
+- add Renovate and project configuration files
+
 ## [0.3.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.2.0...v0.3.0) - 2025-10-10
 
 ### Added
