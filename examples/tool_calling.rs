@@ -209,34 +209,59 @@ async fn tool_choice_control(client: &Client) -> Result<()> {
 }
 
 async fn conversation_with_tools(client: &Client) -> Result<()> {
-    // This is a simplified version that demonstrates the concept
-    // without getting into the complexities of message history management
+    // This example demonstrates proper multi-turn tool calling with full message history
 
-    println!("=== Conversation with Tools (Simplified) ===");
+    println!("=== Conversation with Tools (Full Implementation) ===");
 
-    // First request with tool call
-    let builder = client
+    // Initialize the conversation
+    let mut builder = client
         .chat()
         .user("What's the weather in Tokyo?")
         .tools(vec![get_weather_tool()]);
-    let response = client.send_chat(builder).await?;
 
-    // Check for tool calls and simulate responses
-    for tool_call in response.tool_calls() {
-        println!("Tool called: {}", tool_call.function_name());
-        println!("Arguments: {}", tool_call.function_arguments());
+    // First request - the model will call the tool
+    let response = client.send_chat(builder.clone()).await?;
 
-        // In a real implementation, you would:
-        // 1. Parse the arguments
-        // 2. Execute the actual function
-        // 3. Create tool messages with results
-        // 4. Send another request with the tool results
+    // Check for tool calls
+    let tool_calls = response.tool_calls();
+    if !tool_calls.is_empty() {
+        println!("Step 1: Model requests tool call");
+        for tool_call in &tool_calls {
+            println!("  Tool: {}", tool_call.function_name());
+            println!("  Args: {}", tool_call.function_arguments());
+        }
 
-        println!("Simulated weather result: Sunny, 24°C");
+        // IMPORTANT: Add the assistant's response (with tool calls) to the history
+        // This is the key step for maintaining proper conversation context!
+        builder = builder.assistant_with_tool_calls(
+            response.content().unwrap_or(""),
+            tool_calls.iter().map(|tc| (*tc).clone()).collect(),
+        );
+
+        // Execute the tools and add results
+        println!("\nStep 2: Execute tools and add results to conversation");
+        for tool_call in tool_calls {
+            let params: WeatherParams = serde_json::from_str(tool_call.function_arguments())?;
+            let result = execute_weather_function(params)?;
+            println!("  Tool result: {}", result);
+
+            // Add the tool result to the conversation history
+            builder = builder.tool(tool_call.id(), result);
+        }
+
+        // Send the follow-up request with tool results
+        println!("\nStep 3: Send follow-up request with tool results");
+        let final_response = client
+            .send_chat(builder.tools(vec![get_weather_tool()]))
+            .await?;
+
+        if let Some(content) = final_response.content() {
+            println!("  Final assistant response: {}", content);
+        }
     }
 
-    println!("Note: Full conversation with tool results requires complex message handling");
-    println!("This simplified version demonstrates tool calling detection");
+    println!("\nNote: This demonstrates the complete tool calling loop with proper");
+    println!("message history management using assistant_with_tool_calls()");
 
     Ok(())
 }
