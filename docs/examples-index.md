@@ -108,6 +108,24 @@ cargo run --example tool_calling_simple
 
 ---
 
+#### [`tool_calling_multiturn.rs`](../examples/tool_calling_multiturn.rs)
+**What it demonstrates:** Multi-turn tool calling with proper conversation history
+
+```bash
+cargo run --example tool_calling_multiturn
+```
+
+**Key concepts:**
+- Multi-turn tool calling loops
+- Proper use of `assistant_with_tool_calls()` for message history
+- Sequential and parallel tool execution
+- Real-world tools (calculator, memory storage)
+- Iteration limits and error handling
+
+**Prerequisites:** `OPENAI_API_KEY`
+
+---
+
 ### Responses API (Structured Outputs)
 
 #### [`responses_comprehensive.rs`](../examples/responses_comprehensive.rs)
@@ -686,7 +704,7 @@ OPENAI_ORG_ID=org-...  # Optional
 
 | Category | Examples | Status |
 |----------|----------|--------|
-| **Chat** | 4 | Complete |
+| **Chat** | 5 | Complete |
 | **Responses** | 3 | Complete |
 | **Audio** | 2 | Complete |
 | **Images** | 1 | Complete |
@@ -703,7 +721,7 @@ OPENAI_ORG_ID=org-...  # Optional
 | **Usage** | 1 | Complete |
 | **Files** | 1 | Complete |
 | **Patterns** | 7 | Complete |
-| **Total** | **32** | **100% fully implemented** |
+| **Total** | **33** | **100% fully implemented** |
 
 ---
 

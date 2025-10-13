@@ -196,6 +196,7 @@ The `examples/` directory contains comprehensive examples for all major `OpenAI`
 ### Core Examples
 
 - [**quickstart.rs**](examples/quickstart.rs) - Quick introduction to the library with basic usage patterns
+- [**tool_calling_multiturn.rs**](examples/tool_calling_multiturn.rs) - Multi-turn tool calling with proper conversation history management
 - [**responses_comprehensive.rs**](examples/responses_comprehensive.rs) - Complete responses API demonstration including function calling and web search
 - [**responses_streaming.rs**](examples/responses_streaming.rs) - Real-time streaming responses with progress indicators
 - [**chat_comprehensive.rs**](examples/chat_comprehensive.rs) - Full chat completions API with conversation history
