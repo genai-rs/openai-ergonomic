@@ -102,10 +102,7 @@ fn execute_calculator(params: &CalculatorParams) -> String {
     .to_string()
 }
 
-fn execute_memory(
-    params: &MemoryParams,
-    storage: &Arc<Mutex<HashMap<String, String>>>,
-) -> String {
+fn execute_memory(params: &MemoryParams, storage: &Arc<Mutex<HashMap<String, String>>>) -> String {
     let mut store = storage.lock().unwrap();
 
     if let Some(value) = &params.value {
