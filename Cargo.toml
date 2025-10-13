@@ -15,7 +15,7 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = "0.6"
+openai-client-base = "0.7"
 bon = "3.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
