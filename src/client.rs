@@ -596,11 +596,8 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
     /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ///     let client = Client::from_env()?.build();
     ///
-    ///     let mut stream = client
-    ///         .chat()
-    ///         .user("Tell me a story")
-    ///         .send_stream()
-    ///         .await?;
+    ///     let builder = client.chat().user("Tell me a story");
+    ///     let mut stream = client.send_chat_stream(builder).await?;
     ///
     ///     while let Some(chunk) = stream.next().await {
     ///         let chunk = chunk?;
