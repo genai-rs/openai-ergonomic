@@ -697,6 +697,23 @@ impl<T: Default + Send + Sync> Client<T> {
         let request = builder.build()?;
         self.execute_responses(request).await
     }
+
+    /// Send a responses request with streaming enabled.
+    ///
+    /// This enables real-time streaming of responses using Server-Sent Events (SSE).
+    /// The stream yields chunks as they arrive from the API.
+    pub async fn send_responses_stream(
+        &self,
+        mut builder: ResponsesBuilder,
+    ) -> Result<crate::streaming::ChatCompletionStream> {
+        // Force streaming mode
+        builder = builder.stream(true);
+        let mut request = builder.build()?;
+        request.stream = Some(true);
+
+        // The Responses API uses the same streaming endpoint as chat
+        self.execute_chat_stream(request).await
+    }
 }
 
 // TODO: Add methods for other API endpoints
