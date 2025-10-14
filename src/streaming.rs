@@ -14,11 +14,8 @@
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let client = Client::from_env()?.build();
 //!
-//!     let mut stream = client
-//!         .chat()
-//!         .user("Tell me a story")
-//!         .send_stream()
-//!         .await?;
+//!     let builder = client.chat().user("Tell me a story");
+//!     let mut stream = client.send_chat_stream(builder).await?;
 //!
 //!     while let Some(chunk) = stream.next().await {
 //!         let chunk = chunk?;
@@ -30,6 +27,16 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! # Interceptor Support
+//!
+//! Streaming responses automatically work with interceptors. When interceptors are
+//! configured, they will receive hooks for:
+//! - `before_request`: Called before streaming starts
+//! - `on_stream_chunk`: Called for each chunk as it arrives
+//! - `on_stream_end`: Called when streaming completes
+//!
+//! See the `langfuse_streaming` example for a complete demonstration.
 
 use crate::interceptor::{StreamChunkContext, StreamEndContext};
 use crate::{Error, Result};
@@ -43,6 +50,12 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Instant;
+
+/// Type alias for a boxed stream of chat completion chunks.
+///
+/// This allows returning either `ChatCompletionStream` or `InterceptedStream`
+/// from the same method based on whether interceptors are enabled.
+pub type BoxedChatStream = Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>;
 
 /// A streaming chunk from a chat completion response.
 ///
@@ -195,6 +208,9 @@ impl Stream for ChatCompletionStream {
 ///
 /// This wrapper intercepts chunks as they flow through the stream and calls
 /// the appropriate interceptor methods for observability and telemetry.
+///
+/// This is the primary stream type returned by streaming methods when
+/// interceptors are enabled. It provides the same interface as `ChatCompletionStream`.
 pub struct InterceptedStream<T = ()> {
     inner: Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>,
     interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
@@ -208,7 +224,7 @@ pub struct InterceptedStream<T = ()> {
     total_output_tokens: Option<i64>,
 }
 
-impl<T: Send + Sync> InterceptedStream<T> {
+impl<T: Send + Sync + 'static> InterceptedStream<T> {
     /// Create a new intercepted stream.
     pub fn new(
         inner: ChatCompletionStream,
@@ -230,6 +246,21 @@ impl<T: Send + Sync> InterceptedStream<T> {
             total_input_tokens: None,
             total_output_tokens: None,
         }
+    }
+
+    /// Collect all remaining content from the stream into a single string.
+    ///
+    /// This is a convenience method that reads all chunks and concatenates their content.
+    /// Interceptor hooks are still called for each chunk.
+    pub async fn collect_content(mut self) -> Result<String> {
+        let mut content = String::new();
+        while let Some(chunk) = self.next().await {
+            let chunk = chunk?;
+            if let Some(text) = chunk.content() {
+                content.push_str(text);
+            }
+        }
+        Ok(content)
     }
 }
 
