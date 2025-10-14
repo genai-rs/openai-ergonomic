@@ -11,15 +11,7 @@ git_tag_enable = true
 
 # Git release body template - ensures GitHub releases have proper content
 git_release_body = """
-## What's Changed
-
-{%- if changelog %}
 {{ changelog }}
-{%- else %}
-_No changelog available_
-{%- endif %}
-
-**Full Changelog**: https://github.com/genai-rs/openai-ergonomic/compare/{{ previous_version }}...{{ version }}
 """
 
 # PR settings
