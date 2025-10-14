@@ -31,6 +31,7 @@
 //! }
 //! ```
 
+use crate::interceptor::{StreamChunkContext, StreamEndContext};
 use crate::{Error, Result};
 use bytes::Bytes;
 use futures::stream::Stream;
@@ -39,7 +40,9 @@ use openai_client_base::models::{
     ChatCompletionStreamResponseDelta, CreateChatCompletionStreamResponse,
 };
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Instant;
 
 /// A streaming chunk from a chat completion response.
 ///
@@ -185,6 +188,130 @@ impl Stream for ChatCompletionStream {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.inner.as_mut().poll_next(cx)
+    }
+}
+
+/// Wrapper for a stream that calls interceptor hooks.
+///
+/// This wrapper intercepts chunks as they flow through the stream and calls
+/// the appropriate interceptor methods for observability and telemetry.
+pub struct InterceptedStream<T = ()> {
+    inner: Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>,
+    interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
+    operation: String,
+    model: String,
+    request_json: String,
+    state: Arc<T>,
+    chunk_index: usize,
+    start_time: Instant,
+    total_input_tokens: Option<i64>,
+    total_output_tokens: Option<i64>,
+}
+
+impl<T: Send + Sync> InterceptedStream<T> {
+    /// Create a new intercepted stream.
+    pub fn new(
+        inner: ChatCompletionStream,
+        interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
+        operation: String,
+        model: String,
+        request_json: String,
+        state: T,
+    ) -> Self {
+        Self {
+            inner: inner.inner,
+            interceptors,
+            operation,
+            model,
+            request_json,
+            state: Arc::new(state),
+            chunk_index: 0,
+            start_time: Instant::now(),
+            total_input_tokens: None,
+            total_output_tokens: None,
+        }
+    }
+}
+
+impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
+    type Item = Result<ChatCompletionChunk>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let this = &mut *self;
+
+        match this.inner.as_mut().poll_next(cx) {
+            Poll::Ready(Some(Ok(chunk))) => {
+                // Serialize chunk for interceptor
+                let chunk_json = serde_json::to_string(chunk.raw_response())
+                    .unwrap_or_else(|_| "{}".to_string());
+
+                // Update token counts if available
+                if let Some(usage) = &chunk.raw_response().usage {
+                    this.total_input_tokens = Some(i64::from(usage.prompt_tokens));
+                    this.total_output_tokens = Some(i64::from(usage.completion_tokens));
+                }
+
+                // Call on_stream_chunk hook (spawn to avoid blocking)
+                let interceptors = Arc::clone(&this.interceptors);
+                let operation = this.operation.clone();
+                let model = this.model.clone();
+                let request_json = this.request_json.clone();
+                let chunk_index = this.chunk_index;
+                let state = Arc::clone(&this.state);
+
+                tokio::spawn(async move {
+                    let ctx = StreamChunkContext {
+                        operation: &operation,
+                        model: &model,
+                        request_json: &request_json,
+                        chunk_json: &chunk_json,
+                        chunk_index,
+                        state: &*state,
+                    };
+                    let _ = interceptors.on_stream_chunk(&ctx).await;
+                });
+
+                this.chunk_index += 1;
+                Poll::Ready(Some(Ok(chunk)))
+            }
+            Poll::Ready(Some(Err(e))) => {
+                // Note: We skip error interceptor for streaming errors due to
+                // lifetime constraints with Error type. The error is still
+                // propagated to the caller.
+                // TODO: Consider adding error string serialization support
+
+                Poll::Ready(Some(Err(e)))
+            }
+            Poll::Ready(None) => {
+                // Stream ended - call on_stream_end hook
+                let interceptors = Arc::clone(&this.interceptors);
+                let operation = this.operation.clone();
+                let model = this.model.clone();
+                let request_json = this.request_json.clone();
+                let chunk_index = this.chunk_index;
+                let duration = this.start_time.elapsed();
+                let input_tokens = this.total_input_tokens;
+                let output_tokens = this.total_output_tokens;
+                let state = Arc::clone(&this.state);
+
+                tokio::spawn(async move {
+                    let ctx = StreamEndContext {
+                        operation: &operation,
+                        model: &model,
+                        request_json: &request_json,
+                        total_chunks: chunk_index,
+                        duration,
+                        input_tokens,
+                        output_tokens,
+                        state: &*state,
+                    };
+                    let _ = interceptors.on_stream_end(&ctx).await;
+                });
+
+                Poll::Ready(None)
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
