@@ -43,22 +43,25 @@
 //! ## Streaming Example
 //!
 //! ```rust,ignore
-//! use openai_ergonomic::{Client, Config};
+//! use openai_ergonomic::Client;
 //! use futures::StreamExt;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let client = Client::from_env()?;
+//!     let client = Client::from_env()?.build();
 //!
 //!     // Stream chat completions
-//!     let mut stream = client
+//!     let builder = client
 //!         .chat()
-//!         .user("Tell me a story")
-//!         .stream()
-//!         .await?;
+//!         .user("Tell me a story");
+//!
+//!     let mut stream = client.send_chat_stream(builder).await?;
 //!
 //!     while let Some(chunk) = stream.next().await {
-//!         print!("{}", chunk?.content());
+//!         let chunk = chunk?;
+//!         if let Some(content) = chunk.content() {
+//!             print!("{}", content);
+//!         }
 //!     }
 //!     Ok(())
 //! }
@@ -143,6 +146,7 @@ pub mod interceptor;
 pub mod langfuse_interceptor;
 pub mod responses;
 pub mod semantic_conventions;
+pub mod streaming;
 
 // Re-export commonly used types
 pub use client::Client;
@@ -185,6 +189,7 @@ pub use responses::chat::{
 };
 pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrapper};
 pub use responses::{Response, Tool, ToolChoice, Usage};
+pub use streaming::{ChatCompletionChunk, ChatCompletionStream};
 
 // Test utilities (feature-gated)
 #[cfg(feature = "test-utils")]
