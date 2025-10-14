@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Streaming Example
 
 ```rust,ignore
-use openai_ergonomic::{Client, Config};
+use openai_ergonomic::Client;
 use futures::StreamExt;
 
 #[tokio::main]
@@ -66,16 +66,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Build client from environment variables
     let client = Client::from_env()?.build();
 
-    let mut stream = client
-        .chat_completions()
-        .model("gpt-4")
-        .message("user", "Tell me a story")
-        .stream()
-        .await?;
+    let builder = client
+        .chat()
+        .user("Tell me a story");
+
+    let mut stream = client.send_chat_stream(builder).await?;
 
     while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
-        if let Some(content) = chunk.choices[0].delta.content {
+        if let Some(content) = chunk.content() {
             print!("{}", content);
         }
     }
@@ -196,6 +195,7 @@ The `examples/` directory contains comprehensive examples for all major `OpenAI`
 ### Core Examples
 
 - [**quickstart.rs**](examples/quickstart.rs) - Quick introduction to the library with basic usage patterns
+- [**chat_streaming.rs**](examples/chat_streaming.rs) - Real-time chat streaming with Server-Sent Events (SSE)
 - [**tool_calling_multiturn.rs**](examples/tool_calling_multiturn.rs) - Multi-turn tool calling with proper conversation history management
 - [**responses_comprehensive.rs**](examples/responses_comprehensive.rs) - Complete responses API demonstration including function calling and web search
 - [**responses_streaming.rs**](examples/responses_streaming.rs) - Real-time streaming responses with progress indicators
