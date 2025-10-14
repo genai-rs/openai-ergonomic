@@ -93,9 +93,16 @@ async fn collect_content(client: &Client) -> Result<()> {
 
     let builder = client.chat().user("What is the capital of France?");
 
-    let stream = client.send_chat_stream(builder).await?;
+    let mut stream = client.send_chat_stream(builder).await?;
 
-    let content = stream.collect_content().await?;
+    // Manually collect all content
+    let mut content = String::new();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        if let Some(text) = chunk.content() {
+            content.push_str(text);
+        }
+    }
     println!("Full response: {}", content);
 
     Ok(())
