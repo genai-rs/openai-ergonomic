@@ -146,8 +146,27 @@ cargo run --example responses_comprehensive
 
 ---
 
+#### [`chat_streaming.rs`](../examples/chat_streaming.rs)
+**What it demonstrates:** Real-time chat completion streaming with Server-Sent Events (SSE)
+
+```bash
+cargo run --example chat_streaming
+```
+
+**Key concepts:**
+- Basic streaming with `send_chat_stream()`
+- Processing chunks in real-time
+- Streaming with parameters (temperature, max_tokens)
+- Collecting full content from stream
+- Streaming with system messages
+- Multi-turn conversations with streaming
+
+**Prerequisites:** `OPENAI_API_KEY`
+
+---
+
 #### [`responses_streaming.rs`](../examples/responses_streaming.rs)
-**What it demonstrates:** Streaming responses
+**What it demonstrates:** Streaming responses API
 
 ```bash
 cargo run --example responses_streaming
@@ -160,6 +179,24 @@ cargo run --example responses_streaming
 - Stream error handling
 
 **Prerequisites:** `OPENAI_API_KEY`
+
+---
+
+#### [`langfuse_streaming.rs`](../examples/langfuse_streaming.rs)
+**What it demonstrates:** Streaming with Langfuse observability and tracing
+
+```bash
+cargo run --example langfuse_streaming
+```
+
+**Key concepts:**
+- Interceptor integration with streaming
+- Real-time chunk-level tracing
+- Token usage tracking in streams
+- Streaming observability patterns
+- Proper shutdown with spawned tasks
+
+**Prerequisites:** `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`
 
 ---
 

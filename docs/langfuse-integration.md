@@ -146,6 +146,7 @@ See the `examples/` directory for complete examples:
 
 - `langfuse_simple.rs`: Basic usage with environment variables
 - `langfuse.rs`: Advanced usage with multiple scenarios
+- `langfuse_streaming.rs`: Streaming chat completions with real-time observability
 
 Run an example:
 
@@ -154,7 +155,42 @@ export OPENAI_API_KEY="your-key"
 export LANGFUSE_PUBLIC_KEY="pk-lf-..."
 export LANGFUSE_SECRET_KEY="sk-lf-..."
 cargo run --example langfuse_simple
+cargo run --example langfuse_streaming  # For streaming example
 ```
+
+### Streaming Support
+
+The interceptor fully supports streaming responses. When using `send_chat_stream()` or `send_responses_stream()`, the interceptor automatically:
+
+1. Calls `before_request` when streaming starts
+2. Calls `on_stream_chunk` for each chunk (non-blocking)
+3. Calls `on_stream_end` when streaming completes with token usage
+
+Example:
+
+```rust
+use openai_ergonomic::{Client, LangfuseInterceptor};
+use futures::StreamExt;
+
+let interceptor = LangfuseInterceptor::from_env()?;
+let client = Client::from_env()?
+    .with_interceptor(Box::new(interceptor))
+    .build();
+
+let builder = client.chat().user("Tell me a story");
+let mut stream = client.send_chat_stream(builder).await?;
+
+while let Some(chunk) = stream.next().await {
+    let chunk = chunk?;
+    if let Some(content) = chunk.content() {
+        print!("{}", content);
+    }
+    // Each chunk is automatically traced to Langfuse
+}
+// on_stream_end is called automatically with token usage
+```
+
+**Note**: When using streaming with Langfuse, ensure your application has a small delay before shutting down the tracer provider to allow spawned interceptor tasks to complete. See `langfuse_streaming.rs` example for details.
 
 ## Debugging
 
