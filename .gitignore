@@ -16,5 +16,6 @@ Thumbs.db
 # Environment
 .env
 .env.*
-!.env.exampletest_results_*/
+!.env.example
+test_results_*/
 test_run_output.txt
