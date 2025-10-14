@@ -81,6 +81,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("     • on_stream_chunk: Each chunk as it arrives (real-time)");
     println!("     • on_stream_end: Final token usage and duration");
 
+    // Give spawned interceptor tasks time to complete
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
     // Shutdown the tracer provider to flush all spans
     println!("\n⏳ Flushing spans to Langfuse...");
     provider.shutdown()?;
