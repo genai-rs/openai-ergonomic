@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.4.0...v0.5.0) - 2025-10-14
+
+### Added
+
+- add interceptor support to streaming
+- add InterceptedStream wrapper for streaming observability
+- add streaming support for Responses API
+- implement chat completion streaming with SSE
+- add comprehensive multi-turn tool calling example and fix issues
+
+### Fixed
+
+- remove redundant release workflow and fix .gitignore
+- add delay before shutdown in langfuse_streaming example
+- apply rustfmt formatting
+
+### Other
+
+- update documentation for streaming and Langfuse integration
+- fix send_chat_stream example in doc comment
+- *(deps)* Update Rust crate openai-client-base to 0.7
+
 ## [0.4.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.3.0...v0.4.0) - 2025-10-12
 
 ### Added
