@@ -189,7 +189,7 @@ pub use responses::chat::{
 };
 pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrapper};
 pub use responses::{Response, Tool, ToolChoice, Usage};
-pub use streaming::{ChatCompletionChunk, ChatCompletionStream};
+pub use streaming::{ChatCompletionChunk, ChatCompletionStream, InterceptedStream};
 
 // Test utilities (feature-gated)
 #[cfg(feature = "test-utils")]

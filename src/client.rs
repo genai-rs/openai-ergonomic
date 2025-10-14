@@ -498,7 +498,7 @@ impl<T: Default + Send + Sync> Client<T> {
 }
 
 // Chat API methods
-impl<T: Default + Send + Sync> Client<T> {
+impl<T: Default + Send + Sync + 'static> Client<T> {
     /// Create a chat completion builder.
     pub fn chat(&self) -> ChatCompletionBuilder {
         let model = self.config.default_model().unwrap_or("gpt-4");
@@ -615,13 +615,14 @@ impl<T: Default + Send + Sync> Client<T> {
     pub async fn send_chat_stream(
         &self,
         mut builder: ChatCompletionBuilder,
-    ) -> Result<crate::streaming::ChatCompletionStream> {
+    ) -> Result<crate::streaming::BoxedChatStream> {
         // Force streaming mode
         builder = builder.stream(true);
         let mut request = builder.build()?;
         request.stream = Some(true);
 
-        self.execute_chat_stream(request).await
+        self.execute_chat_stream(request, crate::semantic_conventions::operation_names::CHAT)
+            .await
     }
 
     /// Execute a chat completion request with streaming.
@@ -630,7 +631,8 @@ impl<T: Default + Send + Sync> Client<T> {
     async fn execute_chat_stream(
         &self,
         request: CreateChatCompletionRequest,
-    ) -> Result<crate::streaming::ChatCompletionStream> {
+        operation: &str,
+    ) -> Result<crate::streaming::BoxedChatStream> {
         let uri_str = format!("{}/chat/completions", self.config.api_base());
 
         let mut req_builder = self
@@ -650,6 +652,23 @@ impl<T: Default + Send + Sync> Client<T> {
         }
 
         let req = req_builder.build()?;
+
+        // Serialize request for interceptors
+        let request_json = serde_json::to_string(&request).unwrap_or_else(|_| "{}".to_string());
+        let model = request.model.clone();
+
+        // Call before_request hook if interceptors are present
+        let mut state = T::default();
+        if !self.interceptors.is_empty() {
+            let mut ctx = crate::interceptor::BeforeRequestContext {
+                operation,
+                model: &model,
+                request_json: &request_json,
+                state: &mut state,
+            };
+            self.interceptors.before_request(&mut ctx).await?;
+        }
+
         let response = self.http_client().execute(req).await?;
 
         let status = response.status();
@@ -663,12 +682,27 @@ impl<T: Default + Send + Sync> Client<T> {
             });
         }
 
-        Ok(crate::streaming::ChatCompletionStream::new(response))
+        let stream = crate::streaming::ChatCompletionStream::new(response);
+
+        // Wrap with interceptors if present
+        if self.interceptors.is_empty() {
+            Ok(Box::pin(stream))
+        } else {
+            let intercepted = crate::streaming::InterceptedStream::new(
+                stream,
+                std::sync::Arc::clone(&self.interceptors),
+                operation.to_string(),
+                model,
+                request_json,
+                state,
+            );
+            Ok(Box::pin(intercepted))
+        }
     }
 }
 
 // Responses API methods
-impl<T: Default + Send + Sync> Client<T> {
+impl<T: Default + Send + Sync + 'static> Client<T> {
     /// Create a responses builder for structured outputs.
     pub fn responses(&self) -> ResponsesBuilder {
         let model = self.config.default_model().unwrap_or("gpt-4");
@@ -705,14 +739,18 @@ impl<T: Default + Send + Sync> Client<T> {
     pub async fn send_responses_stream(
         &self,
         mut builder: ResponsesBuilder,
-    ) -> Result<crate::streaming::ChatCompletionStream> {
+    ) -> Result<crate::streaming::BoxedChatStream> {
         // Force streaming mode
         builder = builder.stream(true);
         let mut request = builder.build()?;
         request.stream = Some(true);
 
         // The Responses API uses the same streaming endpoint as chat
-        self.execute_chat_stream(request).await
+        self.execute_chat_stream(
+            request,
+            crate::semantic_conventions::operation_names::RESPONSES,
+        )
+        .await
     }
 }
 
