@@ -17,6 +17,9 @@ pub mod operation_names {
     /// Chat completion operation (`ChatGPT`, `GPT-4`, etc.)
     pub const CHAT: &str = "chat";
 
+    /// Responses operation (structured outputs API)
+    pub const RESPONSES: &str = "responses";
+
     /// Create embeddings operation
     pub const EMBEDDINGS: &str = "embeddings";
 
