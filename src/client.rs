@@ -580,6 +580,91 @@ impl<T: Default + Send + Sync> Client<T> {
         let request = builder.build()?;
         self.execute_chat(request).await
     }
+
+    /// Send a chat completion request with streaming enabled.
+    ///
+    /// Returns a stream of chat completion chunks as they are generated.
+    /// This allows for real-time display of the model's response.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use openai_ergonomic::Client;
+    /// use futures::StreamExt;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let client = Client::from_env()?.build();
+    ///
+    ///     let mut stream = client
+    ///         .chat()
+    ///         .user("Tell me a story")
+    ///         .send_stream()
+    ///         .await?;
+    ///
+    ///     while let Some(chunk) = stream.next().await {
+    ///         let chunk = chunk?;
+    ///         if let Some(content) = chunk.content() {
+    ///             print!("{}", content);
+    ///         }
+    ///     }
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn send_chat_stream(
+        &self,
+        mut builder: ChatCompletionBuilder,
+    ) -> Result<crate::streaming::ChatCompletionStream> {
+        // Force streaming mode
+        builder = builder.stream(true);
+        let mut request = builder.build()?;
+        request.stream = Some(true);
+
+        self.execute_chat_stream(request).await
+    }
+
+    /// Execute a chat completion request with streaming.
+    ///
+    /// This is the low-level method that performs the actual streaming request.
+    async fn execute_chat_stream(
+        &self,
+        request: CreateChatCompletionRequest,
+    ) -> Result<crate::streaming::ChatCompletionStream> {
+        let uri_str = format!("{}/chat/completions", self.config.api_base());
+
+        let mut req_builder = self
+            .http_client()
+            .request(reqwest::Method::POST, &uri_str)
+            .bearer_auth(self.config.api_key())
+            .json(&request);
+
+        // Add organization ID if present
+        if let Some(org_id) = self.config.organization_id() {
+            req_builder = req_builder.header("OpenAI-Organization", org_id);
+        }
+
+        // Add project ID if present
+        if let Some(project_id) = self.config.project() {
+            req_builder = req_builder.header("OpenAI-Project", project_id);
+        }
+
+        let req = req_builder.build()?;
+        let response = self.http_client().execute(req).await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            return Err(Error::Api {
+                status: status.as_u16(),
+                message: error_text,
+                error_type: None,
+                error_code: None,
+            });
+        }
+
+        Ok(crate::streaming::ChatCompletionStream::new(response))
+    }
 }
 
 // Responses API methods

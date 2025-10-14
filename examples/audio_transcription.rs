@@ -639,6 +639,10 @@ fn handle_api_error(error: &Error) {
             eprintln!(" HTTP Error: {err}");
             eprintln!(" Check your network connection");
         }
+        Error::HttpMiddleware(err) => {
+            eprintln!(" HTTP Middleware Error: {err}");
+            eprintln!(" Check your network connection and middleware configuration");
+        }
         Error::Json(err) => {
             eprintln!(" JSON Error: {err}");
             eprintln!(" Response parsing failed - may be a temporary issue");
