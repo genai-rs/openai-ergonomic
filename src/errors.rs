@@ -27,6 +27,10 @@ pub enum Error {
     #[error("HTTP error: {0}")]
     Http(#[from] reqwest::Error),
 
+    /// HTTP middleware errors.
+    #[error("HTTP middleware error: {0}")]
+    HttpMiddleware(#[from] reqwest_middleware::Error),
+
     /// JSON serialization/deserialization errors.
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
