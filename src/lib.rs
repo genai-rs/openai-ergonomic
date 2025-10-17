@@ -141,6 +141,7 @@ pub mod azure_middleware;
 pub mod builders;
 pub mod client;
 pub mod config;
+pub mod conversation;
 pub mod errors;
 pub mod interceptor;
 pub mod langfuse_interceptor;
@@ -181,6 +182,7 @@ pub use builders::uploads::UploadBuilder;
 // Re-export vision types for convenience
 pub use builders::responses::{responses_simple, responses_system_user, ResponsesBuilder};
 pub use builders::{Builder, ChatCompletionBuilder, Sendable};
+pub use conversation::{ConversationState, ToolResult};
 pub use openai_client_base::models::chat_completion_request_message_content_part_image_image_url::Detail;
 pub use openai_client_base::models::create_upload_request::Purpose as UploadPurpose;
 pub use responses::chat::{
