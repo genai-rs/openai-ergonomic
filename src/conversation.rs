@@ -1,9 +1,9 @@
 //! Conversation utilities for managing multi-turn chat state.
 //!
-//! `ConversationState` offers a thin layer over [`ChatCompletionBuilder`]
+//! `ConversationState` offers a thin layer over [`crate::ChatCompletionBuilder`]
 //! that keeps the chat history in place, avoids repeated cloning when adding
 //! messages, and caches tool payloads so JSON serialization only happens once.
-//! It is designed to integrate directly with [`Client::execute_chat`] and
+//! It is designed to integrate directly with [`crate::Client::execute_chat`] and
 //! tooling workflows.
 //!
 //! # Example
