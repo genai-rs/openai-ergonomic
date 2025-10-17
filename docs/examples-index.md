@@ -612,6 +612,23 @@ cargo run --example caching_strategies
 
 ---
 
+### [`conversation_state.rs`](../examples/conversation_state.rs)
+**What it demonstrates:** Managing multi-turn chat with cached tool payloads
+
+```bash
+cargo run --example conversation_state
+```
+
+**Key concepts:**
+- Stateful conversation builder
+- Tool result caching with `ToolResult`
+- Multi-turn tool calling loops
+- Converting state back into requests
+
+**Prerequisites:** `OPENAI_API_KEY`
+
+---
+
 ### [`error_handling.rs`](../examples/error_handling.rs)
 **What it demonstrates:** Comprehensive error handling
 
