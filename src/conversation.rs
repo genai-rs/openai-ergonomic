@@ -36,21 +36,30 @@
 //! # }
 //! ```
 
-use std::{fmt, sync::Arc};
+use std::{
+    cell::{Cell, RefCell},
+    fmt,
+    sync::Arc,
+};
 
 use crate::{
-    builders::{chat::ChatCompletionBuilder, Builder},
-    responses::ChatCompletionResponseWrapper,
-    Error, Result,
+    builders::chat::ChatCompletionBuilder, responses::ChatCompletionResponseWrapper, Error, Result,
 };
 use openai_client_base::models::{
+    chat_completion_request_assistant_message::Role as AssistantRole,
     chat_completion_request_message_content_part_image::Type as ImageType,
     chat_completion_request_message_content_part_text::Type as TextType,
-    ChatCompletionMessageToolCallsInner, ChatCompletionRequestMessageContentPartImage,
+    chat_completion_request_tool_message::Role as ToolRole, ChatCompletionMessageToolCallsInner,
+    ChatCompletionRequestAssistantMessage, ChatCompletionRequestAssistantMessageContent,
+    ChatCompletionRequestMessage, ChatCompletionRequestMessageContentPartImage,
     ChatCompletionRequestMessageContentPartImageImageUrl,
-    ChatCompletionRequestMessageContentPartText, ChatCompletionRequestUserMessageContentPart,
+    ChatCompletionRequestMessageContentPartText, ChatCompletionRequestSystemMessage,
+    ChatCompletionRequestSystemMessageContent, ChatCompletionRequestToolMessage,
+    ChatCompletionRequestToolMessageContent, ChatCompletionRequestUserMessage,
+    ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,
     ChatCompletionTool, ChatCompletionToolChoiceOption, CreateChatCompletionRequest,
-    CreateChatCompletionRequestAllOfResponseFormat,
+    CreateChatCompletionRequestAllOfResponseFormat, CreateChatCompletionRequestAllOfTools,
+    StopConfiguration,
 };
 use serde_json::Value;
 
@@ -145,7 +154,10 @@ enum ConversationMessage {
 pub struct ConversationState {
     model: String,
     messages: Vec<ConversationMessage>,
+    request_messages: Vec<ChatCompletionRequestMessage>,
     config: ConversationConfig,
+    cached_request: RefCell<Option<CreateChatCompletionRequest>>,
+    cache_dirty: Cell<bool>,
 }
 
 impl ConversationState {
@@ -155,7 +167,10 @@ impl ConversationState {
         Self {
             model: model.into(),
             messages: Vec::new(),
+            request_messages: Vec::new(),
             config: ConversationConfig::default(),
+            cached_request: RefCell::new(None),
+            cache_dirty: Cell::new(true),
         }
     }
 
@@ -164,6 +179,21 @@ impl ConversationState {
     pub fn with_system(mut self, content: impl Into<String>) -> Self {
         self.push_system(content);
         self
+    }
+
+    fn push_entry(
+        &mut self,
+        message: ConversationMessage,
+        request_message: ChatCompletionRequestMessage,
+    ) {
+        self.messages.push(message);
+        self.request_messages.push(request_message);
+        self.invalidate_cache();
+    }
+
+    fn invalidate_cache(&self) {
+        self.cache_dirty.set(true);
+        self.cached_request.replace(None);
     }
 
     /// Get the total number of messages in the conversation.
@@ -180,14 +210,33 @@ impl ConversationState {
 
     /// Append a system message.
     pub fn push_system(&mut self, content: impl Into<String>) {
-        self.messages
-            .push(ConversationMessage::System(content.into()));
+        let content = content.into();
+        let request = ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(Box::new(
+            ChatCompletionRequestSystemMessage {
+                content: Box::new(ChatCompletionRequestSystemMessageContent::TextContent(
+                    content.clone(),
+                )),
+                role:
+                    openai_client_base::models::chat_completion_request_system_message::Role::System,
+                name: None,
+            },
+        ));
+        self.push_entry(ConversationMessage::System(content), request);
     }
 
     /// Append a user message with plain text content.
     pub fn push_user(&mut self, content: impl Into<String>) {
-        self.messages
-            .push(ConversationMessage::UserText(content.into()));
+        let content = content.into();
+        let request = ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(
+            ChatCompletionRequestUserMessage {
+                content: Box::new(ChatCompletionRequestUserMessageContent::TextContent(
+                    content.clone(),
+                )),
+                role: openai_client_base::models::chat_completion_request_user_message::Role::User,
+                name: None,
+            },
+        ));
+        self.push_entry(ConversationMessage::UserText(content), request);
     }
 
     /// Append a user message constructed from content parts.
@@ -200,7 +249,16 @@ impl ConversationState {
                 "User message parts cannot be empty".to_string(),
             ));
         }
-        self.messages.push(ConversationMessage::UserParts(parts));
+        let request = ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(
+            ChatCompletionRequestUserMessage {
+                content: Box::new(
+                    ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts.clone()),
+                ),
+                role: openai_client_base::models::chat_completion_request_user_message::Role::User,
+                name: None,
+            },
+        ));
+        self.push_entry(ConversationMessage::UserParts(parts), request);
         Ok(())
     }
 
@@ -235,8 +293,21 @@ impl ConversationState {
 
     /// Append an assistant message.
     pub fn push_assistant(&mut self, content: impl Into<String>) {
-        self.messages
-            .push(ConversationMessage::AssistantText(content.into()));
+        let content = content.into();
+        let request = ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(
+            Box::new(ChatCompletionRequestAssistantMessage {
+                content: Some(Some(Box::new(
+                    ChatCompletionRequestAssistantMessageContent::TextContent(content.clone()),
+                ))),
+                role: AssistantRole::Assistant,
+                name: None,
+                tool_calls: None,
+                function_call: None,
+                audio: None,
+                refusal: None,
+            }),
+        );
+        self.push_entry(ConversationMessage::AssistantText(content), request);
     }
 
     /// Append an assistant message that includes tool call directives.
@@ -251,10 +322,32 @@ impl ConversationState {
             ));
         }
 
-        self.messages.push(ConversationMessage::AssistantToolCalls {
-            content,
-            tool_calls,
-        });
+        let message = ConversationMessage::AssistantToolCalls {
+            content: content.clone(),
+            tool_calls: tool_calls.clone(),
+        };
+
+        let request = ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(
+            Box::new(ChatCompletionRequestAssistantMessage {
+                content: content.map(|c| {
+                    Some(Box::new(
+                        ChatCompletionRequestAssistantMessageContent::TextContent(c),
+                    ))
+                }),
+                role: AssistantRole::Assistant,
+                name: None,
+                tool_calls: if tool_calls.is_empty() {
+                    None
+                } else {
+                    Some(tool_calls)
+                },
+                function_call: None,
+                audio: None,
+                refusal: None,
+            }),
+        );
+
+        self.push_entry(message, request);
         Ok(())
     }
 
@@ -269,10 +362,24 @@ impl ConversationState {
 
     /// Append the result of a tool invocation using cached JSON.
     pub fn push_tool_result(&mut self, tool_call_id: impl Into<String>, result: ToolResult) {
-        self.messages.push(ConversationMessage::Tool {
-            tool_call_id: tool_call_id.into(),
-            result,
-        });
+        let tool_call_id = tool_call_id.into();
+        let payload = result.as_str().to_string();
+        let request = ChatCompletionRequestMessage::ChatCompletionRequestToolMessage(Box::new(
+            ChatCompletionRequestToolMessage {
+                role: ToolRole::Tool,
+                content: Box::new(ChatCompletionRequestToolMessageContent::TextContent(
+                    payload,
+                )),
+                tool_call_id: tool_call_id.clone(),
+            },
+        ));
+        self.push_entry(
+            ConversationMessage::Tool {
+                tool_call_id,
+                result,
+            },
+            request,
+        );
     }
 
     /// Append the result of a tool invocation from an already serialized string.
@@ -285,14 +392,8 @@ impl ConversationState {
         content: impl Into<String>,
     ) {
         let content = content.into();
-        let result = ToolResult {
-            value: Value::String(content.clone()),
-            compact: Arc::new(content),
-        };
-        self.messages.push(ConversationMessage::Tool {
-            tool_call_id: tool_call_id.into(),
-            result,
-        });
+        let result = ToolResult::from_serialized(content);
+        self.push_tool_result(tool_call_id, result);
     }
 
     /// Convenience helper to create a [`ToolResult`] from a JSON value.
@@ -320,42 +421,50 @@ impl ConversationState {
     #[must_use]
     pub fn with_tools(mut self, tools: Vec<ChatCompletionTool>) -> Self {
         self.config.tools = Some(Arc::new(tools));
+        self.invalidate_cache();
         self
     }
 
     /// Update the tools for the conversation.
     pub fn set_tools(&mut self, tools: Vec<ChatCompletionTool>) {
         self.config.tools = Some(Arc::new(tools));
+        self.invalidate_cache();
     }
 
     /// Clear any configured tools.
     pub fn clear_tools(&mut self) {
         self.config.tools = None;
+        self.invalidate_cache();
     }
 
     /// Set the temperature parameter.
     pub fn set_temperature(&mut self, temperature: f64) {
         self.config.temperature = Some(temperature);
+        self.invalidate_cache();
     }
 
     /// Set the maximum number of tokens in the response.
     pub fn set_max_tokens(&mut self, max_tokens: i32) {
         self.config.max_tokens = Some(max_tokens);
+        self.invalidate_cache();
     }
 
     /// Set the maximum completion tokens.
     pub fn set_max_completion_tokens(&mut self, max_completion_tokens: i32) {
         self.config.max_completion_tokens = Some(max_completion_tokens);
+        self.invalidate_cache();
     }
 
     /// Enable or disable streaming mode.
     pub fn set_stream(&mut self, stream: bool) {
         self.config.stream = Some(stream);
+        self.invalidate_cache();
     }
 
     /// Override the tool choice behaviour.
     pub fn set_tool_choice(&mut self, tool_choice: ChatCompletionToolChoiceOption) {
         self.config.tool_choice = Some(tool_choice);
+        self.invalidate_cache();
     }
 
     /// Set the response format configuration.
@@ -364,51 +473,70 @@ impl ConversationState {
         response_format: CreateChatCompletionRequestAllOfResponseFormat,
     ) {
         self.config.response_format = Some(response_format);
+        self.invalidate_cache();
     }
 
     /// Set the number of completions to generate.
     pub fn set_n(&mut self, n: i32) {
         self.config.n = Some(n);
+        self.invalidate_cache();
     }
 
     /// Configure stop sequences.
     pub fn set_stop_sequences(&mut self, stop: Vec<String>) {
         self.config.stop = Some(Arc::new(stop));
+        self.invalidate_cache();
     }
 
     /// Clear configured stop sequences.
     pub fn clear_stop_sequences(&mut self) {
         self.config.stop = None;
+        self.invalidate_cache();
     }
 
     /// Set the presence penalty.
     pub fn set_presence_penalty(&mut self, presence_penalty: f64) {
         self.config.presence_penalty = Some(presence_penalty);
+        self.invalidate_cache();
     }
 
     /// Set the frequency penalty.
     pub fn set_frequency_penalty(&mut self, frequency_penalty: f64) {
         self.config.frequency_penalty = Some(frequency_penalty);
+        self.invalidate_cache();
     }
 
     /// Set the top-p sampling value.
     pub fn set_top_p(&mut self, top_p: f64) {
         self.config.top_p = Some(top_p);
+        self.invalidate_cache();
     }
 
     /// Set the user identifier metadata.
     pub fn set_user(&mut self, user: impl Into<String>) {
         self.config.user = Some(user.into());
+        self.invalidate_cache();
     }
 
     /// Set the sampling seed.
     pub fn set_seed(&mut self, seed: i32) {
         self.config.seed = Some(seed);
+        self.invalidate_cache();
     }
 
     /// Build a [`CreateChatCompletionRequest`] for the current conversation.
     pub fn build_request(&self) -> Result<CreateChatCompletionRequest> {
-        self.to_builder().build()
+        if !self.cache_dirty.get() {
+            if let Some(request) = self.cached_request.borrow().as_ref() {
+                return Ok(request.clone());
+            }
+        }
+
+        let request = self.rebuild_request()?;
+        self.cached_request.replace(Some(request.clone()));
+        self.cache_dirty.set(false);
+
+        Ok(request)
     }
 
     /// Convert the current conversation into a [`ChatCompletionBuilder`].
@@ -480,6 +608,63 @@ impl ConversationState {
 
         builder
     }
+
+    fn rebuild_request(&self) -> Result<CreateChatCompletionRequest> {
+        if self.request_messages.is_empty() {
+            return Err(Error::Builder(
+                "At least one message is required before building a request".to_string(),
+            ));
+        }
+
+        let mut request =
+            CreateChatCompletionRequest::new(self.request_messages.clone(), self.model.clone());
+
+        request.temperature = self.config.temperature;
+        request.top_p = self.config.top_p;
+        request.user.clone_from(&self.config.user);
+        request.seed = self.config.seed;
+        request.max_tokens = self.config.max_tokens;
+        request.max_completion_tokens = self.config.max_completion_tokens;
+        request.n = self.config.n;
+        request.frequency_penalty = self.config.frequency_penalty;
+        request.presence_penalty = self.config.presence_penalty;
+        request.stream = self.config.stream;
+        request.response_format = self
+            .config
+            .response_format
+            .as_ref()
+            .map(|format| Box::new(format.clone()));
+
+        if let Some(ref stop) = self.config.stop {
+            request.stop = Some(Box::new(StopConfiguration::ArrayOfStrings(
+                (**stop).clone(),
+            )));
+        } else {
+            request.stop = None;
+        }
+
+        if let Some(ref tools) = self.config.tools {
+            request.tools = Some(convert_tools(tools.as_ref()));
+        } else {
+            request.tools = None;
+        }
+
+        if let Some(ref choice) = self.config.tool_choice {
+            request.tool_choice = Some(Box::new(choice.clone()));
+        } else {
+            request.tool_choice = None;
+        }
+
+        Ok(request)
+    }
+}
+
+fn convert_tools(tools: &[ChatCompletionTool]) -> Vec<CreateChatCompletionRequestAllOfTools> {
+    tools
+        .iter()
+        .cloned()
+        .map(|tool| CreateChatCompletionRequestAllOfTools::ChatCompletionTool(Box::new(tool)))
+        .collect()
 }
 
 #[cfg(test)]
