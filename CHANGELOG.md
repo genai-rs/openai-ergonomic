@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.0...v0.5.1) - 2025-10-17
+
+### Added
+
+- add conversation state api
+
+### Fixed
+
+- remove invalid previous_version variable from git_release_body
+
+### Other
+
+- cache conversation state requests
+- fix conversation state links
+
 ## [0.5.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.4.0...v0.5.0) - 2025-10-14
 
 ### Added
