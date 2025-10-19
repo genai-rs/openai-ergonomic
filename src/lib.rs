@@ -147,6 +147,7 @@ pub mod langfuse_interceptor;
 pub mod responses;
 pub mod semantic_conventions;
 pub mod streaming;
+pub mod tool_framework;
 
 // Re-export commonly used types
 pub use client::Client;
@@ -190,6 +191,7 @@ pub use responses::chat::{
 pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrapper};
 pub use responses::{Response, Tool, ToolChoice, Usage};
 pub use streaming::{ChatCompletionChunk, ChatCompletionStream, InterceptedStream};
+pub use tool_framework::{StronglyTypedTool, StronglyTypedToolAdapter, ToolRegistry, TypedTool};
 
 // Test utilities (feature-gated)
 #[cfg(feature = "test-utils")]
