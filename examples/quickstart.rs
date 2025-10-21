@@ -27,6 +27,7 @@
 //!
 //! This example is designed to be your first step into building with `OpenAI`.
 
+use futures::StreamExt;
 use openai_ergonomic::responses::tool_function;
 use openai_ergonomic::{Client, Error, Response, Result, ToolCallExt};
 use serde_json::json;
@@ -125,33 +126,35 @@ async fn main() -> Result<()> {
 
     // Streaming lets you see the response as it's being generated
     // This is great for chatbots and interactive applications
-    print!(" AI is typing");
+    print!(" AI is typing: ");
     io::stdout().flush().unwrap();
 
     let builder = client
         .responses()
         .user("Write a short haiku about programming")
-        .temperature(0.7)
-        .stream(true);
-    // Note: Full streaming implementation is in development
-    // For now, we'll demonstrate non-streaming responses with real-time simulation
-    let response = client.send_responses(builder).await;
+        .temperature(0.7);
 
-    match response {
-        Ok(chat_response) => {
-            print!(": ");
-            io::stdout().flush().unwrap();
+    // Use send_responses_stream for real streaming
+    let stream_result = client.send_responses_stream(builder).await;
 
-            // Simulate streaming by printing character by character
-            if let Some(content) = chat_response.content() {
-                for char in content.chars() {
-                    print!("{char}");
-                    io::stdout().flush().unwrap();
-                    // Small delay to simulate streaming
-                    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+    match stream_result {
+        Ok(mut stream) => {
+            // Process each chunk as it arrives
+            while let Some(chunk_result) = stream.next().await {
+                match chunk_result {
+                    Ok(chunk) => {
+                        if let Some(content) = chunk.content() {
+                            print!("{content}");
+                            io::stdout().flush().unwrap();
+                        }
+                    }
+                    Err(e) => {
+                        println!("\n Error processing chunk: {e}");
+                        break;
+                    }
                 }
             }
-            println!(); // New line after "streaming"
+            println!(); // New line after streaming
         }
         Err(e) => {
             println!("\n Failed to get streaming response: {e}");
