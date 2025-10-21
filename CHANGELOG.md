@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- introduce unified Tool trait, registry, and tool! macro for chat tool calling
+- add tool_framework* examples showcasing typed inputs and outputs
+- document the tool framework and link from README/examples index
+
 ## [0.5.2](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.1...v0.5.2) - 2026-02-08
 
 ### Other
@@ -39,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove ConversationState API
 - cache conversation state requests
 - fix conversation state links
+
 
 ### Removed
 
