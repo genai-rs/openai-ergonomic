@@ -147,6 +147,7 @@ pub mod langfuse_interceptor;
 pub mod responses;
 pub mod semantic_conventions;
 pub mod streaming;
+pub mod tool_framework;
 
 // Re-export commonly used types
 pub use client::Client;
@@ -157,6 +158,7 @@ pub use interceptor::{
     StreamEndContext,
 };
 pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor, LangfuseState};
+pub use tool_framework::{Tool, ToolRegistry};
 
 // Re-export specific builder and response types for convenience
 // NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
@@ -188,7 +190,7 @@ pub use responses::chat::{
     ChatMessage as ResponseChatMessage, FunctionCall, ToolCall, ToolCallExt,
 };
 pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrapper};
-pub use responses::{Response, Tool, ToolChoice, Usage};
+pub use responses::{ChatTool, Response, ToolChoice, Usage};
 pub use streaming::{ChatCompletionChunk, ChatCompletionStream, InterceptedStream};
 
 // Test utilities (feature-gated)
