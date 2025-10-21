@@ -126,6 +126,39 @@ cargo run --example tool_calling_multiturn
 
 ---
 
+#### [`tool_framework.rs`](../examples/tool_framework.rs)
+**What it demonstrates:** Using the tool registry with typed inputs
+
+```bash
+cargo run --example tool_framework
+```
+
+**Key concepts:**
+- Defining tools with `TypedTool`
+- Registering tools via `ToolRegistry`
+- Processing tool calls from chat responses
+- Integrating tool results back into the chat loop
+
+**Prerequisites:** `OPENAI_API_KEY`
+
+---
+
+#### [`tool_framework_strongly_typed.rs`](../examples/tool_framework_strongly_typed.rs)
+**What it demonstrates:** Strongly typed tool inputs *and* outputs
+
+```bash
+cargo run --example tool_framework_strongly_typed
+```
+
+**Key concepts:**
+- `strongly_typed_tool!` macro
+- `StronglyTypedToolAdapter`
+- Automatic JSON coercion for tool outputs
+
+**Prerequisites:** None (offline example)
+
+---
+
 ### Responses API (Structured Outputs)
 
 #### [`responses_comprehensive.rs`](../examples/responses_comprehensive.rs)
