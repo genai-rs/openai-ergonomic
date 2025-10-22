@@ -1,4 +1,4 @@
-//! Unified tool framework for OpenAI chat tool calling.
+//! Unified tool framework for `OpenAI` chat tool calling.
 //!
 //! This module provides a single [`Tool`] trait with flexible input/output types,
 //! a [`ToolRegistry`] for managing tool definitions, and helper macros to reduce
@@ -95,7 +95,7 @@ impl ToolRegistry {
         self.tools.insert(tool.name().to_string(), Box::new(tool));
     }
 
-    /// Returns OpenAI tool definitions suitable for chat requests.
+    /// Returns `OpenAI` tool definitions suitable for chat requests.
     #[must_use]
     pub fn tool_definitions(&self) -> Vec<ChatCompletionTool> {
         self.tools.values().map(|tool| tool.definition()).collect()

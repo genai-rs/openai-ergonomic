@@ -15,17 +15,20 @@ use openai_ergonomic::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
+/// Input payload for the typed addition tool.
 pub struct AddParams {
     lhs: i64,
     rhs: i64,
 }
 
 #[derive(Debug, Serialize)]
+/// Typed output returned by the addition tool.
 pub struct AddResult {
     sum: i64,
 }
 
 tool! {
+    /// Simple strongly-typed addition tool used in the example.
     pub struct AddTool;
 
     name: "add_numbers";
@@ -95,7 +98,7 @@ async fn main() -> Result<()> {
     let tool_results = registry.process_tool_calls(&response).await?;
 
     for (call_id, json) in tool_results {
-        println!("Tool call {} returned {}", call_id, json);
+        println!("Tool call {call_id} returned {json}");
     }
 
     Ok(())

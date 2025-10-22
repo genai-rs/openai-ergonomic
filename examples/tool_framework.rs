@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 #[derive(Debug, Deserialize)]
+/// Parameters for the demo search tool.
 pub struct SearchParams {
     query: String,
     #[serde(default)]
@@ -12,6 +13,7 @@ pub struct SearchParams {
 }
 
 tool! {
+        /// Illustrative search tool used in the example.
     pub struct SearchTool;
 
     name: "search";
@@ -42,6 +44,6 @@ async fn main() -> Result<()> {
     let payload = r#"{"query":"rust crates","limit":2}"#;
     let json = registry.execute("search", payload).await?;
 
-    println!("Tool response: {}", json);
+    println!("Tool response: {json}");
     Ok(())
 }
