@@ -95,6 +95,7 @@ let tool_results = registry.process_tool_calls(&response).await?;
 - `register_mut` mutates in-place if you already have a `ToolRegistry`.
 - `execute_to_string` is a convenience for the raw JSON string expected by the Chat API.
 - `process_tool_calls` finds tool calls in a `ChatCompletionResponseWrapper`, executes them, and returns `(tool_call_id, json)` tuples. You can attach these JSON strings to your chat request via `assistant_with_tool_calls`.
+- `process_tool_calls_into_builder` runs the same loop but returns a `ChatCompletionBuilder` with the tool messages already appended.
 
 ## Macro Reference
 
@@ -175,11 +176,51 @@ let result = registry
     .execute("add_numbers", r#"{"lhs":2,"rhs":3}"#)
     .await?;
 assert_eq!(result["sum"], 5);
+
+let builder = registry
+    .process_tool_calls_into_builder(&response, ChatCompletionBuilder::new("gpt-4o"))
+    .await?;
 ```
 
-## Workflow Helper (Follow-up)
+## Workflow Helper
 
-`ToolRegistry::process_tool_calls` returns tool call payloads but intentionally stops short of rewiring the chat loop. The companion issue `genai-rs-28` tracks a higher-level helper that will append those tool messages back onto a chat builder, further reducing boilerplate for multi-step workflows.
+`ToolRegistry::process_tool_calls_into_builder` covers the common chat loop. If you need to inspect the raw `(tool_call_id, json)` tuples, drop down to [`process_tool_calls`](../src/tool_framework.rs) and apply custom logic before feeding the results back into the builder.
+
+## Putting It Together
+
+```rust
+let registry = ToolRegistry::new()
+    .register(WeatherTool)
+    .register(CalendarTool);
+
+let mut builder = client
+    .chat()
+    .system("You can call tools to retrieve information")
+    .user("What meetings do I have today?")
+    .tools(registry.tool_definitions());
+
+let response = client.execute_chat(builder.clone().build()?).await?;
+
+if response.tool_calls().is_empty() {
+    println!("Assistant: {}", response.content().unwrap_or_default());
+    return Ok(());
+}
+
+builder = registry
+    .process_tool_calls_into_builder(&response, builder)
+    .await?
+    .assistant_with_tool_calls(
+        "",
+        response
+            .tool_calls()
+            .into_iter()
+            .cloned()
+            .collect(),
+    );
+
+let follow_up = client.execute_chat(builder.build()?).await?;
+println!("Assistant: {}", follow_up.content().unwrap_or_default());
+```
 
 ## Additional Resources
 
