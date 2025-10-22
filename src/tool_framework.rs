@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use crate::Result;
+use crate::{builders::chat::ChatCompletionBuilder, Result};
 use async_trait::async_trait;
 use openai_client_base::models::ChatCompletionTool;
 use serde::{de::DeserializeOwned, Serialize};
@@ -136,6 +136,23 @@ impl ToolRegistry {
         }
         Ok(results)
     }
+
+    /// Execute the tool calls in `response` and append the outputs as tool messages on `builder`.
+    ///
+    /// This turns the JSON payloads returned by [`process_tool_calls`](Self::process_tool_calls)
+    /// into tool messages that can be fed back into [`ChatCompletionBuilder`].
+    pub async fn process_tool_calls_into_builder(
+        &self,
+        response: &ChatCompletionResponseWrapper,
+        builder: ChatCompletionBuilder,
+    ) -> Result<ChatCompletionBuilder> {
+        let results = self.process_tool_calls(response).await?;
+        Ok(results
+            .into_iter()
+            .fold(builder, |builder, (tool_call_id, json)| {
+                builder.tool(tool_call_id, json)
+            }))
+    }
 }
 
 /// Build a JSON schema object describing tool parameters.
@@ -250,12 +267,14 @@ macro_rules! tool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::builders::Builder;
     use openai_client_base::models::{
         chat_completion_message_tool_call::Type as ToolCallType,
         chat_completion_response_message::Role,
         create_chat_completion_response_choices_inner::FinishReason, ChatCompletionMessageToolCall,
         ChatCompletionMessageToolCallFunction, ChatCompletionMessageToolCallsInner,
-        ChatCompletionResponseMessage, CreateChatCompletionResponse,
+        ChatCompletionRequestMessage, ChatCompletionRequestToolMessageContent,
+        ChatCompletionResponseMessage, CreateChatCompletionRequest, CreateChatCompletionResponse,
         CreateChatCompletionResponseChoicesInner,
     };
     use serde::{Deserialize, Serialize};
@@ -387,5 +406,32 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].0, "call_1");
         assert_eq!(results[0].1, r#"{"sum":5}"#);
+    }
+
+    #[tokio::test]
+    async fn appends_tool_messages_to_builder() {
+        let registry = ToolRegistry::new().register(AddTool);
+        let response = sample_tool_response();
+        let builder = ChatCompletionBuilder::new("gpt-test");
+
+        let builder = registry
+            .process_tool_calls_into_builder(&response, builder)
+            .await
+            .unwrap();
+
+        let request: CreateChatCompletionRequest = builder.build().unwrap();
+        assert_eq!(request.messages.len(), 1);
+        match &request.messages[0] {
+            ChatCompletionRequestMessage::ChatCompletionRequestToolMessage(msg) => {
+                assert_eq!(msg.tool_call_id, "call_1");
+                assert_eq!(
+                    msg.content.as_ref(),
+                    &ChatCompletionRequestToolMessageContent::TextContent(
+                        r#"{"sum":5}"#.to_string()
+                    )
+                );
+            }
+            other => panic!("expected tool message, got {other:?}"),
+        }
     }
 }

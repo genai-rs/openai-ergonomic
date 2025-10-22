@@ -134,7 +134,7 @@ cargo run --example tool_framework_typed
 
 **Key concepts:**
 - Typed tool outputs serialized automatically
-- Using `ToolRegistry::process_tool_calls`
+- Using `ToolRegistry::process_tool_calls_into_builder`
 - Converting tool call results into chat tool messages
 - Offline simulation of OpenAI tool calls
 

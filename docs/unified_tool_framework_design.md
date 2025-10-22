@@ -89,7 +89,7 @@ tool! {
 
 ## Follow-ups
 
-The helper described in issue `genai-rs-28` will build on top of the registry to append executed tool results back into chat requests, further reducing boilerplate.
+The redesigned framework includes `ToolRegistry::process_tool_calls_into_builder`, which appends executed tool results back into chat requests to reduce boilerplate. Future enhancements may still layer additional orchestration helpers on top of it.
 
 ## Alternatives Considered
 

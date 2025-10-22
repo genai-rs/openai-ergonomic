@@ -5,10 +5,11 @@ use openai_client_base::models::{
     chat_completion_response_message::Role,
     create_chat_completion_response_choices_inner::FinishReason, ChatCompletionMessageToolCall,
     ChatCompletionMessageToolCallFunction, ChatCompletionMessageToolCallsInner,
-    ChatCompletionResponseMessage, CreateChatCompletionResponse,
+    ChatCompletionRequestMessage, ChatCompletionResponseMessage, CreateChatCompletionResponse,
     CreateChatCompletionResponseChoicesInner,
 };
 use openai_ergonomic::{
+    builders::chat::ChatCompletionBuilder, builders::Builder,
     responses::ChatCompletionResponseWrapper, tool, tool_framework::ToolRegistry, tool_schema,
     Result,
 };
@@ -95,10 +96,18 @@ async fn main() -> Result<()> {
     let registry = ToolRegistry::new().register(AddTool);
 
     let response = sample_response();
-    let tool_results = registry.process_tool_calls(&response).await?;
+    let builder = ChatCompletionBuilder::new("gpt-test");
+    let builder = registry
+        .process_tool_calls_into_builder(&response, builder)
+        .await?;
+    let request = builder.build()?;
 
-    for (call_id, json) in tool_results {
-        println!("Tool call {call_id} returned {json}");
+    for message in request.messages {
+        if let ChatCompletionRequestMessage::ChatCompletionRequestToolMessage(msg) = message {
+            let call_id = &msg.tool_call_id;
+            let content = &msg.content;
+            println!("Tool call {call_id} returned {content}");
+        }
     }
 
     Ok(())
