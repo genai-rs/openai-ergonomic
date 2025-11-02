@@ -184,13 +184,17 @@ impl ResponsesBuilder {
     #[must_use]
     pub fn json_mode(mut self) -> Self {
         use openai_client_base::models::{
-            create_chat_completion_request_all_of_response_format,
-            CreateChatCompletionRequestAllOfResponseFormat,
+            response_format_json_object, CreateChatCompletionRequestAllOfResponseFormat,
+            ResponseFormatJsonObject,
         };
-        self.response_format = Some(CreateChatCompletionRequestAllOfResponseFormat {
-            r#type: create_chat_completion_request_all_of_response_format::Type::JsonObject,
-            json_schema: Box::new(openai_client_base::models::JsonSchema::new(String::new())),
-        });
+
+        let json_object =
+            ResponseFormatJsonObject::new(response_format_json_object::Type::JsonObject);
+        self.response_format = Some(
+            CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonObject(Box::new(
+                json_object,
+            )),
+        );
         self
     }
 
@@ -198,8 +202,8 @@ impl ResponsesBuilder {
     #[must_use]
     pub fn json_schema(mut self, name: impl Into<String>, schema: Value) -> Self {
         use openai_client_base::models::{
-            create_chat_completion_request_all_of_response_format,
-            CreateChatCompletionRequestAllOfResponseFormat, JsonSchema,
+            response_format_json_schema, CreateChatCompletionRequestAllOfResponseFormat,
+            JsonSchema, ResponseFormatJsonSchema,
         };
         use std::collections::HashMap;
 
@@ -213,10 +217,16 @@ impl ResponsesBuilder {
         let mut json_schema = JsonSchema::new(name.into());
         json_schema.schema = Some(schema_map);
 
-        self.response_format = Some(CreateChatCompletionRequestAllOfResponseFormat {
-            r#type: create_chat_completion_request_all_of_response_format::Type::JsonSchema,
-            json_schema: Box::new(json_schema),
-        });
+        let format = ResponseFormatJsonSchema::new(
+            response_format_json_schema::Type::JsonSchema,
+            json_schema,
+        );
+
+        self.response_format = Some(
+            CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(Box::new(
+                format,
+            )),
+        );
         self
     }
 
@@ -331,23 +341,23 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
         }
 
         // Validate response format (JSON schema)
-        if let Some(ref format) = self.response_format {
-            if matches!(format.r#type, openai_client_base::models::create_chat_completion_request_all_of_response_format::Type::JsonSchema) {
-                // Validate schema name
-                if format.json_schema.name.trim().is_empty() {
-                    return Err(crate::Error::InvalidRequest(
-                        "JSON schema name cannot be empty".to_string(),
-                    ));
-                }
+        if let Some(openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format)) =
+            &self.response_format
+        {
+            // Validate schema name
+            if format.json_schema.name.trim().is_empty() {
+                return Err(crate::Error::InvalidRequest(
+                    "JSON schema name cannot be empty".to_string(),
+                ));
+            }
 
-                // Validate schema structure
-                if let Some(ref schema) = format.json_schema.schema {
-                    // Check if schema has required 'type' field
-                    if !schema.contains_key("type") {
-                        return Err(crate::Error::InvalidRequest(
-                            "JSON schema must have a 'type' field".to_string(),
-                        ));
-                    }
+            // Validate schema structure
+            if let Some(ref schema) = format.json_schema.schema {
+                // Check if schema has required 'type' field
+                if !schema.contains_key("type") {
+                    return Err(crate::Error::InvalidRequest(
+                        "JSON schema must have a 'type' field".to_string(),
+                    ));
                 }
             }
         }
@@ -486,10 +496,7 @@ pub fn responses_tool_web_search() -> ChatCompletionTool {
 mod tests {
     use super::*;
     use crate::builders::Builder;
-    use openai_client_base::models::{
-        chat_completion_tool_choice_option::ChatCompletionToolChoiceOption,
-        create_chat_completion_request_all_of_response_format,
-    };
+    use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOption;
 
     #[test]
     fn test_responses_builder_new() {
@@ -607,10 +614,15 @@ mod tests {
         assert!(builder.response_format.is_some());
 
         if let Some(format) = &builder.response_format {
-            assert!(matches!(
-                format.r#type,
-                create_chat_completion_request_all_of_response_format::Type::JsonObject
-            ));
+            use openai_client_base::models::{
+                response_format_json_object, CreateChatCompletionRequestAllOfResponseFormat,
+            };
+            match format {
+                CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonObject(inner) => {
+                    assert_eq!(inner.r#type, response_format_json_object::Type::JsonObject);
+                }
+                other => panic!("unexpected response format variant: {:?}", other),
+            }
         }
     }
 
@@ -627,11 +639,16 @@ mod tests {
         assert!(builder.response_format.is_some());
 
         if let Some(format) = &builder.response_format {
-            assert!(matches!(
-                format.r#type,
-                create_chat_completion_request_all_of_response_format::Type::JsonSchema
-            ));
-            assert_eq!(format.json_schema.name, "person");
+            use openai_client_base::models::{
+                response_format_json_schema, CreateChatCompletionRequestAllOfResponseFormat,
+            };
+            match format {
+                CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(inner) => {
+                    assert_eq!(inner.r#type, response_format_json_schema::Type::JsonSchema);
+                    assert_eq!(inner.json_schema.name, "person");
+                }
+                other => panic!("unexpected response format variant: {:?}", other),
+            }
         }
     }
 

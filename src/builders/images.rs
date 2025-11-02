@@ -10,9 +10,10 @@ use std::path::{Path, PathBuf};
 pub use openai_client_base::models::create_image_request::{
     Background, Moderation, OutputFormat, Quality, ResponseFormat, Size, Style,
 };
-pub use openai_client_base::models::{
-    image_input_fidelity::ImageInputFidelityTextVariantEnum, CreateImageRequest, ImageInputFidelity,
-};
+pub use openai_client_base::models::{CreateImageRequest, InputFidelity};
+
+/// Backwards-compatible alias for the generated `InputFidelity` enum.
+pub type ImageInputFidelity = InputFidelity;
 
 use crate::{Builder, Error, Result};
 
@@ -606,9 +607,7 @@ mod tests {
             .output_format("png")
             .output_compression(90)
             .user("user-1")
-            .input_fidelity(ImageInputFidelity::TextVariant(
-                ImageInputFidelityTextVariantEnum::High,
-            ))
+            .input_fidelity(ImageInputFidelity::High)
             .stream(true)
             .partial_images(1)
             .quality("standard")

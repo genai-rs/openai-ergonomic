@@ -171,8 +171,8 @@ pub use builders::chat::{
 pub use builders::embeddings::{EmbeddingInput, EmbeddingsBuilder};
 pub use builders::images::{
     Background, ImageEditBuilder, ImageEditRequest, ImageGenerationBuilder, ImageInputFidelity,
-    ImageInputFidelityTextVariantEnum, ImageVariationBuilder, ImageVariationRequest, Moderation,
-    OutputFormat, Quality, ResponseFormat, Size, Style,
+    ImageVariationBuilder, ImageVariationRequest, Moderation, OutputFormat, Quality,
+    ResponseFormat, Size, Style,
 };
 pub use builders::threads::{
     AttachmentTool, MessageAttachment, ThreadMessageBuilder, ThreadRequestBuilder,

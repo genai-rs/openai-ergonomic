@@ -153,7 +153,12 @@ fn test_responses_builder_json_schema() {
     assert!(request.response_format.is_some());
 
     let response_format = request.response_format.unwrap();
-    assert_eq!(response_format.json_schema.name, "person");
+    use openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat;
+    let schema_format = match response_format.as_ref() {
+        CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format) => format,
+        other => panic!("expected json schema response format, got {other:?}"),
+    };
+    assert_eq!(schema_format.json_schema.name, "person");
 }
 
 /// Test builder validation - empty messages should fail

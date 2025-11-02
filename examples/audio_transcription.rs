@@ -216,21 +216,7 @@ async fn basic_transcription_example(client: &Client) -> Result<(), Error> {
         .call()
         .await
     {
-        Ok(response) => {
-            println!("   Transcription Results:");
-            println!("     Text: \"{}\"", response.text);
-            println!("     Language: {}", response.language);
-            println!("     Duration: {:.2} seconds", response.duration);
-
-            if let Some(usage) = &response.usage {
-                println!("     Usage: {} seconds", usage.seconds);
-            }
-
-            // Save transcription to file
-            let output_file = "basic_transcription.txt";
-            save_text_file(&response.text, output_file)?;
-            println!("      Saved transcription to: {output_file}");
-        }
+        Ok(response) => log_audio_response("Basic transcription", &response)?,
         Err(e) => {
             eprintln!("      Transcription failed: {e}");
             return Err(Error::Api {
@@ -284,38 +270,10 @@ async fn response_format_example(client: &Client) -> Result<(), Error> {
             .call()
             .await
         {
-            Ok(response) => {
-                let filename = format!("transcription_sample.{extension}");
-
-                match format {
-                    AudioResponseFormat::Text => {
-                        // For text format, the response is just the text
-                        save_text_file(&response.text, &filename)?;
-                        println!("      Saved as: {filename}");
-                    }
-                    AudioResponseFormat::Json | AudioResponseFormat::VerboseJson => {
-                        // For JSON formats, save the full structured response
-                        let json_output = serde_json::to_string_pretty(&response)
-                            .unwrap_or_else(|_| response.text.clone());
-                        save_text_file(&json_output, &filename)?;
-                        println!("      Saved as: {filename}");
-
-                        if *format == AudioResponseFormat::VerboseJson {
-                            if let Some(segments) = &response.segments {
-                                println!("      Found {} segments", segments.len());
-                            }
-                            if let Some(words) = &response.words {
-                                println!("      Found {} words with timestamps", words.len());
-                            }
-                        }
-                    }
-                    AudioResponseFormat::Srt | AudioResponseFormat::Vtt => {
-                        // For subtitle formats, the text contains the formatted output
-                        save_text_file(&response.text, &filename)?;
-                        println!("      Saved as: {filename}");
-                    }
-                }
-            }
+            Ok(response) => log_audio_response(
+                &format!("Transcription format {extension} ({description})"),
+                &response,
+            )?,
             Err(e) => {
                 eprintln!("      Failed to transcribe in format {extension}: {e}");
             }
@@ -358,53 +316,7 @@ async fn detailed_transcription_example(client: &Client) -> Result<(), Error> {
         .call()
         .await
     {
-        Ok(response) => {
-            println!("   Detailed Transcription Results:");
-            println!("     Text: \"{}\"", response.text);
-            println!("     Language: {}", response.language);
-            println!("     Duration: {:.2} seconds", response.duration);
-
-            // Display segment information
-            if let Some(segments) = &response.segments {
-                println!("\n   Segment Analysis ({} segments):", segments.len());
-                for (i, segment) in segments.iter().enumerate() {
-                    println!(
-                        "     Segment {}: [{:.2}s - {:.2}s] \"{}\"",
-                        i + 1,
-                        segment.start,
-                        segment.end,
-                        segment.text
-                    );
-                    let avg_logprob = segment.avg_logprob;
-                    if avg_logprob != 0.0 {
-                        println!("       Confidence: {avg_logprob:.3}");
-                    }
-                }
-            }
-
-            // Display word-level timestamps
-            if let Some(words) = &response.words {
-                println!("\n   Word-level Timestamps (first 10 words):");
-                for (i, word) in words.iter().take(10).enumerate() {
-                    println!(
-                        "     {}: [{:.2}s - {:.2}s] \"{}\"",
-                        i + 1,
-                        word.start,
-                        word.end,
-                        word.word
-                    );
-                }
-                if words.len() > 10 {
-                    println!("     ... and {} more words", words.len() - 10);
-                }
-            }
-
-            // Save detailed results
-            let json_output =
-                serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.text.clone());
-            save_text_file(&json_output, "detailed_transcription.json")?;
-            println!("      Saved detailed results to: detailed_transcription.json");
-        }
+        Ok(response) => log_audio_response("Detailed transcription", &response)?,
         Err(e) => {
             eprintln!("      Detailed transcription failed: {e}");
             return Err(Error::Api {
@@ -445,22 +357,7 @@ async fn translation_example(client: &Client) -> Result<(), Error> {
         .call()
         .await
     {
-        Ok(response) => {
-            println!("   Translation Results:");
-            println!("     Translated Text: \"{}\"", response.text);
-
-            // Save translation
-            save_text_file(&response.text, "translation_result.txt")?;
-            println!("      Saved translation to: translation_result.txt");
-
-            println!("\n Translation Notes:");
-            println!("   - Translation always outputs English text regardless of input language");
-            println!(
-                "   - It's different from transcription which preserves the original language"
-            );
-            println!("   - Useful for creating English subtitles from foreign language audio");
-            println!("   - Works with the same audio formats as transcription");
-        }
+        Ok(response) => log_audio_response("Translation response", &response)?,
         Err(e) => {
             eprintln!("      Translation failed: {e}");
             return Err(Error::Api {
@@ -505,45 +402,7 @@ async fn advanced_options_example(client: &Client) -> Result<(), Error> {
         .call()
         .await
     {
-        Ok(response) => {
-            println!("   Advanced Transcription Results:");
-            println!("     Text: \"{}\"", response.text);
-            println!("     Language: {}", response.language);
-            println!("     Duration: {:.2} seconds", response.duration);
-
-            // Show confidence information if available
-            if let Some(logprobs) = &response.logprobs {
-                println!(
-                    "     Log Probabilities: {} tokens with confidence scores",
-                    logprobs.len()
-                );
-            }
-
-            // Analyze segments for number detection
-            if let Some(segments) = &response.segments {
-                println!("\n   Number Detection Analysis:");
-                for (i, segment) in segments.iter().enumerate() {
-                    let contains_numbers = segment.text.chars().any(|c| c.is_ascii_digit());
-                    if contains_numbers {
-                        println!(
-                            "     Segment {} (contains numbers): \"{}\"",
-                            i + 1,
-                            segment.text
-                        );
-                        let confidence = segment.avg_logprob;
-                        if confidence != 0.0 {
-                            println!("       Confidence: {confidence:.3}");
-                        }
-                    }
-                }
-            }
-
-            // Save results
-            let json_output =
-                serde_json::to_string_pretty(&response).unwrap_or_else(|_| response.text.clone());
-            save_text_file(&json_output, "advanced_transcription.json")?;
-            println!("      Saved advanced results to: advanced_transcription.json");
-        }
+        Ok(response) => log_audio_response("Advanced transcription", &response)?,
         Err(e) => {
             eprintln!("      Advanced transcription failed: {e}");
             return Err(Error::Api {
@@ -594,11 +453,18 @@ fn save_audio_file(audio_data: &[u8], filename: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// Helper function to save text data to file
-fn save_text_file(text: &str, filename: &str) -> Result<(), Error> {
-    let path = PathBuf::from(filename);
-    let mut file = std::fs::File::create(&path).map_err(Error::File)?;
-    file.write_all(text.as_bytes()).map_err(Error::File)?;
+/// Log audio API responses without relying on structured fields.
+fn log_audio_response<T>(label: &str, response: &T) -> Result<(), Error>
+where
+    T: serde::Serialize + std::fmt::Debug,
+{
+    let serialized =
+        serde_json::to_string_pretty(response).unwrap_or_else(|_| format!("{response:?}"));
+    println!("   {label} response (raw payload):");
+    println!("{}\n", serialized);
+    println!(
+        "   Note: openai-client-base v0.8.0 does not currently expose typed fields for audio responses."
+    );
     Ok(())
 }
 
