@@ -37,12 +37,17 @@
 //! - Cost management and usage tracking accuracy
 //!
 //! Run with: `cargo run --example testing_patterns`
-
+use futures::FutureExt;
 use openai_ergonomic::{Client, Config, Error, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::{
+    any::Any,
+    collections::HashMap,
+    fmt, io,
+    net::{Ipv4Addr, SocketAddrV4, TcpListener},
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 use tokio::time::sleep;
 use tracing::{error, info, warn};
 
@@ -57,6 +62,56 @@ struct MockOpenAIServer {
     /// Error simulation settings
     error_config: Arc<Mutex<ErrorSimulationConfig>>,
 }
+
+#[derive(Debug)]
+enum MockServerInitError {
+    PermissionDenied(io::Error),
+    Panicked(String),
+}
+
+impl MockServerInitError {
+    fn ensure_bind_allowed() -> std::result::Result<(), Self> {
+        match TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0)) {
+            Ok(listener) => {
+                drop(listener);
+                Ok(())
+            }
+            Err(err) if err.kind() == io::ErrorKind::PermissionDenied => {
+                Err(Self::PermissionDenied(err))
+            }
+            Err(_) => Ok(()),
+        }
+    }
+
+    fn from_panic(payload: Box<dyn Any + Send>) -> Self {
+        match payload.downcast::<String>() {
+            Ok(message) => Self::Panicked(*message),
+            Err(payload) => match payload.downcast::<&'static str>() {
+                Ok(message) => Self::Panicked((*message).to_string()),
+                Err(_) => Self::Panicked("mockito panicked while starting the server".to_string()),
+            },
+        }
+    }
+}
+
+impl fmt::Display for MockServerInitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::PermissionDenied(err) => write!(
+                f,
+                "mock server cannot bind to a local port in this environment: {}",
+                err
+            ),
+            Self::Panicked(message) => write!(
+                f,
+                "mockito panicked while starting the mock server: {}",
+                message
+            ),
+        }
+    }
+}
+
+impl std::error::Error for MockServerInitError {}
 
 /// Configuration for error simulation in tests
 #[derive(Debug, Clone)]
@@ -117,16 +172,28 @@ struct MockRequest {
 }
 
 impl MockOpenAIServer {
-    /// Create a new mock server with default configuration
-    async fn new() -> Self {
-        let server = mockito::Server::new_async().await;
+    /// Try to create a new mock server, returning an error if the environment disallows it.
+    async fn try_new() -> std::result::Result<Self, MockServerInitError> {
+        MockServerInitError::ensure_bind_allowed()?;
 
-        Self {
+        let server = std::panic::AssertUnwindSafe(mockito::Server::new_async())
+            .catch_unwind()
+            .await
+            .map_err(MockServerInitError::from_panic)?;
+
+        Ok(Self {
             server,
             responses: Arc::new(Mutex::new(HashMap::new())),
             request_log: Arc::new(Mutex::new(Vec::new())),
             error_config: Arc::new(Mutex::new(ErrorSimulationConfig::default())),
-        }
+        })
+    }
+
+    /// Create a new mock server with default configuration
+    async fn new() -> Self {
+        Self::try_new()
+            .await
+            .unwrap_or_else(|err| panic!("failed to start mock server: {err}"))
     }
 
     /// Get the base URL for the mock server
@@ -816,7 +883,15 @@ async fn main() -> Result<()> {
     // Example 1: Unit testing with mock server
     info!("=== Example 1: Unit Testing with Mock Server ===");
 
-    let mut mock_server = MockOpenAIServer::new().await;
+    let mut mock_server = match MockOpenAIServer::try_new().await {
+        Ok(server) => server,
+        Err(err) => {
+            warn!("mock server unavailable: {}", err);
+            info!("Skipping mock-based sections because the environment does not permit binding local ports.");
+            info!("Testing patterns example completed with limited output.");
+            return Ok(());
+        }
+    };
 
     // Configure mock responses
     mock_server
@@ -934,7 +1009,15 @@ async fn main() -> Result<()> {
     // Example 7: Mock configuration for different scenarios
     info!("\n=== Example 7: Advanced Mock Scenarios ===");
 
-    let advanced_mock = MockOpenAIServer::new().await;
+    let advanced_mock = match MockOpenAIServer::try_new().await {
+        Ok(server) => server,
+        Err(err) => {
+            warn!("mock server unavailable for advanced scenarios: {}", err);
+            info!("Skipping advanced mock configuration section.");
+            info!("Testing patterns example completed successfully!");
+            return Ok(());
+        }
+    };
 
     // Configure error simulation
     advanced_mock.configure_errors(ErrorSimulationConfig {

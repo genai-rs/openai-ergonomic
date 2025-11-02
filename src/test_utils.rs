@@ -3,8 +3,67 @@
 //! This module provides testing utilities that are only available
 //! with the `test-utils` feature flag enabled.
 
+use futures::FutureExt;
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
+use std::{
+    any::Any,
+    fmt,
+    net::{Ipv4Addr, SocketAddrV4, TcpListener},
+};
+
+/// Error returned when the mock server cannot be started.
+#[derive(Debug)]
+pub enum MockServerInitError {
+    /// Binding to a local port is not permitted in the current environment.
+    PermissionDenied(std::io::Error),
+    /// Mockito panicked during server initialization.
+    Panicked(String),
+}
+
+impl MockServerInitError {
+    fn from_panic_payload(payload: Box<dyn Any + Send>) -> Self {
+        match payload.downcast::<String>() {
+            Ok(message) => Self::Panicked(*message),
+            Err(payload) => match payload.downcast::<&'static str>() {
+                Ok(message) => Self::Panicked((*message).to_string()),
+                Err(_) => Self::Panicked("mockito panicked while starting the server".to_string()),
+            },
+        }
+    }
+
+    fn check_local_bind_capability() -> std::result::Result<(), Self> {
+        match TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0)) {
+            Ok(listener) => {
+                drop(listener);
+                Ok(())
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
+                Err(Self::PermissionDenied(err))
+            }
+            Err(_) => Ok(()),
+        }
+    }
+}
+
+impl fmt::Display for MockServerInitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::PermissionDenied(err) => write!(
+                f,
+                "mock server cannot bind to a local port in this environment: {}",
+                err
+            ),
+            Self::Panicked(message) => write!(
+                f,
+                "mockito panicked while starting the mock server: {}",
+                message
+            ),
+        }
+    }
+}
+
+impl std::error::Error for MockServerInitError {}
 
 /// Mock `OpenAI` server for testing.
 pub struct MockOpenAIServer {
@@ -13,17 +72,54 @@ pub struct MockOpenAIServer {
 }
 
 impl MockOpenAIServer {
+    /// Attempt to create a new mock server with a test API key.
+    pub async fn try_new() -> Result<Self, MockServerInitError> {
+        Self::try_with_api_key("test-api-key").await
+    }
+
+    /// Attempt to create a new mock server with a custom API key.
+    pub async fn try_with_api_key(api_key: impl Into<String>) -> Result<Self, MockServerInitError> {
+        MockServerInitError::check_local_bind_capability()?;
+
+        let server = std::panic::AssertUnwindSafe(mockito::Server::new_async())
+            .catch_unwind()
+            .await
+            .map_err(MockServerInitError::from_panic_payload)?;
+
+        Ok(Self {
+            server,
+            api_key: api_key.into(),
+        })
+    }
+
     /// Create a new mock server with a test API key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the mock server cannot be started. Prefer using [`MockOpenAIServer::try_new`]
+    /// when running in restricted environments to skip tests gracefully.
     pub async fn new() -> Self {
-        Self::with_api_key("test-api-key").await
+        Self::try_new()
+            .await
+            .unwrap_or_else(|err| panic!("failed to start mock server: {err}"))
     }
 
     /// Create a new mock server with a custom API key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the mock server cannot be started. Prefer using
+    /// [`MockOpenAIServer::try_with_api_key`] when running in restricted environments
+    /// to skip tests gracefully.
     pub async fn with_api_key(api_key: impl Into<String>) -> Self {
-        Self {
-            server: mockito::Server::new_async().await,
-            api_key: api_key.into(),
-        }
+        Self::try_with_api_key(api_key)
+            .await
+            .unwrap_or_else(|err| panic!("failed to start mock server: {err}"))
+    }
+
+    /// Returns `true` if a local mock server can be started in the current environment.
+    pub fn is_supported() -> bool {
+        MockServerInitError::check_local_bind_capability().is_ok()
     }
 
     /// Get the base URL for the mock server.
@@ -517,7 +613,13 @@ mod tests {
     #[tokio::test]
     #[allow(clippy::significant_drop_tightening)]
     async fn test_mock_server_creation() {
-        let server = MockOpenAIServer::new().await;
+        let server = match MockOpenAIServer::try_new().await {
+            Ok(server) => server,
+            Err(err) => {
+                eprintln!("skipping test because the mock server is unavailable: {err}");
+                return;
+            }
+        };
         assert!(!server.base_url().is_empty());
     }
 

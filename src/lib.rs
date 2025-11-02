@@ -115,7 +115,9 @@
 //!
 //!     #[tokio::test]
 //!     async fn test_chat_completion() {
-//!         let mock = MockOpenAIServer::new();
+//!         let mut mock = MockOpenAIServer::try_new()
+//!             .await
+//!             .expect("mock servers are available during testing");
 //!         mock.mock_chat_completion("Hello!", "Hi there!");
 //!
 //!         let client = mock.client();
