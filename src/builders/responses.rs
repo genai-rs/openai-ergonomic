@@ -621,7 +621,7 @@ mod tests {
                 CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonObject(inner) => {
                     assert_eq!(inner.r#type, response_format_json_object::Type::JsonObject);
                 }
-                other => panic!("unexpected response format variant: {:?}", other),
+                other => panic!("unexpected response format variant: {other:?}"),
             }
         }
     }
@@ -647,7 +647,7 @@ mod tests {
                     assert_eq!(inner.r#type, response_format_json_schema::Type::JsonSchema);
                     assert_eq!(inner.json_schema.name, "person");
                 }
-                other => panic!("unexpected response format variant: {:?}", other),
+                other => panic!("unexpected response format variant: {other:?}"),
             }
         }
     }

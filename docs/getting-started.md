@@ -28,7 +28,7 @@ Optionally set `OPENAI_ORG_ID` if you need to scope requests to a specific
 organization.
 
 ### 2. Minimum Tooling
-- Rust 1.82 or newer
+- Rust 1.83 or newer
 - `cargo` and `rustup`
 - Network access to the OpenAI REST endpoints
 

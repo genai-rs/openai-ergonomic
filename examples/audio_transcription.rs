@@ -458,8 +458,7 @@ fn log_audio_response<T>(label: &str, response: &T) -> Result<(), Error>
 where
     T: serde::Serialize + std::fmt::Debug,
 {
-    let serialized =
-        serde_json::to_string_pretty(response).unwrap_or_else(|_| format!("{response:?}"));
+    let serialized = serde_json::to_string_pretty(response)?;
     println!("   {label} response (raw payload):");
     println!("{}\n", serialized);
     println!(
