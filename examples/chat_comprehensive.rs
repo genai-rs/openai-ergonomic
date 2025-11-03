@@ -70,6 +70,7 @@ impl ConversationManager {
     }
 
     /// Update total token usage from a response.
+    #[allow(clippy::missing_const_for_fn)] // example focuses on runtime bookkeeping; const fn isn't meaningfully useful here
     fn update_token_usage(&mut self, prompt_tokens: i32, completion_tokens: i32) {
         let total = prompt_tokens + completion_tokens;
         self.total_tokens_used += total;

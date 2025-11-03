@@ -72,6 +72,7 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 must_use_candidate = "allow"
 multiple_crate_versions = "allow"
+missing_const_for_fn = "allow"
 
 [package.metadata.cargo-udeps.ignore]
 normal = ["uuid"]
