@@ -224,6 +224,28 @@ macro_rules! __openai_tool_schema_expr {
     };
 }
 
+/// Helper macro that builds a JSON schema from a [`schemars::JsonSchema`] type.
+#[macro_export]
+macro_rules! tool_schema_from {
+    ($ty:ty) => {{
+        let schema = ::schemars::schema_for!($ty);
+        let mut value = ::serde_json::to_value(schema.schema)
+            .expect("tool schema serialization should not fail");
+
+        if !schema.definitions.is_empty() {
+            if let ::serde_json::Value::Object(map) = &mut value {
+                map.insert(
+                    "$defs".to_string(),
+                    ::serde_json::to_value(schema.definitions)
+                        .expect("tool schema definitions serialization should not fail"),
+                );
+            }
+        }
+
+        value
+    }};
+}
+
 /// Macro to declare a tool that implements [`Tool`].
 #[macro_export]
 macro_rules! tool {
@@ -277,6 +299,7 @@ mod tests {
         ChatCompletionResponseMessage, CreateChatCompletionRequest, CreateChatCompletionResponse,
         CreateChatCompletionResponseChoicesInner,
     };
+    use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
     #[derive(Deserialize)]
@@ -327,6 +350,37 @@ mod tests {
                 sum: params.lhs + params.rhs,
             })
         }
+    }
+
+    #[derive(Deserialize, JsonSchema)]
+    struct AutoSchemaInput {
+        message: String,
+    }
+
+    tool! {
+        struct AutoSchemaTool;
+
+        name: "auto_schema";
+        description: "Demonstrate tool_schema_from helper";
+        input_type: AutoSchemaInput;
+        schema: tool_schema_from!(AutoSchemaInput);
+
+        async fn handle(_params: AutoSchemaInput) -> Result<serde_json::Value> {
+            Ok(serde_json::json!({}))
+        }
+    }
+
+    #[test]
+    fn tool_schema_from_generates_expected_shape() {
+        let schema = AutoSchemaTool.parameters_schema();
+        assert_eq!(schema["type"], "object");
+        assert_eq!(schema["required"], serde_json::json!(["message"]));
+        assert_eq!(schema["properties"]["message"]["type"], "string");
+
+        let sample = AutoSchemaInput {
+            message: "hello".to_string(),
+        };
+        assert_eq!(sample.message, "hello");
     }
 
     fn sample_tool_response() -> ChatCompletionResponseWrapper {

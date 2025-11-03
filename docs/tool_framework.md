@@ -8,12 +8,13 @@
 use openai_ergonomic::{
     tool,
     tool_framework::ToolRegistry,
-    tool_schema,
+    tool_schema_from,
     Result,
 };
+use schemars::JsonSchema;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct WeatherParams {
     location: String,
     #[serde(default)]
@@ -26,10 +27,7 @@ tool! {
     name: "get_weather";
     description: "Fetch current weather conditions";
     input_type: WeatherParams;
-    schema: tool_schema!(
-        location: "string", "City or postal code", required: true,
-        units: "string", "Measurement units (metric/imperial)", required: false,
-    );
+    schema: tool_schema_from!(WeatherParams);
 
     async fn handle(params: WeatherParams) -> Result<serde_json::Value> {
         let units = params.units.unwrap_or_else(|| "metric".into());
@@ -54,6 +52,8 @@ assert_eq!(response["location"], "Brussels");
 ```
 
 The macro expands to a struct and a `Tool` implementation with the appropriate associated types.
+
+> Note: When using `tool_schema_from!`, add `schemars = { version = "0.8", features = ["derive"] }` to your `Cargo.toml` so you can derive `JsonSchema` on the input struct.
 
 ## Trait Overview
 
@@ -110,6 +110,21 @@ let schema = tool_schema!(
 );
 ```
 
+### `tool_schema_from!`
+
+Builds a JSON schema by invoking [`schemars::schema_for!`] on the provided type. Your struct must derive `schemars::JsonSchema`.
+
+```rust
+#[derive(Deserialize, JsonSchema)]
+struct WeatherParams {
+    location: String,
+    #[serde(default)]
+    units: Option<String>,
+}
+
+let schema = tool_schema_from!(WeatherParams);
+```
+
 ### `tool!`
 
 > Note: If you export the generated tool (e.g. `pub struct MyTool`), make the associated input/output types `pub` as well so they remain visible outside the module.
@@ -122,7 +137,7 @@ tool! {
     description: "Search indexed documents";
     input_type: SearchParams;        // Optional (defaults to handler argument type)
     output_type: SearchResult;       // Optional (defaults to serde_json::Value)
-    schema: tool_schema!( ... );     // Optional (defaults to empty schema)
+    schema: tool_schema!( ... );     // Optional (defaults to an empty schema)
 
     async fn handle(params: SearchParams) -> Result<SearchResult> {
         /* ... */
@@ -133,7 +148,7 @@ tool! {
 Fields:
 - `name` and `description` feed directly into the OpenAI tool definition.
 - `input_type` and `output_type` are optional helpers when you want the type to differ from the handler signature defaults.
-- `schema` lets you provide a custom JSON schema expression; omit it to use an empty schema.
+- `schema` lets you provide a custom JSON schema expression; omit it to use an empty `{}` schema, or call `tool_schema_from!(Type)` to derive one from a `schemars::JsonSchema` type.
 
 The macro returns the struct type so you can register it immediately:
 
@@ -144,7 +159,7 @@ let registry = ToolRegistry::new().register(SearchTool);
 ## Typed Outputs Example
 
 ```rust
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct AddParams {
     lhs: i64,
     rhs: i64,
@@ -162,10 +177,7 @@ tool! {
     description: "Add two integers";
     input_type: AddParams;
     output_type: AddResult;
-    schema: tool_schema!(
-        lhs: "integer", "Left operand", required: true,
-        rhs: "integer", "Right operand", required: true,
-    );
+    schema: tool_schema_from!(AddParams);
 
     async fn handle(params: AddParams) -> Result<AddResult> {
         Ok(AddResult { sum: params.lhs + params.rhs })

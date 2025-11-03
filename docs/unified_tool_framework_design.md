@@ -64,7 +64,11 @@ The framework exposes two macros:
 Example:
 
 ```rust
-#[derive(Deserialize)]
+use openai_ergonomic::tool_schema_from;
+use schemars::JsonSchema;
+use serde::Deserialize;
+
+#[derive(Deserialize, JsonSchema)]
 pub struct SearchParams { query: String }
 
 tool! {
@@ -73,9 +77,7 @@ tool! {
     name: "search";
     description: "Search indexed documents";
     input_type: SearchParams;
-    schema: tool_schema!(
-        query: "string", "Query to run", required: true,
-    );
+    schema: tool_schema_from!(SearchParams);
 
     async fn handle(params: SearchParams) -> Result<serde_json::Value> {
         Ok(serde_json::json!({ "results": [] }))
@@ -85,7 +87,7 @@ tool! {
 
 - `input_type` defaults to the handler argument type; specify it only when you need something different.
 - `output_type` defaults to `serde_json::Value` and should be set when returning native structs.
-- `schema` defaults to an empty schema.
+- `schema` defaults to an empty object; use `tool_schema_from!(Type)` when you want a generated schema.
 
 ## Follow-ups
 

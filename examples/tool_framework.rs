@@ -1,10 +1,11 @@
 //! Demonstrates the unified tool framework with typed inputs returning JSON.
 
-use openai_ergonomic::{tool, tool_framework::ToolRegistry, tool_schema, Result};
+use openai_ergonomic::{tool, tool_framework::ToolRegistry, tool_schema_from, Result};
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 /// Parameters for the demo search tool.
 pub struct SearchParams {
     query: String,
@@ -13,16 +14,13 @@ pub struct SearchParams {
 }
 
 tool! {
-        /// Illustrative search tool used in the example.
+    /// Illustrative search tool used in the example.
     pub struct SearchTool;
 
     name: "search";
     description: "Perform a mock search over indexed documents";
     input_type: SearchParams;
-    schema: tool_schema!(
-        query: "string", "Search query to run", required: true,
-        limit: "integer", "Maximum results to return", required: false,
-    );
+    schema: tool_schema_from!(SearchParams);
 
     async fn handle(params: SearchParams) -> Result<Value> {
         let limit = params.limit.unwrap_or(3);

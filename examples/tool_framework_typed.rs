@@ -10,12 +10,13 @@ use openai_client_base::models::{
 };
 use openai_ergonomic::{
     builders::chat::ChatCompletionBuilder, builders::Builder,
-    responses::ChatCompletionResponseWrapper, tool, tool_framework::ToolRegistry, tool_schema,
+    responses::ChatCompletionResponseWrapper, tool, tool_framework::ToolRegistry, tool_schema_from,
     Result,
 };
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 /// Input payload for the typed addition tool.
 pub struct AddParams {
     lhs: i64,
@@ -36,10 +37,7 @@ tool! {
     description: "Add two integers";
     input_type: AddParams;
     output_type: AddResult;
-    schema: tool_schema!(
-        lhs: "integer", "Left operand", required: true,
-        rhs: "integer", "Right operand", required: true,
-    );
+    schema: tool_schema_from!(AddParams);
 
     async fn handle(params: AddParams) -> Result<AddResult> {
         Ok(AddResult {
