@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- introduce unified Tool trait, registry, and tool! macro for chat tool calling
+- add ToolRegistry::process_tool_calls_into_builder helper for chat replay loops
+- add tool_framework* examples showcasing typed inputs and outputs
+- document the tool framework and link from README/examples index
+
 ### Removed
 
 - drop `ConversationState` and `ToolResult` in favour of direct `ChatCompletionBuilder` usage

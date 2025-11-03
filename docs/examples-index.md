@@ -108,6 +108,40 @@ cargo run --example tool_calling_simple
 
 ---
 
+#### [`tool_framework.rs`](../examples/tool_framework.rs)
+**What it demonstrates:** Registering tools with typed inputs using the unified tool framework
+
+```bash
+cargo run --example tool_framework
+```
+
+**Key concepts:**
+- Defining tools with the `tool!` macro
+- Typed input parameters with automatic schema generation
+- Executing tools via `ToolRegistry`
+- Returning JSON payloads to the model
+
+**Prerequisites:** None (offline example)
+
+---
+
+#### [`tool_framework_typed.rs`](../examples/tool_framework_typed.rs)
+**What it demonstrates:** Strongly typed inputs and outputs plus processing tool calls
+
+```bash
+cargo run --example tool_framework_typed
+```
+
+**Key concepts:**
+- Typed tool outputs serialized automatically
+- Using `ToolRegistry::process_tool_calls_into_builder`
+- Converting tool call results into chat tool messages
+- Offline simulation of OpenAI tool calls
+
+**Prerequisites:** None (offline example)
+
+---
+
 #### [`tool_calling_multiturn.rs`](../examples/tool_calling_multiturn.rs)
 **What it demonstrates:** Multi-turn tool calling with proper conversation history
 
