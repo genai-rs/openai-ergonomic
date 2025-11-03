@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # MSRV version for openai-ergonomic (should match Cargo.toml and CI)
-MSRV="1.82"
+MSRV="1.83"
 
 echo "Checking MSRV compatibility with Rust $MSRV..."
 echo ""

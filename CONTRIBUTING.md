@@ -6,7 +6,7 @@ Thank you for your interest in contributing to `openai-ergonomic`! This document
 
 ### Prerequisites
 
-- Rust 1.82 or higher
+- Rust 1.83 or higher
 - Git
 - A GitHub account
 - Familiarity with OpenAI API concepts (recommended)

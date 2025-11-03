@@ -228,9 +228,8 @@ fn test_json_schema_builder() {
 
     assert!(request.response_format.is_some());
     let response_format = request.response_format.unwrap();
-    use openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat;
     let schema_format = match response_format.as_ref() {
-        CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format) => format,
+        openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format) => format,
         other => panic!("expected json schema response format, got {other:?}"),
     };
     assert_eq!(schema_format.json_schema.name, "person");

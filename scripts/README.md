@@ -8,7 +8,7 @@ This directory contains utility scripts to help with development, testing, and r
 **Purpose**: Verify Minimum Supported Rust Version (MSRV) compatibility
 
 This script:
-- Installs the specified MSRV (currently Rust 1.82) if not already available
+- Installs the specified MSRV (currently Rust 1.83) if not already available
 - Switches to the MSRV toolchain temporarily
 - Builds the project with all features
 - Runs the full test suite
