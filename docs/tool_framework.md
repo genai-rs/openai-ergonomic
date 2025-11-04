@@ -55,6 +55,15 @@ The macro expands to a struct and a `Tool` implementation with the appropriate a
 
 > Note: When using `tool_schema_from!`, add `schemars = { version = "0.8", features = ["derive"] }` to your `Cargo.toml` so you can derive `JsonSchema` on the input struct.
 
+### How the Pieces Reach OpenAI
+
+Internally the registry feeds directly into the raw `openai-client-base` models that match OpenAI’s REST payloads:
+
+- `ToolRegistry::tool_definitions()` invokes `tool_function` (`src/builders/chat.rs:613-639`) to build a `ChatCompletionTool`. The embedded `FunctionObject` carries the tool `name`, `description`, and the JSON Schema map returned by `parameters_schema()`.
+- When the assistant responds with tool calls, `ToolRegistry::process_tool_calls` iterates each `ChatCompletionMessageToolCall`, extracts the `function.name` plus JSON `arguments`, deserializes into `Tool::Input`, runs your handler, and serializes the result back into the string that becomes the follow-up `tool` message (`src/tool_framework.rs:119-137`).
+
+If you choose to bypass the framework and work with `openai-client-base` directly, these helpers show the exact shapes you need to construct.
+
 ## Trait Overview
 
 ```rust
