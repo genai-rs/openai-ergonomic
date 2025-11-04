@@ -16,7 +16,7 @@ struct WeatherParams {
     location: String,
 }
 
-fn get_weather_tool() -> openai_ergonomic::responses::Tool {
+fn get_weather_tool() -> openai_ergonomic::responses::ChatTool {
     tool_function(
         "get_weather",
         "Get the current weather for a location",
