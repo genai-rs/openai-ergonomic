@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.0...v0.5.1) - 2025-11-17
+
+### Added
+
+- add conversation state api
+
+### Fixed
+
+- use proper streaming API in quickstart example (genai-rs-20)
+- remove invalid previous_version variable from git_release_body
+
+### Other
+
+- *(deps)* Update Rust crate bytes to ^1.11.0
+- *(deps)* Update rust patch updates
+- silence new clippy lint (genai-rs-XX)
+- unblock client-base upgrade (genai-rs-XX)
+- upgrade openai-client-base dependency
+- remove RENOVATE_ANALYSIS.md
+- *(deps)* Update rust minor updates
+- fix Renovate strategy and improve version clarity (genai-rs-14)
+- Remove ConversationState API
+- cache conversation state requests
+- fix conversation state links
+
 ### Removed
 
 - drop `ConversationState` and `ToolResult` in favour of direct `ChatCompletionBuilder` usage
