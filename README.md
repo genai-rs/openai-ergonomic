@@ -184,6 +184,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - **[Examples Index](docs/examples-index.md)** - Browse all examples by category
 - [Responses-First Workflows](docs/responses_workflows.md)
 - [Tool Orchestration](docs/tool_orchestration.md)
+- [Tool Framework](docs/tool_framework.md)
 - [Vector Store Operations](docs/vector_store_operations.md)
 - [Langfuse Integration](docs/langfuse-integration.md)
 - [API Documentation](https://docs.rs/openai-ergonomic)
@@ -196,6 +197,8 @@ The `examples/` directory contains comprehensive examples for all major `OpenAI`
 
 - [**quickstart.rs**](examples/quickstart.rs) - Quick introduction to the library with basic usage patterns
 - [**chat_streaming.rs**](examples/chat_streaming.rs) - Real-time chat streaming with Server-Sent Events (SSE)
+- [**tool_framework.rs**](examples/tool_framework.rs) - Unified tool framework with typed inputs and registry execution
+- [**tool_framework_typed.rs**](examples/tool_framework_typed.rs) - Strongly typed inputs/outputs and processing tool calls
 - [**tool_calling_multiturn.rs**](examples/tool_calling_multiturn.rs) - Multi-turn tool calling with proper conversation history management
 - [**responses_comprehensive.rs**](examples/responses_comprehensive.rs) - Complete responses API demonstration including function calling and web search
 - [**responses_streaming.rs**](examples/responses_streaming.rs) - Real-time streaming responses with progress indicators
