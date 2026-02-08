@@ -420,6 +420,7 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
                 })
             }),
             prompt_cache_key: None,
+            prompt_cache_retention: None,
             safety_identifier: None,
             verbosity: None,
             web_search_options: None,
