@@ -46,7 +46,7 @@ reqwest-retry = "^0.9.1"
 
 [features]
 default = ["rustls-tls"]
-rustls-tls = ["reqwest/rustls-tls"]
+rustls-tls = ["reqwest/rustls"]
 native-tls = ["reqwest/native-tls-vendored"]
 test-utils = ["mockito"]
 
