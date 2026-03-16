@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.2...v0.5.3) - 2026-03-16
+
+### Fixed
+
+- update feature flags and code for reqwest 0.13 and other dep bumps
+
+### Other
+
+- *(deps)* Update rust patch updates
+- *(deps)* Update actions/create-github-app-token action to v3
+- *(deps)* Update rust minor updates
+- *(deps)* Update Rust crate futures to ^0.3.32
+- *(deps)* Update rust minor updates
+
 ## [0.5.2](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.1...v0.5.2) - 2026-02-08
 
 ### Other
