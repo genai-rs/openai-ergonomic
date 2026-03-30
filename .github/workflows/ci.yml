@@ -130,7 +130,7 @@ jobs:
           OPENAI_API_KEY: "test-key-for-coverage"
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./cobertura.xml
