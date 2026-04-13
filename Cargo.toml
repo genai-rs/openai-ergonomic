@@ -41,7 +41,7 @@ mockito = "^1.7.2"
 tracing-subscriber = { version = "^0.3.23", features = ["env-filter"] }
 regex = "^1.12.3"
 tempfile = "^3.25.0"
-rand = "^0.10.0"
+rand = "^0.10.1"
 reqwest-retry = "^0.9.1"
 
 [features]
