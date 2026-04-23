@@ -40,6 +40,7 @@ use openai_client_base::{
         CreateSpeechRequest,
         // TranscriptionChunkingStrategy, TranscriptionChunkingStrategyTextVariantEnum,
         TranscriptionInclude,
+        VoiceIdsOrCustomVoice,
     },
 };
 use openai_ergonomic::{Client, Error};
@@ -157,7 +158,7 @@ async fn create_sample_audio_files(client: &Client) -> Result<(), Error> {
             let request = CreateSpeechRequest::builder()
                 .model("tts-1".to_string())
                 .input((*text).to_string())
-                .voice("alloy".to_string())
+                .voice(Box::new(VoiceIdsOrCustomVoice::Text("alloy".to_string())))
                 .response_format(SpeechResponseFormat::Mp3)
                 .speed(0.9) // Slightly slower for clearer transcription
                 .build();

@@ -7,13 +7,13 @@
 
 use std::path::{Path, PathBuf};
 
-use openai_client_base::models::transcription_chunking_strategy::TranscriptionChunkingStrategyTextVariantEnum;
+use openai_client_base::models::create_transcription_request_chunking_strategy::CreateTranscriptionRequestChunkingStrategyTextVariantEnum;
 use openai_client_base::models::{
     create_speech_request::{
         ResponseFormat as SpeechResponseFormat, StreamFormat as SpeechStreamFormat,
     },
-    AudioResponseFormat, CreateSpeechRequest, TranscriptionChunkingStrategy, TranscriptionInclude,
-    VadConfig,
+    AudioResponseFormat, CreateSpeechRequest, CreateTranscriptionRequestChunkingStrategy,
+    TranscriptionInclude, VadConfig, VoiceIdsOrCustomVoice,
 };
 
 use crate::{Builder, Error, Result};
@@ -122,7 +122,7 @@ impl Builder<CreateSpeechRequest> for SpeechBuilder {
             model: self.model,
             input: self.input,
             instructions: self.instructions,
-            voice: self.voice,
+            voice: Box::new(VoiceIdsOrCustomVoice::Text(self.voice)),
             response_format: self.response_format,
             speed: self.speed,
             stream_format: self.stream_format,
@@ -158,7 +158,7 @@ pub struct TranscriptionBuilder {
     response_format: Option<AudioResponseFormat>,
     temperature: Option<f64>,
     stream: Option<bool>,
-    chunking_strategy: Option<TranscriptionChunkingStrategy>,
+    chunking_strategy: Option<CreateTranscriptionRequestChunkingStrategy>,
     timestamp_granularities: Vec<TimestampGranularity>,
     include: Vec<TranscriptionInclude>,
 }
@@ -219,8 +219,8 @@ impl TranscriptionBuilder {
     /// Use the default automatic chunking strategy.
     #[must_use]
     pub fn chunking_strategy_auto(mut self) -> Self {
-        self.chunking_strategy = Some(TranscriptionChunkingStrategy::TextVariant(
-            TranscriptionChunkingStrategyTextVariantEnum::Auto,
+        self.chunking_strategy = Some(CreateTranscriptionRequestChunkingStrategy::TextVariant(
+            CreateTranscriptionRequestChunkingStrategyTextVariantEnum::Auto,
         ));
         self
     }
@@ -228,7 +228,9 @@ impl TranscriptionBuilder {
     /// Provide a custom VAD configuration for chunking.
     #[must_use]
     pub fn chunking_strategy_vad(mut self, config: VadConfig) -> Self {
-        self.chunking_strategy = Some(TranscriptionChunkingStrategy::Vadconfig(config));
+        self.chunking_strategy = Some(CreateTranscriptionRequestChunkingStrategy::Vadconfig(
+            config,
+        ));
         self
     }
 
@@ -310,7 +312,7 @@ pub struct TranscriptionRequest {
     /// Enable partial streaming responses.
     pub stream: Option<bool>,
     /// Chunking strategy configuration.
-    pub chunking_strategy: Option<TranscriptionChunkingStrategy>,
+    pub chunking_strategy: Option<CreateTranscriptionRequestChunkingStrategy>,
     /// Requested timestamp granularities.
     pub timestamp_granularities: Option<Vec<TimestampGranularity>>,
     /// Additional metadata to include in the response.
@@ -458,7 +460,10 @@ mod tests {
 
         assert_eq!(request.model, "gpt-4o-mini-tts");
         assert_eq!(request.input, "Hello world");
-        assert_eq!(request.voice, "alloy");
+        assert_eq!(
+            *request.voice,
+            VoiceIdsOrCustomVoice::Text("alloy".to_string())
+        );
         assert_eq!(request.response_format, Some(SpeechResponseFormat::Wav));
         assert_eq!(request.speed, Some(1.25));
         assert_eq!(request.stream_format, Some(SpeechStreamFormat::Audio));
@@ -495,7 +500,7 @@ mod tests {
         ));
         assert!(matches!(
             request.chunking_strategy,
-            Some(TranscriptionChunkingStrategy::TextVariant(_))
+            Some(CreateTranscriptionRequestChunkingStrategy::TextVariant(_))
         ));
         assert!(matches!(
             request.include,

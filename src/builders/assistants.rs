@@ -154,16 +154,20 @@ impl AssistantBuilder {
                 .into_iter()
                 .map(|tool| {
                     match tool {
-                        AssistantTool::CodeInterpreter => Ok(models::AssistantTool::SCode(
-                            Box::new(models::AssistantToolsCode::new(
-                                models::assistant_tools_code::Type::CodeInterpreter,
-                            )),
-                        )),
-                        AssistantTool::FileSearch => Ok(models::AssistantTool::SFileSearch(
-                            Box::new(models::AssistantToolsFileSearch::new(
-                                models::assistant_tools_file_search::Type::FileSearch,
-                            )),
-                        )),
+                        AssistantTool::CodeInterpreter => {
+                            Ok(models::AssistantObjectToolsInner::AssistantToolsCode(
+                                Box::new(models::AssistantToolsCode::new(
+                                    models::assistant_tools_code::Type::CodeInterpreter,
+                                )),
+                            ))
+                        }
+                        AssistantTool::FileSearch => {
+                            Ok(models::AssistantObjectToolsInner::AssistantToolsFileSearch(
+                                Box::new(models::AssistantToolsFileSearch::new(
+                                    models::assistant_tools_file_search::Type::FileSearch,
+                                )),
+                            ))
+                        }
                         AssistantTool::Function {
                             name,
                             description,
@@ -181,7 +185,9 @@ impl AssistantBuilder {
                                 models::assistant_tools_function::Type::Function,
                                 function_obj,
                             );
-                            Ok(models::AssistantTool::SFunction(Box::new(func)))
+                            Ok(models::AssistantObjectToolsInner::AssistantToolsFunction(
+                                Box::new(func),
+                            ))
                         }
                     }
                 })
