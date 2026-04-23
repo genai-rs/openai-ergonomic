@@ -338,12 +338,9 @@ fn test_error_response_fixtures() {
             "invalid_api_key" => {
                 assert!(message.contains("API key") || message.contains("api key"));
             }
-            "invalid_request_error" => {
-                // Should have param field for validation errors
-                if error.get("param").is_some() {
-                    let param = error.get("param").unwrap().as_str().unwrap();
-                    assert!(!param.is_empty());
-                }
+            "invalid_request_error" if error.get("param").is_some() => {
+                let param = error.get("param").unwrap().as_str().unwrap();
+                assert!(!param.is_empty());
             }
             "server_error" => {
                 assert!(message.contains("server") || message.contains("Server"));
