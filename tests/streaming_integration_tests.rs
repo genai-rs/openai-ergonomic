@@ -463,8 +463,8 @@ async fn test_streaming_performance() {
     let duration = start.elapsed();
 
     assert!(
-        duration <= Duration::from_millis(1000),
-        "large_streaming_response took {:?} but should complete within 1000ms",
+        duration <= Duration::from_secs(1),
+        "large_streaming_response took {:?} but should complete within 1s",
         duration
     );
 
