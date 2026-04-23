@@ -164,7 +164,7 @@ fn test_chat_builder_vision() {
 
                 // Check text part
                 match &parts[0] {
-                    ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(text) => {
+                    ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentparttext(text) => {
                         assert_eq!(text.text, "What do you see in this image?");
                     }
                     _ => panic!("Expected text part"),
@@ -173,7 +173,7 @@ fn test_chat_builder_vision() {
                 // Check image parts
                 for (i, part) in parts.iter().skip(1).enumerate() {
                     match part {
-                        ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(img) => {
+                        ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(img) => {
                             assert!(img.image_url.url.starts_with("https://"));
                             if i == 1 {
                                 assert_eq!(img.image_url.detail, Some(Detail::High));
@@ -199,7 +199,7 @@ fn test_base64_image_handling() {
     let image_part = openai_ergonomic::builders::chat::image_base64_part(base64_data, media_type);
 
     match image_part {
-        ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(img) => {
+        ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(img) => {
             assert!(img.image_url.url.starts_with("data:image/png;base64,"));
             assert!(img.image_url.url.contains(base64_data));
         }
@@ -611,7 +611,7 @@ fn test_all_image_detail_levels() {
         );
 
         match image_part {
-            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(img) => {
+            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(img) => {
                 assert_eq!(img.image_url.detail, Some(detail));
                 assert!(img.image_url.url.starts_with("https://"));
             }

@@ -245,7 +245,7 @@ fn test_image_detail_levels() {
         );
 
         match image_part {
-            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(img) => {
+            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(img) => {
                 assert_eq!(img.image_url.detail, Some(detail));
             }
             _ => panic!("Expected image part"),
@@ -262,7 +262,7 @@ fn test_base64_image_handling() {
     let image_part = openai_ergonomic::builders::chat::image_base64_part(base64_data, media_type);
 
     match image_part {
-        ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(img) => {
+        ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(img) => {
             assert!(img.image_url.url.starts_with("data:image/png;base64,"));
             assert!(img.image_url.url.contains(base64_data));
         }

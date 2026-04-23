@@ -672,8 +672,8 @@ mod tests {
     #[test]
     fn test_responses_builder_tool_choice() {
         let builder =
-            ResponsesBuilder::new("gpt-4").tool_choice(ChatCompletionToolChoiceOption::Auto(
-                openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum::Auto
+            ResponsesBuilder::new("gpt-4").tool_choice(ChatCompletionToolChoiceOption::ToolChoiceMode(
+                openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionToolChoiceModeEnum::Auto
             ));
         assert!(builder.tool_choice.is_some());
     }

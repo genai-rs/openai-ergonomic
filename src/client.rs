@@ -1648,13 +1648,8 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
         let temp_file_path = temp_dir.join(builder.filename());
         std::fs::write(&temp_file_path, builder.content()).map_err(Error::File)?;
 
-        // Convert FilePurpose to openai_client_base::models::FilePurpose
-        let purpose = match builder.purpose().to_string().as_str() {
-            "fine-tune" => openai_client_base::models::FilePurpose::FineTune,
-            "vision" => openai_client_base::models::FilePurpose::Vision,
-            "batch" => openai_client_base::models::FilePurpose::Batch,
-            _ => openai_client_base::models::FilePurpose::Assistants, // Default for "assistants" and unknown
-        };
+        // Convert FilePurpose to a string for the API
+        let purpose = builder.purpose().to_string();
 
         // Prepare interceptor context
         let mut state = T::default();
@@ -1683,7 +1678,7 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
         let result = match files_api::create_file()
             .configuration(&self.client.base_configuration)
             .file(temp_file_path.clone())
-            .purpose(purpose)
+            .purpose(&purpose)
             .call()
             .await
         {

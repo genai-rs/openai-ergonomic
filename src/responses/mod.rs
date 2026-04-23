@@ -288,20 +288,26 @@ pub struct ToolChoiceHelper;
 impl ToolChoiceHelper {
     /// Let the model automatically decide whether to use tools.
     pub fn auto() -> ChatCompletionToolChoiceOption {
-        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum;
-        ChatCompletionToolChoiceOption::Auto(ChatCompletionToolChoiceOptionAutoEnum::Auto)
+        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionToolChoiceModeEnum;
+        ChatCompletionToolChoiceOption::ToolChoiceMode(
+            ChatCompletionToolChoiceOptionToolChoiceModeEnum::Auto,
+        )
     }
 
     /// Prevent the model from using any tools.
     pub fn none() -> ChatCompletionToolChoiceOption {
-        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum;
-        ChatCompletionToolChoiceOption::Auto(ChatCompletionToolChoiceOptionAutoEnum::None)
+        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionToolChoiceModeEnum;
+        ChatCompletionToolChoiceOption::ToolChoiceMode(
+            ChatCompletionToolChoiceOptionToolChoiceModeEnum::None,
+        )
     }
 
     /// Require the model to use a tool.
     pub fn required() -> ChatCompletionToolChoiceOption {
-        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionAutoEnum;
-        ChatCompletionToolChoiceOption::Auto(ChatCompletionToolChoiceOptionAutoEnum::Required)
+        use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOptionToolChoiceModeEnum;
+        ChatCompletionToolChoiceOption::ToolChoiceMode(
+            ChatCompletionToolChoiceOptionToolChoiceModeEnum::Required,
+        )
     }
 
     /// Require the model to use a specific tool.

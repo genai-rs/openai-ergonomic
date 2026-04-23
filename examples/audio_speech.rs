@@ -31,7 +31,7 @@ use openai_client_base::{
     apis::{audio_api, configuration::Configuration},
     models::{
         create_speech_request::{ResponseFormat, StreamFormat},
-        CreateSpeechRequest,
+        CreateSpeechRequest, VoiceIdsOrCustomVoice,
     },
 };
 use openai_ergonomic::{Client, Error};
@@ -131,7 +131,7 @@ async fn basic_text_to_speech(client: &Client) -> Result<(), Error> {
     let request = CreateSpeechRequest::builder()
         .model("tts-1".to_string())
         .input(text.to_string())
-        .voice("alloy".to_string())
+        .voice(Box::new(VoiceIdsOrCustomVoice::Text("alloy".to_string())))
         .response_format(ResponseFormat::Mp3)
         .build();
 
@@ -189,7 +189,7 @@ async fn voice_comparison_example(client: &Client) -> Result<(), Error> {
         let request = CreateSpeechRequest::builder()
             .model("tts-1".to_string())
             .input(text.to_string())
-            .voice((*voice).to_string())
+            .voice(Box::new(VoiceIdsOrCustomVoice::Text((*voice).to_string())))
             .response_format(ResponseFormat::Mp3)
             .build();
 
@@ -238,7 +238,7 @@ async fn audio_format_example(client: &Client) -> Result<(), Error> {
         let request = CreateSpeechRequest::builder()
             .model("tts-1".to_string())
             .input(text.to_string())
-            .voice("nova".to_string())
+            .voice(Box::new(VoiceIdsOrCustomVoice::Text("nova".to_string())))
             .response_format(*format)
             .build();
 
@@ -286,7 +286,7 @@ async fn speed_control_example(client: &Client) -> Result<(), Error> {
         let request = CreateSpeechRequest::builder()
             .model("tts-1".to_string())
             .input(text.to_string())
-            .voice("echo".to_string())
+            .voice(Box::new(VoiceIdsOrCustomVoice::Text("echo".to_string())))
             .response_format(ResponseFormat::Mp3)
             .speed(speed)
             .build();
@@ -329,7 +329,7 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
     let request = CreateSpeechRequest::builder()
         .model("gpt-4o-mini-tts".to_string())
         .input(text.to_string())
-        .voice("shimmer".to_string())
+        .voice(Box::new(VoiceIdsOrCustomVoice::Text("shimmer".to_string())))
         .response_format(ResponseFormat::Mp3)
         .stream_format(StreamFormat::Audio)
         .build();
@@ -363,7 +363,7 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
             let fallback_request = CreateSpeechRequest::builder()
                 .model("tts-1-hd".to_string())
                 .input(text.to_string())
-                .voice("shimmer".to_string())
+                .voice(Box::new(VoiceIdsOrCustomVoice::Text("shimmer".to_string())))
                 .response_format(ResponseFormat::Mp3)
                 .build();
 
