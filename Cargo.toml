@@ -16,7 +16,7 @@ exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
 openai-client-base = "^0.12.0"
-bon = "^3.9.1"
+bon = "^3.9.2"
 serde = { version = "^1.0.228", features = ["derive"] }
 serde_json = "^1.0.150"
 tokio = { version = "^1.52.3", features = ["full"] }
@@ -31,15 +31,15 @@ opentelemetry_sdk = { version = "^0.31", features = ["rt-tokio", "trace", "exper
 opentelemetry-langfuse = "^0.6.1"
 async-trait = "^0.1.89"
 bytes = "^1.11.1"
-uuid = { version = "^1.23.2", features = ["v4"] }
+uuid = { version = "^1.23.3", features = ["v4"] }
 tokio-stream = { version = "^0.1.18", features = ["io-util"] }
 mockito = { version = "^1.7.2", optional = true }
-http = "^1.4.1"
+http = "^1.4.2"
 
 [dev-dependencies]
 mockito = "^1.7.2"
 tracing-subscriber = { version = "^0.3.23", features = ["env-filter"] }
-regex = "^1.12.3"
+regex = "^1.12.4"
 tempfile = "^3.27.0"
 rand = "^0.10.1"
 reqwest-retry = "^0.9.1"
