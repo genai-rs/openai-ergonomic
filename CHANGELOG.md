@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.2...v0.5.3) - 2026-06-22
+
+### Fixed
+
+- adapt to breaking API changes in openai-client-base 0.12.0
+- resolve clippy duration_suboptimal_units warning
+- resolve clippy collapsible_match warning in tests
+- update feature flags and code for reqwest 0.13 and other dep bumps
+
+### Other
+
+- *(deps)* Update github-actions to 1.96
+- *(deps)* Update rust patch updates to ^3.9.3
+- *(deps)* Update rust patch updates
+- *(deps)* Update github-actions to v7
+- *(deps)* Update rust patch updates
+- *(deps)* Update rust patch updates
+- rename deprecated app-id to client-id in create-github-app-token
+- *(deps)* Update actions/dependency-review-action action to v5
+- *(deps)* Update rust patch updates
+- *(deps)* Update rust minor updates
+- automerge core dependency updates
+- *(deps)* Update Rust crate rand to ^0.10.1
+- *(deps)* Update codecov/codecov-action action to v6
+- *(deps)* Update rust patch updates
+- *(deps)* Update actions/create-github-app-token action to v3
+- *(deps)* Update rust minor updates
+- *(deps)* Update Rust crate futures to ^0.3.32
+- *(deps)* Update rust minor updates
+
 ## [0.5.2](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.1...v0.5.2) - 2026-02-08
 
 ### Other
