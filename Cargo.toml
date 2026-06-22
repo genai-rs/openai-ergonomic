@@ -1,6 +1,6 @@
 [package]
 name = "openai-ergonomic"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Tim Van Wassenhove <github@timvw.be>"]
 edition = "2021"
 rust-version = "1.88"
