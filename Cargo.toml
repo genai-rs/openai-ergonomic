@@ -27,7 +27,7 @@ thiserror = "^2.0.18"
 tracing = "^0.1.44"
 opentelemetry-semantic-conventions = { version = "^0.31", features = ["semconv_experimental"] }
 opentelemetry = { version = "^0.31", features = ["trace"] }
-opentelemetry_sdk = { version = "^0.31", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
+opentelemetry_sdk = { version = "^0.32.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
 opentelemetry-langfuse = "^0.6.1"
 async-trait = "^0.1.89"
 bytes = "^1.11.1"
