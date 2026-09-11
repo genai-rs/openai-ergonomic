@@ -195,20 +195,18 @@ impl BatchProcessor {
         self.create_batch_file(&requests, &input_file_path)?;
 
         // Step 2: Upload the file to OpenAI
-        let file_upload_result = self.upload_batch_file(&input_file_path).await?;
+        let file_upload_result = self.upload_batch_file(&input_file_path)?;
         info!("Uploaded batch file with ID: {}", file_upload_result.id);
 
         // Step 3: Create the batch job
-        let batch_job = self
-            .create_batch_job(&file_upload_result.id, batch_id)
-            .await?;
+        let batch_job = self.create_batch_job(&file_upload_result.id, batch_id);
         info!("Created batch job with ID: {}", batch_job.id);
 
         // Step 4: Monitor batch progress
         let completed_batch = self.monitor_batch_progress(batch_job).await?;
 
         // Step 5: Download and process results
-        let results = self.download_batch_results(&completed_batch).await?;
+        let results = self.download_batch_results(&completed_batch)?;
 
         info!(
             "Successfully processed batch with {} results",
@@ -248,7 +246,7 @@ impl BatchProcessor {
     }
 
     /// Upload a batch file to OpenAI and return the file ID
-    async fn upload_batch_file(&self, file_path: &str) -> Result<FileUploadResult> {
+    fn upload_batch_file(&self, file_path: &str) -> Result<FileUploadResult> {
         info!("Uploading batch file: {}", file_path);
 
         // Note: This is a placeholder implementation
@@ -272,7 +270,7 @@ impl BatchProcessor {
     }
 
     /// Create a batch job using the uploaded file
-    async fn create_batch_job(&self, input_file_id: &str, _batch_name: &str) -> Result<BatchJob> {
+    fn create_batch_job(&self, input_file_id: &str, _batch_name: &str) -> BatchJob {
         info!("Creating batch job for file: {}", input_file_id);
 
         // Note: This is a placeholder implementation
@@ -282,7 +280,7 @@ impl BatchProcessor {
         // For demonstration, we'll simulate a successful batch creation
         let batch_id = format!("batch_{}", uuid::Uuid::new_v4());
 
-        Ok(BatchJob {
+        BatchJob {
             id: batch_id,
             status: "validating".to_string(),
             input_file_id: input_file_id.to_string(),
@@ -295,7 +293,7 @@ impl BatchProcessor {
                 completed: 0,
                 failed: 0,
             },
-        })
+        }
     }
 
     /// Monitor batch progress until completion or timeout
@@ -312,7 +310,7 @@ impl BatchProcessor {
             }
 
             // Check batch status
-            batch_job = self.get_batch_status(&batch_job.id).await?;
+            batch_job = self.get_batch_status(&batch_job.id);
 
             match batch_job.status.as_str() {
                 "completed" => {
@@ -344,7 +342,7 @@ impl BatchProcessor {
     }
 
     /// Get current status of a batch job
-    async fn get_batch_status(&self, batch_id: &str) -> Result<BatchJob> {
+    fn get_batch_status(&self, batch_id: &str) -> BatchJob {
         debug!("Checking status for batch: {}", batch_id);
 
         // Note: This is a placeholder implementation
@@ -355,7 +353,7 @@ impl BatchProcessor {
         // In a real scenario, this would make an actual API call
         let current_time = chrono::Utc::now().timestamp();
 
-        Ok(BatchJob {
+        BatchJob {
             id: batch_id.to_string(),
             status: "completed".to_string(), // Simulate completion
             input_file_id: format!("file-input-{}", batch_id),
@@ -368,14 +366,11 @@ impl BatchProcessor {
                 completed: 98,
                 failed: 2,
             },
-        })
+        }
     }
 
     /// Download and parse batch results
-    async fn download_batch_results(
-        &self,
-        batch_job: &BatchJob,
-    ) -> Result<Vec<BatchProcessingResult>> {
+    fn download_batch_results(&self, batch_job: &BatchJob) -> Result<Vec<BatchProcessingResult>> {
         let output_file_id = batch_job
             .output_file_id
             .as_ref()
