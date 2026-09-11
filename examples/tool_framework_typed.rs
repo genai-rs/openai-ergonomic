@@ -77,7 +77,7 @@ fn sample_response() -> Result<ChatCompletionResponseWrapper> {
     let raw: CreateChatCompletionResponse = serde_json::from_value(json!({
         "id": "demo", "object": "chat.completion", "created": 0, "model": "gpt-test",
         "choices": [{"index": 0, "finish_reason": "tool_calls", "logprobs": null,
-            "message": {"role": "assistant", "content": "I'll look that up.", "tool_calls": [
+            "message": {"role": "assistant", "refusal": null, "content": "I'll look that up.", "tool_calls": [
                 {"id": "call_lookup", "type": "function", "function": {
                     "name": "lookup", "arguments": r#"{"key":"language"}"#}},
                 {"id": "call_echo", "type": "function", "function": {
@@ -125,4 +125,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     assert_eq!(request.messages.len(), 4);
     println!("{}", serde_json::to_string_pretty(&request)?);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn offline_chat_replay() {
+        super::main().unwrap();
+    }
 }
