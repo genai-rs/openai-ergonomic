@@ -83,7 +83,7 @@ cargo run --example tool_calling
 
 **Key concepts:**
 - Function definitions
-- FunctionTool choice strategies
+- Tool choice strategies
 - Parallel function calling
 - Function result integration
 - Multi-turn conversations with tools
