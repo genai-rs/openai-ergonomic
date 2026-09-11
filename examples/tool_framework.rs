@@ -1,49 +1,73 @@
-//! Demonstrates the unified tool framework with typed inputs returning JSON.
+//! Define a typed tool and execute it locally. No API key required.
 
-use openai_ergonomic::{tool, tool_framework::ToolRegistry, tool_schema, Result};
-use serde::Deserialize;
-use serde_json::Value;
+use async_trait::async_trait;
+use openai_ergonomic::{Error, FunctionTool, Result, ToolRegistry};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
-#[derive(Debug, Deserialize)]
-/// Parameters for the demo search tool.
-pub struct SearchParams {
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SearchParams {
     query: String,
-    #[serde(default)]
-    limit: Option<u32>,
+    limit: Option<usize>,
 }
 
-tool! {
-        /// Illustrative search tool used in the example.
-    pub struct SearchTool;
+#[derive(Serialize)]
+struct SearchResults {
+    matches: Vec<String>,
+}
 
-    name: "search";
-    description: "Perform a mock search over indexed documents";
-    input_type: SearchParams;
-    schema: tool_schema!(
-        query: "string", "Search query to run", required: true,
-        limit: "integer", "Maximum results to return", required: false,
-    );
+struct Search;
 
-    async fn handle(params: SearchParams) -> Result<Value> {
-        let limit = params.limit.unwrap_or(3);
-        let results: Vec<_> = (1..=limit)
-            .map(|idx| format!("Result {idx} for '{}'", params.query))
-            .collect();
+#[async_trait]
+impl FunctionTool for Search {
+    type Input = SearchParams;
+    type Output = SearchResults;
 
-        Ok(serde_json::json!({
-            "query": params.query,
-            "results": results,
-        }))
+    fn name(&self) -> &'static str {
+        "search"
+    }
+    fn description(&self) -> &'static str {
+        "Search demo document titles containing the given text."
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Case-sensitive title fragment"},
+                "limit": {"type": ["integer", "null"], "minimum": 1, "maximum": 10,
+                    "description": "Maximum matches; defaults to 3 when omitted or null"}
+            },
+            "required": ["query"],
+            "additionalProperties": false
+        })
+    }
+    async fn execute(&self, input: SearchParams) -> Result<SearchResults> {
+        let limit = input.limit.unwrap_or(3);
+        if !(1..=10).contains(&limit) {
+            return Err(Error::InvalidRequest(
+                "limit must be between 1 and 10".into(),
+            ));
+        }
+        Ok(SearchResults {
+            matches: ["Rust tools", "Rust async", "JSON schemas"]
+                .into_iter()
+                .filter(|title| title.contains(&input.query))
+                .take(limit)
+                .map(str::to_owned)
+                .collect(),
+        })
     }
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    let registry = ToolRegistry::new().register(SearchTool);
-
-    let payload = r#"{"query":"rust crates","limit":2}"#;
-    let json = registry.execute("search", payload).await?;
-
-    println!("Tool response: {json}");
+async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let mut tools = ToolRegistry::new();
+    tools.register(Search)?;
+    let result = tools
+        .execute("search", r#"{"query":"Rust","limit":2}"#)
+        .await?;
+    assert_eq!(result["matches"], json!(["Rust tools", "Rust async"]));
+    println!("{result}");
     Ok(())
 }

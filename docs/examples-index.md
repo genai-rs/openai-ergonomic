@@ -83,7 +83,7 @@ cargo run --example tool_calling
 
 **Key concepts:**
 - Function definitions
-- Tool choice strategies
+- FunctionTool choice strategies
 - Parallel function calling
 - Function result integration
 - Multi-turn conversations with tools
@@ -116,8 +116,8 @@ cargo run --example tool_framework
 ```
 
 **Key concepts:**
-- Defining tools with the `tool!` macro
-- Typed input parameters with automatic schema generation
+- Implementing typed tools with the `FunctionTool` trait
+- Typed input parameters with explicit JSON Schema
 - Executing tools via `ToolRegistry`
 - Returning JSON payloads to the model
 
@@ -126,7 +126,7 @@ cargo run --example tool_framework
 ---
 
 #### [`tool_framework_typed.rs`](../examples/tool_framework_typed.rs)
-**What it demonstrates:** Strongly typed inputs and outputs plus processing tool calls
+**What it demonstrates:** Typed inputs and outputs plus processing tool calls
 
 ```bash
 cargo run --example tool_framework_typed
@@ -134,7 +134,7 @@ cargo run --example tool_framework_typed
 
 **Key concepts:**
 - Typed tool outputs serialized automatically
-- Using `ToolRegistry::process_tool_calls_into_builder`
+- Dispatching approved calls with `ToolRegistry::execute_call`
 - Converting tool call results into chat tool messages
 - Offline simulation of OpenAI tool calls
 

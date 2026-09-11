@@ -1,437 +1,313 @@
-//! Unified tool framework for `OpenAI` chat tool calling.
+//! Typed, asynchronous function tools for the Chat Completions API.
 //!
-//! This module provides a single [`Tool`] trait with flexible input/output types,
-//! a [`ToolRegistry`] for managing tool definitions, and helper macros to reduce
-//! boilerplate when declaring tools.
+//! Implement [`FunctionTool`], register instances with [`ToolRegistry::register`], and
+//! pass [`ToolRegistry::tool_definitions`] to your chat builder. Dispatch each
+//! approved call with [`ToolRegistry::execute_call`]. Registration grants no
+//! execution authority; the application decides which calls to execute.
+//!
+//! ```
+//! use async_trait::async_trait;
+//! use openai_ergonomic::{FunctionTool, ToolRegistry, Result};
+//! use serde::Deserialize;
+//! use serde_json::{json, Value};
+//!
+//! #[derive(Deserialize)]
+//! #[serde(deny_unknown_fields)]
+//! struct Greeting { name: String }
+//! struct Greet;
+//! #[async_trait]
+//! impl FunctionTool for Greet {
+//!     type Input = Greeting;
+//!     type Output = String;
+//!     fn name(&self) -> &str { "greet" }
+//!     fn description(&self) -> &str { "Return a greeting for a person." }
+//!     fn parameters_schema(&self) -> Value {
+//!         json!({"type": "object", "properties": {
+//!             "name": {"type": "string", "description": "Person to greet"}
+//!         }, "required": ["name"], "additionalProperties": false})
+//!     }
+//!     async fn execute(&self, input: Greeting) -> Result<String> {
+//!         Ok(format!("Hello, {}!", input.name))
+//!     }
+//! }
+//! # #[tokio::main]
+//! # async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+//! let mut tools = ToolRegistry::new();
+//! tools.register(Greet)?;
+//! let result = tools.execute("greet", r#"{"name":"Tim"}"#).await?;
+//! assert_eq!(result, "Hello, Tim!");
+//! # Ok(())
+//! # }
+//! ```
 
-use std::collections::HashMap;
+use std::collections::{btree_map::Entry, BTreeMap};
 
-use crate::{builders::chat::ChatCompletionBuilder, Result};
 use async_trait::async_trait;
-use openai_client_base::models::ChatCompletionTool;
+use openai_client_base::models::{ChatCompletionMessageToolCallsInner, ChatCompletionTool};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 
-use crate::{
-    builders::chat::tool_function,
-    errors::Error,
-    responses::{chat::ToolCallExt, ChatCompletionResponseWrapper},
-};
+use crate::{builders::chat::tool_function, responses::chat::ToolCallExt, Error, Result};
 
-/// Trait implemented by tools that can be registered with [`ToolRegistry`].
+/// A function tool. Store application state (for example an `Arc` or HTTP client)
+/// in the implementing struct and access it through `&self` during execution.
 #[async_trait]
-pub trait Tool: Send + Sync {
-    /// Input type deserialized from the model-provided JSON arguments.
+pub trait FunctionTool: Send + Sync {
+    /// Arguments decoded with Serde. Use `Value` for a dynamic JSON tool.
     type Input: DeserializeOwned + Send;
-
-    /// Output type serialized back to JSON to return to the model.
+    /// Result encoded as JSON, including quotes for string outputs.
     type Output: Serialize + Send;
-
-    /// Machine-readable name of the tool (`snake_case` recommended).
+    /// Stable name: 1–64 ASCII letters, digits, underscores or hyphens.
     fn name(&self) -> &str;
-
-    /// Human-friendly description shown to the model.
+    /// Describe what the tool does and when the model should use it.
     fn description(&self) -> &str;
-
-    /// JSON schema describing the tool parameters.
+    /// An object JSON Schema matching `Input`, including property descriptions.
+    ///
+    /// The registry checks only the root object type, not full JSON Schema
+    /// validity or conformance. Serde handles argument decoding; constraints such
+    /// as numeric bounds must also be enforced by the implementation. Strict mode
+    /// is not enabled. Optional fields may be omitted. For exact object fields,
+    /// pair `additionalProperties: false` with `#[serde(deny_unknown_fields)]`.
     fn parameters_schema(&self) -> Value;
-
-    /// Execute the tool with typed input, producing a typed output.
+    /// Execute after the caller has made any required authorization decisions.
+    /// Errors remain local unless the application chooses to send them to a model.
     async fn execute(&self, input: Self::Input) -> Result<Self::Output>;
+}
+
+/// Registration or execution failure, with the tool name and original source.
+#[derive(Debug, thiserror::Error)]
+pub enum ToolError {
+    /// An existing registration was retained.
+    #[error("Tool {name:?} is already registered")]
+    Duplicate {
+        /// Conflicting tool name.
+        name: String,
+    },
+    /// Tool metadata is unsuitable for a function definition.
+    #[error("Invalid definition for tool {name:?}: {reason}")]
+    InvalidDefinition {
+        /// Tool name supplied by the implementation.
+        name: String,
+        /// Actionable reason for rejection.
+        reason: String,
+    },
+    /// No tool with this name is registered.
+    #[error("Unknown tool {name:?}")]
+    Unknown {
+        /// Requested tool name.
+        name: String,
+    },
+    /// Arguments could not be decoded, or the result could not be encoded.
+    #[error("Tool {name:?} {stage}: {source}")]
+    Json {
+        /// Registered tool name.
+        name: String,
+        /// Whether argument decoding or output encoding failed.
+        stage: &'static str,
+        /// Original Serde error.
+        #[source]
+        source: serde_json::Error,
+    },
+    /// The arguments are JSON but not an object.
+    #[error("Tool {name:?} arguments must be a JSON object")]
+    InvalidArguments {
+        /// Registered tool name.
+        name: String,
+    },
+    /// The tool handler returned an error.
+    #[error("Tool {name:?} execution failed: {source}")]
+    Execution {
+        /// Registered tool name.
+        name: String,
+        /// Original application error.
+        #[source]
+        source: Error,
+    },
+    /// The call cannot be dispatched as a function call.
+    #[error("Invalid tool call: {reason}")]
+    InvalidCall {
+        /// Actionable reason for rejection.
+        reason: String,
+    },
+    /// Call context retained on dispatch failure, including unsupported calls.
+    #[error("Tool call {call_id:?} failed: {source}")]
+    Call {
+        /// Identifier supplied by the model.
+        call_id: String,
+        /// Underlying dispatch or execution failure.
+        #[source]
+        source: Box<Self>,
+    },
+}
+
+/// A successful tool reply ready for `ChatCompletionBuilder::tool`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolOutput {
+    /// Original model-issued call identifier.
+    pub call_id: String,
+    /// JSON-encoded output, not debug formatting or unquoted text.
+    pub content: String,
 }
 
 #[async_trait]
 trait ErasedTool: Send + Sync {
-    fn definition(&self) -> ChatCompletionTool;
-    async fn execute(&self, args: &str) -> Result<Value>;
+    async fn execute(&self, name: &str, args: &str) -> std::result::Result<Value, ToolError>;
 }
 
 #[async_trait]
-impl<T> ErasedTool for T
-where
-    T: Tool + 'static,
-{
-    fn definition(&self) -> ChatCompletionTool {
-        tool_function(self.name(), self.description(), self.parameters_schema())
-    }
-
-    async fn execute(&self, args: &str) -> Result<Value> {
-        let params: T::Input = serde_json::from_str(args)?;
-        let output = Tool::execute(self, params).await?;
-        Ok(serde_json::to_value(output)?)
+impl<T: FunctionTool> ErasedTool for T {
+    async fn execute(&self, name: &str, args: &str) -> std::result::Result<Value, ToolError> {
+        let json_error = |stage, source| ToolError::Json {
+            name: name.into(),
+            stage,
+            source,
+        };
+        let value: Value =
+            serde_json::from_str(args).map_err(|e| json_error("argument decoding failed", e))?;
+        if !value.is_object() {
+            return Err(ToolError::InvalidArguments { name: name.into() });
+        }
+        // Decode the original text so Serde still detects duplicate struct fields.
+        let input =
+            serde_json::from_str(args).map_err(|e| json_error("argument decoding failed", e))?;
+        let output =
+            FunctionTool::execute(self, input)
+                .await
+                .map_err(|source| ToolError::Execution {
+                    name: name.into(),
+                    source,
+                })?;
+        serde_json::to_value(output).map_err(|e| json_error("output encoding failed", e))
     }
 }
 
-/// Registry that holds all available tools.
+struct RegisteredTool {
+    definition: ChatCompletionTool,
+    handler: Box<dyn ErasedTool>,
+}
+
+/// Heterogeneous tools, with definitions snapshotted at registration and returned
+/// in name order for reproducible prompts. Execution never happens implicitly.
 #[derive(Default)]
 pub struct ToolRegistry {
-    tools: HashMap<String, Box<dyn ErasedTool>>,
+    tools: BTreeMap<String, RegisteredTool>,
 }
 
 impl ToolRegistry {
     /// Create an empty registry.
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            tools: HashMap::new(),
+        Self::default()
+    }
+
+    /// Register an instance without replacing an existing tool.
+    ///
+    /// Rejects duplicate names, invalid names, blank descriptions and schemas
+    /// without a root `"type": "object"`. Failure leaves the registry unchanged.
+    /// Metadata is captured once; later state changes do not alter definitions.
+    pub fn register<T: FunctionTool + 'static>(
+        &mut self,
+        tool: T,
+    ) -> std::result::Result<(), ToolError> {
+        let name = tool.name().to_owned();
+        let invalid = |reason: &str| ToolError::InvalidDefinition {
+            name: name.clone(),
+            reason: reason.into(),
+        };
+        if name.is_empty()
+            || name.len() > 64
+            || !name
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+        {
+            return Err(invalid(
+                "name must contain 1–64 ASCII letters, digits, underscores or hyphens",
+            ));
+        }
+        let description = tool.description();
+        if description.trim().is_empty() {
+            return Err(invalid("description must not be blank"));
+        }
+        let schema = tool.parameters_schema();
+        if !schema.is_object() || schema.get("type").and_then(Value::as_str) != Some("object") {
+            return Err(invalid("parameters schema must have root type object"));
+        }
+        let definition = tool_function(&name, description, schema);
+        match self.tools.entry(name) {
+            Entry::Occupied(entry) => Err(ToolError::Duplicate {
+                name: entry.key().clone(),
+            }),
+            Entry::Vacant(entry) => {
+                entry.insert(RegisteredTool {
+                    definition,
+                    handler: Box::new(tool),
+                });
+                Ok(())
+            }
         }
     }
 
-    /// Register a tool and return the registry for chaining.
-    #[must_use]
-    pub fn register<T>(mut self, tool: T) -> Self
-    where
-        T: Tool + 'static,
-    {
-        self.tools.insert(tool.name().to_string(), Box::new(tool));
-        self
-    }
-
-    /// Register a tool using a mutable reference.
-    pub fn register_mut<T>(&mut self, tool: T)
-    where
-        T: Tool + 'static,
-    {
-        self.tools.insert(tool.name().to_string(), Box::new(tool));
-    }
-
-    /// Returns `OpenAI` tool definitions suitable for chat requests.
+    /// Return function definitions suitable for `ChatCompletionBuilder::tools`.
     #[must_use]
     pub fn tool_definitions(&self) -> Vec<ChatCompletionTool> {
-        self.tools.values().map(|tool| tool.definition()).collect()
+        self.tools
+            .values()
+            .map(|tool| tool.definition.clone())
+            .collect()
     }
 
-    /// Execute a tool by name with JSON arguments.
-    pub async fn execute(&self, tool_name: &str, arguments: &str) -> Result<Value> {
+    /// Dispatch by name. Arguments must be a JSON object matching `FunctionTool::Input`.
+    /// Returns JSON output; does not retry, catch panics, or enforce timeouts.
+    pub async fn execute(
+        &self,
+        name: &str,
+        arguments: &str,
+    ) -> std::result::Result<Value, ToolError> {
         let tool = self
             .tools
-            .get(tool_name)
-            .ok_or_else(|| Error::InvalidRequest(format!("Unknown tool: {tool_name}")))?;
-        tool.execute(arguments).await
+            .get(name)
+            .ok_or_else(|| ToolError::Unknown { name: name.into() })?;
+        tool.handler.execute(name, arguments).await
     }
 
-    /// Execute a tool and return the JSON string expected by the Chat API.
-    pub async fn execute_to_string(&self, tool_name: &str, arguments: &str) -> Result<String> {
-        let value = self.execute(tool_name, arguments).await?;
-        Ok(value.to_string())
-    }
-
-    /// Execute every tool call present in the response.
-    pub async fn process_tool_calls(
-        &self,
-        response: &ChatCompletionResponseWrapper,
-    ) -> Result<Vec<(String, String)>> {
-        let mut results = Vec::new();
-        for call in response.tool_calls() {
-            let tool_name = call.function_name();
-            if tool_name.is_empty() {
-                return Err(Error::InvalidRequest(
-                    "Tool call missing function name".to_string(),
-                ));
-            }
-            let payload = self
-                .execute_to_string(tool_name, call.function_arguments())
-                .await?;
-            results.push((call.id().to_string(), payload));
-        }
-        Ok(results)
-    }
-
-    /// Execute the tool calls in `response` and append the outputs as tool messages on `builder`.
+    /// Execute one approved model-issued function call and retain its identifier.
     ///
-    /// This turns the JSON payloads returned by [`process_tool_calls`](Self::process_tool_calls)
-    /// into tool messages that can be fed back into [`ChatCompletionBuilder`].
-    pub async fn process_tool_calls_into_builder(
+    /// On error, `ToolError::Call` retains the identifier and original error. No
+    /// automatic batch execution is provided: callers choose error reporting,
+    /// ordering, concurrency and authorization per call, and retain earlier results.
+    /// Custom (non-function) calls and empty identifiers are rejected before execution.
+    pub async fn execute_call(
         &self,
-        response: &ChatCompletionResponseWrapper,
-        builder: ChatCompletionBuilder,
-    ) -> Result<ChatCompletionBuilder> {
-        let results = self.process_tool_calls(response).await?;
-        Ok(results
-            .into_iter()
-            .fold(builder, |builder, (tool_call_id, json)| {
-                builder.tool(tool_call_id, json)
-            }))
-    }
-}
-
-/// Build a JSON schema object describing tool parameters.
-#[macro_export]
-macro_rules! tool_schema {
-    () => {
-        serde_json::json!({
-            "type": "object",
-            "properties": {},
-            "required": []
-        })
-    };
-    ($($field:ident: $type:expr, $desc:expr, required: $req:expr),* $(,)?) => {{
-        let mut required_fields = Vec::new();
-        $(
-            if $req {
-                required_fields.push(stringify!($field));
+        call: &ChatCompletionMessageToolCallsInner,
+    ) -> std::result::Result<ToolOutput, ToolError> {
+        let result = async {
+            if call.id().is_empty() {
+                return Err(ToolError::InvalidCall {
+                    reason: "call identifier must not be empty".into(),
+                });
             }
-        )*
-
-        serde_json::json!({
-            "type": "object",
-            "properties": {
-                $(
-                    stringify!($field): {
-                        "type": $type,
-                        "description": $desc
-                    }
-                ),*
-            },
-            "required": required_fields
-        })
-    }};
-}
-
-/// Helper to resolve the input type provided to the [`tool!`] macro.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __openai_tool_input_type {
-    (@resolve ($provided:ty) $handler:ty) => {
-        $provided
-    };
-    (@resolve () $handler:ty) => {
-        $handler
-    };
-}
-
-/// Helper to resolve the output type provided to the [`tool!`] macro.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __openai_tool_output_type {
-    (@resolve ($provided:ty) $default:ty) => {
-        $provided
-    };
-    (@resolve () $default:ty) => {
-        $default
-    };
-}
-
-/// Helper to resolve the schema expression provided to the [`tool!`] macro.
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __openai_tool_schema_expr {
-    ($expr:expr) => {
-        $expr
-    };
-    () => {
-        $crate::tool_framework::tool_schema!()
-    };
-}
-
-/// Macro to declare a tool that implements [`Tool`].
-#[macro_export]
-macro_rules! tool {
-    (
-        $(#[$meta:meta])*
-        $vis:vis struct $struct_name:ident;
-
-        name: $tool_name:expr;
-        description: $description:expr;
-        $(input_type: $input_ty:ty;)?
-        $(output_type: $output_ty:ty;)?
-        $(schema: $schema_expr:expr;)?
-
-        async fn handle($arg:ident : $handler_ty:ty) -> $ret_ty:ty $body:block
-    ) => {
-        $(#[$meta])*
-        $vis struct $struct_name;
-
-        #[async_trait::async_trait]
-        impl $crate::tool_framework::Tool for $struct_name {
-            type Input = $crate::__openai_tool_input_type!(@resolve ($($input_ty)?) $handler_ty);
-            type Output = $crate::__openai_tool_output_type!(@resolve ($($output_ty)?) serde_json::Value);
-
-            fn name(&self) -> &str {
-                $tool_name
-            }
-
-            fn description(&self) -> &str {
-                $description
-            }
-
-            fn parameters_schema(&self) -> serde_json::Value {
-                $crate::__openai_tool_schema_expr!($($schema_expr)?)
-            }
-
-            async fn execute(&self, $arg: Self::Input) -> $ret_ty $body
-        }
-    };
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::builders::Builder;
-    use openai_client_base::models::{
-        chat_completion_message_tool_call::Type as ToolCallType,
-        chat_completion_response_message::Role,
-        create_chat_completion_response_choices_inner::FinishReason, ChatCompletionMessageToolCall,
-        ChatCompletionMessageToolCallFunction, ChatCompletionMessageToolCallsInner,
-        ChatCompletionRequestMessage, ChatCompletionRequestToolMessageContent,
-        ChatCompletionResponseMessage, CreateChatCompletionRequest, CreateChatCompletionResponse,
-        CreateChatCompletionResponseChoicesInner,
-    };
-    use serde::{Deserialize, Serialize};
-
-    #[derive(Deserialize)]
-    struct EchoInput {
-        message: String,
-    }
-
-    tool! {
-        struct EchoTool;
-
-        name: "echo";
-        description: "Echo back the message";
-        input_type: EchoInput;
-        schema: tool_schema!(
-            message: "string", "Message to echo", required: true,
-        );
-
-        async fn handle(params: EchoInput) -> Result<serde_json::Value> {
-            Ok(serde_json::json!({ "message": params.message }))
-        }
-    }
-
-    #[derive(Deserialize)]
-    struct AddInput {
-        lhs: i64,
-        rhs: i64,
-    }
-
-    #[derive(Serialize)]
-    struct AddOutput {
-        sum: i64,
-    }
-
-    tool! {
-        struct AddTool;
-
-        name: "add_numbers";
-        description: "Add two integers";
-        input_type: AddInput;
-        output_type: AddOutput;
-        schema: tool_schema!(
-            lhs: "integer", "Left operand", required: true,
-            rhs: "integer", "Right operand", required: true,
-        );
-
-        async fn handle(params: AddInput) -> Result<AddOutput> {
-            Ok(AddOutput {
-                sum: params.lhs + params.rhs,
+            let ChatCompletionMessageToolCallsInner::ChatCompletionMessageToolCall(function_call) =
+                call
+            else {
+                return Err(ToolError::InvalidCall {
+                    reason: "only function tool calls are supported".into(),
+                });
+            };
+            let output = self
+                .execute(
+                    &function_call.function.name,
+                    &function_call.function.arguments,
+                )
+                .await?;
+            Ok(ToolOutput {
+                call_id: call.id().into(),
+                content: output.to_string(),
             })
         }
-    }
-
-    fn sample_tool_response() -> ChatCompletionResponseWrapper {
-        let tool_call = ChatCompletionMessageToolCallsInner::ChatCompletionMessageToolCall(
-            Box::new(ChatCompletionMessageToolCall {
-                id: "call_1".to_string(),
-                r#type: ToolCallType::Function,
-                function: Box::new(ChatCompletionMessageToolCallFunction {
-                    name: "add_numbers".to_string(),
-                    arguments: r#"{"lhs":2,"rhs":3}"#.to_string(),
-                }),
-            }),
-        );
-
-        let message = ChatCompletionResponseMessage {
-            content: None,
-            refusal: None,
-            tool_calls: Some(vec![tool_call]),
-            annotations: None,
-            role: Role::Assistant,
-            function_call: None,
-            audio: None,
-        };
-
-        let choice = CreateChatCompletionResponseChoicesInner {
-            finish_reason: FinishReason::ToolCalls,
-            index: 0,
-            message: Box::new(message),
-            logprobs: None,
-        };
-
-        let response = CreateChatCompletionResponse {
-            id: "resp_123".to_string(),
-            choices: vec![choice],
-            created: 0,
-            model: "gpt-test".to_string(),
-            service_tier: None,
-            system_fingerprint: None,
-            object:
-                openai_client_base::models::create_chat_completion_response::Object::ChatCompletion,
-            usage: None,
-        };
-
-        ChatCompletionResponseWrapper::new(response)
-    }
-
-    #[tokio::test]
-    async fn executes_typed_tool() {
-        let registry = ToolRegistry::new().register(EchoTool);
-
-        let result = registry
-            .execute("echo", r#"{"message":"hello"}"#)
-            .await
-            .unwrap();
-
-        assert_eq!(result["message"], "hello");
-    }
-
-    #[tokio::test]
-    async fn executes_typed_output_tool() {
-        let registry = ToolRegistry::new().register(AddTool);
-
-        let result = registry
-            .execute("add_numbers", r#"{"lhs":5,"rhs":7}"#)
-            .await
-            .unwrap();
-
-        assert_eq!(result["sum"], 12);
-    }
-
-    #[tokio::test]
-    async fn processes_tool_calls() {
-        let registry = ToolRegistry::new().register(AddTool);
-        let response = sample_tool_response();
-
-        let results = registry.process_tool_calls(&response).await.unwrap();
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].0, "call_1");
-        assert_eq!(results[0].1, r#"{"sum":5}"#);
-    }
-
-    #[tokio::test]
-    async fn appends_tool_messages_to_builder() {
-        let registry = ToolRegistry::new().register(AddTool);
-        let response = sample_tool_response();
-        let builder = ChatCompletionBuilder::new("gpt-test");
-
-        let builder = registry
-            .process_tool_calls_into_builder(&response, builder)
-            .await
-            .unwrap();
-
-        let request: CreateChatCompletionRequest = builder.build().unwrap();
-        assert_eq!(request.messages.len(), 1);
-        match &request.messages[0] {
-            ChatCompletionRequestMessage::ChatCompletionRequestToolMessage(msg) => {
-                assert_eq!(msg.tool_call_id, "call_1");
-                assert_eq!(
-                    msg.content.as_ref(),
-                    &ChatCompletionRequestToolMessageContent::TextContent(
-                        r#"{"sum":5}"#.to_string()
-                    )
-                );
-            }
-            other => panic!("expected tool message, got {other:?}"),
-        }
+        .await;
+        result.map_err(|source| ToolError::Call {
+            call_id: call.id().into(),
+            source: Box::new(source),
+        })
     }
 }
