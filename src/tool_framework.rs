@@ -70,7 +70,8 @@ pub trait FunctionTool: Send + Sync {
     /// pair `additionalProperties: false` with `#[serde(deny_unknown_fields)]`.
     fn parameters_schema(&self) -> Value;
     /// Execute after the caller has made any required authorization decisions.
-    /// Errors remain local unless the application chooses to send them to a model.
+    /// Use `Error::application` to preserve custom domain errors. Errors remain local
+    /// unless the application chooses to send them to a model.
     async fn execute(&self, input: Self::Input) -> Result<Self::Output>;
 }
 
@@ -97,13 +98,20 @@ pub enum ToolError {
         /// Requested tool name.
         name: String,
     },
-    /// Arguments could not be decoded, or the result could not be encoded.
-    #[error("Tool {name:?} {stage}: {source}")]
-    Json {
+    /// Arguments could not be decoded as JSON or as the tool's input type.
+    #[error("Tool {name:?} argument decoding failed: {source}")]
+    Arguments {
         /// Registered tool name.
         name: String,
-        /// Whether argument decoding or output encoding failed.
-        stage: &'static str,
+        /// Original Serde error.
+        #[source]
+        source: serde_json::Error,
+    },
+    /// The handler's output could not be encoded as JSON.
+    #[error("Tool {name:?} output encoding failed: {source}")]
+    Output {
+        /// Registered tool name.
+        name: String,
         /// Original Serde error.
         #[source]
         source: serde_json::Error,
@@ -157,19 +165,16 @@ trait ErasedTool: Send + Sync {
 #[async_trait]
 impl<T: FunctionTool> ErasedTool for T {
     async fn execute(&self, name: &str, args: &str) -> std::result::Result<Value, ToolError> {
-        let json_error = |stage, source| ToolError::Json {
+        let argument_error = |source| ToolError::Arguments {
             name: name.into(),
-            stage,
             source,
         };
-        let value: Value =
-            serde_json::from_str(args).map_err(|e| json_error("argument decoding failed", e))?;
+        let value: Value = serde_json::from_str(args).map_err(argument_error)?;
         if !value.is_object() {
             return Err(ToolError::InvalidArguments { name: name.into() });
         }
         // Decode the original text so Serde still detects duplicate struct fields.
-        let input =
-            serde_json::from_str(args).map_err(|e| json_error("argument decoding failed", e))?;
+        let input = serde_json::from_str(args).map_err(argument_error)?;
         let output =
             FunctionTool::execute(self, input)
                 .await
@@ -177,7 +182,10 @@ impl<T: FunctionTool> ErasedTool for T {
                     name: name.into(),
                     source,
                 })?;
-        serde_json::to_value(output).map_err(|e| json_error("output encoding failed", e))
+        serde_json::to_value(output).map_err(|source| ToolError::Output {
+            name: name.into(),
+            source,
+        })
     }
 }
 
@@ -187,10 +195,21 @@ struct RegisteredTool {
 }
 
 /// Heterogeneous tools, with definitions snapshotted at registration and returned
-/// in name order for reproducible prompts. Execution never happens implicitly.
+/// in name order.
+///
+/// Schema map key ordering follows the underlying client model;
+/// byte-for-byte serialization order is not guaranteed. Execution is explicit.
 #[derive(Default)]
 pub struct ToolRegistry {
     tools: BTreeMap<String, RegisteredTool>,
+}
+
+impl std::fmt::Debug for ToolRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ToolRegistry")
+            .field("names", &self.tools.keys())
+            .finish_non_exhaustive()
+    }
 }
 
 impl ToolRegistry {

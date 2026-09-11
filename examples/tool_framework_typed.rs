@@ -89,7 +89,7 @@ fn sample_response() -> Result<ChatCompletionResponseWrapper> {
 }
 
 #[tokio::main]
-async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     let records = Arc::new(RwLock::new(BTreeMap::from([(
         "language".into(),
         "Rust".into(),

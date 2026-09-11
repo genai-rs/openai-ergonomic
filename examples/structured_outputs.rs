@@ -907,6 +907,12 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
 /// Comprehensive error handling helper
 fn handle_api_error(error: &Error) {
     match error {
+        Error::Tool(err) => {
+            eprintln!(" Tool Error: {err}");
+        }
+        Error::Application(err) => {
+            eprintln!(" Application Error: {err}");
+        }
         Error::Api {
             status,
             message,

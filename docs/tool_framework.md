@@ -13,7 +13,7 @@ cargo run --example tool_framework_typed
 
 The [simple example](../examples/tool_framework.rs) defines a typed search tool with a required query and optional limit. The [chat example](../examples/tool_framework_typed.rs) registers two tools, reads shared application state asynchronously, and builds a complete assistant/tool exchange using actual client models. The crate's [`tool_framework` rustdoc](../src/tool_framework.rs) also contains a compiling minimal greeting tool.
 
-Implementations use `#[async_trait::async_trait]`, Serde input/output types, and `serde_json::json!` for the schema. Add `async-trait`, `serde` (with `derive`), and `serde_json` as direct application dependencies. Store clients or `Arc` state in your tool struct; `execute(&self, input)` can await I/O. The handler returns the crate's `Result<Output>`.
+Implementations use `#[async_trait::async_trait]`, Serde input/output types, and `serde_json::json!` for the schema. Add `async-trait`, `serde` (with `derive`), and `serde_json` as direct application dependencies. Store clients or `Arc` state in your tool struct; `execute(&self, input)` can await I/O. The handler returns the crate's `Result<Output>`. Use `Error::application(domain_error)` to preserve custom error sources. Registry errors convert into the crate's `Error`, so `?` works in a function returning `openai_ergonomic::Result`.
 
 ```rust,ignore
 let mut tools = ToolRegistry::new();
@@ -23,7 +23,9 @@ let definitions = tools.tool_definitions();
 let value = tools.execute("search", r#"{"query":"Rust"}"#).await?;
 ```
 
-This fragment uses the tool types from the examples. `register` mutates the registry and returns `Result<(), ToolError>`; handle errors with `?`. It rejects duplicates without replacing the original instance. Names must be 1–64 ASCII letters, digits, underscores or hyphens; descriptions must be nonblank; schemas must declare an object root. Definitions are captured once and returned in alphabetical name order.
+This fragment uses the tool types from the examples. `register` mutates the registry and returns `Result<(), ToolError>`; handle errors with `?`. It rejects duplicates without replacing the original instance. Names must be 1–64 ASCII letters, digits, underscores or hyphens; descriptions must be nonblank; schemas must declare an object root. Definitions are captured once and returned in alphabetical name order. The client model stores schema parameters in a `HashMap`, so serialized key ordering is not guaranteed.
+
+`Error` gains `Tool` and `Application` variants; downstream exhaustive matches on that enum need corresponding arms.
 
 ## Schemas and arguments
 
@@ -35,6 +37,8 @@ Write schemas for the model, with a clear purpose and property descriptions. Kee
 - Express enums, bounds and nested shapes in standard JSON Schema. Also enforce application constraints in Rust; the registry does not run a JSON Schema validator.
 
 No schema is inferred and strict mode is not enabled. Registration checks only the object root, not full schema validity or equivalence to `Input`. The framework parses JSON objects and then uses Serde to decode the original argument string, preserving Serde's rejection of duplicate struct fields. Malformed JSON, missing required fields and incompatible types return errors before the handler runs. Defaults, custom deserializers and unknown-field behavior follow your Serde configuration. Dynamic `Value` inputs follow Serde JSON semantics, including last-value handling of duplicate keys; validate stricter constraints yourself when needed.
+
+For a zero-argument tool, use an empty `#[derive(Deserialize)] struct NoArgs {}` with an object schema and empty properties. Use `#[serde(deny_unknown_fields)]` if no fields should be accepted. `()` expects JSON null and therefore does not accept the `{}` argument object. Empty argument strings are invalid JSON and are not silently converted to `{}`.
 
 `type Input = serde_json::Value` and/or `type Output = serde_json::Value` provide the dynamic escape hatch without a second trait. Dynamic inputs must still be JSON objects. Output is encoded using Serde JSON, including quotes around strings; non-finite floats follow Serde JSON's null encoding. Choose output types and validation accordingly.
 
@@ -65,7 +69,7 @@ There is no automatic batch execution, approval, retry, rollback, timeout or pan
 
 ## Migration from the earlier PR drafts
 
-This is an unreleased feature; existing released chat builders and helpers retain their behavior. The existing root `Tool` and `responses::Tool` aliases still mean the client definition type; the executable trait is named `FunctionTool` to avoid breaking those imports.
+The tool framework is an unreleased feature; existing released chat builders and helpers retain their behavior. The existing root `Tool` and `responses::Tool` aliases still mean the client definition type; the executable trait is named `FunctionTool` to avoid breaking those imports.
 
 | Earlier draft | Current API |
 | --- | --- |

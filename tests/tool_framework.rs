@@ -137,7 +137,7 @@ async fn rejects_bad_arguments_before_running_handler() {
         assert!(
             matches!(
                 tools.execute("echo", args).await,
-                Err(ToolError::Json { .. })
+                Err(ToolError::Arguments { .. })
             ),
             "{args}"
         );
@@ -311,10 +311,7 @@ async fn dynamic_json_and_output_encoding_failures() {
     ));
     assert!(matches!(
         tools.execute("bad_encoder", "{}").await,
-        Err(ToolError::Json {
-            stage: "output encoding failed",
-            ..
-        })
+        Err(ToolError::Output { .. })
     ));
 }
 
@@ -362,3 +359,92 @@ async fn definitions_are_snapshots_while_handler_state_remains_live() {
     exported[0].function.name = "changed".into();
     assert_eq!(tools.tool_definitions()[0].function.name, "stateful");
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("record does not exist")]
+struct MissingRecord;
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NoArgs {}
+struct FailingTool;
+#[async_trait]
+impl FunctionTool for FailingTool {
+    type Input = NoArgs;
+    type Output = Value;
+    fn name(&self) -> &'static str {
+        "failure"
+    }
+    fn description(&self) -> &'static str {
+        "Return an application error without arguments"
+    }
+    fn parameters_schema(&self) -> Value {
+        json!({"type": "object", "properties": {}, "additionalProperties": false})
+    }
+    async fn execute(&self, _: NoArgs) -> Result<Value> {
+        Err(Error::application(MissingRecord))
+    }
+}
+
+#[tokio::test]
+async fn crate_result_preserves_domain_error_and_call_context() {
+    async fn application() -> Result<()> {
+        let mut tools = ToolRegistry::new();
+        tools.register(FailingTool)?;
+        tools
+            .execute_call(&call("domain-call", "failure", "{}"))
+            .await?;
+        Ok(())
+    }
+    let error = application().await.unwrap_err();
+    assert!(error.to_string().contains("domain-call"));
+    assert!(error.to_string().contains("failure"));
+    assert!(error.to_string().contains("record does not exist"));
+    let mut source = std::error::Error::source(&error);
+    let mut found_domain_error = false;
+    while let Some(cause) = source {
+        found_domain_error |= cause.downcast_ref::<MissingRecord>().is_some();
+        source = cause.source();
+    }
+    assert!(found_domain_error);
+    let mut tools = ToolRegistry::new();
+    tools.register(FailingTool).unwrap();
+    for args in ["", r#"{"unexpected":true}"#] {
+        assert!(matches!(
+            tools.execute("failure", args).await,
+            Err(ToolError::Arguments { .. })
+        ));
+    }
+}
+
+#[tokio::test]
+async fn registry_can_be_shared_for_concurrent_calls() {
+    let count = Arc::new(AtomicUsize::new(0));
+    let mut tools = ToolRegistry::new();
+    let name = "a".repeat(64);
+    tools.register(Echo::new(&name, &count)).unwrap();
+    tools.register(Echo::new("A-0_b", &count)).unwrap();
+    let tools = Arc::new(tools);
+    let mut tasks = Vec::new();
+    for index in 0..8 {
+        let shared = tools.clone();
+        let name = name.clone();
+        tasks.push(tokio::spawn(async move {
+            shared
+                .execute_call(&call(&index.to_string(), &name, r#"{"message":"ok"}"#))
+                .await
+                .unwrap()
+        }));
+    }
+    for (index, task) in tasks.into_iter().enumerate() {
+        let output = task.await.unwrap();
+        assert_eq!(output.call_id, index.to_string());
+        assert_eq!(output.content, r#""ok""#);
+    }
+    assert_eq!(count.load(Ordering::SeqCst), 8);
+}
+
+// Run the complete consumer examples as part of ordinary `cargo test` in CI.
+#[path = "../examples/tool_framework_typed.rs"]
+mod chat_example;
+#[path = "../examples/tool_framework.rs"]
+mod search_example;
