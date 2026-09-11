@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.2...v0.6.0) - 2026-09-11
+
+### Added
+
+- [**breaking**] integrate tool failures with the crate error type
+- make function tools typed, stateful and explicit to dispatch
+- add registry helper for tool call replay
+- unify tool framework (genai-rs-24)
+
+### Fixed
+
+- derive CI minimum Rust version from Cargo.toml
+- preserve application errors and validate complete tool workflows
+- validate examples on stable and use the declared MSRV
+- adapt to breaking API changes in openai-client-base 0.12.0
+- resolve clippy duration_suboptimal_units warning
+- resolve clippy collapsible_match warning in tests
+- update feature flags and code for reqwest 0.13 and other dep bumps
+
+### Other
+
+- execute the complete offline chat replay example
+- satisfy clippy for tool examples
+- *(deps)* Update Rust crate futures to ^0.3.34
+- *(deps)* Update rust patch updates
+- *(deps)* Update Rust crate tokio-stream to ^0.1.19
+- *(deps)* Update rust patch updates
+- *(deps)* Update dependency rust to 1.97
+- *(deps)* Update rust patch updates
+- *(deps)* Update github-actions
+- *(deps)* Update Rust crate uuid to ^1.23.4
+- *(deps)* Update github-actions to 1.96
+- *(deps)* Update rust patch updates to ^3.9.3
+- *(deps)* Update rust patch updates
+- *(deps)* Update github-actions to v7
+- *(deps)* Update rust patch updates
+- *(deps)* Update rust patch updates
+- rename deprecated app-id to client-id in create-github-app-token
+- *(deps)* Update actions/dependency-review-action action to v5
+- *(deps)* Update rust patch updates
+- *(deps)* Update rust minor updates
+- automerge core dependency updates
+- *(deps)* Update Rust crate rand to ^0.10.1
+- *(deps)* Update codecov/codecov-action action to v6
+- *(deps)* Update rust patch updates
+- *(deps)* Update actions/create-github-app-token action to v3
+- *(deps)* Update rust minor updates
+- *(deps)* Update Rust crate futures to ^0.3.32
+- *(deps)* Update rust minor updates
+
 ### Added
 
 - add a typed async FunctionTool trait, fallible registry, and per-call dispatch with preserved identifiers
