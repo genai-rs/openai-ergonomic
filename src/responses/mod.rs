@@ -325,7 +325,7 @@ impl ToolChoiceHelper {
 /// Re-export commonly used types from openai-client-base for convenience
 pub use openai_client_base::models::{
     ChatCompletionMessageToolCall as ToolCall,
-    ChatCompletionResponseMessageFunctionCall as FunctionCall, ChatCompletionTool as ChatTool,
+    ChatCompletionResponseMessageFunctionCall as FunctionCall, ChatCompletionTool as Tool,
     ChatCompletionToolChoiceOption as ToolChoice, CompletionUsage as Usage,
     CreateChatCompletionResponse as ChatResponse,
     CreateChatCompletionStreamResponse as StreamResponse,

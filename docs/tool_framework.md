@@ -1,230 +1,79 @@
-# Tool Framework
+# Function tools
 
-`openai-ergonomic` ships a lightweight framework for defining, registering, and executing OpenAI Chat API tools. It exposes a single [`Tool`](../src/tool_framework.rs) trait with customizable input and output types, a [`ToolRegistry`](../src/tool_framework.rs), and helper macros to eliminate boilerplate.
+Define a tool by implementing `FunctionTool`, register instances in `ToolRegistry`, then dispatch approved model calls with `execute_call`. The same trait supports typed inputs/outputs, application state, and dynamic JSON. This module targets Chat Completions function tools, not Responses API tools or custom text tools.
 
-## Quick Start
+## Start with a working example
 
-```rust
-use openai_ergonomic::{
-    tool,
-    tool_framework::ToolRegistry,
-    tool_schema,
-    Result,
-};
-use serde::Deserialize;
+Run either example without an API key:
 
-#[derive(Deserialize)]
-pub struct WeatherParams {
-    location: String,
-    #[serde(default)]
-    units: Option<String>,
-}
+```sh
+cargo run --example tool_framework
+cargo run --example tool_framework_typed
+```
 
-tool! {
-    pub struct WeatherTool;
+The [simple example](../examples/tool_framework.rs) defines a typed search tool with a required query and optional limit. The [chat example](../examples/tool_framework_typed.rs) registers two tools, reads shared application state asynchronously, and builds a complete assistant/tool exchange using actual client models. The crate's [`tool_framework` rustdoc](../src/tool_framework.rs) also contains a compiling minimal greeting tool.
 
-    name: "get_weather";
-    description: "Fetch current weather conditions";
-    input_type: WeatherParams;
-    schema: tool_schema!(
-        location: "string", "City or postal code", required: true,
-        units: "string", "Measurement units (metric/imperial)", required: false,
+Implementations use `#[async_trait::async_trait]`, Serde input/output types, and `serde_json::json!` for the schema. Add `async-trait`, `serde` (with `derive`), and `serde_json` as direct application dependencies. Store clients or `Arc` state in your tool struct; `execute(&self, input)` can await I/O. The handler returns the crate's `Result<Output>`.
+
+```rust,ignore
+let mut tools = ToolRegistry::new();
+tools.register(Search)?;
+tools.register(Lookup { records })?;
+let definitions = tools.tool_definitions();
+let value = tools.execute("search", r#"{"query":"Rust"}"#).await?;
+```
+
+This fragment uses the tool types from the examples. `register` mutates the registry and returns `Result<(), ToolError>`; handle errors with `?`. It rejects duplicates without replacing the original instance. Names must be 1–64 ASCII letters, digits, underscores or hyphens; descriptions must be nonblank; schemas must declare an object root. Definitions are captured once and returned in alphabetical name order.
+
+## Schemas and arguments
+
+Write schemas for the model, with a clear purpose and property descriptions. Keep them aligned with the Serde input type:
+
+- List fields without defaults in `required`.
+- For `Option<T>`, omit the field from `required` and allow `null` if your interface accepts it. Describe what omission/null means.
+- Pair `additionalProperties: false` with `#[serde(deny_unknown_fields)]` when extra fields should be errors.
+- Express enums, bounds and nested shapes in standard JSON Schema. Also enforce application constraints in Rust; the registry does not run a JSON Schema validator.
+
+No schema is inferred and strict mode is not enabled. Registration checks only the object root, not full schema validity or equivalence to `Input`. The framework parses JSON objects and then uses Serde to decode the original argument string, preserving Serde's rejection of duplicate struct fields. Malformed JSON, missing required fields and incompatible types return errors before the handler runs. Defaults, custom deserializers and unknown-field behavior follow your Serde configuration. Dynamic `Value` inputs follow Serde JSON semantics, including last-value handling of duplicate keys; validate stricter constraints yourself when needed.
+
+`type Input = serde_json::Value` and/or `type Output = serde_json::Value` provide the dynamic escape hatch without a second trait. Dynamic inputs must still be JSON objects. Output is encoded using Serde JSON, including quotes around strings; non-finite floats follow Serde JSON's null encoding. Choose output types and validation accordingly.
+
+## Execute a model call and reply
+
+Keep the earlier conversation, append the assistant's calls, then append one tool reply per call. This fragment assumes `builder` is the request history used to obtain `response`:
+
+```rust,ignore
+let calls: Vec<_> = response.tool_calls().into_iter().cloned().collect();
+if !calls.is_empty() {
+    builder = builder.assistant_with_tool_calls(
+        response.content().unwrap_or_default(), calls.clone(),
     );
-
-    async fn handle(params: WeatherParams) -> Result<serde_json::Value> {
-        let units = params.units.unwrap_or_else(|| "metric".into());
-        Ok(serde_json::json!({
-            "location": params.location,
-            "units": units,
-            "temperature": 21.4,
-            "conditions": "Partly cloudy"
-        }))
+    for call in &calls {
+        // Apply application authorization before dispatching.
+        let output = tools.execute_call(call).await?;
+        builder = builder.tool(output.call_id, output.content);
     }
 }
-
-# tokio_test::block_on(async {
-let registry = ToolRegistry::new().register(WeatherTool);
-let response = registry
-    .execute("get_weather", r#"{"location":"Brussels"}"#)
-    .await?;
-
-assert_eq!(response["location"], "Brussels");
-# Result::<()>::Ok(())
-# })?;
+// Send builder.build()? through your existing chat client.
 ```
 
-The macro expands to a struct and a `Tool` implementation with the appropriate associated types.
+`ToolOutput` contains `call_id` and JSON `content`. `execute_call` rejects non-function calls and empty IDs before running a handler. On failure, `ToolError::Call { call_id, source }` preserves the original ID and underlying error; errors identify the tool and retain Serde/application sources. `execute(name, arguments)` is the lower-level API returning a JSON `Value` without call context.
 
-## Trait Overview
+The snippet stops on error with `?`. For a model-visible error reply and continuation, use the complete chat example: match each dispatch result, keep successful replies, and send an application-selected error payload. Do not blindly expose raw errors that may contain private application data. For a denied call, the application can supply its own reply without executing it.
 
-```rust
-#[async_trait::async_trait]
-pub trait Tool: Send + Sync {
-    type Input: serde::de::DeserializeOwned + Send;
-    type Output: serde::Serialize + Send;
+There is no automatic batch execution, approval, retry, rollback, timeout or panic handling. Decide these in the application. Preserve successful results if a later call fails; retrying a whole response can repeat external effects. Use the first-choice calls exposed by the response wrapper, or explicitly select another choice yourself. Avoid replaying the same response twice. For responses without calls, handle the assistant content normally.
 
-    fn name(&self) -> &str;
-    fn description(&self) -> &str;
-    fn parameters_schema(&self) -> serde_json::Value;
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output>;
-}
-```
+## Migration from the earlier PR drafts
 
-- **Input type**: specify the handler argument type (the `tool!` macro defaults to the handler parameter when `input_type` is omitted).
-- **Output type**: specify the return type you want serialized (the `tool!` macro defaults to `serde_json::Value` when `output_type` is omitted).
-- **`execute`**: async by design so your tool implementation can call APIs, databases, etc.
+This is an unreleased feature; existing released chat builders and helpers retain their behavior. The existing root `Tool` and `responses::Tool` aliases still mean the client definition type; the executable trait is named `FunctionTool` to avoid breaking those imports.
 
-## Tool Registry
+| Earlier draft | Current API |
+| --- | --- |
+| `tool!` and `tool_schema!` macros | Ordinary `impl FunctionTool` and `serde_json::json!` |
+| `Tool`, `TypedTool`, `StronglyTypedTool` in #70 | One `FunctionTool` with associated `Input` and `Output` |
+| Chained `register` / `register_mut` | `let mut tools = ToolRegistry::new(); tools.register(tool)?;` |
+| Duplicate name replaces an instance | `ToolError::Duplicate`, original retained |
+| `execute_to_string` | `execute_call` for model calls; `execute(...).await?.to_string()` otherwise |
+| `process_tool_calls` / `process_tool_calls_into_builder` | Loop over calls and use `execute_call`; retain per-call results |
 
-```rust
-let registry = ToolRegistry::new()
-    .register(WeatherTool)
-    .register(TimeTool);
-
-// Send tool definitions with your chat request
-let definitions = registry.tool_definitions();
-
-// Execute a single call
-let json = registry.execute("get_weather", r#"{"location":"Berlin"}"#).await?;
-
-// Handle every tool call returned by a response
-let tool_results = registry.process_tool_calls(&response).await?;
-```
-
-- `register` returns the registry for builder-style chaining.
-- `register_mut` mutates in-place if you already have a `ToolRegistry`.
-- `execute_to_string` is a convenience for the raw JSON string expected by the Chat API.
-- `process_tool_calls` finds tool calls in a `ChatCompletionResponseWrapper`, executes them, and returns `(tool_call_id, json)` tuples. You can attach these JSON strings to your chat request via `assistant_with_tool_calls`.
-- `process_tool_calls_into_builder` runs the same loop but returns a `ChatCompletionBuilder` with the tool messages already appended.
-
-## Macro Reference
-
-### `tool_schema!`
-
-Creates JSON Schema fragments for tool parameters.
-
-```rust
-let schema = tool_schema!(
-    query: "string", "Search query", required: true,
-    limit: "integer", "Maximum results", required: false,
-);
-```
-
-### `tool!`
-
-> Note: If you export the generated tool (e.g. `pub struct MyTool`), make the associated input/output types `pub` as well so they remain visible outside the module.
-
-```rust
-tool! {
-    pub struct SearchTool;
-
-    name: "search";
-    description: "Search indexed documents";
-    input_type: SearchParams;        // Optional (defaults to handler argument type)
-    output_type: SearchResult;       // Optional (defaults to serde_json::Value)
-    schema: tool_schema!( ... );     // Optional (defaults to empty schema)
-
-    async fn handle(params: SearchParams) -> Result<SearchResult> {
-        /* ... */
-    }
-}
-```
-
-Fields:
-- `name` and `description` feed directly into the OpenAI tool definition.
-- `input_type` and `output_type` are optional helpers when you want the type to differ from the handler signature defaults.
-- `schema` lets you provide a custom JSON schema expression; omit it to use an empty schema.
-
-The macro returns the struct type so you can register it immediately:
-
-```rust
-let registry = ToolRegistry::new().register(SearchTool);
-```
-
-## Typed Outputs Example
-
-```rust
-#[derive(Deserialize)]
-pub struct AddParams {
-    lhs: i64,
-    rhs: i64,
-}
-
-#[derive(Serialize)]
-pub struct AddResult {
-    sum: i64,
-}
-
-tool! {
-    pub struct AddTool;
-
-    name: "add_numbers";
-    description: "Add two integers";
-    input_type: AddParams;
-    output_type: AddResult;
-    schema: tool_schema!(
-        lhs: "integer", "Left operand", required: true,
-        rhs: "integer", "Right operand", required: true,
-    );
-
-    async fn handle(params: AddParams) -> Result<AddResult> {
-        Ok(AddResult { sum: params.lhs + params.rhs })
-    }
-}
-
-let result = registry
-    .execute("add_numbers", r#"{"lhs":2,"rhs":3}"#)
-    .await?;
-assert_eq!(result["sum"], 5);
-
-let builder = registry
-    .process_tool_calls_into_builder(&response, ChatCompletionBuilder::new("gpt-4o"))
-    .await?;
-```
-
-## Workflow Helper
-
-`ToolRegistry::process_tool_calls_into_builder` covers the common chat loop. If you need to inspect the raw `(tool_call_id, json)` tuples, drop down to [`process_tool_calls`](../src/tool_framework.rs) and apply custom logic before feeding the results back into the builder.
-
-## Putting It Together
-
-```rust
-let registry = ToolRegistry::new()
-    .register(WeatherTool)
-    .register(CalendarTool);
-
-let mut builder = client
-    .chat()
-    .system("You can call tools to retrieve information")
-    .user("What meetings do I have today?")
-    .tools(registry.tool_definitions());
-
-let response = client.execute_chat(builder.clone().build()?).await?;
-
-if response.tool_calls().is_empty() {
-    println!("Assistant: {}", response.content().unwrap_or_default());
-    return Ok(());
-}
-
-builder = registry
-    .process_tool_calls_into_builder(&response, builder)
-    .await?
-    .assistant_with_tool_calls(
-        "",
-        response
-            .tool_calls()
-            .into_iter()
-            .cloned()
-            .collect(),
-    );
-
-let follow_up = client.execute_chat(builder.build()?).await?;
-println!("Assistant: {}", follow_up.content().unwrap_or_default());
-```
-
-## Additional Resources
-
-- [Tool framework examples](../examples/tool_framework.rs)
-- [Typed output example](../examples/tool_framework_typed.rs)
-- [Tool orchestration guide](tool_orchestration.md)
-- [Unified design notes](unified_tool_framework_design.md)
+The explicit trait costs a few metadata methods but supports state naturally, uses familiar compiler diagnostics and avoids repeating handler types in a macro DSL. Explicit dispatch keeps control over side effects and error policy. Schemas remain manual to avoid a new mandatory dependency; their limits are documented and covered by examples/tests. See [design notes](unified_tool_framework_design.md).

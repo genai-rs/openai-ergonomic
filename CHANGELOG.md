@@ -9,9 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- introduce unified Tool trait, registry, and tool! macro for chat tool calling
-- add ToolRegistry::process_tool_calls_into_builder helper for chat replay loops
-- add tool_framework* examples showcasing typed inputs and outputs
+- add a typed async FunctionTool trait, fallible registry, and per-call dispatch with preserved identifiers
+- add offline examples for typed inputs/outputs, dynamic JSON, async state, and chat replay
 - document the tool framework and link from README/examples index
 
 ## [0.5.2](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.1...v0.5.2) - 2026-02-08
@@ -46,7 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove ConversationState API
 - cache conversation state requests
 - fix conversation state links
-
 
 ### Removed
 

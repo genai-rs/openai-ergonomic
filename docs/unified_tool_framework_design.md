@@ -1,98 +1,13 @@
-# Unified Tool Framework Design
+# FunctionTool API design decisions
 
-This document captures the design decisions behind the unified tool framework introduced in the 0.6.0 development cycle.
+PR #72 supersedes the three-trait proposal in #70. The existing `Tool` model aliases remain unchanged. One async `FunctionTool` trait covers typed and JSON tools through associated types; instances can hold application state. The registry erases types internally, captures validated metadata once and returns definitions in stable name order.
 
-## Goals
+The old `tool!` macro repeated input/output types, supported only unit structs and defaulted silently to an empty schema. Ordinary Rust implementations are longer but familiar, support state without another API and produce ordinary type errors. Standard JSON Schema expressed with `json!` covers nested objects, enums and optional fields without a bespoke schema DSL. A schema generator can be used by applications without becoming a mandatory dependency here.
 
-1. **Single mental model** – expose one public trait that covers JSON-only, typed-input, and typed-output scenarios.
-2. **Ergonomic defaults** – JSON is the default, but upgrading to typed data requires minimal boilerplate.
-3. **Async ready** – tool execution should remain async-friendly.
-4. **Low ceremony** – offer macros and registry helpers so applications can wire tools quickly.
+Registration is mutable and fallible. Duplicate tools never replace existing handlers. Basic metadata checks stop invalid names, blank descriptions and non-object schemas before the existing builder helper can silently convert a bad schema into an empty map. This is deliberately not full JSON Schema validation or strict-mode support. Serde decodes arguments, and handlers enforce business constraints.
 
-## Core Trait
+Dispatch is per call. `execute_call` returns `ToolOutput { call_id, content }`, with contextual `ToolError::Call` failures. It accepts the actual client's function call model and rejects custom text calls. `execute` remains available for callers with names and JSON text. JSON encoding follows Serde, including string quoting.
 
-```rust
-#[async_trait::async_trait]
-pub trait Tool: Send + Sync {
-    type Input: serde::de::DeserializeOwned + Send;
-    type Output: serde::Serialize + Send;
+Batch execution and implicit builder mutation were removed: the draft could execute several tools, lose their successful outputs on a later error, and encourage replay of side effects. Its example also placed tool results before the assistant call. The new complete example keeps history and assistant content, appends calls before replies, and chooses an error payload per call. Authorization, retries, timeouts and concurrency belong to applications.
 
-    fn name(&self) -> &str;
-    fn description(&self) -> &str;
-    fn parameters_schema(&self) -> serde_json::Value;
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output>;
-}
-```
-
-- Implementations choose their own `Input` and `Output` types; the `tool!` macro defaults to JSON when you omit `input_type`/`output_type`.
-- `execute` is async to support IO-bound workloads.
-
-## Registry Erasure
-
-`ToolRegistry` stores tools behind an internal trait object:
-
-```rust
-#[async_trait::async_trait]
-trait ErasedTool: Send + Sync {
-    fn definition(&self) -> ChatCompletionTool;
-    async fn execute(&self, args: &str) -> Result<serde_json::Value>;
-}
-
-impl<T> ErasedTool for T
-where
-    T: Tool + 'static,
-{ /* deserialize -> execute -> serialize */ }
-```
-
-This keeps the public API simple:
-
-```rust
-let registry = ToolRegistry::new().register(MyTool);
-let defs = registry.tool_definitions();
-let json = registry.execute("my_tool", r#"{"foo":"bar"}"#).await?;
-```
-
-`process_tool_calls` iterates the tool calls returned in a `ChatCompletionResponseWrapper`, executes them, and returns `(tool_call_id, json)` tuples for easy reenqueuing.
-
-## Macro Strategy
-
-The framework exposes two macros:
-
-- `tool_schema!` – JSON schema shorthand for required/optional parameters.
-- `tool!` – declares a struct + `Tool` implementation in one block.
-
-Example:
-
-```rust
-#[derive(Deserialize)]
-pub struct SearchParams { query: String }
-
-tool! {
-    pub struct SearchTool;
-
-    name: "search";
-    description: "Search indexed documents";
-    input_type: SearchParams;
-    schema: tool_schema!(
-        query: "string", "Query to run", required: true,
-    );
-
-    async fn handle(params: SearchParams) -> Result<serde_json::Value> {
-        Ok(serde_json::json!({ "results": [] }))
-    }
-}
-```
-
-- `input_type` defaults to the handler argument type; specify it only when you need something different.
-- `output_type` defaults to `serde_json::Value` and should be set when returning native structs.
-- `schema` defaults to an empty schema.
-
-## Follow-ups
-
-The redesigned framework includes `ToolRegistry::process_tool_calls_into_builder`, which appends executed tool results back into chat requests to reduce boilerplate. Future enhancements may still layer additional orchestration helpers on top of it.
-
-## Alternatives Considered
-
-- **Multiple traits (`Tool` / `TypedTool` / `StronglyTypedTool`)**: rejected because it introduced decision paralysis and extra adapters.
-- **Builder-style API instead of macros**: viable, but macro ergonomics felt closer to the original design while still being opt-in.
-- **Compile-time duplicate name detection**: left as future work; runtime overwrite keeps the API straightforward for now.
+Validation includes public integration tests for actual client definitions and request messages, required/optional fields, malformed arguments, duplicate registration, retained IDs, handler and encoding errors, dynamic JSON, and async state. Both examples run offline; rustdoc compiles the minimal tool. Migration details are in the [guide](tool_framework.md).
