@@ -23,6 +23,12 @@ struct LookupInput {
 struct LookupOutput {
     value: String,
 }
+#[derive(Debug, thiserror::Error)]
+#[error("Record {key:?} was not found")]
+struct RecordNotFound {
+    key: String,
+}
+
 struct Lookup {
     records: Arc<RwLock<BTreeMap<String, String>>>,
 }
@@ -49,7 +55,7 @@ impl FunctionTool for Lookup {
             .get(&input.key)
             .cloned()
             .map(|value| LookupOutput { value })
-            .ok_or_else(|| Error::InvalidRequest("record not found".into()))
+            .ok_or_else(|| Error::application(RecordNotFound { key: input.key }))
     }
 }
 
@@ -116,7 +122,7 @@ async fn main() -> Result<()> {
                 // The application chooses what information the model may receive.
                 builder = builder.tool(
                     call.id(),
-                    json!({"error": "FunctionTool could not complete"}).to_string(),
+                    json!({"error": "Tool could not complete"}).to_string(),
                 );
             }
         }

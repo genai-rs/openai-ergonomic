@@ -12,7 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add a typed async FunctionTool trait, fallible registry, and per-call dispatch with preserved identifiers
 - add offline examples for typed inputs/outputs, dynamic JSON, async state, and chat replay
 - document the tool framework and link from README/examples index
-- add Error::Tool and Error::Application variants for fallible dispatch and preserved domain errors (exhaustive Error matches need new arms)
+
+### Changed
+
+- add Error::Tool and Error::Application variants for fallible dispatch and preserved domain errors; this is a breaking change for exhaustive Error matches and requires a minor release before 1.0
 
 ## [0.5.2](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.1...v0.5.2) - 2026-02-08
 

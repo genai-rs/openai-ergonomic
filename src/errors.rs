@@ -12,8 +12,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Error, Debug)]
 pub enum Error {
     /// Tool registration or execution failure, including any model call context.
-    #[error("{0}")]
-    Tool(#[source] Box<crate::tool_framework::ToolError>),
+    #[error(transparent)]
+    Tool(Box<crate::tool_framework::ToolError>),
 
     /// Application-defined failure with its original error source preserved.
     #[error("Application error: {0}")]
