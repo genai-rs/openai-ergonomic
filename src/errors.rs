@@ -11,6 +11,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Main error type for the `OpenAI` ergonomic wrapper.
 #[derive(Error, Debug)]
 pub enum Error {
+    /// Tool registration or execution failure, including any model call context.
+    #[error("{0}")]
+    Tool(#[source] Box<crate::tool_framework::ToolError>),
+
+    /// Application-defined failure with its original error source preserved.
+    #[error("Application error: {0}")]
+    Application(#[source] Box<dyn std::error::Error + Send + Sync>),
+
     /// Invalid request parameters or configuration.
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
@@ -92,7 +100,18 @@ pub enum Error {
     Internal(String),
 }
 
+impl From<crate::tool_framework::ToolError> for Error {
+    fn from(error: crate::tool_framework::ToolError) -> Self {
+        Self::Tool(Box::new(error))
+    }
+}
+
 impl Error {
+    /// Preserve an application or domain error when returning the crate's `Result`.
+    pub fn application(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Application(Box::new(error))
+    }
+
     /// Create a new API error with status and message.
     pub fn api(status: u16, message: impl Into<String>) -> Self {
         Self::Api {

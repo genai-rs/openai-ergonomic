@@ -61,7 +61,7 @@ impl FunctionTool for Search {
 }
 
 #[tokio::main]
-async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
     let mut tools = ToolRegistry::new();
     tools.register(Search)?;
     let result = tools
@@ -70,4 +70,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     assert_eq!(result["matches"], json!(["Rust tools", "Rust async"]));
     println!("{result}");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn offline_search() {
+        super::main().unwrap();
+    }
 }
