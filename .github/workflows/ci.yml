@@ -103,9 +103,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Read minimum supported Rust version
+        id: msrv
+        run: echo "version=$(sed -n 's/^rust-version = "\([^"]*\)"/\1/p' Cargo.toml)" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.97"  # From Cargo.toml rust-version
+          toolchain: ${{ steps.msrv.outputs.version }}
       - uses: Swatinem/rust-cache@v2
       - name: Check MSRV
         run: cargo check --all-features
