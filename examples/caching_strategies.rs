@@ -294,7 +294,7 @@ impl MemoryCache {
     }
 
     /// Get a cached response
-    async fn get(&self, key: &CacheKey) -> Option<String> {
+    fn get(&self, key: &CacheKey) -> Option<String> {
         let mut cache = self.cache.lock().unwrap();
         let mut stats = self.stats.lock().unwrap();
 
@@ -321,7 +321,7 @@ impl MemoryCache {
     }
 
     /// Store a response in the cache
-    async fn put(&self, key: CacheKey, content: String, token_usage: TokenUsageInfo) {
+    fn put(&self, key: &CacheKey, content: String, token_usage: TokenUsageInfo) {
         let mut cache = self.cache.lock().unwrap();
         let mut stats = self.stats.lock().unwrap();
 
@@ -370,7 +370,7 @@ impl MemoryCache {
     }
 
     /// Clear expired entries
-    async fn cleanup_expired(&self) {
+    fn cleanup_expired(&self) {
         let mut cache = self.cache.lock().unwrap();
         let mut stats = self.stats.lock().unwrap();
 
@@ -391,7 +391,7 @@ impl MemoryCache {
     }
 
     /// Clear all cache entries
-    async fn clear(&self) {
+    fn clear(&self) {
         let mut cache = self.cache.lock().unwrap();
         let mut stats = self.stats.lock().unwrap();
 
@@ -469,7 +469,7 @@ impl FileCache {
     }
 
     /// Get a cached response from disk
-    async fn get(&self, key: &CacheKey) -> Option<String> {
+    fn get(&self, key: &CacheKey) -> Option<String> {
         let index = self.index.lock().unwrap();
         let mut stats = self.stats.lock().unwrap();
 
@@ -499,7 +499,7 @@ impl FileCache {
     }
 
     /// Store a response in the file cache
-    async fn put(&self, key: CacheKey, content: String, token_usage: TokenUsageInfo) -> Result<()> {
+    fn put(&self, key: &CacheKey, content: String, token_usage: TokenUsageInfo) -> Result<()> {
         let cached_response = CachedResponse {
             content,
             cached_at: SystemTime::now()
@@ -538,7 +538,7 @@ impl FileCache {
     }
 
     /// Clean up expired cache files
-    async fn cleanup_expired(&self) -> Result<()> {
+    fn cleanup_expired(&self) -> Result<()> {
         let index = self.index.lock().unwrap();
         let mut removed_count = 0;
 
@@ -644,14 +644,14 @@ impl CachingClient {
         let cache_key = CacheKey::new("/v1/chat/completions", &params, user_id);
 
         // Try memory cache first
-        if let Some(cached_content) = self.memory_cache.get(&cache_key).await {
+        if let Some(cached_content) = self.memory_cache.get(&cache_key) {
             debug!("Retrieved from memory cache");
             return Ok(cached_content);
         }
 
         // Try file cache second
         if let Some(file_cache) = &self.file_cache {
-            if let Some(cached_content) = file_cache.get(&cache_key).await {
+            if let Some(cached_content) = file_cache.get(&cache_key) {
                 debug!("Retrieved from file cache, promoting to memory cache");
 
                 // Promote to memory cache for faster future access
@@ -662,8 +662,7 @@ impl CachingClient {
                     estimated_cost_usd: 0.0,
                 };
                 self.memory_cache
-                    .put(cache_key, cached_content.clone(), token_usage)
-                    .await;
+                    .put(&cache_key, cached_content.clone(), token_usage);
 
                 return Ok(cached_content);
             }
@@ -679,15 +678,11 @@ impl CachingClient {
         if self.should_cache(&params, &response, &token_usage) {
             // Store in memory cache
             self.memory_cache
-                .put(cache_key.clone(), response.clone(), token_usage.clone())
-                .await;
+                .put(&cache_key, response.clone(), token_usage.clone());
 
             // Store in file cache if available
             if let Some(file_cache) = &self.file_cache {
-                if let Err(e) = file_cache
-                    .put(cache_key, response.clone(), token_usage)
-                    .await
-                {
+                if let Err(e) = file_cache.put(&cache_key, response.clone(), token_usage) {
                     warn!("Failed to store in file cache: {}", e);
                 }
             }
@@ -824,11 +819,11 @@ impl CachingClient {
     }
 
     /// Clean up expired entries in all caches
-    async fn cleanup_expired(&self) -> Result<()> {
-        self.memory_cache.cleanup_expired().await;
+    fn cleanup_expired(&self) -> Result<()> {
+        self.memory_cache.cleanup_expired();
 
         if let Some(file_cache) = &self.file_cache {
-            file_cache.cleanup_expired().await?;
+            file_cache.cleanup_expired()?;
         }
 
         Ok(())
@@ -1069,7 +1064,7 @@ async fn main() -> Result<()> {
     info!("\n=== Example 6: Cache Maintenance ===");
 
     info!("Performing cache cleanup");
-    caching_client.cleanup_expired().await?;
+    caching_client.cleanup_expired()?;
 
     // Show updated statistics
     let (memory_stats_after, file_stats_after) = caching_client.get_cache_stats();
