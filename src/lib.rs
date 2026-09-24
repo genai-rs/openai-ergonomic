@@ -143,6 +143,8 @@ pub mod client;
 pub mod config;
 pub mod errors;
 pub mod interceptor;
+pub mod langfuse_context;
+pub mod langfuse_exporter;
 pub mod langfuse_interceptor;
 pub mod responses;
 pub mod semantic_conventions;
@@ -157,6 +159,8 @@ pub use interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
     StreamEndContext,
 };
+pub use langfuse_context::LangfuseContext;
+pub use langfuse_exporter::{langfuse_exporter_from_env, LangfuseExporterError};
 pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor, LangfuseState};
 pub use tool_framework::{FunctionTool, ToolError, ToolOutput, ToolRegistry};
 
