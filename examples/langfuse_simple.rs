@@ -14,9 +14,10 @@
 //! cargo run --example langfuse_simple
 //! ```
 
-use openai_ergonomic::{Builder, Client, LangfuseConfig, LangfuseInterceptor};
+use openai_ergonomic::{
+    langfuse_exporter_from_env, Builder, Client, LangfuseConfig, LangfuseInterceptor,
+};
 use opentelemetry::{global, trace::TracerProvider};
-use opentelemetry_langfuse::ExporterBuilder;
 use opentelemetry_sdk::{
     runtime::Tokio,
     trace::{span_processor_with_async_runtime::BatchSpanProcessor, SdkTracerProvider},
@@ -35,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!(" Initializing OpenAI client with Langfuse observability...\n");
 
     // 1. Build Langfuse exporter from environment variables
-    let exporter = ExporterBuilder::from_env()?.build()?;
+    let exporter = langfuse_exporter_from_env()?;
 
     // 2. Create tracer provider with batch processor
     let provider = SdkTracerProvider::builder()

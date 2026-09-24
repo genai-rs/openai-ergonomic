@@ -19,9 +19,10 @@
 //! ```
 
 use futures::StreamExt;
-use openai_ergonomic::{Client, LangfuseConfig, LangfuseInterceptor, LangfuseState, Result};
+use openai_ergonomic::{
+    langfuse_exporter_from_env, Client, LangfuseConfig, LangfuseInterceptor, LangfuseState, Result,
+};
 use opentelemetry::{global, trace::TracerProvider};
-use opentelemetry_langfuse::ExporterBuilder;
 use opentelemetry_sdk::{
     runtime::Tokio,
     trace::{span_processor_with_async_runtime::BatchSpanProcessor, SdkTracerProvider, Span},
@@ -40,7 +41,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("🚀 Initializing OpenAI client with Langfuse streaming observability...\n");
 
     // 1. Build Langfuse exporter from environment variables
-    let exporter = ExporterBuilder::from_env()?.build()?;
+    let exporter = langfuse_exporter_from_env()?;
 
     // 2. Create tracer provider with batch processor
     let provider = SdkTracerProvider::builder()

@@ -8,7 +8,7 @@
 //! ```no_run
 //! # use openai_ergonomic::{Builder, Client};
 //! # use openai_ergonomic::langfuse_interceptor::{LangfuseInterceptor, LangfuseConfig};
-//! # use opentelemetry_langfuse::ExporterBuilder;
+//! # use openai_ergonomic::langfuse_exporter_from_env;
 //! # use opentelemetry_sdk::runtime::Tokio;
 //! # use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 //! # use opentelemetry_sdk::trace::SdkTracerProvider;
@@ -16,7 +16,7 @@
 //! # use opentelemetry::trace::TracerProvider;
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 1. Build Langfuse exporter
-//! let exporter = ExporterBuilder::from_env()?.build()?;
+//! let exporter = langfuse_exporter_from_env()?;
 //!
 //! // 2. Create tracer provider
 //! let provider = SdkTracerProvider::builder()
@@ -42,12 +42,12 @@ use crate::interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
     StreamEndContext,
 };
+use crate::langfuse_context::LangfuseContext;
 use crate::Result;
 use opentelemetry::{
     trace::{SpanKind, Tracer},
     KeyValue,
 };
-use opentelemetry_langfuse::LangfuseContext;
 use opentelemetry_semantic_conventions::attribute::{
     GEN_AI_OPERATION_NAME, GEN_AI_REQUEST_MAX_TOKENS, GEN_AI_REQUEST_MODEL,
     GEN_AI_REQUEST_TEMPERATURE, GEN_AI_RESPONSE_ID, GEN_AI_SYSTEM, GEN_AI_USAGE_INPUT_TOKENS,
@@ -130,21 +130,21 @@ where
     /// Create a new Langfuse interceptor with the given tracer.
     ///
     /// The tracer should be configured to export to Langfuse using
-    /// `opentelemetry_langfuse::ExporterBuilder`.
+    /// [`crate::langfuse_exporter_from_env`].
     ///
     /// # Example
     ///
     /// ```no_run
     /// use opentelemetry::global;
     /// use opentelemetry::trace::TracerProvider;
-    /// use opentelemetry_langfuse::ExporterBuilder;
+    /// use openai_ergonomic::langfuse_exporter_from_env;
     /// use opentelemetry_sdk::runtime::Tokio;
     /// use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
     /// use opentelemetry_sdk::trace::SdkTracerProvider;
     ///
     /// # async fn setup() -> Result<(), Box<dyn std::error::Error>> {
     /// // Build exporter
-    /// let exporter = ExporterBuilder::from_env()?.build()?;
+    /// let exporter = langfuse_exporter_from_env()?;
     ///
     /// // Create tracer provider with batch processor
     /// let provider = SdkTracerProvider::builder()
