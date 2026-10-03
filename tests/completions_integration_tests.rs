@@ -21,8 +21,8 @@ async fn test_basic_completion() -> Result<()> {
     let response = client.completions().create(builder).await?;
 
     // Just verify we got a response with choices
-    assert!(!response.choices.is_empty());
-    assert!(!response.choices[0].text.is_empty());
+    assert_ne!(response.choices.len(), 0);
+    assert_ne!(response.choices[0].text, "");
 
     if let Some(usage) = response.usage {
         assert!(usage.prompt_tokens > 0);
@@ -47,8 +47,8 @@ async fn test_completion_with_temperature() -> Result<()> {
 
     let response = client.completions().create(builder).await?;
 
-    assert!(!response.choices.is_empty());
-    assert!(!response.choices[0].text.is_empty());
+    assert_ne!(response.choices.len(), 0);
+    assert_ne!(response.choices[0].text, "");
 
     Ok(())
 }
@@ -67,7 +67,7 @@ async fn test_completion_with_stop_sequence() -> Result<()> {
 
     let response = client.completions().create(builder).await?;
 
-    assert!(!response.choices.is_empty());
+    assert_ne!(response.choices.len(), 0);
     // finish_reason is an enum, just verify it exists
     // The stop sequence should cause it to stop early
 
@@ -92,7 +92,7 @@ async fn test_completion_with_multiple_choices() -> Result<()> {
     assert_eq!(response.choices.len(), 3);
 
     for choice in &response.choices {
-        assert!(!choice.text.is_empty());
+        assert_ne!(choice.text, "");
     }
 
     Ok(())
@@ -113,7 +113,7 @@ async fn test_completion_with_echo() -> Result<()> {
 
     let response = client.completions().create(builder).await?;
 
-    assert!(!response.choices.is_empty());
+    assert_ne!(response.choices.len(), 0);
     // The response should contain the prompt
     assert!(response.choices[0].text.contains(prompt_text));
 
@@ -135,8 +135,8 @@ async fn test_completion_with_suffix() -> Result<()> {
 
     let response = client.completions().create(builder).await?;
 
-    assert!(!response.choices.is_empty());
-    assert!(!response.choices[0].text.is_empty());
+    assert_ne!(response.choices.len(), 0);
+    assert_ne!(response.choices[0].text, "");
 
     Ok(())
 }
@@ -155,7 +155,7 @@ async fn test_completion_with_logprobs() -> Result<()> {
 
     let response = client.completions().create(builder).await?;
 
-    assert!(!response.choices.is_empty());
+    assert_ne!(response.choices.len(), 0);
 
     if let Some(logprobs) = &response.choices[0].logprobs {
         // Logprobs should be present
@@ -231,8 +231,8 @@ async fn test_completion_with_frequency_penalty() -> Result<()> {
 
     let response = client.completions().create(builder).await?;
 
-    assert!(!response.choices.is_empty());
-    assert!(!response.choices[0].text.is_empty());
+    assert_ne!(response.choices.len(), 0);
+    assert_ne!(response.choices[0].text, "");
 
     Ok(())
 }
@@ -251,8 +251,8 @@ async fn test_completion_with_presence_penalty() -> Result<()> {
 
     let response = client.completions().create(builder).await?;
 
-    assert!(!response.choices.is_empty());
-    assert!(!response.choices[0].text.is_empty());
+    assert_ne!(response.choices.len(), 0);
+    assert_ne!(response.choices[0].text, "");
 
     Ok(())
 }
@@ -273,8 +273,8 @@ async fn test_completion_with_best_of() -> Result<()> {
     let response = client.completions().create(builder).await?;
 
     // Should return the best of 3 completions
-    assert!(!response.choices.is_empty());
-    assert!(!response.choices[0].text.is_empty());
+    assert_ne!(response.choices.len(), 0);
+    assert_ne!(response.choices[0].text, "");
 
     Ok(())
 }

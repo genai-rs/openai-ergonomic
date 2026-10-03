@@ -712,7 +712,7 @@ mod tests {
     fn test_chat_completion_builder_new() {
         let builder = ChatCompletionBuilder::new("gpt-4");
         assert_eq!(builder.model, "gpt-4");
-        assert!(builder.messages.is_empty());
+        assert_eq!(builder.messages.len(), 0);
         assert!(builder.temperature.is_none());
     }
 

@@ -326,17 +326,17 @@ mod tests {
         assert!(config::DEFAULT_TIMEOUT > Duration::ZERO);
         assert!(config::MAX_TEST_DURATION > Duration::ZERO);
         assert!(config::DEFAULT_RETRY_COUNT > 0);
-        assert!(!config::DEFAULT_TEST_MODEL.is_empty());
-        assert!(!config::ALTERNATIVE_TEST_MODEL.is_empty());
+        assert_ne!(config::DEFAULT_TEST_MODEL, "");
+        assert_ne!(config::ALTERNATIVE_TEST_MODEL, "");
     }
 
     #[test]
     fn test_parameter_validation_data() {
         let tests = parameter_validation_tests();
-        assert!(!tests.is_empty());
+        assert_ne!(tests.len(), 0);
 
         for (name, value, _is_valid) in tests {
-            assert!(!name.is_empty());
+            assert_ne!(name, "");
             assert!(value.is_finite());
         }
     }
@@ -344,21 +344,21 @@ mod tests {
     #[test]
     fn test_model_test_cases() {
         let models = model_test_cases();
-        assert!(!models.is_empty());
+        assert_ne!(models.len(), 0);
 
         for (name, model) in models {
-            assert!(!name.is_empty());
-            assert!(!model.is_empty());
+            assert_ne!(name, "");
+            assert_ne!(model, "");
         }
     }
 
     #[test]
     fn test_content_type_tests() {
         let content_tests = content_type_tests();
-        assert!(!content_tests.is_empty());
+        assert_ne!(content_tests.len(), 0);
 
         for (name, content) in content_tests {
-            assert!(!name.is_empty());
+            assert_ne!(name, "");
             assert!(content.is_string() || content.is_object() || content.is_array());
         }
     }

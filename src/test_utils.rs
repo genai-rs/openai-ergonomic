@@ -518,7 +518,7 @@ mod tests {
     #[allow(clippy::significant_drop_tightening)]
     async fn test_mock_server_creation() {
         let server = MockOpenAIServer::new().await;
-        assert!(!server.base_url().is_empty());
+        assert_ne!(server.base_url(), "");
     }
 
     #[test]
@@ -567,8 +567,8 @@ mod tests {
         assert!(!cases.is_empty());
 
         for (name, error) in cases {
-            assert!(!name.is_empty());
-            assert!(!error.to_string().is_empty());
+            assert_ne!(name, "");
+            assert_ne!(error.to_string(), "");
         }
     }
 
@@ -583,10 +583,10 @@ mod tests {
     #[test]
     fn test_parameter_boundary_tests() {
         let tests = helpers::parameter_boundary_tests();
-        assert!(!tests.is_empty());
+        assert_ne!(tests.len(), 0);
 
         for (name, value, _should_be_valid) in tests {
-            assert!(!name.is_empty());
+            assert_ne!(name, "");
             assert!(value.is_finite());
         }
     }

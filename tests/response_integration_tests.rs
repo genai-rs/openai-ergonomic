@@ -57,7 +57,7 @@ fn test_function_calling_response_parsing() {
     assert_has_field(&response_json, "choices");
 
     let choices = response_json.get("choices").unwrap().as_array().unwrap();
-    assert!(!choices.is_empty());
+    assert_ne!(choices.len(), 0);
 
     let choice = &choices[0];
     assert_has_field(choice, "message");
@@ -66,7 +66,7 @@ fn test_function_calling_response_parsing() {
     assert_has_field(message, "tool_calls");
 
     let tool_calls = message.get("tool_calls").unwrap().as_array().unwrap();
-    assert!(!tool_calls.is_empty());
+    assert_ne!(tool_calls.len(), 0);
 
     let tool_call = &tool_calls[0];
     assert_has_field(tool_call, "id");
@@ -100,7 +100,7 @@ fn test_function_calling_response_parsing() {
 #[test]
 fn test_streaming_response_parsing() {
     let chunks = fixtures::chat_responses::streaming_chunks();
-    assert!(!chunks.is_empty());
+    assert_ne!(chunks.len(), 0);
 
     for (i, chunk_json) in chunks.iter().enumerate() {
         assert_has_field(chunk_json, "id");
@@ -110,7 +110,7 @@ fn test_streaming_response_parsing() {
         assert_field_equals(chunk_json, "object", &json!("chat.completion.chunk"));
 
         let choices = chunk_json.get("choices").unwrap().as_array().unwrap();
-        assert!(!choices.is_empty());
+        assert_ne!(choices.len(), 0);
 
         let choice = &choices[0];
         assert_has_field(choice, "delta");
@@ -180,7 +180,7 @@ fn test_error_response_parsing() {
         assert_has_field(error, "message");
 
         let message = error.get("message").unwrap().as_str().unwrap();
-        assert!(!message.is_empty());
+        assert_ne!(message, "");
 
         // Specific error type validations
         match error_type.as_str() {
@@ -314,7 +314,7 @@ async fn test_streaming_response_validation() {
         }
     }
 
-    assert!(!chunks.is_empty());
+    assert_ne!(chunks.len(), 0);
 
     // Validate each chunk
     for chunk in &chunks {
@@ -370,7 +370,7 @@ async fn test_function_calling_mock_response() {
     let message = choices[0].get("message").unwrap();
     let tool_calls = message.get("tool_calls").unwrap().as_array().unwrap();
 
-    assert!(!tool_calls.is_empty());
+    assert_ne!(tool_calls.len(), 0);
     let tool_call = &tool_calls[0];
     let function = tool_call.get("function").unwrap();
 

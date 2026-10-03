@@ -136,6 +136,6 @@ mod tests {
         assert_eq!(context.get_attributes().len(), 2);
 
         cloned.clear();
-        assert!(context.get_attributes().is_empty());
+        assert_eq!(context.get_attributes().len(), 0);
     }
 }

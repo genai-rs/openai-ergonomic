@@ -297,7 +297,7 @@ impl FunctionTool for BadEncoder {
 #[tokio::test]
 async fn dynamic_json_and_output_encoding_failures() {
     let mut tools = ToolRegistry::default();
-    assert!(tools.tool_definitions().is_empty());
+    assert_eq!(tools.tool_definitions().len(), 0);
     tools.register(Dynamic).unwrap();
     tools.register(BadEncoder).unwrap();
     let input = json!({"nested": {"items": [true, null, 3]}});

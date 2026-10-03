@@ -915,7 +915,7 @@ mod tests {
         assert!(success.get("choices").is_some());
 
         let chunks = chat_responses::streaming_chunks();
-        assert!(!chunks.is_empty());
+        assert_ne!(chunks.len(), 0);
         assert!(chunks.len() >= 4);
     }
 

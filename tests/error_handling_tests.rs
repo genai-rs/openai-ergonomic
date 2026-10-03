@@ -328,7 +328,7 @@ fn test_error_response_fixtures() {
         assert!(error.get("message").is_some());
 
         let message = error.get("message").unwrap().as_str().unwrap();
-        assert!(!message.is_empty());
+        assert_ne!(message, "");
 
         // Test specific error types
         match error_type.as_str() {
@@ -340,7 +340,7 @@ fn test_error_response_fixtures() {
             }
             "invalid_request_error" if error.get("param").is_some() => {
                 let param = error.get("param").unwrap().as_str().unwrap();
-                assert!(!param.is_empty());
+                assert_ne!(param, "");
             }
             "server_error" => {
                 assert!(message.contains("server") || message.contains("Server"));
@@ -398,7 +398,7 @@ fn test_error_propagation() {
     let error = result.unwrap_err();
     let error_str = error.to_string();
     // Should contain information about the first validation error encountered
-    assert!(!error_str.is_empty());
+    assert_ne!(error_str, "");
 }
 
 /// Test error handling with malformed responses
@@ -598,7 +598,7 @@ fn test_error_handling_edge_cases() {
 
     // Test with empty error message
     let error = Error::Config(String::new());
-    assert!(!error.to_string().is_empty()); // Should still have error type info
+    assert_ne!(error.to_string(), ""); // Should still have error type info
 }
 
 /// Test concurrent error scenarios
