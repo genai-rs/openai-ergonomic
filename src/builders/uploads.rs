@@ -94,7 +94,7 @@ impl UploadBuilder {
     #[must_use]
     pub fn expires_after_seconds(mut self, seconds: i32) -> Self {
         let expiration =
-            FileExpirationAfter::new(file_expiration_after::Anchor::CreatedAt, seconds);
+            FileExpirationAfter::new(file_expiration_after::Anchor::CreatedAt, i64::from(seconds));
         self.expires_after = Some(expiration);
         self
     }

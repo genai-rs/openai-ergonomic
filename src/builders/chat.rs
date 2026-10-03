@@ -125,6 +125,7 @@ impl ChatCompletionBuilder {
             ChatCompletionRequestMessageContentPartText {
                 r#type: TextType::Text,
                 text: text.into(),
+                prompt_cache_breakpoint: None,
             },
         );
 
@@ -135,6 +136,7 @@ impl ChatCompletionBuilder {
                     url: image_url.into(),
                     detail: Some(detail),
                 }),
+                prompt_cache_breakpoint: None,
             },
         );
 
@@ -536,7 +538,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             audio: None,
             presence_penalty: self.presence_penalty,
             response_format,
-            seed: self.seed,
+            seed: self.seed.map(i64::from),
             service_tier: None,
             stop: self.stop.map(|s| {
                 Box::new(openai_client_base::models::StopConfiguration::ArrayOfStrings(s))
@@ -563,6 +565,8 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             reasoning_effort: None,
             prompt_cache_key: None,
             prompt_cache_retention: None,
+            prompt_cache_options: None,
+            moderation: None,
             safety_identifier: None,
             verbosity: None,
             web_search_options: None,
@@ -647,6 +651,7 @@ pub fn text_part(content: impl Into<String>) -> ChatCompletionRequestUserMessage
         ChatCompletionRequestMessageContentPartText {
             r#type: TextType::Text,
             text: content.into(),
+            prompt_cache_breakpoint: None,
         },
     )
 }
@@ -670,6 +675,7 @@ pub fn image_url_part_with_detail(
                 url: url.into(),
                 detail: Some(detail),
             }),
+            prompt_cache_breakpoint: None,
         },
     )
 }

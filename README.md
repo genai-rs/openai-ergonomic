@@ -4,7 +4,7 @@
 [![Documentation](https://docs.rs/openai-ergonomic/badge.svg)](https://docs.rs/openai-ergonomic)
 [![CI](https://github.com/genai-rs/openai-ergonomic/workflows/CI/badge.svg)](https://github.com/genai-rs/openai-ergonomic/actions)
 [![Coverage](https://codecov.io/gh/genai-rs/openai-ergonomic/branch/main/graph/badge.svg)](https://codecov.io/gh/genai-rs/openai-ergonomic)
-[![MSRV](https://img.shields.io/badge/MSRV-1.83-blue)](https://blog.rust-lang.org/2024/12/19/Rust-1.83.0.html)
+[![MSRV](https://img.shields.io/badge/MSRV-1.88-blue)](https://github.com/genai-rs/openai-ergonomic/blob/main/Cargo.toml)
 [![License](https://img.shields.io/crates/l/openai-ergonomic.svg)](https://github.com/genai-rs/openai-ergonomic#license)
 
 Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder patterns and async/await support.
@@ -29,9 +29,14 @@ Add `openai-ergonomic` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-openai-ergonomic = "0.1"
+openai-ergonomic = "0.6"
 tokio = { version = "1.0", features = ["full"] }
 ```
+
+Version 0.6 uses `openai-client-base` 0.15.0 and requires Rust 1.88 or newer.
+Generated request and response types follow that client release. Image generation
+and editing require an explicit `.model(...)`; choose the model before building
+or sending those requests.
 
 ### Basic Usage
 

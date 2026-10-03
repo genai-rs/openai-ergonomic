@@ -61,13 +61,13 @@ impl ChatCompletionResponseExt for CreateChatCompletionResponse {
 
     fn is_refusal(&self) -> bool {
         self.first_message()
-            .and_then(|msg| msg.refusal.as_ref())
+            .and_then(|msg| msg.refusal.as_ref()?.as_ref())
             .is_some()
     }
 
     fn refusal(&self) -> Option<&str> {
         self.first_message()
-            .and_then(|msg| msg.refusal.as_ref())
+            .and_then(|msg| msg.refusal.as_ref()?.as_ref())
             .map(std::string::String::as_str)
     }
 

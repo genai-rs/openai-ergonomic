@@ -13,7 +13,7 @@ use openai_client_base::models::{
         ResponseFormat as SpeechResponseFormat, StreamFormat as SpeechStreamFormat,
     },
     AudioResponseFormat, CreateSpeechRequest, CreateTranscriptionRequestChunkingStrategy,
-    TranscriptionInclude, VadConfig, VoiceIdsOrCustomVoice,
+    TranscriptionInclude, VadConfig,
 };
 
 use crate::{Builder, Error, Result};
@@ -122,7 +122,7 @@ impl Builder<CreateSpeechRequest> for SpeechBuilder {
             model: self.model,
             input: self.input,
             instructions: self.instructions,
-            voice: Box::new(VoiceIdsOrCustomVoice::Text(self.voice)),
+            voice: self.voice,
             response_format: self.response_format,
             speed: self.speed,
             stream_format: self.stream_format,
@@ -460,10 +460,7 @@ mod tests {
 
         assert_eq!(request.model, "gpt-4o-mini-tts");
         assert_eq!(request.input, "Hello world");
-        assert_eq!(
-            *request.voice,
-            VoiceIdsOrCustomVoice::Text("alloy".to_string())
-        );
+        assert_eq!(request.voice, "alloy");
         assert_eq!(request.response_format, Some(SpeechResponseFormat::Wav));
         assert_eq!(request.speed, Some(1.25));
         assert_eq!(request.stream_format, Some(SpeechStreamFormat::Audio));
