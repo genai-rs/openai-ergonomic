@@ -1156,10 +1156,7 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
         // Prepare interceptor context
         let mut state = T::default();
         let operation = operation_names::IMAGE_GENERATION;
-        let model = request
-            .model
-            .as_ref()
-            .map_or_else(|| "dall-e-2".to_string(), ToString::to_string);
+        let model = request.model.clone();
         let request_json = serde_json::to_string(&request).unwrap_or_default();
 
         // Call before_request hook
@@ -1217,8 +1214,9 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
         let request = builder.build()?;
         let model_str = request
             .model
-            .as_ref()
-            .map_or_else(|| "dall-e-2".to_string(), ToString::to_string);
+            .as_deref()
+            .ok_or_else(|| Error::InvalidRequest("Image editing requires a model".to_string()))?
+            .to_string();
 
         // Prepare interceptor context
         let mut state = T::default();
@@ -1237,7 +1235,7 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
             prompt,
             mask,
             background,
-            model,
+            model: _,
             n,
             size,
             response_format,
@@ -1259,9 +1257,9 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
             .prompt(&prompt)
             .maybe_mask(mask)
             .maybe_background(background.as_deref())
-            .maybe_model(model.as_deref())
+            .model(&model_str)
             .maybe_n(n)
-            .maybe_size(size.as_deref())
+            .maybe_size(size.map(Into::into))
             .maybe_response_format(response_format.as_deref())
             .maybe_output_format(output_format.as_deref())
             .maybe_output_compression(output_compression)
@@ -1929,6 +1927,12 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     /// # }
     /// ```
     pub async fn download(&self, file_id: impl Into<String>) -> Result<String> {
+        let content = self.download_bytes(file_id).await?;
+        Ok(String::from_utf8_lossy(&content).into_owned())
+    }
+
+    /// Download file content as bytes without decoding the response body.
+    pub async fn download_bytes(&self, file_id: impl Into<String>) -> Result<Vec<u8>> {
         let file_id = file_id.into();
 
         // Prepare interceptor context
@@ -1959,6 +1963,7 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
             }
         };
 
+        let response = response.bytes().await?.to_vec();
         let duration = start_time.elapsed();
 
         // Call after_response hook
@@ -1976,12 +1981,6 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
         .await;
 
         Ok(response)
-    }
-
-    /// Download file content as bytes.
-    pub async fn download_bytes(&self, file_id: impl Into<String>) -> Result<Vec<u8>> {
-        let content = self.download(file_id).await?;
-        Ok(content.into_bytes())
     }
 
     /// Delete a file.
@@ -3532,7 +3531,7 @@ mod tests {
             entity: Option::<()>::None,
         };
 
-        let error = map_api_error(BaseError::ResponseError(response));
+        let error = map_api_error(BaseError::ResponseError(Box::new(response)));
         match error {
             Error::Api {
                 status, message, ..

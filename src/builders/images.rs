@@ -8,8 +8,9 @@
 use std::path::{Path, PathBuf};
 
 pub use openai_client_base::models::create_image_request::{
-    Background, Moderation, OutputFormat, Quality, ResponseFormat, Size, Style,
+    Background, Moderation, OutputFormat, Quality, ResponseFormat, Style,
 };
+pub use openai_client_base::models::create_image_request_size::CreateImageRequestSizeTextVariantEnum as Size;
 pub use openai_client_base::models::{CreateImageRequest, InputFidelity};
 
 /// Backwards-compatible alias for the generated `InputFidelity` enum.
@@ -115,7 +116,7 @@ impl ImageGenerationBuilder {
         self
     }
 
-    /// Select the output size preset.
+    /// Select the output size preset, serialized through the generated size union.
     #[must_use]
     pub fn size(mut self, size: Size) -> Self {
         self.size = Some(size);
@@ -185,7 +186,12 @@ impl Builder<CreateImageRequest> for ImageGenerationBuilder {
 
         Ok(CreateImageRequest {
             prompt: self.prompt,
-            model: self.model,
+            model: self
+                .model
+                .filter(|model| !model.trim().is_empty())
+                .ok_or_else(|| {
+                    Error::InvalidRequest("Image generation requires a model".to_string())
+                })?,
             n: self.n,
             quality: self.quality,
             response_format: self.response_format,
@@ -193,7 +199,9 @@ impl Builder<CreateImageRequest> for ImageGenerationBuilder {
             output_compression: self.output_compression,
             stream: self.stream,
             partial_images: self.partial_images,
-            size: self.size,
+            size: self.size.map(|size| {
+                Box::new(openai_client_base::models::CreateImageRequestSize::TextVariant(size))
+            }),
             moderation: self.moderation,
             background: self.background,
             style: self.style,
@@ -259,7 +267,7 @@ impl ImageEditBuilder {
         self
     }
 
-    /// Override the model (defaults to `gpt-image-1`).
+    /// Set the required model for image editing.
     #[must_use]
     pub fn model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
@@ -386,6 +394,15 @@ pub struct ImageEditRequest {
 
 impl Builder<ImageEditRequest> for ImageEditBuilder {
     fn build(self) -> Result<ImageEditRequest> {
+        if self
+            .model
+            .as_ref()
+            .is_none_or(|model| model.trim().is_empty())
+        {
+            return Err(Error::InvalidRequest(
+                "Image editing requires a model".to_string(),
+            ));
+        }
         if let Some(n) = self.n {
             if !(1..=10).contains(&n) {
                 return Err(Error::InvalidRequest(format!(
@@ -559,7 +576,7 @@ mod tests {
             .expect("valid generation builder");
 
         assert_eq!(request.prompt, "A scenic valley at sunrise");
-        assert_eq!(request.model.as_deref(), Some("gpt-image-1"));
+        assert_eq!(request.model, "gpt-image-1");
         assert_eq!(request.n, Some(2));
         assert_eq!(request.quality, Some(Quality::High));
         assert_eq!(request.response_format, Some(ResponseFormat::B64Json));
@@ -567,7 +584,7 @@ mod tests {
         assert_eq!(request.output_compression, Some(80));
         assert_eq!(request.stream, Some(true));
         assert_eq!(request.partial_images, Some(Some(2)));
-        assert_eq!(request.size, Some(Size::Variant1536x1024));
+        assert_eq!(serde_json::to_value(&request).unwrap()["size"], "1536x1024");
         assert_eq!(request.moderation, Some(Moderation::Auto));
         assert_eq!(request.background, Some(Background::Transparent));
         assert_eq!(request.style, Some(Style::Vivid));
@@ -577,18 +594,21 @@ mod tests {
     #[test]
     fn generation_validates_ranges() {
         let err = ImageGenerationBuilder::new("Prompt")
+            .model("gpt-image-1")
             .n(0)
             .build()
             .unwrap_err();
         assert!(matches!(err, Error::InvalidRequest(_)));
 
         let err = ImageGenerationBuilder::new("Prompt")
+            .model("gpt-image-1")
             .output_compression(150)
             .build()
             .unwrap_err();
         assert!(matches!(err, Error::InvalidRequest(_)));
 
         let err = ImageGenerationBuilder::new("Prompt")
+            .model("gpt-image-1")
             .partial_images(Some(5))
             .build()
             .unwrap_err();
@@ -630,18 +650,21 @@ mod tests {
     #[test]
     fn edit_validates_ranges() {
         let err = ImageEditBuilder::new("image.png", "Prompt")
+            .model("gpt-image-1")
             .n(20)
             .build()
             .unwrap_err();
         assert!(matches!(err, Error::InvalidRequest(_)));
 
         let err = ImageEditBuilder::new("image.png", "Prompt")
+            .model("gpt-image-1")
             .output_compression(150)
             .build()
             .unwrap_err();
         assert!(matches!(err, Error::InvalidRequest(_)));
 
         let err = ImageEditBuilder::new("image.png", "Prompt")
+            .model("gpt-image-1")
             .partial_images(5)
             .build()
             .unwrap_err();
@@ -673,5 +696,23 @@ mod tests {
             .build()
             .unwrap_err();
         assert!(matches!(err, Error::InvalidRequest(_)));
+    }
+
+    #[test]
+    fn image_generation_and_edit_require_a_model() {
+        for model in [None, Some(""), Some("   ")] {
+            let mut generation = ImageGenerationBuilder::new("Prompt");
+            let mut edit = ImageEditBuilder::new("image.png", "Prompt");
+            if let Some(model) = model {
+                generation = generation.model(model);
+                edit = edit.model(model);
+            }
+            assert!(
+                matches!(generation.build(), Err(Error::InvalidRequest(message)) if message.contains("model"))
+            );
+            assert!(
+                matches!(edit.build(), Err(Error::InvalidRequest(message)) if message.contains("model"))
+            );
+        }
     }
 }

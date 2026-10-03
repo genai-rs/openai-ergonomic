@@ -379,7 +379,7 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             audio: None,
             presence_penalty: self.presence_penalty,
             response_format,
-            seed: self.seed,
+            seed: self.seed.map(i64::from),
             service_tier: None,
             stop: self.stop.map(|s| {
                 Box::new(openai_client_base::models::StopConfiguration::ArrayOfStrings(s))
@@ -421,6 +421,8 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             }),
             prompt_cache_key: None,
             prompt_cache_retention: None,
+            prompt_cache_options: None,
+            moderation: None,
             safety_identifier: None,
             verbosity: None,
             web_search_options: None,

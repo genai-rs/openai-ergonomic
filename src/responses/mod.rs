@@ -125,7 +125,7 @@ impl ChatCompletionResponseWrapper {
         self.inner
             .choices
             .first()
-            .and_then(|c| c.message.refusal.as_ref())
+            .and_then(|c| c.message.refusal.as_ref()?.as_ref())
             .is_some()
     }
 
@@ -134,7 +134,7 @@ impl ChatCompletionResponseWrapper {
         self.inner
             .choices
             .first()
-            .and_then(|c| c.message.refusal.as_ref())
+            .and_then(|c| c.message.refusal.as_ref()?.as_ref())
             .map(std::string::String::as_str)
     }
 
@@ -213,17 +213,10 @@ impl ChatCompletionStreamResponseWrapper {
 
     /// Check if this is the final chunk.
     pub fn is_finished(&self) -> bool {
-        use openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason;
-        self.inner.choices.first().is_none_or(|c| {
-            !matches!(
-                c.finish_reason,
-                FinishReason::Stop
-                    | FinishReason::Length
-                    | FinishReason::ToolCalls
-                    | FinishReason::ContentFilter
-                    | FinishReason::FunctionCall
-            )
-        })
+        self.inner
+            .choices
+            .first()
+            .is_some_and(|c| c.finish_reason.is_some())
     }
 
     /// Get the inner stream response object.

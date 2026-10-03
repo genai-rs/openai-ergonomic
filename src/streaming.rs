@@ -128,8 +128,8 @@ impl ChatCompletionChunk {
     /// This indicates why the generation stopped and is only present in the last chunk.
     #[must_use]
     pub fn finish_reason(&self) -> Option<&str> {
-        self.response.choices.first().map(|choice| {
-            match &choice.finish_reason {
+        self.response.choices.first().and_then(|choice| choice.finish_reason.as_ref()).map(|reason| {
+            match reason {
                 openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::Stop => "stop",
                 openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::Length => "length",
                 openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::ToolCalls => "tool_calls",
@@ -277,7 +277,7 @@ impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
                     .unwrap_or_else(|_| "{}".to_string());
 
                 // Update token counts if available
-                if let Some(usage) = &chunk.raw_response().usage {
+                if let Some(Some(usage)) = &chunk.raw_response().usage {
                     this.total_input_tokens = Some(i64::from(usage.prompt_tokens));
                     this.total_output_tokens = Some(i64::from(usage.completion_tokens));
                 }
@@ -393,28 +393,8 @@ fn parse_sse_line(line: &str) -> Result<Option<ChatCompletionChunk>> {
             return Ok(None);
         }
 
-        // Parse JSON data - use Value first to handle null finish_reason
-        let mut value: serde_json::Value =
-            serde_json::from_str(data).map_err(|e| Error::StreamParsing {
-                message: format!("Failed to parse chunk JSON: {e}"),
-                chunk: data.to_string(),
-            })?;
-
-        // Workaround: Remove finish_reason if it's null, since base library
-        // doesn't properly handle Option<FinishReason>
-        if let Some(choices) = value.get_mut("choices").and_then(|c| c.as_array_mut()) {
-            for choice in choices {
-                if let Some(finish_reason) = choice.get("finish_reason") {
-                    if finish_reason.is_null() {
-                        // Set to default value instead of null
-                        choice["finish_reason"] = serde_json::json!("stop");
-                    }
-                }
-            }
-        }
-
         let response: CreateChatCompletionStreamResponse =
-            serde_json::from_value(value).map_err(|e| Error::StreamParsing {
+            serde_json::from_str(data).map_err(|e| Error::StreamParsing {
                 message: format!("Failed to deserialize chunk: {e}"),
                 chunk: data.to_string(),
             })?;
@@ -440,6 +420,35 @@ mod tests {
         let chunk = result.unwrap();
         assert_eq!(chunk.content(), Some("Hello"));
         assert_eq!(chunk.role(), Some("assistant"));
+        assert_eq!(chunk.finish_reason(), None);
+        assert!(!chunk.is_final());
+        assert!(!crate::responses::ChatCompletionStreamResponseWrapper::new(
+            chunk.raw_response().clone()
+        )
+        .is_finished());
+    }
+
+    #[test]
+    fn test_parse_sse_line_with_finish_reason() {
+        let line = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":null}"#;
+        let chunk = parse_sse_line(line).unwrap().unwrap();
+        assert_eq!(chunk.finish_reason(), Some("stop"));
+        assert!(chunk.is_final());
+        assert!(crate::responses::ChatCompletionStreamResponseWrapper::new(
+            chunk.raw_response().clone()
+        )
+        .is_finished());
+    }
+
+    #[test]
+    fn test_usage_only_chunk_is_not_a_finished_choice() {
+        let line = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}}"#;
+        let chunk = parse_sse_line(line).unwrap().unwrap();
+        assert_eq!(chunk.finish_reason(), None);
+        assert!(!crate::responses::ChatCompletionStreamResponseWrapper::new(
+            chunk.raw_response().clone()
+        )
+        .is_finished());
     }
 
     #[test]
