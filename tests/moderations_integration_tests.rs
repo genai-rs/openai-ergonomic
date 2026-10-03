@@ -57,7 +57,7 @@ fn test_moderation_categories() {
 
     let categories = ModerationCategories::new_clean();
     assert!(!categories.any_flagged());
-    assert!(categories.flagged_categories().is_empty());
+    assert_eq!(categories.flagged_categories().len(), 0);
 }
 
 #[test]

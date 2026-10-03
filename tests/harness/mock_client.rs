@@ -554,7 +554,7 @@ mod tests {
     #[tokio::test]
     async fn test_mock_client_creation() {
         let client = MockOpenAIClient::new().await;
-        assert!(!client.base_url().is_empty());
+        assert_ne!(client.base_url(), "");
         assert_eq!(client.api_key(), "test-api-key");
     }
 

@@ -75,7 +75,7 @@ fn test_basic_streaming_parsing() {
         }),
     ];
 
-    assert!(!chunks.is_empty());
+    assert_ne!(chunks.len(), 0);
 
     for (i, chunk_json) in chunks.iter().enumerate() {
         // Verify chunk structure
@@ -88,7 +88,7 @@ fn test_basic_streaming_parsing() {
         assert_field_equals(chunk_json, "object", &json!("chat.completion.chunk"));
 
         let choices = chunk_json.get("choices").unwrap().as_array().unwrap();
-        assert!(!choices.is_empty());
+        assert_ne!(choices.len(), 0);
 
         let choice = &choices[0];
         assert_has_field(choice, "index");
@@ -233,7 +233,7 @@ async fn test_mock_streaming_server() {
 
     // Parse chunks from SSE format
     let chunks = parse_sse_chunks(&text);
-    assert!(!chunks.is_empty());
+    assert_ne!(chunks.len(), 0);
 
     // Validate each chunk
     for chunk in &chunks {
@@ -277,7 +277,7 @@ async fn test_custom_streaming_chunks() {
 
     // Parse and validate chunks
     let parsed_chunks = parse_sse_chunks(&text);
-    assert!(!parsed_chunks.is_empty());
+    assert_ne!(parsed_chunks.len(), 0);
 
     // Reconstruct the message
     let mut reconstructed = String::new();
@@ -339,7 +339,7 @@ async fn test_streaming_with_function_calls() {
     let text = response.text().await.unwrap();
 
     let chunks = parse_sse_chunks(&text);
-    assert!(!chunks.is_empty());
+    assert_ne!(chunks.len(), 0);
 
     // Validate streaming chunks
     for chunk in &chunks {

@@ -21,8 +21,8 @@ async fn test_list_models() -> Result<()> {
 
     // Verify structure of first model
     let first_model = &response.data[0];
-    assert!(!first_model.id.is_empty());
-    assert!(!first_model.owned_by.is_empty());
+    assert_ne!(first_model.id, "");
+    assert_ne!(first_model.owned_by, "");
 
     Ok(())
 }
@@ -36,7 +36,7 @@ async fn test_get_model() -> Result<()> {
     let model = client.models().get("gpt-3.5-turbo").await?;
 
     assert_eq!(model.id, "gpt-3.5-turbo");
-    assert!(!model.owned_by.is_empty());
+    assert_ne!(model.owned_by, "");
     assert!(model.created > 0);
 
     Ok(())

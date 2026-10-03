@@ -471,7 +471,7 @@ mod tests {
     fn test_moderation_categories_new_clean() {
         let categories = ModerationCategories::new_clean();
         assert!(!categories.any_flagged());
-        assert!(categories.flagged_categories().is_empty());
+        assert_eq!(categories.flagged_categories().len(), 0);
     }
 
     #[test]
@@ -491,7 +491,7 @@ mod tests {
     fn test_moderation_category_scores_new_zero() {
         let scores = ModerationCategoryScores::new_zero();
         assert!((scores.max_score() - 0.0).abs() < f64::EPSILON);
-        assert!(scores.scores_above_threshold(0.1).is_empty());
+        assert_eq!(scores.scores_above_threshold(0.1).len(), 0);
     }
 
     #[test]

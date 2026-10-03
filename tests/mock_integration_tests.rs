@@ -22,7 +22,7 @@ async fn test_mock_server_setup() {
     let _mock = mock_server.mock_chat_completions_success().await;
 
     // Verify server is running
-    assert!(!mock_server.base_url().is_empty());
+    assert_ne!(mock_server.base_url(), "");
     assert!(mock_server.base_url().starts_with("http://"));
 }
 
@@ -34,7 +34,7 @@ async fn test_mock_server_with_custom_api_key() {
     let mut mock_server = MockOpenAIServer::with_api_key(custom_key).await;
     let _mock = mock_server.mock_chat_completions_success().await;
 
-    assert!(!mock_server.base_url().is_empty());
+    assert_ne!(mock_server.base_url(), "");
 }
 
 /// Test chat completions mock response
@@ -186,7 +186,7 @@ async fn test_mock_models_list() {
     assert_has_field(&json, "data");
 
     let data = json.get("data").unwrap().as_array().unwrap();
-    assert!(!data.is_empty());
+    assert_ne!(data.len(), 0);
 
     for model in data {
         assert_has_field(model, "id");
