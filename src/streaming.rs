@@ -500,7 +500,7 @@ mod tests {
 
         assert_eq!(first.content(), Some("Hello 🦀"));
         assert_eq!(second.content(), Some(" done"));
-        assert!(usage.raw_response().choices.is_empty());
+        assert_eq!(usage.raw_response().choices.as_slice(), &[]);
         assert_eq!(
             usage
                 .raw_response()
