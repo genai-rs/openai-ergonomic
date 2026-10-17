@@ -180,7 +180,8 @@ impl MockOpenAIClient {
                     "index": 0,
                     "delta": {
                         "content": chunk
-                    }
+                    },
+                    "finish_reason": null
                 }]
             });
 
