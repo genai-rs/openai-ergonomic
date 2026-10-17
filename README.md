@@ -61,14 +61,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Langfuse Setup
 
-The interceptor needs an OpenTelemetry tracer and a Langfuse exporter. Add these
-dependencies alongside `openai-ergonomic` and `tokio` above; their versions match
-the crate's OpenTelemetry dependencies:
+The interceptor needs an OpenTelemetry tracer and a Langfuse exporter. For the
+published `openai-ergonomic` 0.6.0 release, use its matching OpenTelemetry versions:
 
 ```toml
+openai-ergonomic = "=0.6.0"
+tokio = { version = "1", features = ["full"] }
+opentelemetry = { version = "0.32", features = ["trace"] }
+opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
+```
+
+The same Rust example below also compiles against the current development source at
+`65ac9fa78aca0dadfc59bf65d2665c104a4dbf1c`. That unpublished source uses OpenTelemetry
+0.33.1, so use this pinned manifest when working from it:
+
+```toml
+openai-ergonomic = { git = "https://github.com/genai-rs/openai-ergonomic", rev = "65ac9fa78aca0dadfc59bf65d2665c104a4dbf1c" }
+tokio = { version = "1", features = ["full"] }
 opentelemetry = { version = "0.33.1", features = ["trace"] }
 opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
 ```
+
+Both dependency sets are checked with standalone consumer crates. The README's
+`no_run` doctest checks the same Rust code against the current crate source without
+credentials or a live service.
 
 At runtime, set `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, and
 `LANGFUSE_SECRET_KEY`. Optionally set `LANGFUSE_HOST` for a self-hosted instance.
