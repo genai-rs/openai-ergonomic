@@ -526,5 +526,4 @@ mod tests {
         ));
         assert!(stream.next().await.is_none());
     }
-
 }
