@@ -15,12 +15,14 @@
 
 mod harness;
 
+use futures::StreamExt;
 use harness::{
     assert_complete_streaming_message, assert_error_response, assert_field_equals,
     assert_has_field, assert_valid_stream_chunk, fixtures, MockOpenAIClient,
 };
 use openai_client_base::models::CreateChatCompletionStreamResponse;
 use openai_ergonomic::builders::{responses::responses_simple, Builder};
+use openai_ergonomic::streaming::ChatCompletionStream;
 use serde_json::{json, Value};
 use std::time::Duration;
 
@@ -225,14 +227,8 @@ async fn test_mock_streaming_server() {
         "text/event-stream"
     );
 
-    let text = response.text().await.unwrap();
-
-    // Verify Server-Sent Events format
-    assert!(text.contains("data: "));
-    assert!(text.contains("data: [DONE]"));
-
-    // Parse chunks from SSE format
-    let chunks = parse_sse_chunks(&text);
+    // Parse the mock transport response with the production SSE parser.
+    let chunks = collect_stream_chunks(response).await;
     assert_ne!(chunks.len(), 0);
 
     // Validate each chunk
@@ -268,15 +264,9 @@ async fn test_custom_streaming_chunks() {
         .await
         .unwrap();
 
-    let text = response.text().await.unwrap();
+    let parsed_chunks = collect_stream_chunks(response).await;
 
-    // Verify all custom chunks are present
-    for chunk in &custom_chunks {
-        assert!(text.contains(chunk), "Missing chunk: {}", chunk);
-    }
-
-    // Parse and validate chunks
-    let parsed_chunks = parse_sse_chunks(&text);
+    // Parse and validate chunks through the production response parser.
     assert_ne!(parsed_chunks.len(), 0);
 
     // Reconstruct the message
@@ -336,9 +326,7 @@ async fn test_streaming_with_function_calls() {
         .unwrap();
 
     assert_eq!(response.status(), 200);
-    let text = response.text().await.unwrap();
-
-    let chunks = parse_sse_chunks(&text);
+    let chunks = collect_stream_chunks(response).await;
     assert_ne!(chunks.len(), 0);
 
     // Validate streaming chunks
@@ -581,49 +569,20 @@ async fn test_streaming_builder_integration() {
     mock.assert_async().await;
 }
 
-/// Helper function to parse Server-Sent Events chunks
-fn parse_sse_chunks(sse_text: &str) -> Vec<CreateChatCompletionStreamResponse> {
+/// Collect parsed chunks from an actual HTTP response using the production SSE parser.
+async fn collect_stream_chunks(
+    response: reqwest::Response,
+) -> Vec<CreateChatCompletionStreamResponse> {
+    let mut stream = ChatCompletionStream::new(response);
     let mut chunks = Vec::new();
-
-    for line in sse_text.lines() {
-        if line.starts_with("data: ") && !line.contains("[DONE]") {
-            let json_str = &line[6..]; // Remove "data: " prefix
-            if let Ok(chunk_json) = serde_json::from_str::<Value>(json_str) {
-                match serde_json::from_value::<CreateChatCompletionStreamResponse>(
-                    chunk_json.clone(),
-                ) {
-                    Ok(chunk) => chunks.push(chunk),
-                    Err(e) => {
-                        println!("Failed to parse chunk: {} - Error: {}", chunk_json, e);
-                        // Try to fix the chunk by adding missing fields
-                        if let Ok(mut fixed_chunk) = serde_json::from_str::<Value>(json_str) {
-                            // Add missing finish_reason field to choices
-                            if let Some(choices) = fixed_chunk
-                                .get_mut("choices")
-                                .and_then(|v| v.as_array_mut())
-                            {
-                                for choice in choices {
-                                    if choice.get("finish_reason").is_none() {
-                                        choice
-                                            .as_object_mut()
-                                            .unwrap()
-                                            .insert("finish_reason".to_string(), json!("stop"));
-                                    }
-                                }
-                            }
-                            if let Ok(chunk) = serde_json::from_value::<
-                                CreateChatCompletionStreamResponse,
-                            >(fixed_chunk)
-                            {
-                                chunks.push(chunk);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    while let Some(chunk) = stream.next().await {
+        chunks.push(
+            chunk
+                .expect("production SSE parser should parse the mock stream")
+                .raw_response()
+                .clone(),
+        );
     }
-
     chunks
 }
 
