@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.6.0...v0.6.1) - 2026-10-17
+
+### Fixed
+
+- *(deps)* preserve semantic conventions compatibility contract
+
+### Other
+
+- record accepted streaming completion contract
+- propose streaming interceptor completion contract
+- *(deps)* Update rust minor updates
+
 ## [0.6.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.2...v0.6.0) - 2026-10-03
 
 ### Added
