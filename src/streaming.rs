@@ -471,4 +471,60 @@ mod tests {
         let result = parse_sse_line(line).unwrap();
         assert!(result.is_none());
     }
+
+    #[tokio::test]
+    async fn test_parse_sse_stream_handles_fragmented_crlf_and_usage_only_events() {
+        let first_event = format!(
+            "data: {{\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-4\",\"choices\":[{{\"index\":0,\"delta\":{{\"content\":{}}},\"finish_reason\":null}}]}}\r\n\r\n",
+            serde_json::to_string("Hello 🦀").unwrap()
+        );
+        let crab = first_event
+            .as_bytes()
+            .windows(4)
+            .position(|window| window == "🦀".as_bytes())
+            .unwrap();
+        let first_bytes = first_event.as_bytes();
+        let fragmented = vec![
+            Ok(Bytes::copy_from_slice(&first_bytes[..5]),),
+            Ok(Bytes::copy_from_slice(&first_bytes[5..crab + 2]),),
+            Ok(Bytes::copy_from_slice(&first_bytes[crab + 2..]),),
+            Ok(Bytes::from(
+                "data: {\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" done\"},\"finish_reason\":\"stop\"}]}\r\n\r\ndata: {\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-4\",\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":4,\"total_tokens\":7}}\r\n\r\ndata: [DONE]\r\n\r\n",
+            )),
+        ];
+
+        let mut stream = Box::pin(parse_sse_stream(futures::stream::iter(fragmented)));
+        let first = stream.next().await.unwrap().unwrap();
+        let second = stream.next().await.unwrap().unwrap();
+        let usage = stream.next().await.unwrap().unwrap();
+
+        assert_eq!(first.content(), Some("Hello 🦀"));
+        assert_eq!(second.content(), Some(" done"));
+        assert!(usage.raw_response().choices.is_empty());
+        assert_eq!(
+            usage
+                .raw_response()
+                .usage
+                .as_ref()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .total_tokens,
+            7
+        );
+        assert!(stream.next().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_parse_sse_stream_reports_malformed_json() {
+        let bytes = Bytes::from("data: {not-json}\n\n");
+        let mut stream = Box::pin(parse_sse_stream(futures::stream::iter(vec![Ok(bytes)])));
+
+        assert!(matches!(
+            stream.next().await.unwrap(),
+            Err(Error::StreamParsing { .. })
+        ));
+        assert!(stream.next().await.is_none());
+    }
+
 }
