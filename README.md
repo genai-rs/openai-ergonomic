@@ -66,8 +66,8 @@ dependencies alongside `openai-ergonomic` and `tokio` above; their versions matc
 the crate's OpenTelemetry dependencies:
 
 ```toml
-opentelemetry = { version = "0.32", features = ["trace"] }
-opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
+opentelemetry = { version = "0.33.1", features = ["trace"] }
+opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
 ```
 
 At runtime, set `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, and
