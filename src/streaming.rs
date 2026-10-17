@@ -358,6 +358,7 @@ where
     struct State<S> {
         byte_stream: Pin<Box<S>>,
         buffer: Vec<u8>,
+        swallow_lf: bool,
         data_lines: Vec<String>,
         ready: VecDeque<Result<ChatCompletionChunk>>,
         terminated: bool,
@@ -367,6 +368,7 @@ where
         State {
             byte_stream: Box::pin(byte_stream),
             buffer: Vec::new(),
+            swallow_lf: false,
             data_lines: Vec::new(),
             ready: VecDeque::new(),
             terminated: false,
@@ -383,7 +385,9 @@ where
                 match state.byte_stream.next().await {
                     Some(Ok(bytes)) => {
                         state.buffer.extend_from_slice(&bytes);
-                        while let Some(line) = take_sse_line(&mut state.buffer, false) {
+                        while let Some(line) =
+                            take_sse_line(&mut state.buffer, &mut state.swallow_lf)
+                        {
                             if process_sse_line(&line, &mut state.data_lines, &mut state.ready) {
                                 state.terminated = true;
                                 break;
@@ -397,9 +401,11 @@ where
                         state.terminated = true;
                     }
                     None => {
-                        // A final CR is a complete SSE line ending. Other unterminated data
-                        // remains buffered and, like an incomplete event, is discarded.
-                        while let Some(line) = take_sse_line(&mut state.buffer, true) {
+                        // Other unterminated data remains buffered and, like an incomplete
+                        // event, is discarded.
+                        while let Some(line) =
+                            take_sse_line(&mut state.buffer, &mut state.swallow_lf)
+                        {
                             if process_sse_line(&line, &mut state.data_lines, &mut state.ready) {
                                 state.terminated = true;
                                 break;
@@ -416,22 +422,31 @@ where
     .fuse()
 }
 
-/// Remove one complete SSE line, retaining a final CR until the next byte can disambiguate CRLF.
-fn take_sse_line(buffer: &mut Vec<u8>, end_of_stream: bool) -> Option<Vec<u8>> {
-    for (index, byte) in buffer.iter().enumerate() {
-        match byte {
+/// Remove one complete SSE line. A CR ends a line immediately; a following LF is swallowed.
+fn take_sse_line(buffer: &mut Vec<u8>, swallow_lf: &mut bool) -> Option<Vec<u8>> {
+    if *swallow_lf {
+        if buffer.first() == Some(&b'\n') {
+            buffer.drain(..1);
+            *swallow_lf = false;
+        } else if !buffer.is_empty() {
+            *swallow_lf = false;
+        }
+        if buffer.is_empty() {
+            return None;
+        }
+    }
+
+    for index in 0..buffer.len() {
+        match buffer[index] {
             b'\n' => {
                 let line = buffer[..index].to_vec();
                 buffer.drain(..=index);
                 return Some(line);
             }
             b'\r' => {
-                if index + 1 == buffer.len() && !end_of_stream {
-                    return None;
-                }
                 let line = buffer[..index].to_vec();
-                let terminator_len = usize::from(buffer.get(index + 1) == Some(&b'\n')) + 1;
-                buffer.drain(..index + terminator_len);
+                buffer.drain(..=index);
+                *swallow_lf = true;
                 return Some(line);
             }
             _ => {}
@@ -446,7 +461,7 @@ fn process_sse_line(
     data_lines: &mut Vec<String>,
     ready: &mut VecDeque<Result<ChatCompletionChunk>>,
 ) -> bool {
-    let line = String::from_utf8_lossy(line_bytes).trim().to_string();
+    let line = String::from_utf8_lossy(line_bytes).into_owned();
     if line.is_empty() {
         if data_lines.is_empty() {
             return false;
@@ -475,7 +490,7 @@ fn process_sse_line(
         return false;
     }
     if let Some(data) = line.strip_prefix("data:") {
-        data_lines.push(data.trim_start().to_string());
+        data_lines.push(data.strip_prefix(' ').unwrap_or(data).to_string());
     }
     false
 }
@@ -488,7 +503,8 @@ fn parse_sse_line(line: &str) -> Result<Option<ChatCompletionChunk>> {
     }
 
     // Handle SSE format: "data: {json}"
-    if let Some(data) = line.strip_prefix("data:").map(str::trim) {
+    if let Some(data) = line.strip_prefix("data:") {
+        let data = data.strip_prefix(' ').unwrap_or(data);
         // Check for [DONE] marker
         if data == "[DONE]" {
             return Ok(None);
@@ -571,6 +587,63 @@ mod tests {
         let line = ": this is a comment";
         let result = parse_sse_line(line).unwrap();
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_parse_sse_line_removes_only_one_space_after_colon() {
+        let result = parse_sse_line("data:  {not-json}").unwrap_err();
+        assert!(matches!(
+            result,
+            Error::StreamParsing { chunk, .. } if chunk == " {not-json}"
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_parse_sse_stream_handles_cr_only_while_connection_is_open() {
+        let bytes = Bytes::from(
+            "data: {\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"cr-only\"},\"finish_reason\":null}]}\r\r",
+        );
+        let source = futures::stream::iter(vec![Ok::<Bytes, reqwest::Error>(bytes)])
+            .chain(futures::stream::pending());
+        let mut stream = Box::pin(parse_sse_stream(source));
+
+        let chunk = tokio::time::timeout(std::time::Duration::from_millis(250), stream.next())
+            .await
+            .expect("CR-only event should dispatch without waiting for more bytes")
+            .unwrap()
+            .unwrap();
+        assert_eq!(chunk.content(), Some("cr-only"));
+    }
+
+    #[tokio::test]
+    async fn test_parse_sse_stream_handles_split_crlf_before_lf_blank_line() {
+        let json = r#"{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"split"},"finish_reason":null}]}"#;
+        let chunks = vec![
+            Ok::<Bytes, reqwest::Error>(Bytes::from(format!("data: {json}\r"))),
+            Ok(Bytes::from("\n")),
+            Ok(Bytes::from("\n")),
+        ];
+        let source = futures::stream::iter(chunks).chain(futures::stream::pending());
+        let mut stream = Box::pin(parse_sse_stream(source));
+
+        let chunk = tokio::time::timeout(std::time::Duration::from_millis(250), stream.next())
+            .await
+            .expect("split CRLF followed by a blank LF line should dispatch promptly")
+            .unwrap()
+            .unwrap();
+        assert_eq!(chunk.content(), Some("split"));
+    }
+
+    #[tokio::test]
+    async fn test_parse_sse_stream_ignores_space_only_field_between_data_lines() {
+        let bytes = Bytes::from(
+            "data: {\n \ndata: \"id\":\"chatcmpl-123\",\ndata: \"object\":\"chat.completion.chunk\",\ndata: \"created\":1,\ndata: \"model\":\"gpt-4\",\ndata: \"choices\":[{\"index\":0,\"delta\":{\"content\":\"multiline\"},\"finish_reason\":null}]\ndata: }\n\n",
+        );
+        let mut stream = Box::pin(parse_sse_stream(futures::stream::iter(vec![Ok(bytes)])));
+
+        let chunk = stream.next().await.unwrap().unwrap();
+        assert_eq!(chunk.content(), Some("multiline"));
+        assert!(stream.next().await.is_none());
     }
 
     #[tokio::test]
