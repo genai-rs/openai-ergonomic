@@ -126,6 +126,18 @@
       ],
       automerge: true,
     },
+    {
+      // 0.32+ deprecates the GenAI constants used by this crate. This version
+      // is independent of the OpenTelemetry API/SDK; migrate the emitted
+      // semantic conventions in a separately reviewed change before lifting
+      // this constraint. Keep this rule after the broad Rust update rules.
+      description: 'Preserve the supported GenAI semantic conventions contract',
+      matchManagers: ['cargo'],
+      matchPackageNames: ['opentelemetry-semantic-conventions'],
+      allowedVersions: '>=0.31.0, <0.32.0',
+      groupName: null,
+      automerge: false,
+    },
   ],
   vulnerabilityAlerts: {
     enabled: true,
