@@ -17,11 +17,16 @@ The Langfuse integration is included in the main crate. Ensure your `Cargo.toml`
 
 ```toml
 [dependencies]
-openai-ergonomic = "0.6"
-tokio = { version = "1.0", features = ["full"] }
-opentelemetry = { version = "0.33.1", features = ["trace"] }
-opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
+openai-ergonomic = "=0.6.0"
+tokio = { version = "1", features = ["full"] }
+opentelemetry = { version = "0.32", features = ["trace"] }
+opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
 ```
+
+For the current, unpublished repository source, use the exact source revision and
+OpenTelemetry 0.33.1 manifest shown in the [README's development setup](../README.md#langfuse-setup).
+The published 0.6.0 crate and that development revision require different
+OpenTelemetry minor versions; do not mix the dependency sets.
 
 ## Configuration
 
@@ -69,7 +74,7 @@ That single source is included in crate documentation and checked by
 tracer provider, and interceptor, sends a request with `send_chat`, and flushes
 spans before exiting. Compilation needs no credentials or live API calls.
 
-The dependencies above match the current 0.6 manifest and the compiled setup.
+The dependencies above match the published 0.6.0 package. The README also records a separately pinned development-source manifest.
 Set `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_SECRET_KEY` only when
 running it.
 
