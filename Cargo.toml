@@ -27,7 +27,7 @@ thiserror = "^2.0.21"
 tracing = "^0.1.44"
 # The 0.32 semantic-conventions crate deprecates these GenAI string constants;
 # 0.31 is independent of the OpenTelemetry API and SDK dependency chain.
-opentelemetry-semantic-conventions = { version = "^0.33.1", features = ["semconv_experimental"] }
+opentelemetry-semantic-conventions = { version = "^0.31", features = ["semconv_experimental"] }
 opentelemetry = { version = "^0.33.1", features = ["trace"] }
 opentelemetry_sdk = { version = "^0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
 opentelemetry-otlp = { version = "^0.33.1", default-features = false, features = ["trace", "http-proto", "reqwest-client"] }
@@ -35,7 +35,7 @@ base64 = "^0.23.1"
 async-trait = "^0.1.92"
 bytes = "^1.12.1"
 # UUID 1.27 requires Rust 1.89; preserve the declared Rust 1.88 minimum.
-uuid = { version = ">=1.28.0, <1.29", features = ["v4"] }
+uuid = { version = ">=1.23.5, <1.27", features = ["v4"] }
 tokio-stream = { version = "^0.1.19", features = ["io-util"] }
 mockito = { version = "^1.7.2", optional = true }
 http = "^1.5.0"
