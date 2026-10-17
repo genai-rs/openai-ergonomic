@@ -1,9 +1,14 @@
 # Streaming interceptor completion (OE05)
 
-Status: **proposed; independent supervisor/maintainer acceptance required**.
+Status: **accepted design/evidence; no production API implemented here**.
+Accepted by the independent supervisor decision recorded against
+`genai-rs-openai-ergonomic#dcbr`, reviewing head
+`5a1169f09650d43ade25ad8ce7034d909dfe6450` and report
+`work/reviews/oe05.json` in the supervisor workspace.
 This document and its regression prototype do not implement a new public API.
-Implementation belongs to OE06 (`genai-rs-openai-ergonomic#v5hz`), after OE05
-(`genai-rs-openai-ergonomic#dcbr`) and OE04 are accepted.
+Implementation belongs to OE06 (`genai-rs-openai-ergonomic#v5hz`). It remains
+blocked on OE04 (`genai-rs-openai-ergonomic#cqg2`); do not edit parser behavior
+here.
 
 ## Evidence and scope
 
@@ -93,7 +98,8 @@ drop cannot overwrite a recorded stream failure. A finish-reason chunk alone
 does not terminate the stream, since later usage chunks may follow. `Completed`
 means the parser's normal EOF, not independent validation that an upstream
 protocol completion marker was present. Parser-level termination belongs to
-OE03; do not silently expand that definition here.
+OE04 (`genai-rs-openai-ergonomic#cqg2`); do not silently expand that definition
+here.
 
 ## Terminal notifications and callback failures
 
@@ -111,6 +117,12 @@ the streaming failure/cancellation notification; do not also synthesize
 non-streaming error-hook behavior remains outside this change. Built-in
 telemetry integration must implement the terminal hook so cancellation and
 failure finish its spans rather than leaving them open.
+
+Update the `Interceptor::on_error` documentation: after a stream is
+successfully created, streaming errors are reported through
+`on_stream_terminal(StreamFailed)` and are not automatically sent to
+`on_error`. Keep its documented behavior for other error paths. This avoids
+claiming that `on_error` receives errors from every streaming stage.
 
 For this managed streaming dispatcher, attempt each registered interceptor even
 if an earlier one returns an error. Record the failure and continue with later
@@ -130,10 +142,19 @@ covered by the barrier.
 ## Ownership, cancellation, and shutdown
 
 Use one owned dispatcher per intercepted stream, a bounded chunk queue, a
-separate terminal signal, and shared completion state. Create the worker while
-the runtime is active. Reserve queue capacity before polling another inner
-item, so there is no unbounded pending-payload buffer. A one-slot queue is a
-reasonable initial policy; capacity is an internal tuning choice.
+separate terminal signal, and shared completion state. Reserve queue capacity
+before polling another inner item, so there is no unbounded pending-payload
+buffer. A one-slot queue is a reasonable initial policy; capacity is an
+internal tuning choice.
+
+Dispatcher startup needs an active Tokio runtime. Document this requirement on
+the new direct `InterceptedStream::new_with_completion` constructor and validate
+it without introducing an undocumented panic during public construction. The
+additive direct constructor should report the missing runtime explicitly; the
+async client entry points already run inside their caller's runtime. Preserve
+and document the existing constructor's runtime/polling requirements. OE06
+must test construction outside a runtime and drop before the first poll, so
+cancellation of an unstarted producer remains well-defined.
 
 `Drop` only signals cancellation and releases the transport; it must not block,
 spawn a new task, or depend on queue capacity to record the terminal event.
@@ -148,7 +169,7 @@ the handle. This strengthens ordering and fixes duplicate EOF notifications,
 but adds observable backpressure and failure/cancellation semantics. Review
 these behavioral changes explicitly even though the return types are stable.
 
-Proposed caller flow (pseudocode; names pending review):
+Accepted caller flow (pseudocode; exact names follow the accepted API):
 
 ```text
 (stream, completion) = await client.send_chat_stream_with_completion(request)
@@ -224,10 +245,23 @@ Assert exact attempts/order/outcomes and that no callback runs after report
 resolution. Tests must use mocks and bounded watchdogs, never an external
 telemetry service or a sleep as proof of completion.
 
-Reviewer decisions required before OE06: additive tuple/handle API; serial
-backpressure on existing entry points; terminal-hook compatibility adapter;
-continue-after-failure streaming policy; and cancellation/drop ownership.
-No API or MSRV decision is accepted by this draft. If implementation needs a
-breaking public type/context change, a second telemetry stack, parser redesign,
-or an MSRV increase, stop and split that work for review rather than expanding
-OE06. No additional implementation split is justified by the current evidence.
+The supervisor accepted the additive `(BoxedChatStream, StreamCompletion)`
+entry points, serial bounded ordering/backpressure including existing entry
+points, the default success adapter from `on_stream_terminal` to
+`on_stream_end`, continued dispatch after returned callback errors or panics,
+and nonblocking first-terminal-wins cancellation followed by admitted-callback
+drain. `wait` does not poll or cancel the producer, and exporter flush follows
+the completion barrier. Preserve public context construction and existing
+public chain fail-fast behavior.
+
+OE06 must also cover the runtime/constructor and `on_error` documentation
+requirements above, replace baseline defect assertions with desired contract
+assertions while preserving their diagnostic evidence, and implement no parser
+change (OE04 owns that work). Run callback failure/panic order, full-queue drop,
+zero-interceptor, repeated/concurrent waits, timeout/retry, delayed terminal,
+and unavailable-worker tests before implementation acceptance. If preserving
+the existing constructor behavior needs broader API changes, stop for review;
+do not silently add a panic path. If implementation needs a breaking public
+context change, a second telemetry stack, or an MSRV increase, split it for
+review instead of expanding OE06. No additional implementation split is
+currently justified.
