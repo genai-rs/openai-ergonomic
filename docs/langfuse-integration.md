@@ -19,8 +19,8 @@ The Langfuse integration is included in the main crate. Ensure your `Cargo.toml`
 [dependencies]
 openai-ergonomic = "0.6"
 tokio = { version = "1.0", features = ["full"] }
-opentelemetry = { version = "0.32", features = ["trace"] }
-opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
+opentelemetry = { version = "0.33.1", features = ["trace"] }
+opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
 ```
 
 ## Configuration
