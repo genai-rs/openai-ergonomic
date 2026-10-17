@@ -20,25 +20,8 @@
 //! - **Error handling** - Structured error types for robust applications
 //! - **Testing support** - Mock-friendly design for unit testing
 //!
-//! ## Quick Start
-//!
-//! ```rust,ignore
-//! use openai_ergonomic::{Client, Config};
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create a client from environment variables
-//!     let client = Client::from_env()?;
-//!
-//!     // Simple chat completion
-//!     let response = client
-//!         .chat_simple("Hello, how are you?")
-//!         .await?;
-//!
-//!     println!("{}", response);
-//!     Ok(())
-//! }
-//! ```
+//! The [basic usage](#basic-usage) and [Langfuse setup](#langfuse-setup)
+//! examples above are compiled directly from the README as `no_run` doctests.
 //!
 //! ## Streaming Example
 //!
