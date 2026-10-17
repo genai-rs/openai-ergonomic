@@ -40,25 +40,95 @@ or sending those requests.
 
 ### Basic Usage
 
-```rust,ignore
-use openai_ergonomic::{Client, Config};
+Set `OPENAI_API_KEY` before running this snippet. Documentation tests compile it
+without reading credentials or making API calls.
+
+```rust,no_run
+use openai_ergonomic::Client;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Build client from environment variables
     let client = Client::from_env()?.build();
+    let request = client.chat().user("Hello, world!");
+    let response = client.send_chat(request).await?;
 
-    let response = client
-        .chat_completions()
-        .model("gpt-4")
-        .message("user", "Hello, world!")
-        .send()
-        .await?;
-
-    println!("{}", response.choices[0].message.content);
+    if let Some(content) = response.content() {
+        println!("{content}");
+    }
     Ok(())
 }
 ```
+
+### Langfuse Setup
+
+The interceptor needs an OpenTelemetry tracer and a Langfuse exporter. For the
+published `openai-ergonomic` 0.6.0 release, use its matching OpenTelemetry versions:
+
+```toml
+openai-ergonomic = "=0.6.0"
+tokio = { version = "1", features = ["full"] }
+opentelemetry = { version = "0.32", features = ["trace"] }
+opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
+```
+
+The same Rust example below also compiles against the current development source at
+`65ac9fa78aca0dadfc59bf65d2665c104a4dbf1c`. That unpublished source uses OpenTelemetry
+0.33.1, so use this pinned manifest when working from it:
+
+```toml
+openai-ergonomic = { git = "https://github.com/genai-rs/openai-ergonomic", rev = "65ac9fa78aca0dadfc59bf65d2665c104a4dbf1c" }
+tokio = { version = "1", features = ["full"] }
+opentelemetry = { version = "0.33.1", features = ["trace"] }
+opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
+```
+
+Both dependency sets are checked with standalone consumer crates. The README's
+`no_run` doctest checks the same Rust code against the current crate source without
+credentials or a live service.
+
+At runtime, set `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, and
+`LANGFUSE_SECRET_KEY`. Optionally set `LANGFUSE_HOST` for a self-hosted instance.
+This setup is compiled as a `no_run` doctest, so testing needs no credentials or
+live services.
+
+```rust,no_run
+use openai_ergonomic::{
+    langfuse_exporter_from_env, Client, LangfuseConfig, LangfuseInterceptor,
+};
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::{
+    runtime::Tokio,
+    trace::{span_processor_with_async_runtime::BatchSpanProcessor, SdkTracerProvider},
+};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let exporter = langfuse_exporter_from_env()?;
+    let provider = SdkTracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(exporter, Tokio).build())
+        .build();
+    let interceptor = LangfuseInterceptor::new(
+        provider.tracer("openai-ergonomic"),
+        LangfuseConfig::new(),
+    );
+    let client = Client::from_env()?
+        .with_interceptor(Box::new(interceptor))
+        .build();
+
+    // Keep the result so spans are flushed even when the request fails.
+    let result = client.send_chat(client.chat_simple("Hello, world!")).await;
+    // The Tokio batch processor needs the runtime while shutdown waits for export.
+    tokio::task::spawn_blocking(move || provider.shutdown()).await??;
+    let response = result?;
+    if let Some(content) = response.content() {
+        println!("{content}");
+    }
+    Ok(())
+}
+```
+
+See the [Langfuse integration guide](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/langfuse-integration.md)
+for configuration and observability details.
 
 ### Streaming Example
 

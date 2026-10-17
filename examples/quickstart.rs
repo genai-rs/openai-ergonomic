@@ -68,8 +68,10 @@ async fn main() -> Result<()> {
 
     println!("\n Step 2: Basic chat completion");
 
-    // The simplest way to get a response from ChatGPT
-    let builder = client.chat_simple("What is Rust programming language in one sentence?");
+    // Use the same chat builder and send helper as the compiled README quickstart.
+    let builder = client
+        .chat()
+        .user("What is Rust programming language in one sentence?");
     let response = client.send_chat(builder).await;
 
     match response {

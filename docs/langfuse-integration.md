@@ -17,8 +17,16 @@ The Langfuse integration is included in the main crate. Ensure your `Cargo.toml`
 
 ```toml
 [dependencies]
-openai-ergonomic = { version = "0.1.0" }
+openai-ergonomic = "=0.6.0"
+tokio = { version = "1", features = ["full"] }
+opentelemetry = { version = "0.32", features = ["trace"] }
+opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
 ```
+
+For the current, unpublished repository source, use the exact source revision and
+OpenTelemetry 0.33.1 manifest shown in the [README's development setup](../README.md#langfuse-setup).
+The published 0.6.0 crate and that development revision require different
+OpenTelemetry minor versions; do not mix the dependency sets.
 
 ## Configuration
 
@@ -60,29 +68,15 @@ let interceptor = LangfuseInterceptor::new(config)?;
 
 ### Basic Usage
 
-```rust
-use openai_ergonomic::{Builder, Client, LangfuseInterceptor};
+Follow the [compiled Langfuse setup in the README](../README.md#langfuse-setup).
+That single source is included in crate documentation and checked by
+`cargo test --doc --all-features` as a `no_run` doctest. It constructs the exporter,
+tracer provider, and interceptor, sends a request with `send_chat`, and flushes
+spans before exiting. Compilation needs no credentials or live API calls.
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create Langfuse interceptor from environment variables
-    let langfuse_interceptor = LangfuseInterceptor::from_env()?;
-
-    // Create client with Langfuse interceptor
-    let client = Client::from_env()?
-        .with_interceptor(Box::new(langfuse_interceptor))
-        .build();
-
-    // Make API calls - traces are automatically sent to Langfuse
-    let request = client
-        .chat_simple("Hello, world!")
-        .build()?;
-    let response = client.execute_chat(request).await?;
-
-    println!("Response: {:?}", response.content());
-    Ok(())
-}
-```
+The dependencies above match the published 0.6.0 package. The README also records a separately pinned development-source manifest.
+Set `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_SECRET_KEY` only when
+running it.
 
 ### Advanced Configuration with Builder
 
