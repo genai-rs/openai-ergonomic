@@ -33,10 +33,34 @@ openai-ergonomic = "0.6"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
-Version 0.6 uses `openai-client-base` 0.15.0 and requires Rust 1.88 or newer.
-Generated request and response types follow that client release. Image generation
+Published version 0.6 uses `openai-client-base` 0.15.0. The 0.7 development line
+targets `openai-client-base` 0.16.0. Both require Rust 1.88 or newer. Generated
+request and response types follow their matching client release. Image generation
 and editing require an explicit `.model(...)`; choose the model before building
-or sending those requests.
+or sending those requests. See the [0.7 migration guide](docs/migration-0.7.md) for
+the generated request field changes.
+
+### Upgrading to 0.7
+
+The generated request structs now use nested options for fields that distinguish
+an omitted JSON property from an explicit `null`. Set values with two `Some`s,
+use `Some(None)` for `null`, and leave fields at `None` to omit them. Read values
+with `.flatten()`:
+
+```rust
+use openai_client_base::models::CreateCompletionRequest;
+
+let mut request = CreateCompletionRequest::new("gpt-4".into(), "Hello".into());
+request.stream = Some(Some(false));
+request.stop = Some(None);
+request.n = None;
+
+let max_tokens: Option<i32> = request.max_tokens.flatten();
+let json = serde_json::to_value(request).unwrap();
+assert_eq!(json["stream"], false);
+assert!(json["stop"].is_null());
+assert!(json.get("n").is_none());
+```
 
 ### Basic Usage
 

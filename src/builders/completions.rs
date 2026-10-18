@@ -25,7 +25,7 @@ use crate::{Builder, Error, Result};
 ///     .unwrap();
 ///
 /// assert_eq!(request.model, "gpt-3.5-turbo-instruct");
-/// assert_eq!(request.max_tokens, Some(50));
+/// assert_eq!(request.max_tokens, Some(Some(50)));
 /// ```
 #[derive(Debug, Clone)]
 pub struct CompletionsBuilder {
@@ -218,29 +218,32 @@ impl Builder<CreateCompletionRequest> for CompletionsBuilder {
 
         let mut request = CreateCompletionRequest::new(self.model, prompt);
 
-        request.best_of = self.best_of;
-        request.echo = self.echo;
-        request.frequency_penalty = self.frequency_penalty;
+        request.best_of = self.best_of.map(Some);
+        request.echo = self.echo.map(Some);
+        request.frequency_penalty = self.frequency_penalty.map(Some);
         request.logit_bias = self.logit_bias;
-        request.logprobs = self.logprobs;
-        request.max_tokens = self.max_tokens;
-        request.n = self.n;
-        request.presence_penalty = self.presence_penalty;
-        request.seed = self.seed;
-        request.stop = self.stop.map(|stops| {
-            if stops.len() == 1 {
-                Box::new(StopConfiguration::new_text(
-                    stops.into_iter().next().unwrap(),
-                ))
-            } else {
-                Box::new(StopConfiguration::new_arrayofstrings(stops))
-            }
-        });
-        request.stream = self.stream;
+        request.logprobs = self.logprobs.map(Some);
+        request.max_tokens = self.max_tokens.map(Some);
+        request.n = self.n.map(Some);
+        request.presence_penalty = self.presence_penalty.map(Some);
+        request.seed = self.seed.map(Some);
+        request.stop = self
+            .stop
+            .map(|stops| {
+                if stops.len() == 1 {
+                    Box::new(StopConfiguration::new_text(
+                        stops.into_iter().next().unwrap(),
+                    ))
+                } else {
+                    Box::new(StopConfiguration::new_arrayofstrings(stops))
+                }
+            })
+            .map(Some);
+        request.stream = self.stream.map(Some);
         request.stream_options = self.stream_options.map(|opts| Some(Box::new(opts)));
-        request.suffix = self.suffix;
-        request.temperature = self.temperature;
-        request.top_p = self.top_p;
+        request.suffix = self.suffix.map(Some);
+        request.temperature = self.temperature.map(Some);
+        request.top_p = self.top_p.map(Some);
         request.user = self.user;
 
         Ok(request)
@@ -257,6 +260,23 @@ mod tests {
 
         let request = builder.build().unwrap();
         assert_eq!(request.model, "gpt-3.5-turbo-instruct");
+        let serialized = serde_json::to_value(request).unwrap();
+        for field in ["echo", "max_tokens", "n", "stream", "suffix"] {
+            assert!(serialized.get(field).is_none(), "{field} should be omitted");
+        }
+    }
+
+    #[test]
+    fn test_completions_builder_preserves_false_and_zero() {
+        let request = CompletionsBuilder::new("gpt-3.5-turbo-instruct")
+            .prompt("Hello")
+            .echo(false)
+            .temperature(0.0)
+            .build()
+            .unwrap();
+        let serialized = serde_json::to_value(request).unwrap();
+        assert_eq!(serialized["echo"], false);
+        assert_eq!(serialized["temperature"], 0.0);
     }
 
     #[test]
@@ -269,10 +289,10 @@ mod tests {
             .n(3);
 
         let request = builder.build().unwrap();
-        assert_eq!(request.max_tokens, Some(100));
-        assert_eq!(request.temperature, Some(0.8));
-        assert_eq!(request.top_p, Some(0.9));
-        assert_eq!(request.n, Some(3));
+        assert_eq!(request.max_tokens, Some(Some(100)));
+        assert_eq!(request.temperature, Some(Some(0.8)));
+        assert_eq!(request.top_p, Some(Some(0.9)));
+        assert_eq!(request.n, Some(Some(3)));
     }
 
     #[test]

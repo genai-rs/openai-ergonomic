@@ -548,8 +548,8 @@ async fn test_streaming_builder_integration() {
         .max_tokens(100);
 
     let request = builder.build().unwrap();
-    assert_eq!(request.stream, Some(true));
-    assert_eq!(request.max_tokens, Some(100));
+    assert_eq!(request.stream, Some(Some(true)));
+    assert_eq!(request.max_tokens, Some(Some(100)));
 
     // Make request with builder output
     let client = reqwest::Client::new();

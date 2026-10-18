@@ -139,32 +139,32 @@ pub fn assert_valid_chat_request(request: &CreateChatCompletionRequest) {
         );
     }
 
-    if let Some(freq_penalty) = request.frequency_penalty {
+    if let Some(Some(freq_penalty)) = request.frequency_penalty {
         assert!(
             (-2.0..=2.0).contains(&freq_penalty),
             "Frequency penalty {freq_penalty} is out of valid range [-2.0, 2.0]"
         );
     }
 
-    if let Some(pres_penalty) = request.presence_penalty {
+    if let Some(Some(pres_penalty)) = request.presence_penalty {
         assert!(
             (-2.0..=2.0).contains(&pres_penalty),
             "Presence penalty {pres_penalty} is out of valid range [-2.0, 2.0]"
         );
     }
 
-    if let Some(max_tokens) = request.max_tokens {
+    if let Some(Some(max_tokens)) = request.max_tokens {
         assert!(max_tokens > 0, "Max tokens must be positive");
     }
 
-    if let Some(max_completion_tokens) = request.max_completion_tokens {
+    if let Some(Some(max_completion_tokens)) = request.max_completion_tokens {
         assert!(
             max_completion_tokens > 0,
             "Max completion tokens must be positive"
         );
     }
 
-    if let Some(n) = request.n {
+    if let Some(Some(n)) = request.n {
         assert!(n > 0, "N must be positive");
     }
 }

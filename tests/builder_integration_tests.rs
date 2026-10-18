@@ -80,13 +80,13 @@ fn test_chat_builder_all_parameters() {
     assert_eq!(request.model, "gpt-4");
     assert_eq!(request.messages.len(), 2);
     assert_eq!(request.temperature, Some(0.7));
-    assert_eq!(request.max_tokens, Some(500));
-    assert_eq!(request.max_completion_tokens, Some(400));
+    assert_eq!(request.max_tokens, Some(Some(500)));
+    assert_eq!(request.max_completion_tokens, Some(Some(400)));
     assert_eq!(request.top_p, Some(0.9));
-    assert_eq!(request.frequency_penalty, Some(0.1));
-    assert_eq!(request.presence_penalty, Some(0.1));
-    assert_eq!(request.n, Some(1));
-    assert_eq!(request.seed, Some(12345));
+    assert_eq!(request.frequency_penalty, Some(Some(0.1)));
+    assert_eq!(request.presence_penalty, Some(Some(0.1)));
+    assert_eq!(request.n, Some(Some(1)));
+    assert_eq!(request.seed, Some(Some(12345)));
     assert!(request.stop.is_some());
     assert!(request.tools.is_some());
     assert_eq!(request.user, Some("test-user".to_string()));
@@ -123,10 +123,10 @@ fn test_responses_builder_comprehensive() {
     assert_eq!(request.model, "gpt-4");
     assert_eq!(request.messages.len(), 2);
     assert_eq!(request.temperature, Some(0.8));
-    assert_eq!(request.max_completion_tokens, Some(500));
+    assert_eq!(request.max_completion_tokens, Some(Some(500)));
     assert!(request.tools.is_some());
     assert!(request.response_format.is_some());
-    assert_eq!(request.stream, Some(true));
+    assert_eq!(request.stream, Some(Some(true)));
 }
 
 /// Test vision/multimodal chat builder
@@ -291,7 +291,7 @@ fn test_parameter_boundary_validation() {
 
                 if should_be_valid {
                     let request = assert_builder_success!(builder);
-                    assert_eq!(request.frequency_penalty, Some(value));
+                    assert_eq!(request.frequency_penalty, Some(Some(value)));
                 } else {
                     let result = builder.build();
                     assert!(
@@ -307,7 +307,7 @@ fn test_parameter_boundary_validation() {
 
                 if should_be_valid {
                     let request = assert_builder_success!(builder);
-                    assert_eq!(request.presence_penalty, Some(value));
+                    assert_eq!(request.presence_penalty, Some(Some(value)));
                 } else {
                     let result = builder.build();
                     assert!(
@@ -459,8 +459,8 @@ fn test_streaming_configuration() {
     let request = assert_builder_success!(builder);
     assert_valid_chat_request(&request);
 
-    assert_eq!(request.stream, Some(true));
-    assert_eq!(request.max_tokens, Some(200));
+    assert_eq!(request.stream, Some(Some(true)));
+    assert_eq!(request.max_tokens, Some(Some(200)));
 }
 
 /// Test JSON mode configuration

@@ -183,9 +183,9 @@ fn test_completions_builder_with_options() {
 
     let request = builder.build().unwrap();
 
-    assert_eq!(request.max_tokens, Some(100));
-    assert_eq!(request.temperature, Some(0.7));
-    assert_eq!(request.top_p, Some(0.9));
+    assert_eq!(request.max_tokens, Some(Some(100)));
+    assert_eq!(request.temperature, Some(Some(0.7)));
+    assert_eq!(request.top_p, Some(Some(0.9)));
 }
 
 #[test]

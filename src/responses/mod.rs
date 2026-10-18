@@ -216,7 +216,8 @@ impl ChatCompletionStreamResponseWrapper {
         self.inner
             .choices
             .first()
-            .is_some_and(|c| c.finish_reason.is_some())
+            .and_then(|choice| choice.finish_reason.as_ref())
+            .is_some_and(Option::is_some)
     }
 
     /// Get the inner stream response object.

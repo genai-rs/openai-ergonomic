@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- [**breaking**] prepare wrapper 0.7.0 for `openai-client-base` 0.16.0; generated request options now preserve omitted, explicit `null`, and concrete values
+- adapt builders and streaming helpers to the nested optional request fields while keeping unset builder options omitted
+- document the generated request field and finish-reason migration
+
 ## [0.6.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.5.2...v0.6.0) - 2026-10-03
 
 ### Added

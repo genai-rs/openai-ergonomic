@@ -367,24 +367,25 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
         Ok(CreateChatCompletionRequest {
             messages: self.messages,
             model: self.model,
-            frequency_penalty: self.frequency_penalty,
+            frequency_penalty: self.frequency_penalty.map(Some),
             logit_bias: None,
             logprobs: None,
             top_logprobs: None,
-            max_tokens: self.max_tokens,
-            max_completion_tokens: self.max_completion_tokens,
-            n: self.n,
+            max_tokens: self.max_tokens.map(Some),
+            max_completion_tokens: self.max_completion_tokens.map(Some),
+            n: self.n.map(Some),
             modalities: None,
             prediction: None,
             audio: None,
-            presence_penalty: self.presence_penalty,
+            presence_penalty: self.presence_penalty.map(Some),
             response_format,
-            seed: self.seed.map(i64::from),
+            seed: self.seed.map(i64::from).map(Some),
             service_tier: None,
-            stop: self.stop.map(|s| {
-                Box::new(openai_client_base::models::StopConfiguration::ArrayOfStrings(s))
-            }),
-            stream: self.stream,
+            stop: self
+                .stop
+                .map(|s| Box::new(openai_client_base::models::StopConfiguration::ArrayOfStrings(s)))
+                .map(Some),
+            stream: self.stream.map(Some),
             stream_options: None,
             temperature: self.temperature,
             top_p: self.top_p,

@@ -616,7 +616,7 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
         // Force streaming mode
         builder = builder.stream(true);
         let mut request = builder.build()?;
-        request.stream = Some(true);
+        request.stream = Some(Some(true));
 
         self.execute_chat_stream(request, crate::semantic_conventions::operation_names::CHAT)
             .await
@@ -740,7 +740,7 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
         // Force streaming mode
         builder = builder.stream(true);
         let mut request = builder.build()?;
-        request.stream = Some(true);
+        request.stream = Some(Some(true));
 
         // The Responses API uses the same streaming endpoint as chat
         self.execute_chat_stream(
@@ -2307,7 +2307,7 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
 
         let id = vector_store_id.into();
         let mut request = UpdateVectorStoreRequest::new();
-        request.name = builder.name_ref().map(String::from);
+        request.name = builder.name_ref().map(|name| Some(String::from(name)));
 
         if let Some(expires_after) = builder.expires_after_ref() {
             use openai_client_base::models::vector_store_expiration_after::Anchor;
@@ -3108,11 +3108,11 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
         );
 
         if let Some(validation_file) = builder.validation_file_ref() {
-            request.validation_file = Some(validation_file.to_string());
+            request.validation_file = Some(Some(validation_file.to_string()));
         }
 
         if let Some(suffix) = builder.suffix_ref() {
-            request.suffix = Some(suffix.to_string());
+            request.suffix = Some(Some(suffix.to_string()));
         }
 
         // Note: Hyperparameters handling is limited due to base client API limitations

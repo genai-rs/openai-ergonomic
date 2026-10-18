@@ -1,6 +1,6 @@
 [package]
 name = "openai-ergonomic"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Tim Van Wassenhove <github@timvw.be>"]
 edition = "2021"
 rust-version = "1.88"
@@ -15,7 +15,7 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = "^0.15.0"
+openai-client-base = { version = "=0.16.0", git = "https://github.com/genai-rs/openai-client-base", rev = "9ee34f77abd4b7aa0ae2234ef78b78dd2171d838" }
 bon = "^3.10.2"
 serde = { version = "^1.0.229", features = ["derive"] }
 serde_json = "^1.0.151"

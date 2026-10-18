@@ -43,7 +43,7 @@ fn test_responses_builder_system_user_integration() {
     assert_eq!(request.model, "gpt-4");
     assert_eq!(request.messages.len(), 2);
     assert_eq!(request.temperature, Some(0.7));
-    assert_eq!(request.max_tokens, Some(100));
+    assert_eq!(request.max_tokens, Some(Some(100)));
 }
 
 /// Test responses builder with tools
@@ -190,11 +190,11 @@ fn test_builder_parameter_validation() {
     let request = builder.build().unwrap();
 
     assert_eq!(request.temperature, Some(0.0));
-    assert_eq!(request.max_tokens, Some(1));
-    assert_eq!(request.n, Some(1));
+    assert_eq!(request.max_tokens, Some(Some(1)));
+    assert_eq!(request.n, Some(Some(1)));
     assert_eq!(request.top_p, Some(0.1));
-    assert_eq!(request.frequency_penalty, Some(-2.0));
-    assert_eq!(request.presence_penalty, Some(2.0));
+    assert_eq!(request.frequency_penalty, Some(Some(-2.0)));
+    assert_eq!(request.presence_penalty, Some(Some(2.0)));
 }
 
 /// Test serialization of complex requests
@@ -313,7 +313,7 @@ fn test_stream_parameter() {
 
     let request = builder.build().unwrap();
 
-    assert_eq!(request.stream, Some(true));
+    assert_eq!(request.stream, Some(Some(true)));
 }
 
 /// Test stop sequences
