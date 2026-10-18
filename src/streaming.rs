@@ -375,7 +375,7 @@ type ReserveFuture = Pin<
 /// The wrapper's direct constructor may be called outside a Tokio runtime, but it must be polled
 /// inside one. Use [`Self::new_with_completion`] to validate the runtime and obtain a drain handle.
 pub struct InterceptedStream<T: Send + Sync + 'static = ()> {
-    inner: Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>,
+    inner: Option<Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>>,
     interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
     operation: String,
     model: String,
@@ -408,7 +408,7 @@ impl<T: Send + Sync + 'static> InterceptedStream<T> {
         state: T,
     ) -> Self {
         Self {
-            inner: Box::pin(inner),
+            inner: Some(Box::pin(inner)),
             interceptors,
             operation,
             model,
@@ -491,6 +491,9 @@ impl<T: Send + Sync + 'static> InterceptedStream<T> {
 
     fn finish(&mut self, outcome: StreamOutcome) {
         self.terminated = true;
+        // EOF and errors can be emitted before the HTTP body itself is exhausted (for example,
+        // an invalid SSE frame followed by a pending body). Release that transport immediately.
+        self.inner.take();
         self.reserve_future.take();
         self.reserved.take();
         self.queue_tx.take();
@@ -519,6 +522,14 @@ impl<T: Send + Sync + 'static> InterceptedStream<T> {
                 }
             });
         }
+    }
+
+    fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<ChatCompletionChunk>>> {
+        self.inner
+            .as_mut()
+            .expect("live intercepted stream has an inner stream")
+            .as_mut()
+            .poll_next(cx)
     }
 
     /// Collect all remaining content from the stream into a single string.
@@ -557,6 +568,7 @@ impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
         if !this.started {
             let Ok(runtime) = Handle::try_current() else {
                 this.terminated = true;
+                this.inner.take();
                 return Poll::Ready(Some(Err(Error::Config(
                     "InterceptedStream must be polled inside an active Tokio runtime".into(),
                 ))));
@@ -565,7 +577,7 @@ impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
         }
 
         if this.interceptors.is_empty() {
-            return match this.inner.as_mut().poll_next(cx) {
+            return match this.poll_inner(cx) {
                 Poll::Ready(Some(Ok(chunk))) => {
                     update_usage(this, &chunk);
                     this.chunk_index = this.chunk_index.saturating_add(1);
@@ -616,7 +628,7 @@ impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
             }
         }
 
-        match this.inner.as_mut().poll_next(cx) {
+        match this.poll_inner(cx) {
             Poll::Ready(Some(Ok(chunk))) => {
                 update_usage(this, &chunk);
                 let event = ChunkEvent {
@@ -777,13 +789,12 @@ async fn dispatch_chunk_event<T: Send + Sync + 'static>(
         state,
     };
     for (interceptor_index, interceptor) in interceptors.iter().enumerate() {
-        let callback = interceptor.on_stream_chunk(&ctx);
         record_callback(
             report,
             StreamCallbackHook::Chunk,
             interceptor_index,
             Some(event.chunk_index),
-            callback,
+            || interceptor.on_stream_chunk(&ctx),
         )
         .await;
     }
@@ -810,32 +821,50 @@ async fn dispatch_terminal_event<T: Send + Sync + 'static>(
     };
     let ctx = StreamTerminalContext { summary, outcome };
     for (interceptor_index, interceptor) in interceptors.iter().enumerate() {
-        let callback = interceptor.on_stream_terminal(&ctx);
         record_callback(
             report,
             StreamCallbackHook::Terminal,
             interceptor_index,
             None,
-            callback,
+            || interceptor.on_stream_terminal(&ctx),
         )
         .await;
     }
 }
 
-async fn record_callback<F>(
+async fn record_callback<F, Fut>(
     report: &mut StreamCompletionReport,
     hook: StreamCallbackHook,
     interceptor_index: usize,
     chunk_index: Option<usize>,
     callback: F,
 ) where
-    F: Future<Output = Result<()>>,
+    F: FnOnce() -> Fut + Send,
+    Fut: Future<Output = Result<()>> + Send,
 {
     report.callback_attempts = report.callback_attempts.saturating_add(1);
-    match AssertUnwindSafe(callback).catch_unwind().await {
+    let callback_future = match std::panic::catch_unwind(AssertUnwindSafe(callback)) {
+        Ok(callback) => callback,
+        Err(payload) => {
+            let diagnostic = panic_diagnostic(payload.as_ref());
+            record_callback_failure(
+                report,
+                hook,
+                interceptor_index,
+                chunk_index,
+                StreamCallbackFailureKind::Panicked,
+                &diagnostic,
+            );
+            return;
+        }
+    };
+    match AssertUnwindSafe(callback_future).catch_unwind().await {
         Ok(Ok(())) => report.callback_successes = report.callback_successes.saturating_add(1),
         Ok(Err(error)) => {
-            let diagnostic = error.to_string();
+            let diagnostic = std::panic::catch_unwind(AssertUnwindSafe(|| error.to_string()))
+                .unwrap_or_else(|_| {
+                    "callback returned an error (diagnostic formatting panicked)".into()
+                });
             record_callback_failure(
                 report,
                 hook,
@@ -1084,6 +1113,90 @@ fn parse_sse_line(line: &str) -> Result<Option<ChatCompletionChunk>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct PendingBody {
+        bytes: Option<Bytes>,
+        dropped: Arc<AtomicBool>,
+    }
+
+    impl Stream for PendingBody {
+        type Item = reqwest::Result<Bytes>;
+
+        fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            self.bytes
+                .take()
+                .map_or_else(|| Poll::Pending, |bytes| Poll::Ready(Some(Ok(bytes))))
+        }
+    }
+
+    impl Drop for PendingBody {
+        fn drop(&mut self) {
+            self.dropped.store(true, Ordering::SeqCst);
+        }
+    }
+
+    struct TerminalFlag(Arc<AtomicBool>);
+
+    #[async_trait::async_trait]
+    impl crate::interceptor::Interceptor for TerminalFlag {
+        async fn on_stream_terminal(&self, _ctx: &StreamTerminalContext<'_>) -> Result<()> {
+            self.0.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn terminal_parser_result_releases_pending_http_body_immediately() {
+        for (payload, expected) in [
+            ("data: {not-json}\n\n", Some(StreamFailureKind::Parsing)),
+            ("data: [DONE]\n\n", None),
+        ] {
+            let body_dropped = Arc::new(AtomicBool::new(false));
+            let terminal_called = Arc::new(AtomicBool::new(false));
+            let body = PendingBody {
+                bytes: Some(Bytes::from(payload)),
+                dropped: Arc::clone(&body_dropped),
+            };
+            let chat_stream = ChatCompletionStream {
+                inner: Box::pin(parse_sse_stream(body)),
+            };
+            let mut interceptors = crate::interceptor::InterceptorChain::new();
+            interceptors.add(Box::new(TerminalFlag(Arc::clone(&terminal_called))));
+            let (mut stream, completion) = InterceptedStream::new_with_completion(
+                chat_stream,
+                Arc::new(interceptors),
+                "chat".into(),
+                "mock-model".into(),
+                "{}".into(),
+                (),
+            )
+            .unwrap();
+
+            match expected {
+                Some(_) => assert!(matches!(
+                    stream.next().await.unwrap(),
+                    Err(Error::StreamParsing { .. })
+                )),
+                None => assert!(stream.next().await.is_none()),
+            }
+            assert!(body_dropped.load(Ordering::SeqCst));
+            assert!(stream.next().await.is_none());
+            assert!(stream.next().await.is_none());
+
+            let report = tokio::time::timeout(Duration::from_secs(1), completion.wait())
+                .await
+                .expect("terminal callback drain must finish")
+                .unwrap();
+            assert_eq!(
+                report.outcome,
+                expected.map_or(StreamOutcome::Completed, |kind| {
+                    StreamOutcome::StreamFailed(StreamFailure { kind })
+                })
+            );
+            assert!(terminal_called.load(Ordering::SeqCst));
+        }
+    }
 
     #[test]
     fn test_parse_sse_line_with_content() {

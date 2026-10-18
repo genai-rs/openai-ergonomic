@@ -23,8 +23,20 @@ struct Call {
 enum Behavior {
     Pass,
     ReturnError,
+    ReturnErrorWithPanickingDisplay,
     Panic,
 }
+
+#[derive(Debug)]
+struct PanickingDisplay;
+
+impl std::fmt::Display for PanickingDisplay {
+    fn fmt(&self, _formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        panic!("application error Display panicked")
+    }
+}
+
+impl std::error::Error for PanickingDisplay {}
 
 struct Probe {
     index: usize,
@@ -69,6 +81,7 @@ impl Probe {
         match behavior {
             Behavior::Pass => Ok(()),
             Behavior::ReturnError => Err(Error::Internal("mock callback failure".into())),
+            Behavior::ReturnErrorWithPanickingDisplay => Err(Error::application(PanickingDisplay)),
             Behavior::Panic => panic!("mock callback panic"),
         }
     }
@@ -380,6 +393,46 @@ async fn callback_errors_and_panics_are_recorded_and_later_callbacks_run() {
         report.callback_failures[1].kind,
         StreamCallbackFailureKind::ReturnedError
     );
+    let actual: Vec<_> = std::iter::from_fn(|| calls.try_recv().ok()).collect();
+    assert_eq!(actual.len(), 4);
+    assert_eq!(actual[0].hook, StreamCallbackHook::Chunk);
+    assert_eq!(actual[0].interceptor, 0);
+    assert_eq!(actual[1].interceptor, 1);
+    assert_eq!(actual[2].hook, StreamCallbackHook::Terminal);
+    assert_eq!(actual[2].interceptor, 0);
+    assert_eq!(actual[3].interceptor, 1);
+    drop(stream);
+}
+
+#[tokio::test]
+async fn panicking_error_diagnostic_does_not_skip_later_callbacks_or_terminal_hook() {
+    let (mut stream, completion, mut calls) = intercepted(chunk("one"), |events| {
+        let mut first = probe(0, &events);
+        first.chunk_behavior = Behavior::ReturnErrorWithPanickingDisplay;
+        vec![Box::new(first), Box::new(probe(1, &events))]
+    })
+    .await;
+
+    assert!(stream.next().await.unwrap().is_ok());
+    assert!(stream.next().await.is_none());
+    let report = tokio::time::timeout(Duration::from_secs(5), completion.wait())
+        .await
+        .expect("diagnostic panic must not abort the dispatcher")
+        .unwrap();
+
+    assert_eq!(report.outcome, StreamOutcome::Completed);
+    assert_eq!(report.callback_attempts, 4);
+    assert_eq!(report.callback_successes, 3);
+    assert_eq!(report.callback_failure_count, 1);
+    assert_eq!(
+        report.callback_failures[0].kind,
+        StreamCallbackFailureKind::ReturnedError
+    );
+    assert_eq!(
+        report.callback_failures[0].diagnostic,
+        "callback returned an error (diagnostic formatting panicked)"
+    );
+
     let actual: Vec<_> = std::iter::from_fn(|| calls.try_recv().ok()).collect();
     assert_eq!(actual.len(), 4);
     assert_eq!(actual[0].hook, StreamCallbackHook::Chunk);
