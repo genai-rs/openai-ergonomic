@@ -192,19 +192,21 @@ impl Builder<CreateImageRequest> for ImageGenerationBuilder {
                 .ok_or_else(|| {
                     Error::InvalidRequest("Image generation requires a model".to_string())
                 })?,
-            n: self.n,
-            quality: self.quality,
-            response_format: self.response_format,
-            output_format: self.output_format,
-            output_compression: self.output_compression,
-            stream: self.stream,
+            n: self.n.map(Some),
+            quality: self.quality.map(Some),
+            response_format: self.response_format.map(Some),
+            output_format: self.output_format.map(Some),
+            output_compression: self.output_compression.map(Some),
+            stream: self.stream.map(Some),
             partial_images: self.partial_images,
             size: self.size.map(|size| {
-                Box::new(openai_client_base::models::CreateImageRequestSize::TextVariant(size))
+                Some(Box::new(
+                    openai_client_base::models::CreateImageRequestSize::TextVariant(size),
+                ))
             }),
-            moderation: self.moderation,
-            background: self.background,
-            style: self.style,
+            moderation: self.moderation.map(Some),
+            background: self.background.map(Some),
+            style: self.style.map(Some),
             user: self.user,
         })
     }
@@ -577,18 +579,40 @@ mod tests {
 
         assert_eq!(request.prompt, "A scenic valley at sunrise");
         assert_eq!(request.model, "gpt-image-1");
-        assert_eq!(request.n, Some(2));
-        assert_eq!(request.quality, Some(Quality::High));
-        assert_eq!(request.response_format, Some(ResponseFormat::B64Json));
-        assert_eq!(request.output_format, Some(OutputFormat::Webp));
-        assert_eq!(request.output_compression, Some(80));
-        assert_eq!(request.stream, Some(true));
+        assert_eq!(request.n, Some(Some(2)));
+        assert_eq!(request.quality, Some(Some(Quality::High)));
+        assert_eq!(request.response_format, Some(Some(ResponseFormat::B64Json)));
+        assert_eq!(request.output_format, Some(Some(OutputFormat::Webp)));
+        assert_eq!(request.output_compression, Some(Some(80)));
+        assert_eq!(request.stream, Some(Some(true)));
         assert_eq!(request.partial_images, Some(Some(2)));
         assert_eq!(serde_json::to_value(&request).unwrap()["size"], "1536x1024");
-        assert_eq!(request.moderation, Some(Moderation::Auto));
-        assert_eq!(request.background, Some(Background::Transparent));
-        assert_eq!(request.style, Some(Style::Vivid));
+        assert_eq!(request.moderation, Some(Some(Moderation::Auto)));
+        assert_eq!(request.background, Some(Some(Background::Transparent)));
+        assert_eq!(request.style, Some(Some(Style::Vivid)));
         assert_eq!(request.user.as_deref(), Some("example-user"));
+    }
+
+    #[test]
+    fn generation_omits_unset_options_and_preserves_false_and_zero() {
+        let omitted = ImageGenerationBuilder::new("A landscape")
+            .model("gpt-image-1")
+            .build()
+            .unwrap();
+        let omitted = serde_json::to_value(omitted).unwrap();
+        for field in ["n", "quality", "output_compression", "stream"] {
+            assert!(omitted.get(field).is_none(), "{field} should be omitted");
+        }
+
+        let request = ImageGenerationBuilder::new("A landscape")
+            .model("gpt-image-1")
+            .output_compression(0)
+            .stream(false)
+            .build()
+            .unwrap();
+        let request = serde_json::to_value(request).unwrap();
+        assert_eq!(request["output_compression"], 0);
+        assert_eq!(request["stream"], false);
     }
 
     #[test]

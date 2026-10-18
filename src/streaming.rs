@@ -129,7 +129,7 @@ impl ChatCompletionChunk {
     /// This indicates why the generation stopped and is only present in the last chunk.
     #[must_use]
     pub fn finish_reason(&self) -> Option<&str> {
-        self.response.choices.first().and_then(|choice| choice.finish_reason.as_ref()).map(|reason| {
+        self.response.choices.first().and_then(|choice| choice.finish_reason.as_ref()).and_then(Option::as_ref).map(|reason| {
             match reason {
                 openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::Stop => "stop",
                 openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::Length => "length",
@@ -538,11 +538,21 @@ mod tests {
         assert_eq!(chunk.content(), Some("Hello"));
         assert_eq!(chunk.role(), Some("assistant"));
         assert_eq!(chunk.finish_reason(), None);
+        assert_eq!(chunk.raw_response().choices[0].finish_reason, Some(None));
         assert!(!chunk.is_final());
         assert!(!crate::responses::ChatCompletionStreamResponseWrapper::new(
             chunk.raw_response().clone()
         )
         .is_finished());
+    }
+
+    #[test]
+    fn test_parse_sse_line_with_missing_finish_reason() {
+        let line = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[{"index":0,"delta":{}}]}"#;
+        let chunk = parse_sse_line(line).unwrap().unwrap();
+        assert_eq!(chunk.finish_reason(), None);
+        assert_eq!(chunk.raw_response().choices[0].finish_reason, None);
+        assert!(!chunk.is_final());
     }
 
     #[test]
@@ -555,6 +565,44 @@ mod tests {
             chunk.raw_response().clone()
         )
         .is_finished());
+    }
+
+    #[test]
+    fn test_finish_reason_helper_maps_all_supported_reasons() {
+        for (wire, expected) in [
+            ("stop", "stop"),
+            ("length", "length"),
+            ("tool_calls", "tool_calls"),
+            ("content_filter", "content_filter"),
+            ("function_call", "function_call"),
+        ] {
+            let event = serde_json::json!({
+                "id": "chatcmpl-123",
+                "object": "chat.completion.chunk",
+                "created": 1,
+                "model": "gpt-4",
+                "choices": [{"index": 0, "delta": {}, "finish_reason": wire}],
+            });
+            let chunk = parse_sse_line(&format!("data: {event}")).unwrap().unwrap();
+            assert_eq!(chunk.finish_reason(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn test_final_audio_update_has_no_finish_reason() {
+        let line = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1,"model":"gpt-4o-audio-preview","choices":[{"index":0,"delta":{"audio":{"expires_at":1700000000}}}]}"#;
+        let chunk = parse_sse_line(line).unwrap().unwrap();
+        assert_eq!(chunk.finish_reason(), None);
+        assert_eq!(chunk.raw_response().choices[0].finish_reason, None);
+        assert!(!chunk.is_final());
+    }
+
+    #[test]
+    fn test_empty_choices_without_usage_are_not_finished() {
+        let line = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1,"model":"gpt-4","choices":[]}"#;
+        let chunk = parse_sse_line(line).unwrap().unwrap();
+        assert_eq!(chunk.finish_reason(), None);
+        assert!(!chunk.is_final());
     }
 
     #[test]

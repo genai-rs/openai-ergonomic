@@ -440,9 +440,9 @@ impl RunBuilder {
         let mut request = models::CreateRunRequest::new(self.assistant_id);
 
         request.model = self.model;
-        request.instructions = self.instructions;
-        request.temperature = self.temperature;
-        request.stream = Some(self.stream);
+        request.instructions = self.instructions.map(Some);
+        request.temperature = self.temperature.map(Some);
+        request.stream = Some(Some(self.stream));
 
         if !self.metadata.is_empty() {
             request.metadata = Some(Some(self.metadata.into_iter().collect()));
