@@ -50,6 +50,7 @@ async fn vector_store_update_omits_unset_name_and_sends_empty_name() {
         .await
         .expect("empty-name update succeeds");
     explicit_empty.assert_async().await;
+    drop(server);
 }
 
 #[tokio::test]
@@ -98,6 +99,7 @@ async fn fine_tuning_create_job_omits_unset_fields_and_sends_empty_values() {
         .await
         .expect("explicit-empty fine-tuning job succeeds");
     explicit_empty.assert_async().await;
+    drop(server);
 }
 
 fn vector_store_response() -> &'static str {
