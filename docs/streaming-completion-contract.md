@@ -1,14 +1,13 @@
 # Streaming interceptor completion (OE05)
 
-Status: **accepted design/evidence; no production API implemented here**.
+Status: **accepted contract; OE06 implementation in progress**.
 Accepted by the independent supervisor decision recorded against
 `genai-rs-openai-ergonomic#dcbr`, reviewing head
 `5a1169f09650d43ade25ad8ce7034d909dfe6450` and report
 `work/reviews/oe05.json` in the supervisor workspace.
-This document and its regression prototype do not implement a new public API.
-Implementation belongs to OE06 (`genai-rs-openai-ergonomic#v5hz`). It remains
-blocked on OE04 (`genai-rs-openai-ergonomic#cqg2`); do not edit parser behavior
-here.
+The accepted implementation belongs to OE06 (`genai-rs-openai-ergonomic#v5hz`).
+OE04 (`genai-rs-openai-ergonomic#cqg2`) has since landed; preserve its parser
+behavior and do not edit parser code in OE06.
 
 ## Evidence and scope
 
@@ -33,14 +32,14 @@ This contract concerns the chat streaming wrapper, including client entry points
 that delegate to it. It does not redefine SSE parsing, repair Responses wire
 compatibility, add telemetry providers, or promise remote delivery of traces.
 
-## Proposed additive API
+## Additive API
 
 Keep existing `BoxedChatStream`, `send_chat_stream`, `send_responses_stream`, and
 the public `InterceptedStream::new` signature source-compatible. Add opt-in
-entry points returning `(BoxedChatStream, StreamCompletion)`, tentatively named
+entry points returning `(BoxedChatStream, StreamCompletion)`, named
 `send_chat_stream_with_completion` and `send_responses_stream_with_completion`,
 plus `InterceptedStream::new_with_completion` for direct construction.
-These names and types are review decisions, not released symbols.
+These names and types are additive to the existing streaming API.
 
 `StreamCompletion` is a cloneable per-stream handle. Its async
 `wait(&self) -> Result<Arc<StreamCompletionReport>, CompletionUnavailable>` waits
@@ -192,7 +191,7 @@ or process exit before drain provides no delivery guarantee. Exporter flush
 is a separate operation after callback drain, because callbacks can enqueue
 new spans until they finish.
 
-## Deterministic regression prototype
+## Deterministic regression tests
 
 [`tests/streaming_completion_prototype.rs`](../tests/streaming_completion_prototype.rs)
 uses the actual public `ChatCompletionStream` and `InterceptedStream`, a local
@@ -208,19 +207,11 @@ Run from the repository root:
 rtk proxy env CARGO_BUILD_JOBS=2 cargo test --test streaming_completion_prototype
 ```
 
-The baseline does not commit `Cargo.lock`; the first run resolves the existing
-manifest ranges. Retain the generated lockfile and add `--locked` for repeat
-runs against the same dependency resolution. No dependency changes are part
-of this proposal.
+The accepted OE05 version of this test file recorded the baseline defects below.
+OE06 replaces those assertions with the desired contract while keeping these
+observations here as diagnostic history:
 
-Observed on 17 October 2026 with Rust/Cargo 1.98.1: the command above with
-`--offline` passed all five tests (zero ignored). This validates the baseline
-gap only; it does not validate the proposed completion API or Rust 1.88 support.
-
-These are passing **baseline characterizations**, intentionally documenting
-undesired behavior, not a pretend implementation of the proposed API:
-
-| Test case | Baseline evidence | OE06 replacement assertion |
+| Test case | Historical baseline evidence | OE06 assertion |
 | --- | --- | --- |
 | EOF with two closed gates | End(2), then deliberately released Chunk(1), Chunk(0) | Wait stays pending; Chunk(0), Chunk(1), Terminal; count 2 |
 | Repeated EOF | Two End(0) callbacks | One terminal hook; cached repeat/concurrent waits |
@@ -230,11 +221,9 @@ undesired behavior, not a pretend implementation of the proposed API:
 
 ## OE06 boundary and acceptance checklist
 
-One focused follow-up PR should add the shared lifecycle/dispatcher, additive
-client and terminal-hook API, built-in terminal handling, deterministic tests,
-and replace shutdown sleeps in the affected streaming example/docs. Keep the
-prototype separate until those changes land; then replace its baseline
-expectations rather than preserving known defects as desired behavior.
+The focused OE06 change adds the shared lifecycle/dispatcher, additive client
+and terminal-hook APIs, built-in terminal handling, deterministic tests, and
+replaces the shutdown sleep in the affected streaming example/docs.
 
 OE06 must additionally test: a delayed terminal hook; two interceptors with
 the first returning an error or panicking; zero interceptors; empty streams;

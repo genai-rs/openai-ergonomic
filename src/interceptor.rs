@@ -39,6 +39,7 @@
 //!     .build();
 //! ```
 
+use crate::streaming::StreamOutcome;
 use crate::Result;
 use std::time::Duration;
 
@@ -130,6 +131,15 @@ pub struct StreamEndContext<'a, T = ()> {
     pub state: &'a T,
 }
 
+/// Context provided for the one terminal event of an intercepted stream.
+#[derive(Debug)]
+pub struct StreamTerminalContext<'a, T = ()> {
+    /// Summary information for the stream, including duration and token usage.
+    pub summary: StreamEndContext<'a, T>,
+    /// The terminal outcome latched by the first terminal event.
+    pub outcome: StreamOutcome,
+}
+
 /// Context provided when an error occurs.
 ///
 /// This context allows interceptors to observe and react to errors,
@@ -182,10 +192,28 @@ pub trait Interceptor<T = ()>: Send + Sync {
         Ok(())
     }
 
+    /// Called once when an established stream completes, fails, or is cancelled.
+    ///
+    /// By default, successful completion is forwarded to [`Self::on_stream_end`].
+    /// Failure and cancellation do not call `on_stream_end`. An override that also needs its
+    /// existing successful end behavior must explicitly call `on_stream_end` for `Completed`.
+    async fn on_stream_terminal(&self, ctx: &StreamTerminalContext<'_, T>) -> Result<()>
+    where
+        T: Sync,
+    {
+        if matches!(ctx.outcome, StreamOutcome::Completed) {
+            self.on_stream_end(&ctx.summary).await
+        } else {
+            Ok(())
+        }
+    }
+
     /// Called when an error occurs at any stage.
     ///
-    /// Note: This method doesn't return a Result as it's called during
-    /// error handling and shouldn't fail.
+    /// After a streaming response has been created, a stream failure is reported through
+    /// [`Self::on_stream_terminal`] and is not automatically sent to this hook. Other request
+    /// and non-streaming error paths retain their existing behavior. This method doesn't
+    /// return a `Result` as it's called during error handling and shouldn't fail.
     async fn on_error(&self, _ctx: &ErrorContext<'_, T>) {
         // Default: no-op
     }
@@ -287,6 +315,10 @@ impl<T> InterceptorChain<T> {
     /// Get the number of interceptors in the chain.
     pub fn len(&self) -> usize {
         self.interceptors.len()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &dyn Interceptor<T>> {
+        self.interceptors.iter().map(Box::as_ref)
     }
 }
 

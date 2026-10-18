@@ -611,8 +611,25 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
     /// ```
     pub async fn send_chat_stream(
         &self,
-        mut builder: ChatCompletionBuilder,
+        builder: ChatCompletionBuilder,
     ) -> Result<crate::streaming::BoxedChatStream> {
+        self.send_chat_stream_with_completion(builder)
+            .await
+            .map(|(stream, _completion)| stream)
+    }
+
+    /// Send a streaming chat request and return a handle for waiting on interceptor callbacks.
+    ///
+    /// `StreamCompletion::wait` resolves after the stream reaches EOF, yields an error, or is
+    /// dropped, and every accepted callback has returned or failed. If the consumer stops early,
+    /// drop the stream before waiting so the terminal outcome is cancellation.
+    pub async fn send_chat_stream_with_completion(
+        &self,
+        mut builder: ChatCompletionBuilder,
+    ) -> Result<(
+        crate::streaming::BoxedChatStream,
+        crate::streaming::StreamCompletion,
+    )> {
         // Force streaming mode
         builder = builder.stream(true);
         let mut request = builder.build()?;
@@ -629,7 +646,10 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
         &self,
         request: CreateChatCompletionRequest,
         operation: &str,
-    ) -> Result<crate::streaming::BoxedChatStream> {
+    ) -> Result<(
+        crate::streaming::BoxedChatStream,
+        crate::streaming::StreamCompletion,
+    )> {
         let uri_str = format!("{}/chat/completions", self.config.api_base());
 
         let mut req_builder = self
@@ -681,20 +701,15 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
 
         let stream = crate::streaming::ChatCompletionStream::new(response);
 
-        // Wrap with interceptors if present
-        if self.interceptors.is_empty() {
-            Ok(Box::pin(stream))
-        } else {
-            let intercepted = crate::streaming::InterceptedStream::new(
-                stream,
-                std::sync::Arc::clone(&self.interceptors),
-                operation.to_string(),
-                model,
-                request_json,
-                state,
-            );
-            Ok(Box::pin(intercepted))
-        }
+        let (intercepted, completion) = crate::streaming::InterceptedStream::new_with_completion(
+            stream,
+            std::sync::Arc::clone(&self.interceptors),
+            operation.to_string(),
+            model,
+            request_json,
+            state,
+        )?;
+        Ok((Box::pin(intercepted), completion))
     }
 }
 
@@ -735,8 +750,25 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
     /// The stream yields chunks as they arrive from the API.
     pub async fn send_responses_stream(
         &self,
-        mut builder: ResponsesBuilder,
+        builder: ResponsesBuilder,
     ) -> Result<crate::streaming::BoxedChatStream> {
+        self.send_responses_stream_with_completion(builder)
+            .await
+            .map(|(stream, _completion)| stream)
+    }
+
+    /// Send a streaming Responses request and return a handle for waiting on interceptor callbacks.
+    ///
+    /// `StreamCompletion::wait` resolves after the stream reaches EOF, yields an error, or is
+    /// dropped, and every accepted callback has returned or failed. If the consumer stops early,
+    /// drop the stream before waiting so the terminal outcome is cancellation.
+    pub async fn send_responses_stream_with_completion(
+        &self,
+        mut builder: ResponsesBuilder,
+    ) -> Result<(
+        crate::streaming::BoxedChatStream,
+        crate::streaming::StreamCompletion,
+    )> {
         // Force streaming mode
         builder = builder.stream(true);
         let mut request = builder.build()?;
