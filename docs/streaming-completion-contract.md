@@ -193,10 +193,13 @@ new spans until they finish.
 
 ## Deterministic regression tests
 
-[`tests/streaming_completion_prototype.rs`](../tests/streaming_completion_prototype.rs)
+[`tests/streaming_completion.rs`](../tests/streaming_completion.rs)
 uses the actual public `ChatCompletionStream` and `InterceptedStream`, a local
 mock HTTP response, and a mock interceptor delayed by semaphore gates. The
 response is buffered to remove transport scheduling from the callback proof.
+Additional tests keep a malformed SSE body's transport pending to prove
+terminal parser results release it immediately, and use an application error
+whose `Display` panics to verify the callback dispatcher still drains.
 Every case has a five-second watchdog; no sleep or elapsed-time threshold is
 used to infer completion. Channel closure proves that no hook remains alive
 in the drop/error cases.
@@ -204,10 +207,12 @@ in the drop/error cases.
 Run from the repository root:
 
 ```sh
-rtk proxy env CARGO_BUILD_JOBS=2 cargo test --test streaming_completion_prototype
+rtk proxy env CARGO_BUILD_JOBS=2 cargo test --test streaming_completion
 ```
 
-The accepted OE05 version of this test file recorded the baseline defects below.
+The accepted OE05 prototype characterized the baseline defects before
+implementation. Its immutable source is available at
+[`tests/streaming_completion_prototype.rs` in merged PR #120](https://github.com/genai-rs/openai-ergonomic/blob/15ff29decba354b9f2a44c00577adf28a748770f/tests/streaming_completion_prototype.rs).
 OE06 replaces those assertions with the desired contract while keeping these
 observations here as diagnostic history:
 

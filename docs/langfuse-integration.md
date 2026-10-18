@@ -165,6 +165,7 @@ Example:
 ```rust
 use openai_ergonomic::{Client, LangfuseInterceptor};
 use futures::StreamExt;
+use std::time::Duration;
 
 let interceptor = LangfuseInterceptor::from_env()?;
 let client = Client::from_env()?
@@ -173,25 +174,58 @@ let client = Client::from_env()?
 
 let builder = client.chat().user("Tell me a story");
 let (mut stream, completion) = client.send_chat_stream_with_completion(builder).await?;
+let mut stream_error = None;
 
-while let Some(chunk) = stream.next().await {
-    let chunk = chunk?;
-    if let Some(content) = chunk.content() {
-        print!("{}", content);
+while let Some(item) = stream.next().await {
+    match item {
+        Ok(chunk) => {
+            if let Some(content) = chunk.content() {
+                print!("{}", content);
+            }
+        }
+        Err(error) => {
+            stream_error = Some(error);
+            break;
+        }
     }
     // Each chunk is automatically traced to Langfuse
 }
 drop(stream);
-let report = completion.wait().await?;
+
+let report = match tokio::time::timeout(Duration::from_secs(10), completion.wait()).await {
+    Ok(Ok(report)) => report,
+    Ok(Err(error)) => return Err(error.into()),
+    Err(_) => return Err(std::io::Error::new(
+        std::io::ErrorKind::TimedOut,
+        "callback drain incomplete; retry completion.wait() before shutdown",
+    ).into()),
+};
 println!("stream outcome: {:?}", report.outcome);
-// Flush or shut down the exporter only after callback drain.
+if report.callback_failure_count > 0 {
+    eprintln!("{} interceptor callbacks failed", report.callback_failure_count);
+    for failure in &report.callback_failures {
+        eprintln!("{:?}: {}", failure.hook, failure.diagnostic);
+    }
+}
+
+// `provider` is the SdkTracerProvider created with the Langfuse exporter above.
+let shutdown_result = provider.shutdown();
+if let Some(error) = stream_error {
+    if let Err(shutdown_error) = shutdown_result {
+        eprintln!("exporter shutdown also failed: {shutdown_error:?}");
+    }
+    return Err(error.into());
+}
+shutdown_result?;
 ```
 
 `StreamCompletion::wait` returns after the stream reaches EOF, fails, or is dropped and all
 managed interceptor callbacks have returned or failed. A timeout is an incomplete drain, not
 success; retain the handle and retry or report the incomplete shutdown. The completion barrier
-does not replace the exporter's own flush or shutdown operation. See `langfuse_streaming.rs` for
-a complete example.
+does not replace the exporter's own flush or shutdown operation. The sample drains callbacks and
+then shuts down the provider even when the stream yielded its original error. If the report is
+unavailable or times out, it returns an incomplete-drain error before provider shutdown; it does
+not describe telemetry as flushed. See `langfuse_streaming.rs` for a complete example.
 
 ## Debugging
 
