@@ -30,9 +30,11 @@ assert!(json["stop"].is_null());
 assert!(json.get("n").is_none());
 ```
 
-The ergonomic builders continue to omit fields the caller leaves unset and
-serialize explicitly configured `false` and zero values. For example,
-`.stream(false)` sends `"stream": false`. Streaming completion chunks also retain
+Ergonomic builders generally omit optional fields the caller leaves unset and
+preserve explicitly configured values, including empty strings, `false`, and
+zero. For example, `.stream(false)` sends `"stream": false`. Some builders have
+intentional defaults: `RunBuilder` sends `"stream": false` unless streaming is
+enabled, so that default is not omitted. Streaming completion chunks also retain
 the generated distinction between a missing `finish_reason` and a `null`
 `finish_reason`; the high-level `finish_reason()` helper returns `None` for both.
 This version preparation does not change the separately tracked

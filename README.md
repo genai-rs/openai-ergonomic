@@ -45,7 +45,8 @@ the generated request field changes.
 The generated request structs now use nested options for fields that distinguish
 an omitted JSON property from an explicit `null`. Set values with two `Some`s,
 use `Some(None)` for `null`, and leave fields at `None` to omit them. Read values
-with `.flatten()`:
+with `.flatten()`. Ergonomic builders generally omit unset optional fields and
+preserve explicit values; `RunBuilder` defaults to sending `stream: false`.
 
 ```rust
 use openai_client_base::models::CreateCompletionRequest;
