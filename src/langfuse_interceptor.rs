@@ -40,12 +40,12 @@
 
 use crate::interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
-    StreamEndContext,
+    StreamEndContext, StreamTerminalContext,
 };
 use crate::langfuse_context::LangfuseContext;
 use crate::Result;
 use opentelemetry::{
-    trace::{SpanKind, Tracer},
+    trace::{SpanKind, Status, Tracer},
     KeyValue,
 };
 use opentelemetry_semantic_conventions::attribute::{
@@ -425,6 +425,70 @@ where
         Ok(())
     }
 
+    async fn on_stream_terminal(
+        &self,
+        ctx: &StreamTerminalContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
+        use opentelemetry::trace::Span;
+
+        if matches!(ctx.outcome, crate::streaming::StreamOutcome::Completed) {
+            return self.on_stream_end(&ctx.summary).await;
+        }
+
+        let Some(mut span) = ctx.summary.state.span.lock().unwrap().take() else {
+            if self.config.debug {
+                debug!(
+                    "No span found for terminal stream event: {}",
+                    ctx.summary.operation
+                );
+            }
+            return Ok(());
+        };
+
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+        {
+            span.set_attribute(KeyValue::new(
+                "stream.total_chunks",
+                ctx.summary.total_chunks as i64,
+            ));
+            span.set_attribute(KeyValue::new(
+                "stream.duration_ms",
+                ctx.summary.duration.as_millis() as i64,
+            ));
+        }
+        span.set_attribute(KeyValue::new(
+            "stream.outcome",
+            match ctx.outcome {
+                crate::streaming::StreamOutcome::Completed => "completed",
+                crate::streaming::StreamOutcome::StreamFailed(_) => "failed",
+                crate::streaming::StreamOutcome::Cancelled => "cancelled",
+            },
+        ));
+        if let Some(input_tokens) = ctx.summary.input_tokens {
+            span.set_attribute(KeyValue::new(GEN_AI_USAGE_INPUT_TOKENS, input_tokens));
+        }
+        if let Some(output_tokens) = ctx.summary.output_tokens {
+            span.set_attribute(KeyValue::new(GEN_AI_USAGE_OUTPUT_TOKENS, output_tokens));
+        }
+
+        let description = match ctx.outcome {
+            crate::streaming::StreamOutcome::StreamFailed(failure) => {
+                format!("stream failed ({:?})", failure.kind)
+            }
+            crate::streaming::StreamOutcome::Cancelled => "stream cancelled".to_string(),
+            crate::streaming::StreamOutcome::Completed => unreachable!(),
+        };
+        span.set_status(Status::error(description));
+        span.end();
+        if self.config.debug {
+            info!(
+                "Finished streaming span for operation {} with outcome {:?}",
+                ctx.summary.operation, ctx.outcome
+            );
+        }
+        Ok(())
+    }
+
     async fn on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
         use opentelemetry::trace::{Span, Status};
 
@@ -506,6 +570,13 @@ where
         (**self).on_stream_end(ctx).await
     }
 
+    async fn on_stream_terminal(
+        &self,
+        ctx: &StreamTerminalContext<'_, LangfuseState<T::Span>>,
+    ) -> Result<()> {
+        (**self).on_stream_terminal(ctx).await
+    }
+
     async fn on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
         (**self).on_error(ctx).await;
     }
@@ -514,7 +585,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::streaming::StreamOutcome;
     use opentelemetry::trace::noop::NoopTracer;
+    use std::time::Duration;
 
     #[test]
     fn test_config_from_env() {
@@ -533,5 +606,35 @@ mod tests {
         let config = LangfuseConfig::new().with_debug(true);
         let _interceptor = LangfuseInterceptor::new(tracer, config);
         // No assertion needed - just verify it compiles and constructs
+    }
+
+    #[tokio::test]
+    async fn terminal_failure_removes_active_langfuse_span() {
+        let interceptor = LangfuseInterceptor::new(NoopTracer::new(), LangfuseConfig::new());
+        let mut state = LangfuseState::default();
+        let mut before = BeforeRequestContext {
+            operation: "chat",
+            model: "mock-model",
+            request_json: "{}",
+            state: &mut state,
+        };
+        interceptor.before_request(&mut before).await.unwrap();
+
+        let summary = StreamEndContext {
+            operation: "chat",
+            model: "mock-model",
+            request_json: "{}",
+            total_chunks: 2,
+            duration: Duration::from_millis(12),
+            input_tokens: Some(3),
+            output_tokens: Some(4),
+            state: &state,
+        };
+        let terminal = StreamTerminalContext {
+            summary,
+            outcome: StreamOutcome::Cancelled,
+        };
+        interceptor.on_stream_terminal(&terminal).await.unwrap();
+        assert!(state.span.lock().unwrap().is_none());
     }
 }

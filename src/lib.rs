@@ -140,7 +140,7 @@ pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, Result};
 pub use interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
-    StreamEndContext,
+    StreamEndContext, StreamTerminalContext,
 };
 pub use langfuse_context::LangfuseContext;
 pub use langfuse_exporter::{langfuse_exporter_from_env, LangfuseExporterError};
@@ -178,7 +178,11 @@ pub use responses::chat::{
 };
 pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrapper};
 pub use responses::{Response, Tool, ToolChoice, Usage};
-pub use streaming::{ChatCompletionChunk, ChatCompletionStream, InterceptedStream};
+pub use streaming::{
+    ChatCompletionChunk, ChatCompletionStream, CompletionUnavailable, InterceptedStream,
+    StreamCallbackFailure, StreamCallbackFailureKind, StreamCallbackHook, StreamCompletion,
+    StreamCompletionReport, StreamFailure, StreamFailureKind, StreamOutcome,
+};
 
 // Test utilities (feature-gated)
 #[cfg(feature = "test-utils")]

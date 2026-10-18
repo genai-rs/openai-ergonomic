@@ -20,7 +20,8 @@
 
 use futures::StreamExt;
 use openai_ergonomic::{
-    langfuse_exporter_from_env, Client, LangfuseConfig, LangfuseInterceptor, LangfuseState, Result,
+    langfuse_exporter_from_env, Client, Error, LangfuseConfig, LangfuseInterceptor, LangfuseState,
+    Result, StreamCompletion,
 };
 use opentelemetry::{global, trace::TracerProvider};
 use opentelemetry_sdk::{
@@ -82,10 +83,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     println!("     • on_stream_chunk: Each chunk as it arrives (real-time)");
     println!("     • on_stream_end: Final token usage and duration");
 
-    // Give spawned interceptor tasks time to complete
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-
-    // Shutdown the tracer provider to flush all spans
+    // All three stream completion handles have drained their callbacks. Shutdown the provider
+    // only after callback work can no longer enqueue spans.
     println!("\n⏳ Flushing spans to Langfuse...");
     provider.shutdown()?;
 
@@ -97,7 +96,7 @@ async fn basic_streaming(client: &Client<LangfuseState<Span>>) -> Result<()> {
 
     let builder = client.chat().user("Tell me a short joke");
 
-    let mut stream = client.send_chat_stream(builder).await?;
+    let (mut stream, completion) = client.send_chat_stream_with_completion(builder).await?;
 
     print!("Response: ");
     let mut chunk_count = 0;
@@ -112,6 +111,8 @@ async fn basic_streaming(client: &Client<LangfuseState<Span>>) -> Result<()> {
         "\n(Received {} chunks, all traced to Langfuse)",
         chunk_count
     );
+    drop(stream);
+    print_completion(completion).await?;
 
     Ok(())
 }
@@ -125,7 +126,7 @@ async fn streaming_with_parameters(client: &Client<LangfuseState<Span>>) -> Resu
         .temperature(0.9)
         .max_tokens(50);
 
-    let mut stream = client.send_chat_stream(builder).await?;
+    let (mut stream, completion) = client.send_chat_stream_with_completion(builder).await?;
 
     print!("Response: ");
     let mut chunk_count = 0;
@@ -140,6 +141,8 @@ async fn streaming_with_parameters(client: &Client<LangfuseState<Span>>) -> Resu
         "\n(Received {} chunks, all traced to Langfuse)",
         chunk_count
     );
+    drop(stream);
+    print_completion(completion).await?;
 
     Ok(())
 }
@@ -149,7 +152,7 @@ async fn collect_content(client: &Client<LangfuseState<Span>>) -> Result<()> {
 
     let builder = client.chat().user("What is the capital of France?");
 
-    let mut stream = client.send_chat_stream(builder).await?;
+    let (mut stream, completion) = client.send_chat_stream_with_completion(builder).await?;
 
     // Manually collect content (interceptor hooks are still called for each chunk)
     let mut content = String::new();
@@ -161,6 +164,20 @@ async fn collect_content(client: &Client<LangfuseState<Span>>) -> Result<()> {
     }
     println!("Full response: {}", content);
     println!("(All chunks were traced to Langfuse during collection)");
+    drop(stream);
+    print_completion(completion).await?;
 
+    Ok(())
+}
+
+async fn print_completion(completion: StreamCompletion) -> Result<()> {
+    let report = completion
+        .wait()
+        .await
+        .map_err(|error| Error::Internal(error.to_string()))?;
+    println!(
+        "Stream callbacks drained: {:?}, {} callbacks, {} failures",
+        report.outcome, report.callback_attempts, report.callback_failure_count
+    );
     Ok(())
 }

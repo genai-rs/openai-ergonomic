@@ -154,11 +154,11 @@ cargo run --example langfuse_streaming  # For streaming example
 
 ### Streaming Support
 
-The interceptor fully supports streaming responses. When using `send_chat_stream()` or `send_responses_stream()`, the interceptor automatically:
+The interceptor supports streaming responses. When using `send_chat_stream_with_completion()` or `send_responses_stream_with_completion()`, the interceptor automatically:
 
 1. Calls `before_request` when streaming starts
-2. Calls `on_stream_chunk` for each chunk (non-blocking)
-3. Calls `on_stream_end` when streaming completes with token usage
+2. Calls `on_stream_chunk` for each accepted chunk in order
+3. Calls `on_stream_terminal` once after accepted chunk callbacks drain
 
 Example:
 
@@ -172,7 +172,7 @@ let client = Client::from_env()?
     .build();
 
 let builder = client.chat().user("Tell me a story");
-let mut stream = client.send_chat_stream(builder).await?;
+let (mut stream, completion) = client.send_chat_stream_with_completion(builder).await?;
 
 while let Some(chunk) = stream.next().await {
     let chunk = chunk?;
@@ -181,10 +181,17 @@ while let Some(chunk) = stream.next().await {
     }
     // Each chunk is automatically traced to Langfuse
 }
-// on_stream_end is called automatically with token usage
+drop(stream);
+let report = completion.wait().await?;
+println!("stream outcome: {:?}", report.outcome);
+// Flush or shut down the exporter only after callback drain.
 ```
 
-**Note**: When using streaming with Langfuse, ensure your application has a small delay before shutting down the tracer provider to allow spawned interceptor tasks to complete. See `langfuse_streaming.rs` example for details.
+`StreamCompletion::wait` returns after the stream reaches EOF, fails, or is dropped and all
+managed interceptor callbacks have returned or failed. A timeout is an incomplete drain, not
+success; retain the handle and retry or report the incomplete shutdown. The completion barrier
+does not replace the exporter's own flush or shutdown operation. See `langfuse_streaming.rs` for
+a complete example.
 
 ## Debugging
 
