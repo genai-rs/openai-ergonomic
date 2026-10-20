@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.6.0...v0.7.0) - 2026-10-20
+
+### Added
+
+- add streaming completion handles
+- [**breaking**] prepare wrapper for openai-client-base 0.16
+
+### Fixed
+
+- support image safety identifier
+- harden streaming completion drain
+- handle SSE CR and whitespace boundaries
+- make streaming termination deterministic
+- *(deps)* preserve semantic conventions compatibility contract
+
+### Other
+
+- pin accepted OA11 base candidate
+- release mock servers after wire assertions
+- cover optional request field wire behavior
+- distinguish released and development Langfuse deps
+- align Langfuse versions after dependency update
+- compile current quickstart and Langfuse setup
+- avoid empty collection assertion lint
+- format streaming tests
+- exercise streaming production parser
+- *(release)* gate package publication behind manual dispatch
+- record accepted streaming completion contract
+- propose streaming interceptor completion contract
+- *(deps)* Update rust minor updates
+
 ### Changed
 
 - [**breaking**] prepare wrapper 0.7.0 for `openai-client-base` 0.16.0; generated request options now preserve omitted, explicit `null`, and concrete values
