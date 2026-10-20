@@ -15,7 +15,8 @@ async fn images_client_create_hits_generation_endpoint() {
 
     let expected_body = json!({
         "prompt": "A cat on a surfboard",
-        "model": "gpt-image-1"
+        "model": "gpt-image-1",
+        "safety_identifier": "safety-id-123"
     });
 
     let mock = server
@@ -42,7 +43,9 @@ async fn images_client_create_hits_generation_endpoint() {
         .build();
     let client = Client::builder(config).expect("client builds").build();
 
-    let builder = ImageGenerationBuilder::new("A cat on a surfboard").model("gpt-image-1");
+    let builder = ImageGenerationBuilder::new("A cat on a surfboard")
+        .model("gpt-image-1")
+        .safety_identifier("safety-id-123");
     let response = client
         .images()
         .create(builder)
@@ -57,6 +60,39 @@ async fn images_client_create_hits_generation_endpoint() {
         .filter_map(|image| image.url)
         .collect();
     assert_eq!(urls, vec!["https://example.test/image.png".to_string()]);
+
+    mock.assert();
+    drop(server);
+}
+
+#[tokio::test]
+async fn images_client_create_omits_unset_safety_identifier() {
+    let mut server = mockito::Server::new_async().await;
+
+    let mock = server
+        .mock("POST", "/images/generations")
+        .match_header("authorization", "Bearer test-key")
+        .match_body(Matcher::Json(json!({
+            "prompt": "A landscape",
+            "model": "gpt-image-1"
+        })))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"created":12,"data":[{"url":"https://example.test/image.png"}]}"#)
+        .create();
+
+    let config = Config::builder()
+        .api_key("test-key")
+        .api_base(server.url())
+        .default_model("gpt-image-1")
+        .build();
+    let client = Client::builder(config).expect("client builds").build();
+
+    client
+        .images()
+        .create(ImageGenerationBuilder::new("A landscape").model("gpt-image-1"))
+        .await
+        .expect("request succeeds");
 
     mock.assert();
     drop(server);

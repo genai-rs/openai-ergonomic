@@ -35,6 +35,7 @@ pub struct ImageGenerationBuilder {
     moderation: Option<Moderation>,
     background: Option<Background>,
     style: Option<Style>,
+    safety_identifier: Option<String>,
     user: Option<String>,
 }
 
@@ -56,6 +57,7 @@ impl ImageGenerationBuilder {
             moderation: None,
             background: None,
             style: None,
+            safety_identifier: None,
             user: None,
         }
     }
@@ -144,6 +146,13 @@ impl ImageGenerationBuilder {
         self
     }
 
+    /// Attach a stable end-user identifier for safety monitoring.
+    #[must_use]
+    pub fn safety_identifier(mut self, safety_identifier: impl Into<String>) -> Self {
+        self.safety_identifier = Some(safety_identifier.into());
+        self
+    }
+
     /// Attach an end-user identifier for abuse monitoring.
     #[must_use]
     pub fn user(mut self, user: impl Into<String>) -> Self {
@@ -207,6 +216,7 @@ impl Builder<CreateImageRequest> for ImageGenerationBuilder {
             moderation: self.moderation.map(Some),
             background: self.background.map(Some),
             style: self.style.map(Some),
+            safety_identifier: self.safety_identifier.map(Some),
             user: self.user,
         })
     }
@@ -573,6 +583,7 @@ mod tests {
             .moderation(Moderation::Auto)
             .background(Background::Transparent)
             .style(Style::Vivid)
+            .safety_identifier("example-safety-id")
             .user("example-user")
             .build()
             .expect("valid generation builder");
@@ -590,6 +601,10 @@ mod tests {
         assert_eq!(request.moderation, Some(Some(Moderation::Auto)));
         assert_eq!(request.background, Some(Some(Background::Transparent)));
         assert_eq!(request.style, Some(Some(Style::Vivid)));
+        assert_eq!(
+            request.safety_identifier,
+            Some(Some("example-safety-id".to_string()))
+        );
         assert_eq!(request.user.as_deref(), Some("example-user"));
     }
 
@@ -600,7 +615,13 @@ mod tests {
             .build()
             .unwrap();
         let omitted = serde_json::to_value(omitted).unwrap();
-        for field in ["n", "quality", "output_compression", "stream"] {
+        for field in [
+            "n",
+            "quality",
+            "output_compression",
+            "stream",
+            "safety_identifier",
+        ] {
             assert!(omitted.get(field).is_none(), "{field} should be omitted");
         }
 
@@ -608,11 +629,13 @@ mod tests {
             .model("gpt-image-1")
             .output_compression(0)
             .stream(false)
+            .safety_identifier("safety-id-123")
             .build()
             .unwrap();
         let request = serde_json::to_value(request).unwrap();
         assert_eq!(request["output_compression"], 0);
         assert_eq!(request["stream"], false);
+        assert_eq!(request["safety_identifier"], "safety-id-123");
     }
 
     #[test]
