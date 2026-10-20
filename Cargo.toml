@@ -15,7 +15,7 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { version = "=0.16.0", git = "https://github.com/genai-rs/openai-client-base", rev = "115b888a6b6fbb911ce16fde148c2635a1e6c6a6" }
+openai-client-base = { version = "=0.16.0", git = "https://github.com/genai-rs/openai-client-base", rev = "5a8421afe5c4249b37d923f29abd29bef1c1eb90" }
 bon = "^3.10.2"
 serde = { version = "^1.0.229", features = ["derive"] }
 serde_json = "^1.0.151"
