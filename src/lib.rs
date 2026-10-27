@@ -114,9 +114,6 @@
 //! - [`config`] - Configuration management
 //! - [`errors`] - Error types and handling
 
-// Re-export bon for builder macros
-pub use bon;
-
 // Core modules
 pub mod azure_middleware;
 pub mod builders;
@@ -124,8 +121,11 @@ pub mod client;
 pub mod config;
 pub mod errors;
 pub mod interceptor;
+#[cfg(feature = "otel")]
 pub mod langfuse_context;
+#[cfg(feature = "otel")]
 pub mod langfuse_exporter;
+#[cfg(feature = "otel")]
 pub mod langfuse_interceptor;
 pub mod responses;
 pub mod semantic_conventions;
@@ -140,8 +140,11 @@ pub use interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
     StreamEndContext, StreamTerminalContext,
 };
+#[cfg(feature = "otel")]
 pub use langfuse_context::LangfuseContext;
+#[cfg(feature = "otel")]
 pub use langfuse_exporter::{langfuse_exporter_from_env, LangfuseExporterError};
+#[cfg(feature = "otel")]
 pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor, LangfuseState};
 pub use tool_framework::{FunctionTool, ToolError, ToolOutput, ToolRegistry};
 
