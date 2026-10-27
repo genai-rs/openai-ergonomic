@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.6.0...v0.7.0) - 2026-10-27
+
+### Added
+
+- [**breaking**] remove bon and uuid deps, make OpenTelemetry an optional otel feature
+- add streaming completion handles
+- [**breaking**] prepare wrapper for openai-client-base 0.16
+
+### Fixed
+
+- depend on openai-client-base 0.16.0 from crates.io
+- support image safety identifier
+- harden streaming completion drain
+- handle SSE CR and whitespace boundaries
+- make streaming termination deterministic
+- *(deps)* preserve semantic conventions compatibility contract
+
+### Other
+
+- refresh Cargo.lock after dependency pruning
+- commit Cargo.lock for reproducible CI
+- mention the otel feature in the Langfuse README section
+- gate Langfuse README example on the otel feature
+- remove unseeded cargo-vet step
+- add cargo-semver-checks job
+- compile-check ignored doctests (batch 4/4)
+- compile-check ignored doctests (batch 3/4)
+- compile-check ignored doctests (batch 2/4)
+- gate Langfuse interceptor doctest on the otel feature
+- compile-check ignored doctests (batch 1/4)
+- enable renovate lockfile maintenance and docs.rs metadata
+- *(renovate)* move security-update settings into vulnerabilityAlerts
+- pin accepted OA11 base candidate
+- release mock servers after wire assertions
+- cover optional request field wire behavior
+- distinguish released and development Langfuse deps
+- align Langfuse versions after dependency update
+- compile current quickstart and Langfuse setup
+- avoid empty collection assertion lint
+- format streaming tests
+- exercise streaming production parser
+- *(release)* gate package publication behind manual dispatch
+- record accepted streaming completion contract
+- propose streaming interceptor completion contract
+- *(deps)* Update rust minor updates
+
 ### Changed
 
 - [**breaking**] remove the unused `bon` dependency and its `openai_ergonomic::bon` re-export; remove the unused `uuid` dependency
