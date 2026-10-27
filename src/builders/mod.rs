@@ -1,7 +1,7 @@
 //! Builder pattern implementations for `OpenAI` API requests.
 //!
 //! This module provides ergonomic builder APIs that wrap the base `OpenAI` client
-//! types with a fluent interface. The builders follow the `bon` crate pattern
+//! types with a fluent interface. The builders follow a fluent pattern
 //! and provide sensible defaults for common use cases.
 //!
 //! # Example

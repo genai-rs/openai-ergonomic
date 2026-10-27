@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- [**breaking**] remove the unused `bon` dependency and its `openai_ergonomic::bon` re-export; remove the unused `uuid` dependency
+- OpenTelemetry/Langfuse integration (`langfuse_*` modules) is now behind the `otel` feature (enabled by default; disable with `default-features = false, features = ["rustls-tls"]`)
+- narrow `tokio` features to `rt`, `macros`, `sync`, `time`
 - [**breaking**] prepare wrapper 0.7.0 for `openai-client-base` 0.16.0; generated request options now preserve omitted, explicit `null`, and concrete values
 - adapt builders and streaming helpers to the nested optional request fields while keeping unset builder options omitted
 - document the generated request field and finish-reason migration

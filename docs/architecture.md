@@ -26,7 +26,7 @@ modules interact to provide an ergonomic layer on top of
 ├─────────────────────────┤
 │  openai-client-base     │  ← generated OpenAPI client (models + apis)
 ├─────────────────────────┤
-│  reqwest, tokio, bon    │  ← transport + builder foundations
+│  reqwest, tokio         │  ← transport
 └─────────────────────────┘
 ```
 

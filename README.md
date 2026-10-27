@@ -11,7 +11,7 @@ Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder pattern
 
 ## Features
 
-- **Type-safe** - full type safety with builder patterns using `bon`
+- **Type-safe** - full type safety with fluent builder patterns
 - **Async/await** - built on `tokio` and `reqwest` for modern async Rust
 - **Streaming** - first-class support for streaming responses
 - **Comprehensive** - covers all `OpenAI` API endpoints
