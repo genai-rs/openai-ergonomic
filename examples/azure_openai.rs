@@ -30,6 +30,7 @@
 //! ```bash
 //! cargo run --example azure_openai
 //! ```
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config};
 

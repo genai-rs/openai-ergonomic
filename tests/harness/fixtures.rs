@@ -2,6 +2,7 @@
 //!
 //! This module provides predefined test data including requests, responses,
 //! tools, schemas, and other common test scenarios.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use serde_json::{json, Value};
 use std::collections::HashMap;

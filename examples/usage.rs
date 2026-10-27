@@ -8,6 +8,7 @@
 //! - Retrieving cost data
 //!
 //! Run with: `cargo run --example usage`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::usage::{BucketWidth, GroupBy, UsageBuilder},

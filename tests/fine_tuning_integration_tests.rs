@@ -1,4 +1,5 @@
 //! Integration tests for the Fine-tuning API.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::builders::fine_tuning::{
     fine_tune_model, fine_tune_with_params, fine_tune_with_validation, FineTuningJobBuilder,

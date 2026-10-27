@@ -28,7 +28,7 @@
 //!
 //! The Uploads API is designed for large files (>512 MB). For smaller files,
 //! use the standard Files API instead.
-
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::no_effect_underscore_binding)]
 #![allow(clippy::doc_markdown)]

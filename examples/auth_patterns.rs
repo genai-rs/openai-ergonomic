@@ -11,6 +11,7 @@
 //! - Multiple client configurations
 //!
 //! Run with: `cargo run --example auth_patterns`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config, Result};
 use std::env;

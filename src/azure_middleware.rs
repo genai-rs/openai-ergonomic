@@ -36,8 +36,12 @@ impl Middleware for AzureAuthMiddleware {
         next: Next<'_>,
     ) -> reqwest_middleware::Result<Response> {
         // Add api-key header for Azure OpenAI
-        req.headers_mut()
-            .insert("api-key", self.api_key.parse().unwrap());
+        req.headers_mut().insert(
+            "api-key",
+            self.api_key
+                .parse()
+                .map_err(reqwest_middleware::Error::middleware)?,
+        );
 
         // Transform the URL path for Azure `OpenAI`
         let url = req.url().clone();

@@ -10,6 +10,7 @@
 //! - Comprehensive error handling
 //!
 //! Run with: `cargo run --example vision_chat`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     image_base64_part_with_detail, image_url_part_with_detail, text_part, Client, Detail, Error,

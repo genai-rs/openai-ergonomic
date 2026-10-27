@@ -30,6 +30,7 @@
 //! ```bash
 //! cargo run --example structured_outputs
 //! ```
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Error};
 use serde_json::json;

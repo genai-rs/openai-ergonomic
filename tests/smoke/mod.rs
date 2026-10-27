@@ -3,6 +3,7 @@
 //! These tests are designed to be run against the actual OpenAI API
 //! to verify that the crate works correctly in real scenarios.
 //! They are gated behind environment variables and disabled by default.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::{

@@ -1,4 +1,5 @@
 //! Regression tests for omitted and explicitly empty optional request fields.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use mockito::{Matcher, Server};
 use openai_ergonomic::{

@@ -43,6 +43,7 @@
 //! - Monitoring usage patterns and trends
 //!
 //! Run with: `cargo run --example token_counting`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config, Error, Result};
 use std::collections::HashMap;

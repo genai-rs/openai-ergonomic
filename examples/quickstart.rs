@@ -26,6 +26,7 @@
 //! - Usage tracking and cost monitoring
 //!
 //! This example is designed to be your first step into building with `OpenAI`.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use futures::StreamExt;
 use openai_ergonomic::responses::tool_function;

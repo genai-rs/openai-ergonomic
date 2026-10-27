@@ -58,6 +58,7 @@ fn build_exporter(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::build_exporter;
     use opentelemetry::trace::{Span, Tracer, TracerProvider};
     use opentelemetry_sdk::{

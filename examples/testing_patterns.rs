@@ -37,6 +37,7 @@
 //! - Cost management and usage tracking accuracy
 //!
 //! Run with: `cargo run --example testing_patterns`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config, Error, Result};
 use serde::{Deserialize, Serialize};

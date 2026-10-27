@@ -10,6 +10,7 @@
 //! - Streaming with tool calls (basic)
 //!
 //! Run with: `cargo run --example chat_streaming`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use futures::StreamExt;
 use openai_ergonomic::{Client, Result};

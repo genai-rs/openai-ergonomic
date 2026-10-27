@@ -2,6 +2,7 @@
 //!
 //! This module provides specialized assertion functions that understand
 //! the structure and semantics of OpenAI API requests and responses.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_client_base::models::{
     ChatCompletionRequestMessage, CreateChatCompletionRequest, CreateChatCompletionResponse,

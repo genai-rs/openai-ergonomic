@@ -1,4 +1,5 @@
 //! Consumer-level tool definition, dispatch and replay contracts.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use async_trait::async_trait;
 use openai_client_base::models::ChatCompletionMessageToolCallsInner;
 use openai_ergonomic::{

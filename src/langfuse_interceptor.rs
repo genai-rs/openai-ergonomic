@@ -280,7 +280,10 @@ where
             .start(tracer);
 
         // Store span directly in state
-        *ctx.state.span.lock().unwrap() = Some(span);
+        *ctx.state
+            .span
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(span);
 
         if self.config.debug {
             debug!("Started Langfuse span for operation: {}", ctx.operation);
@@ -296,7 +299,13 @@ where
         use opentelemetry::trace::Span;
 
         // Take the span from state so we can end it
-        let Some(mut span) = ctx.state.span.lock().unwrap().take() else {
+        let Some(mut span) = ctx
+            .state
+            .span
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        else {
             if self.config.debug {
                 debug!("No span found in state for operation: {}", ctx.operation);
             }
@@ -381,7 +390,13 @@ where
         use opentelemetry::trace::Span;
 
         // Take the span from state so we can end it
-        let Some(mut span) = ctx.state.span.lock().unwrap().take() else {
+        let Some(mut span) = ctx
+            .state
+            .span
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        else {
             if self.config.debug {
                 debug!(
                     "No span found in state for stream operation: {}",
@@ -435,7 +450,14 @@ where
             return self.on_stream_end(&ctx.summary).await;
         }
 
-        let Some(mut span) = ctx.summary.state.span.lock().unwrap().take() else {
+        let Some(mut span) = ctx
+            .summary
+            .state
+            .span
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        else {
             if self.config.debug {
                 debug!(
                     "No span found for terminal stream event: {}",
@@ -503,7 +525,12 @@ where
             return;
         };
 
-        let Some(mut span) = state.span.lock().unwrap().take() else {
+        let Some(mut span) = state
+            .span
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+        else {
             if self.config.debug {
                 debug!(
                     "No span found in state for error in operation: {}",
@@ -584,6 +611,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
     use crate::streaming::StreamOutcome;
     use opentelemetry::trace::noop::NoopTracer;

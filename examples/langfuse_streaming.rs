@@ -17,6 +17,7 @@
 //! ```bash
 //! cargo run --example langfuse_streaming
 //! ```
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use futures::StreamExt;
 use openai_ergonomic::streaming::BoxedChatStream;

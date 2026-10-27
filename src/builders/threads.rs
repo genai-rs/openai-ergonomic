@@ -227,6 +227,7 @@ impl Builder<CreateMessageRequest> for ThreadMessageBuilder {
 impl ThreadMessageBuilder {
     /// Build the message, panicking only if serialization fails (not expected).
     #[must_use]
+    #[allow(clippy::expect_used)] // documented panic; the builder has no fallible fields
     pub fn finish(self) -> CreateMessageRequest {
         self.build()
             .expect("thread message builder should be infallible")
@@ -338,6 +339,7 @@ impl Builder<CreateThreadRequest> for ThreadRequestBuilder {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
 
     #[test]

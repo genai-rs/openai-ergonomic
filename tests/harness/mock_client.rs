@@ -2,6 +2,7 @@
 //!
 //! This module provides a comprehensive mock client that can simulate
 //! various OpenAI API behaviors for testing purposes.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use mockito::{Mock, ServerGuard};
 use serde_json::{json, Value};

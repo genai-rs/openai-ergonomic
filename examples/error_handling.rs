@@ -10,6 +10,7 @@
 //! - Custom error handling
 //!
 //! Run with: `cargo run --example error_handling`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config, Error, Result};
 use std::time::Duration;

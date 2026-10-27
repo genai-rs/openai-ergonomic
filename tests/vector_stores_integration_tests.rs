@@ -1,4 +1,5 @@
 //! Integration tests for the Vector Stores API.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::builders::vector_stores::{
     add_file_to_vector_store, search_vector_store, search_vector_store_with_limit,

@@ -1,4 +1,5 @@
 //! Integration tests for the Threads API.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{builders::threads::ThreadRequestBuilder, Builder};
 

@@ -1,4 +1,5 @@
 //! Multiple tools, async application state and a complete chat replay, offline.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use async_trait::async_trait;
 use openai_client_base::models::{

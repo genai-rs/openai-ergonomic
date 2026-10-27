@@ -32,7 +32,7 @@
 //! Note: This example uses simulated responses to keep the example runnable without
 //! real OpenAI credentials. Replace the simulated sections with real API calls
 //! when you're ready to interact with the live API.
-
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::no_effect_underscore_binding)]
 #![allow(clippy::doc_markdown)]

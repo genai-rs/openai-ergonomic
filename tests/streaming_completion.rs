@@ -1,4 +1,5 @@
 //! Deterministic tests for the streaming interceptor completion contract.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use futures::StreamExt;
 use openai_ergonomic::interceptor::{

@@ -498,6 +498,7 @@ pub fn responses_tool_web_search() -> ChatCompletionTool {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
     use crate::builders::Builder;
     use openai_client_base::models::chat_completion_tool_choice_option::ChatCompletionToolChoiceOption;

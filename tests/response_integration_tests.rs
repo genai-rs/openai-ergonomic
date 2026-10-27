@@ -2,7 +2,7 @@
 //!
 //! This module tests response parsing, validation, and integration with various
 //! OpenAI API response formats including streaming, function calling, and error responses.
-
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(
     dead_code,
     unused_imports,

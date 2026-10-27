@@ -9,6 +9,7 @@
 //! - Error handling for tool execution
 //!
 //! Run with: `cargo run --example tool_calling`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::chat::tool_function,

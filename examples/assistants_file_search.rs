@@ -36,6 +36,7 @@
 //!
 //! This example demonstrates the intended API design for file search and RAG functionality.
 //! The code shows how the ergonomic builders work with vector stores and file search tools.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::{

@@ -2,6 +2,7 @@
 //!
 //! These tests validate the end-to-end functionality of the crate,
 //! including builder patterns, serialization, and API integration.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_client_base::models::ChatCompletionRequestUserMessageContentPart;
 use openai_ergonomic::{
