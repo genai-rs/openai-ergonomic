@@ -6,7 +6,7 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! # use openai_ergonomic::builders::*;
 //! // TODO: Add example once builders are implemented
 //! ```

@@ -25,7 +25,7 @@
 //!
 //! ## Streaming Example
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use openai_ergonomic::Client;
 //! use futures::StreamExt;
 //!
@@ -52,15 +52,15 @@
 //!
 //! ## Error Handling
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use openai_ergonomic::{Client, Error};
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let client = Client::from_env().expect("API key required");
+//!     let client = Client::from_env().expect("API key required").build();
 //!
-//!     match client.chat_simple("Hello").await {
-//!         Ok(response) => println!("{}", response),
+//!     match client.send_chat(client.chat_simple("Hello")).await {
+//!         Ok(response) => println!("{}", response.content().unwrap_or_default()),
 //!         Err(Error::RateLimit { .. }) => {
 //!             println!("Rate limited, please retry later");
 //!         }
@@ -71,16 +71,14 @@
 //!
 //! ## Custom Configuration
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use openai_ergonomic::{Client, Config};
-//! use std::time::Duration;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let config = Config::builder()
 //!         .api_key("your-api-key")
-//!         .organization_id("org-123")
-//!         .timeout(Duration::from_secs(30))
+//!         .organization("org-123")
 //!         .max_retries(5)
 //!         .build();
 //!
@@ -91,7 +89,7 @@
 //!
 //! ## Testing with Mocks
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! #[cfg(test)]
 //! mod tests {
 //!     use openai_ergonomic::test_utils::MockOpenAIServer;
