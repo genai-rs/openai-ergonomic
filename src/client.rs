@@ -166,10 +166,20 @@ macro_rules! impl_interceptor_helpers {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
+/// use openai_ergonomic::{Client, Interceptor};
+///
+/// struct MyInterceptor;
+///
+/// #[async_trait::async_trait]
+/// impl Interceptor for MyInterceptor {}
+///
+/// # fn example() -> openai_ergonomic::Result<()> {
 /// let client = Client::from_env()?
-///     .with_interceptor(Box::new(my_interceptor))
+///     .with_interceptor(Box::new(MyInterceptor))
 ///     .build();
+/// # Ok(())
+/// # }
 /// ```
 pub struct ClientBuilder<T = ()> {
     config: Arc<Config>,
@@ -189,7 +199,7 @@ pub struct ClientBuilder<T = ()> {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// # use openai_ergonomic::{Client, Config};
 /// # #[tokio::main]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -303,8 +313,8 @@ impl<T> ClientBuilder<T> {
     /// # Examples
     ///
     /// Simple interceptor (no state):
-    /// ```rust,ignore
-    /// use openai_ergonomic::{Client, Interceptor, BeforeRequestContext};
+    /// ```rust,no_run
+    /// use openai_ergonomic::{Client, Interceptor, BeforeRequestContext, Result};
     ///
     /// struct LoggingInterceptor;
     ///
@@ -316,19 +326,27 @@ impl<T> ClientBuilder<T> {
     ///     }
     /// }
     ///
+    /// # fn example() -> Result<()> {
     /// let client = Client::from_env()?
     ///     .with_interceptor(Box::new(LoggingInterceptor))
     ///     .build();
+    /// # Ok(())
+    /// # }
     /// ```
     ///
     /// Interceptor with custom state:
-    /// ```rust,ignore
-    /// use openai_ergonomic::{Client, LangfuseInterceptor, LangfuseState};
+    /// ```rust,no_run
+    /// use openai_ergonomic::{Client, LangfuseConfig, LangfuseInterceptor, LangfuseState};
+    /// use opentelemetry::global;
     ///
-    /// let interceptor = LangfuseInterceptor::new(tracer, config);
+    /// # fn example() -> openai_ergonomic::Result<()> {
+    /// let tracer = global::tracer("openai-ergonomic");
+    /// let interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
     /// let client: Client<LangfuseState<_>> = Client::from_env()?
     ///     .with_interceptor(Box::new(interceptor))
     ///     .build();
+    /// # Ok(())
+    /// # }
     /// ```
     #[must_use]
     pub fn with_interceptor<U>(

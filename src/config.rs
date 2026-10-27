@@ -29,7 +29,7 @@ use std::env;
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// # use openai_ergonomic::Config;
 /// // From environment variables
 /// let config = Config::from_env().unwrap();
@@ -298,7 +298,8 @@ impl ConfigBuilder {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
+    /// use openai_ergonomic::Config;
     /// use reqwest_middleware::ClientBuilder;
     /// use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
     ///

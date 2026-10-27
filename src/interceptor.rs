@@ -21,8 +21,8 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use openai_ergonomic::{Client, Interceptor, BeforeRequestContext};
+//! ```rust,no_run
+//! use openai_ergonomic::{Client, Interceptor, BeforeRequestContext, Result};
 //!
 //! struct LoggingInterceptor;
 //!
@@ -34,9 +34,12 @@
 //!     }
 //! }
 //!
+//! # fn example() -> Result<()> {
 //! let client = Client::from_env()?
 //!     .with_interceptor(Box::new(LoggingInterceptor))
 //!     .build();
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::streaming::StreamOutcome;
