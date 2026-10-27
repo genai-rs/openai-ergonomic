@@ -11,6 +11,13 @@
   schedule: [
     'after 2am and before 6am on monday',
   ],
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: [
+      'after 2am and before 6am on monday',
+    ],
+    automerge: false,
+  },
   enabledManagers: [
     'cargo',
     'github-actions',
