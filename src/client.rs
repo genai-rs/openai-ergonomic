@@ -374,11 +374,24 @@ impl<T> ClientBuilder<T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
+    /// use openai_ergonomic::{Client, Interceptor};
+    ///
+    /// struct Logger;
+    /// struct Metrics;
+    ///
+    /// #[async_trait::async_trait]
+    /// impl Interceptor for Logger {}
+    /// #[async_trait::async_trait]
+    /// impl Interceptor for Metrics {}
+    ///
+    /// # fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?
-    ///     .add_interceptor(Box::new(logger))
-    ///     .add_interceptor(Box::new(metrics))
+    ///     .add_interceptor(Box::new(Logger))
+    ///     .add_interceptor(Box::new(Metrics))
     ///     .build();
+    /// # Ok(())
+    /// # }
     /// ```
     #[must_use]
     pub fn add_interceptor(
@@ -1552,11 +1565,11 @@ impl<T: Default + Send + Sync> ModerationsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = client.moderations().builder("Text to check");
     /// let response = client.moderations().create(builder).await?;
     /// println!("Flagged: {}", response.results[0].flagged);
@@ -1572,11 +1585,11 @@ impl<T: Default + Send + Sync> ModerationsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = client.moderations().check("Hello world");
     /// let response = client.moderations().create(builder).await?;
     ///
@@ -1595,11 +1608,11 @@ impl<T: Default + Send + Sync> ModerationsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     ///
     /// let builder = client
     ///     .moderations()
@@ -1679,12 +1692,12 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::files::FilePurpose;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = client
     ///     .files()
     ///     .upload_text("training.jsonl", FilePurpose::FineTune, "training data");
@@ -1769,12 +1782,12 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::files::FilePurpose;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = client
     ///     .files()
     ///     .upload_text("data.txt", FilePurpose::Assistants, "content");
@@ -1822,11 +1835,11 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = client.files().list_builder();
     /// let files = client.files().list(builder).await?;
     /// println!("Found {} files", files.data.len());
@@ -1901,11 +1914,11 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let file = client.files().retrieve("file-123").await?;
     /// println!("File: {} ({})", file.filename, file.id);
     /// # Ok(())
@@ -1969,11 +1982,11 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let content = client.files().download("file-123").await?;
     /// println!("Downloaded {} bytes", content.len());
     /// # Ok(())
@@ -2040,11 +2053,11 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.files().delete("file-123").await?;
     /// println!("Deleted: {}", response.deleted);
     /// # Ok(())
@@ -2110,12 +2123,12 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::vector_stores::VectorStoreBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = VectorStoreBuilder::new()
     ///     .name("My Knowledge Base")
     ///     .add_file("file-123");
@@ -2200,11 +2213,11 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.vector_stores().list(Some(20), None, None, None).await?;
     /// println!("Found {} vector stores", response.data.len());
     /// # Ok(())
@@ -2274,11 +2287,11 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let vector_store = client.vector_stores().get("vs_123").await?;
     /// println!("Vector store: {}", vector_store.name);
     /// # Ok(())
@@ -2337,12 +2350,12 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::vector_stores::VectorStoreBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = VectorStoreBuilder::new()
     ///     .name("Updated Name")
     ///     .metadata("updated", "true");
@@ -2425,11 +2438,11 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.vector_stores().delete("vs_123").await?;
     /// println!("Deleted: {}", response.deleted);
     /// # Ok(())
@@ -2491,11 +2504,11 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let file = client.vector_stores().add_file("vs_123", "file-456").await?;
     /// println!("Added file: {}", file.id);
     /// # Ok(())
@@ -2563,11 +2576,11 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.vector_stores().list_files("vs_123", None, None, None, None, None).await?;
     /// println!("Found {} files", response.data.len());
     /// # Ok(())
