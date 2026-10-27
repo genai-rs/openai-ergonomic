@@ -8,6 +8,7 @@
 //! crate and define our own operation values until they are officially available.
 
 // Re-export the official GenAI attribute constants from the crate
+#[cfg(feature = "otel")]
 pub use opentelemetry_semantic_conventions::attribute::{
     GEN_AI_OPERATION_NAME, GEN_AI_REQUEST_MODEL, GEN_AI_SYSTEM,
 };
