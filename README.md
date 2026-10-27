@@ -86,7 +86,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Langfuse Setup
 
-The interceptor needs an OpenTelemetry tracer and a Langfuse exporter. For the
+The Langfuse integration (interceptor, exporter and context) lives behind the `otel`
+cargo feature, which is enabled by default. The interceptor needs an OpenTelemetry tracer
+and a Langfuse exporter. For the
 published `openai-ergonomic` 0.6.0 release, use its matching OpenTelemetry versions:
 
 ```toml
