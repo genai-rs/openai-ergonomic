@@ -81,6 +81,9 @@ missing_const_for_fn = "allow"
 [package.metadata.cargo-udeps.ignore]
 normal = ["uuid"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [[example]]
 name = "quickstart"
 doc-scrape-examples = true
