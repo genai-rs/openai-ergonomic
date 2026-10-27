@@ -4102,11 +4102,11 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.assistants().delete("asst_123").await?;
     /// println!("Deleted: {}", response.deleted);
     /// # Ok(())
@@ -4165,12 +4165,12 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::assistants::RunBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = RunBuilder::new("asst_123");
     /// let run = client.assistants().create_run("thread_123", builder).await?;
     /// println!("Run created: {}", run.id);
@@ -4239,11 +4239,11 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.assistants().list_runs("thread_123", None, None, None, None).await?;
     /// println!("Found {} runs", response.data.len());
     /// # Ok(())
@@ -4315,13 +4315,13 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let run = client.assistants().get_run("thread_123", "run_123").await?;
-    /// println!("Run status: {}", run.status);
+    /// println!("Run status: {:?}", run.status);
     /// # Ok(())
     /// # }
     /// ```
@@ -4384,13 +4384,13 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let run = client.assistants().cancel_run("thread_123", "run_123").await?;
-    /// println!("Run cancelled: {}", run.status);
+    /// println!("Run cancelled: {:?}", run.status);
     /// # Ok(())
     /// # }
     /// ```
@@ -4453,13 +4453,17 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
+    /// use openai_client_base::models::SubmitToolOutputsRunRequestToolOutputsInner;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let outputs = vec![
-    ///     SubmitToolOutputsRunRequestToolOutputsInner::new("call_123", "output data")
+    ///     SubmitToolOutputsRunRequestToolOutputsInner {
+    ///         tool_call_id: Some("call_123".to_string()),
+    ///         output: Some("output data".to_string()),
+    ///     }
     /// ];
     /// let run = client.assistants().submit_tool_outputs("thread_123", "run_123", outputs).await?;
     /// println!("Tool outputs submitted: {}", run.id);
@@ -4530,12 +4534,12 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::assistants::MessageBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = MessageBuilder::new("user", "Hello, assistant!");
     /// let message = client.assistants().create_message("thread_123", builder).await?;
     /// println!("Message created: {}", message.id);
@@ -4601,11 +4605,11 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.assistants().list_messages("thread_123", None, None, None, None, None).await?;
     /// println!("Found {} messages", response.data.len());
     /// # Ok(())
@@ -4677,13 +4681,13 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let message = client.assistants().get_message("thread_123", "msg_123").await?;
-    /// println!("Message role: {}", message.role);
+    /// println!("Message role: {:?}", message.role);
     /// # Ok(())
     /// # }
     /// ```
@@ -4747,11 +4751,11 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.assistants().list_run_steps("thread_123", "run_123", None, None, None, None, None).await?;
     /// println!("Found {} run steps", response.data.len());
     /// # Ok(())
@@ -4827,13 +4831,13 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let step = client.assistants().get_run_step("thread_123", "run_123", "step_123", None).await?;
-    /// println!("Step type: {}", step.type_);
+    /// println!("Step type: {:?}", step.r#type);
     /// # Ok(())
     /// # }
     /// ```
@@ -5009,11 +5013,11 @@ impl<T: Default + Send + Sync> ModelsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let models = client.models().list().await?;
     /// println!("Available models: {}", models.data.len());
     /// # Ok(())
@@ -5069,11 +5073,11 @@ impl<T: Default + Send + Sync> ModelsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let model = client.models().get("gpt-4").await?;
     /// println!("Model ID: {}", model.id);
     /// # Ok(())
@@ -5139,11 +5143,11 @@ impl<T: Default + Send + Sync> ModelsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.models().delete("ft:gpt-3.5-turbo:my-org:custom:id").await?;
     /// println!("Deleted: {}", response.deleted);
     /// # Ok(())
@@ -5209,11 +5213,11 @@ impl<T: Default + Send + Sync> CompletionsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = client.completions().builder("gpt-3.5-turbo-instruct");
     /// # Ok(())
     /// # }
@@ -5227,11 +5231,11 @@ impl<T: Default + Send + Sync> CompletionsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = client.completions()
     ///     .builder("gpt-3.5-turbo-instruct")
     ///     .prompt("Once upon a time")
@@ -5299,12 +5303,12 @@ impl<T: Default + Send + Sync> UsageClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::usage::UsageBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = UsageBuilder::new(1704067200, None);
     /// let usage = client.usage().audio_speeches(builder).await?;
     /// println!("Usage: {:?}", usage);
