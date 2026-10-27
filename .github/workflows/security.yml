@@ -19,6 +19,7 @@ jobs:
       run-codeql: false
       run-gitleaks: false
     permissions:
+      actions: read
       contents: read
       checks: write
       issues: write
