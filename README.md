@@ -117,6 +117,8 @@ This setup is compiled as a `no_run` doctest, so testing needs no credentials or
 live services.
 
 ```rust,no_run
+# #[cfg(feature = "otel")]
+# mod demo {
 use openai_ergonomic::{
     langfuse_exporter_from_env, Client, LangfuseConfig, LangfuseInterceptor,
 };
@@ -150,6 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
+# }
 ```
 
 See the [Langfuse integration guide](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/langfuse-integration.md)
