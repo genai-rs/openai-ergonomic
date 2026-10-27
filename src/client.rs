@@ -336,6 +336,8 @@ impl<T> ClientBuilder<T> {
     ///
     /// Interceptor with custom state:
     /// ```rust,no_run
+    /// # #[cfg(feature = "otel")]
+    /// # mod demo {
     /// use openai_ergonomic::{Client, LangfuseConfig, LangfuseInterceptor, LangfuseState};
     /// use opentelemetry::global;
     ///
@@ -346,6 +348,7 @@ impl<T> ClientBuilder<T> {
     ///     .with_interceptor(Box::new(interceptor))
     ///     .build();
     /// # Ok(())
+    /// # }
     /// # }
     /// ```
     #[must_use]
