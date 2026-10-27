@@ -144,7 +144,7 @@ for configuration and observability details.
 
 ### Streaming Example
 
-```rust,ignore
+```rust,no_run
 use openai_ergonomic::Client;
 use futures::StreamExt;
 
@@ -174,7 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 You can provide your own `reqwest::Client` with custom retry, timeout, and middleware configuration.
 **Note:** When using a custom HTTP client, you must configure the timeout on the `reqwest::Client` itself:
 
-```rust,ignore
+```rust,no_run
 use openai_ergonomic::{Client, Config};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
@@ -202,11 +202,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .http_client(http_client)
         .build();
 
-    let client = Client::new(config)?.build();
+    let client = Client::builder(config)?.build();
 
     // Use the client normally - retries and timeout are handled automatically
-    let response = client.chat_simple("Hello!").await?;
-    println!("{}", response);
+    let response = client.send_chat(client.chat_simple("Hello!")).await?;
+    println!("{}", response.content().unwrap_or_default());
     Ok(())
 }
 ```
@@ -224,7 +224,7 @@ export AZURE_OPENAI_DEPLOYMENT="gpt-4"
 export AZURE_OPENAI_API_VERSION="2024-02-01"  # Optional, defaults to 2024-02-01
 ```
 
-```rust,ignore
+```rust,no_run
 use openai_ergonomic::Client;
 
 #[tokio::main]
@@ -233,15 +233,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?.build();
 
     // Use exactly the same API as standard OpenAI
-    let response = client.chat_simple("Hello from Azure!").await?;
-    println!("{}", response);
+    let response = client.send_chat(client.chat_simple("Hello from Azure!")).await?;
+    println!("{}", response.content().unwrap_or_default());
     Ok(())
 }
 ```
 
 #### Manual Configuration
 
-```rust,ignore
+```rust,no_run
 use openai_ergonomic::{Client, Config};
 
 #[tokio::main]
@@ -253,10 +253,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .azure_api_version("2024-02-01")
         .build();
 
-    let client = Client::new(config)?.build();
+    let client = Client::builder(config)?.build();
 
-    let response = client.chat_simple("Hello!").await?;
-    println!("{}", response);
+    let response = client.send_chat(client.chat_simple("Hello!")).await?;
+    println!("{}", response.content().unwrap_or_default());
     Ok(())
 }
 ```

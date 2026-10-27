@@ -6,14 +6,14 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! # use openai_ergonomic::responses::*;
-//! let response = client.responses()
-//!     .model("gpt-4")
-//!     .user("What is the weather?")
-//!     .tool(tool_web_search())
-//!     .send()
-//!     .await?;
+//! ```rust,no_run
+//! # use openai_ergonomic::{responses::*, Client, ToolCallExt};
+//! # async fn example() -> openai_ergonomic::Result<()> {
+//! let client = Client::from_env()?.build();
+//! let request = client
+//!     .responses_simple("What is the weather?")
+//!     .tool(tool_web_search());
+//! let response = client.send_responses(request).await?;
 //!
 //! // Access response content
 //! if let Some(content) = response.content() {
@@ -22,8 +22,10 @@
 //!
 //! // Handle tool calls
 //! for tool_call in response.tool_calls() {
-//!     println!("Tool: {} Args: {}", tool_call.name(), tool_call.arguments());
+//!     println!("Tool: {} Args: {}", tool_call.function_name(), tool_call.function_arguments());
 //! }
+//! # Ok(())
+//! # }
 //! ```
 
 use openai_client_base::models::{
