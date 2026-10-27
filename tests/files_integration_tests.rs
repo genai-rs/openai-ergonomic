@@ -1,4 +1,5 @@
 //! Integration tests for the Files API.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::builders::files::{
     FileDeleteBuilder, FileListBuilder, FileOrder, FilePurpose, FileRetrievalBuilder,

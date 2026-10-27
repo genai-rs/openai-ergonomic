@@ -26,6 +26,7 @@
 //! ```bash
 //! cargo run --example responses_comprehensive
 //! ```
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     responses::{tool_function, tool_web_search, Response, ToolChoiceHelper},

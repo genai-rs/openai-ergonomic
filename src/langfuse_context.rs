@@ -46,13 +46,16 @@ impl LangfuseContext {
         let tags: Vec<String> = tags.into_iter().collect();
         self.set_attribute(
             attributes::TRACE_TAGS,
-            serde_json::to_string(&tags).expect("serializing strings cannot fail"),
+            serde_json::to_string(&tags).unwrap_or_default(),
         )
     }
 
     /// Add one tag to future spans.
     pub fn add_tag(&self, tag: impl Into<String>) -> &Self {
-        let mut attributes = self.attributes.write().unwrap();
+        let mut attributes = self
+            .attributes
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut tags = attributes
             .get(attributes::TRACE_TAGS)
             .and_then(|value| serde_json::from_str::<Vec<String>>(value).ok())
@@ -60,7 +63,7 @@ impl LangfuseContext {
         tags.push(tag.into());
         attributes.insert(
             attributes::TRACE_TAGS.to_string(),
-            serde_json::to_string(&tags).expect("serializing strings cannot fail"),
+            serde_json::to_string(&tags).unwrap_or_default(),
         );
         drop(attributes);
         self
@@ -75,7 +78,7 @@ impl LangfuseContext {
     pub fn set_attribute(&self, key: impl Into<String>, value: impl Into<String>) -> &Self {
         self.attributes
             .write()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(key.into(), value.into());
         self
     }
@@ -87,7 +90,10 @@ impl LangfuseContext {
 
     /// Clear all attributes on future spans.
     pub fn clear(&self) {
-        self.attributes.write().unwrap().clear();
+        self.attributes
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
     }
 
     /// Return the current attributes as OpenTelemetry key-value pairs.
@@ -95,7 +101,7 @@ impl LangfuseContext {
     pub fn get_attributes(&self) -> Vec<KeyValue> {
         self.attributes
             .read()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .iter()
             .map(|(key, value)| KeyValue::new(key.clone(), value.clone()))
             .collect()
@@ -104,18 +110,26 @@ impl LangfuseContext {
     /// Check whether an attribute is set.
     #[must_use]
     pub fn has_attribute(&self, key: &str) -> bool {
-        self.attributes.read().unwrap().contains_key(key)
+        self.attributes
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .contains_key(key)
     }
 
     /// Return an attribute value, if present.
     #[must_use]
     pub fn get_attribute(&self, key: &str) -> Option<String> {
-        self.attributes.read().unwrap().get(key).cloned()
+        self.attributes
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(key)
+            .cloned()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::{attributes, LangfuseContext};
 
     #[test]

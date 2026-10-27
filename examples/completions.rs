@@ -12,6 +12,7 @@
 //! Note: The Completions API is legacy. For new applications, use the Chat API instead.
 //!
 //! Run with: `cargo run --example completions`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Result};
 

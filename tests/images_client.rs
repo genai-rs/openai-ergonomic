@@ -1,4 +1,5 @@
 #![allow(missing_docs)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use mockito::{self, Matcher};
 use openai_ergonomic::{

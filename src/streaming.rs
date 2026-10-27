@@ -524,6 +524,7 @@ impl<T: Send + Sync + 'static> InterceptedStream<T> {
         }
     }
 
+    #[allow(clippy::expect_used)] // `inner` is only taken once the stream is finished
     fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<ChatCompletionChunk>>> {
         self.inner
             .as_mut()
@@ -559,6 +560,7 @@ impl<T: Send + Sync + 'static> Drop for InterceptedStream<T> {
 impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
     type Item = Result<ChatCompletionChunk>;
 
+    #[allow(clippy::expect_used)] // the queue sender and reserved slot are set before use
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
         if this.terminated {
@@ -1112,6 +1114,7 @@ fn parse_sse_line(line: &str) -> Result<Option<ChatCompletionChunk>> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
 

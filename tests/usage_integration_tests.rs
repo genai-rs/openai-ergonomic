@@ -8,6 +8,7 @@
 #![allow(clippy::collection_is_never_read)]
 #![allow(clippy::unreadable_literal)]
 #![allow(unused_variables)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::usage::{BucketWidth, GroupBy, UsageBuilder},

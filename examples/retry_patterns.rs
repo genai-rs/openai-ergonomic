@@ -11,6 +11,7 @@
 //! - Idempotency keys
 //!
 //! Run with: `cargo run --example retry_patterns`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config, Error, Result};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};

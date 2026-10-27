@@ -913,6 +913,7 @@ fn map_api_error<T>(error: ApiError<T>) -> Error {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
     use openai_client_base::apis::{Error as BaseError, ResponseContent};
 

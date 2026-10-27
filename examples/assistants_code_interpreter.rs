@@ -31,6 +31,7 @@
 //!
 //! This example demonstrates the intended API design for code interpreter functionality.
 //! The code shows how the ergonomic builders would work with the actual OpenAI API.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::assistants::{

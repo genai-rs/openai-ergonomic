@@ -1,4 +1,5 @@
 //! Regression tests for raw file responses from the generated client.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use mockito::Matcher;
 use openai_ergonomic::{Client, Config};

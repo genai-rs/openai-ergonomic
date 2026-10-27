@@ -286,6 +286,7 @@ pub fn cancel_fine_tuning_job(job_id: impl Into<String>) -> FineTuningJobCancelB
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
 
     #[test]

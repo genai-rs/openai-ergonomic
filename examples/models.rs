@@ -11,6 +11,7 @@
 //! - Model deprecation handling
 //!
 //! Run with: `cargo run --example models`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Response, Result};
 use serde::{Deserialize, Serialize};

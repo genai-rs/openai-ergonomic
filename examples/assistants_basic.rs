@@ -31,6 +31,7 @@
 //! **Important**: The Assistants API is not yet fully implemented in openai-ergonomic.
 //! This example demonstrates the intended API design and serves as a template for
 //! future implementation. Current code shows simulated functionality.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Error};
 use std::io::{self, Write};

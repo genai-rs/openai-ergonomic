@@ -10,6 +10,7 @@
 //! - Error handling patterns
 //!
 //! Run with: `cargo run --example chat_comprehensive`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Error, Response};
 use std::collections::VecDeque;

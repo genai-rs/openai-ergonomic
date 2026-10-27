@@ -292,6 +292,7 @@ pub fn search_vector_store_with_limit(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
 
     #[test]

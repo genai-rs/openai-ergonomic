@@ -16,6 +16,7 @@
 //! ```bash
 //! cargo run --example langfuse
 //! ```
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     langfuse_exporter_from_env, Builder, ChatCompletionBuilder, Client, LangfuseConfig,

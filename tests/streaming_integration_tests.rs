@@ -2,7 +2,7 @@
 //!
 //! This module tests streaming responses, chunk processing, message reassembly,
 //! and various streaming scenarios including error handling.
-
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(
     dead_code,
     unused_imports,

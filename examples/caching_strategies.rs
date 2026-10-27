@@ -39,6 +39,7 @@
 //! - Offline capability for cached responses
 //!
 //! Run with: `cargo run --example caching_strategies`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config, Error, Result};
 use serde::{Deserialize, Serialize};

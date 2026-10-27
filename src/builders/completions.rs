@@ -229,14 +229,9 @@ impl Builder<CreateCompletionRequest> for CompletionsBuilder {
         request.seed = self.seed.map(Some);
         request.stop = self
             .stop
-            .map(|stops| {
-                if stops.len() == 1 {
-                    Box::new(StopConfiguration::new_text(
-                        stops.into_iter().next().unwrap(),
-                    ))
-                } else {
-                    Box::new(StopConfiguration::new_arrayofstrings(stops))
-                }
+            .map(|stops| match <[String; 1]>::try_from(stops) {
+                Ok([stop]) => Box::new(StopConfiguration::new_text(stop)),
+                Err(stops) => Box::new(StopConfiguration::new_arrayofstrings(stops)),
             })
             .map(Some);
         request.stream = self.stream.map(Some);
@@ -252,6 +247,7 @@ impl Builder<CreateCompletionRequest> for CompletionsBuilder {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
 
     #[test]

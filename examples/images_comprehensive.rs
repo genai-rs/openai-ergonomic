@@ -14,7 +14,7 @@
 //! Note: This example demonstrates the intended API design. The actual images API
 //! implementation is still in development. Many of these features will be available
 //! once the builders and response types are implemented.
-
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(clippy::uninlined_format_args)]
 #![allow(clippy::no_effect_underscore_binding)]
 #![allow(clippy::cast_sign_loss)]

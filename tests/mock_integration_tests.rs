@@ -4,6 +4,7 @@
 //! and validate the interaction between builders and mock servers.
 #![allow(clippy::significant_drop_tightening)]
 #![cfg(feature = "test-utils")]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::{responses::responses_simple, Builder},

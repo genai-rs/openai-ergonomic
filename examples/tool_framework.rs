@@ -1,4 +1,5 @@
 //! Define a typed tool and execute it locally. No API key required.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use async_trait::async_trait;
 use openai_ergonomic::{Error, FunctionTool, Result, ToolRegistry};

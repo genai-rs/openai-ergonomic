@@ -5,7 +5,7 @@
 //! - Test data fixtures
 //! - Custom assertions
 //! - Performance testing utilities
-
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(
     dead_code,
     unused_imports,

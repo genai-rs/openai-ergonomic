@@ -10,6 +10,7 @@
 //! - Compose multiple middleware layers
 //!
 //! Run with: `cargo run --example http_middleware_retry`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config, Response, Result};
 use reqwest_middleware::ClientBuilder;

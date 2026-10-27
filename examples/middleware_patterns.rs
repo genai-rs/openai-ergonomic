@@ -30,6 +30,7 @@
 //! - Standardized error handling across the application
 //!
 //! Run with: `cargo run --example middleware_patterns`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use async_trait::async_trait;
 use openai_ergonomic::{Error, Result};

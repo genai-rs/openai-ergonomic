@@ -7,6 +7,7 @@
 //! - Error handling for streaming
 //! - Buffer management best practices
 //! - Real-time response processing
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use futures::StreamExt;
 use openai_ergonomic::{Client, Error, Result};

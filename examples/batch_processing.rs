@@ -29,6 +29,7 @@
 //! - Built-in retry logic for failed requests
 //!
 //! Run with: `cargo run --example batch_processing`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Error, Result};
 use serde::{Deserialize, Serialize};

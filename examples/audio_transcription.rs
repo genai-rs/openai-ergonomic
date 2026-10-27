@@ -31,6 +31,7 @@
 //! ```bash
 //! cargo run --example audio_transcription
 //! ```
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_client_base::{
     apis::{audio_api, configuration::Configuration},

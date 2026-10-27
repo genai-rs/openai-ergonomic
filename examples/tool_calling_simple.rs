@@ -2,6 +2,7 @@
 //! Simple tool calling example that compiles successfully.
 //!
 //! This example demonstrates basic tool calling functionality.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::chat::tool_function,

@@ -2,6 +2,7 @@
 //!
 //! This example tests various Azure `OpenAI` endpoints to verify that the
 //! integration works correctly across different API features.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::Client;
 

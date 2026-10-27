@@ -2,7 +2,7 @@
 //!
 //! This module tests various error scenarios including validation errors,
 //! API errors, network errors, and builder errors.
-
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(
     dead_code,
     unused_imports,

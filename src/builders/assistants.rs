@@ -608,6 +608,7 @@ pub fn assistant_with_tools(model: impl Into<String>, name: impl Into<String>) -
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
 
     #[test]

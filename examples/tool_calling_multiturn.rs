@@ -8,6 +8,7 @@
 //! - Real-world tool execution patterns
 //!
 //! Run with: `cargo run --example tool_calling_multiturn`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::chat::tool_function, responses::chat::ToolCallExt, Client, Result,

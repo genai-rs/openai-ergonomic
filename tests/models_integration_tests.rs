@@ -7,6 +7,7 @@
 #![allow(clippy::useless_vec)]
 #![allow(unused_variables)]
 #![allow(unused_imports)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{builders::models::*, Client, Result};
 

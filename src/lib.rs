@@ -1,6 +1,4 @@
 #![doc = include_str!("../README.md")]
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
 #![allow(clippy::missing_const_for_fn)]
 #![allow(clippy::use_self)]
 #![allow(clippy::io_other_error)]
@@ -191,6 +189,7 @@ pub mod test_utils;
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
 
     #[test]

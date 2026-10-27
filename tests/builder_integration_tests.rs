@@ -2,7 +2,7 @@
 //!
 //! This module tests all builder patterns including chat builders, responses builders,
 //! and their various configurations and edge cases.
-
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(
     dead_code,
     unused_imports,

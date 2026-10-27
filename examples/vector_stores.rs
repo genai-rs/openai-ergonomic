@@ -39,6 +39,7 @@
 //! This example demonstrates the intended API design for vector store operations.
 //! The code shows how the ergonomic builders provide a streamlined interface for
 //! complex vector operations and document management.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
     builders::vector_stores::{

@@ -4,6 +4,7 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::ignored_unit_patterns)]
 #![allow(clippy::ignore_without_reason)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{builders::completions::CompletionsBuilder, Builder, Client, Result};
 

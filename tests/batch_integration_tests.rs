@@ -2,6 +2,7 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::unreadable_literal)]
 #![allow(clippy::collection_is_never_read)]
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::builders::batch::{
     batch_chat_completions, batch_completions, batch_embeddings, BatchEndpoint, BatchJobBuilder,

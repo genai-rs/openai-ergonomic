@@ -11,6 +11,7 @@
 //! - Response filtering
 //!
 //! Run with: `cargo run --example moderations`
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Result};
 use serde::{Deserialize, Serialize};

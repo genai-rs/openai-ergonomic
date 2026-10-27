@@ -3,6 +3,9 @@
 //! This module provides testing utilities that are only available
 //! with the `test-utils` feature flag enabled.
 
+// Test helper module: panicking on setup failure is the intended behaviour.
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
 
@@ -512,6 +515,7 @@ pub mod performance {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
 
     #[tokio::test]
