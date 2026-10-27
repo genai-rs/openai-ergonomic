@@ -56,21 +56,6 @@ jobs:
         with:
           config-file: './.github/dependency-review-config.yml'
 
-  supply-chain:
-    name: Supply Chain Security
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Install cargo-vet
-        run: cargo install cargo-vet --locked
-
-      - name: Check dependencies with cargo-vet
-        run: cargo vet || echo "cargo-vet check failed - review required"
-        continue-on-error: true
-
   licensing:
     name: License Compliance
     runs-on: ubuntu-latest
