@@ -1161,7 +1161,8 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 [[package]]
 name = "openai-client-base"
 version = "0.16.0"
-source = "git+https://github.com/genai-rs/openai-client-base?rev=5a8421afe5c4249b37d923f29abd29bef1c1eb90#5a8421afe5c4249b37d923f29abd29bef1c1eb90"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14fe4cf8fbc9ec19671f76fb45da65514a8f0aca523cca0d43852fb930104043"
 dependencies = [
  "bon",
  "reqwest",
@@ -1181,7 +1182,6 @@ version = "0.7.0"
 dependencies = [
  "async-trait",
  "base64",
- "bon",
  "bytes",
  "futures",
  "http",
@@ -1204,7 +1204,6 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
@@ -2491,17 +2490,6 @@ name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
-
-[[package]]
-name = "uuid"
-version = "1.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5772d71c9be8a8a6ac2117d949c5b224c1b72241bb611d9a3012edcf8af7812"
-dependencies = [
- "getrandom 0.4.3",
- "js-sys",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "valuable"
