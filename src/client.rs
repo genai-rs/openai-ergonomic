@@ -2618,11 +2618,11 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let file = client.vector_stores().get_file("vs_123", "file-456").await?;
     /// println!("File: {}", file.id);
     /// # Ok(())
@@ -2687,11 +2687,11 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.vector_stores().delete_file("vs_123", "file-456").await?;
     /// println!("Deleted: {}", response.deleted);
     /// # Ok(())
@@ -2756,12 +2756,12 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::vector_stores::VectorStoreSearchBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = VectorStoreSearchBuilder::new("vs_123", "machine learning concepts");
     /// let results = client.vector_stores().search(builder).await?;
     /// println!("Found {} results", results.data.len());
@@ -2840,12 +2840,12 @@ impl<T: Default + Send + Sync> BatchClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::batch::{BatchJobBuilder, BatchEndpoint};
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = BatchJobBuilder::new("file-batch-input", BatchEndpoint::ChatCompletions);
     /// let batch = client.batch().create(builder).await?;
     /// println!("Created batch: {}", batch.id);
@@ -2924,11 +2924,11 @@ impl<T: Default + Send + Sync> BatchClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.batch().list(None, Some(20)).await?;
     /// println!("Found {} batches", response.data.len());
     /// # Ok(())
@@ -2990,13 +2990,13 @@ impl<T: Default + Send + Sync> BatchClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let batch = client.batch().get("batch_123").await?;
-    /// println!("Batch status: {}", batch.status);
+    /// println!("Batch status: {:?}", batch.status);
     /// # Ok(())
     /// # }
     /// ```
@@ -3053,13 +3053,13 @@ impl<T: Default + Send + Sync> BatchClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let batch = client.batch().cancel("batch_123").await?;
-    /// println!("Batch cancelled: {}", batch.status);
+    /// println!("Batch cancelled: {:?}", batch.status);
     /// # Ok(())
     /// # }
     /// ```
@@ -3118,12 +3118,12 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::fine_tuning::FineTuningJobBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training-data");
     /// let job = client.fine_tuning().create_job(builder).await?;
     /// println!("Created job: {}", job.id);
@@ -3202,11 +3202,11 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.fine_tuning().list_jobs(None, Some(20)).await?;
     /// println!("Found {} jobs", response.data.len());
     /// # Ok(())
@@ -3268,13 +3268,13 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let job = client.fine_tuning().get_job("ftjob-123").await?;
-    /// println!("Job status: {}", job.status);
+    /// println!("Job status: {:?}", job.status);
     /// # Ok(())
     /// # }
     /// ```
@@ -3331,13 +3331,13 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let job = client.fine_tuning().cancel_job("ftjob-123").await?;
-    /// println!("Job cancelled: {}", job.status);
+    /// println!("Job cancelled: {:?}", job.status);
     /// # Ok(())
     /// # }
     /// ```
@@ -3394,11 +3394,11 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let events = client.fine_tuning().list_events("ftjob-123", None, Some(20)).await?;
     /// println!("Found {} events", events.data.len());
     /// # Ok(())
@@ -3465,11 +3465,11 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let checkpoints = client.fine_tuning().list_checkpoints("ftjob-123", None, Some(10)).await?;
     /// println!("Found {} checkpoints", checkpoints.data.len());
     /// # Ok(())
@@ -3765,12 +3765,12 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::assistants::AssistantBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = AssistantBuilder::new("gpt-4")
     ///     .name("Math Tutor")
     ///     .instructions("You are a helpful math tutor.");
@@ -3832,11 +3832,11 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let response = client.assistants().list(Some(20), None, None, None).await?;
     /// println!("Found {} assistants", response.data.len());
     /// # Ok(())
@@ -3904,11 +3904,11 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let assistant = client.assistants().get("asst_123").await?;
     /// println!("Assistant: {}", assistant.name.unwrap_or_default());
     /// # Ok(())
@@ -3967,12 +3967,12 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     ///
     /// # Example
     ///
-    /// ```rust,ignore
+    /// ```rust,no_run
     /// use openai_ergonomic::Client;
     /// use openai_ergonomic::builders::assistants::AssistantBuilder;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
-    /// let client = Client::from_env()?;
+    /// let client = Client::from_env()?.build();
     /// let builder = AssistantBuilder::new("gpt-4")
     ///     .name("Updated Name")
     ///     .instructions("Updated instructions");
