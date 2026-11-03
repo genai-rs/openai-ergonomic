@@ -57,10 +57,10 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
 
         if let Some(expires_after) = builder.expires_after_ref() {
             use openai_client_base::models::vector_store_expiration_after::Anchor;
-            request.expires_after = Some(Box::new(VectorStoreExpirationAfter::new(
+            request.expires_after = Some(VectorStoreExpirationAfter::new(
                 Anchor::LastActiveAt,
                 expires_after.days,
-            )));
+            ));
         }
 
         if !builder.metadata_ref().is_empty() {
@@ -281,10 +281,10 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
 
         if let Some(expires_after) = builder.expires_after_ref() {
             use openai_client_base::models::vector_store_expiration_after::Anchor;
-            request.expires_after = Some(Box::new(VectorStoreExpirationAfter::new(
+            request.expires_after = Some(VectorStoreExpirationAfter::new(
                 Anchor::LastActiveAt,
                 expires_after.days,
-            )));
+            ));
         }
 
         if !builder.metadata_ref().is_empty() {

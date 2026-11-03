@@ -175,7 +175,7 @@ impl Response for ChatCompletionResponseWrapper {
     }
 
     fn usage(&self) -> Option<&CompletionUsage> {
-        self.inner.usage.as_deref()
+        self.inner.usage.as_ref()
     }
 }
 
@@ -249,12 +249,12 @@ pub fn tool_function(
 
     ChatCompletionTool {
         r#type: openai_client_base::models::chat_completion_tool::Type::Function,
-        function: Box::new(FunctionObject {
+        function: FunctionObject {
             name: name.into(),
             description: Some(description.into()),
             parameters: Some(params_map),
             strict: None,
-        }),
+        },
     }
 }
 
@@ -312,7 +312,7 @@ impl ToolChoiceHelper {
             openai_client_base::models::ChatCompletionNamedToolChoice {
                 r#type:
                     openai_client_base::models::chat_completion_named_tool_choice::Type::Function,
-                function: Box::new(AssistantsNamedToolChoiceFunction { name: name.into() }),
+                function: AssistantsNamedToolChoiceFunction { name: name.into() },
             },
         )
     }

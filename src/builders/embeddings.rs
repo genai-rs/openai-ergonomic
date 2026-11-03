@@ -225,7 +225,7 @@ mod tests {
 
         assert_eq!(request.model, "text-embedding-3-small");
         assert!(matches!(
-            *request.input,
+            request.input,
             CreateEmbeddingRequestInput::String(ref value) if value == "hello world"
         ));
     }
@@ -236,7 +236,7 @@ mod tests {
             EmbeddingsBuilder::new("text-embedding-3-large").input_texts(["foo", "bar", "baz"]);
         let request = builder.build().expect("builder should succeed");
 
-        match *request.input {
+        match request.input {
             CreateEmbeddingRequestInput::ArrayOfStrings(values) => {
                 assert_eq!(values, vec!["foo", "bar", "baz"]);
             }
@@ -250,7 +250,7 @@ mod tests {
             .input_token_batches([vec![1, 2, 3], vec![4, 5, 6]]);
         let request = builder.build().expect("builder should succeed");
 
-        match *request.input {
+        match request.input {
             CreateEmbeddingRequestInput::ArrayOfIntegerArrays(values) => {
                 assert_eq!(values, vec![vec![1, 2, 3], vec![4, 5, 6]]);
             }

@@ -75,15 +75,12 @@ impl ChatCompletionBuilder {
     #[must_use]
     pub fn system(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestSystemMessage {
-            content: Box::new(ChatCompletionRequestSystemMessageContent::TextContent(
-                content.into(),
-            )),
+            content: ChatCompletionRequestSystemMessageContent::TextContent(content.into()),
             role: SystemRole::System,
             name: None,
         };
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(message));
         self
     }
 
@@ -91,15 +88,12 @@ impl ChatCompletionBuilder {
     #[must_use]
     pub fn user(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestUserMessage {
-            content: Box::new(ChatCompletionRequestUserMessageContent::TextContent(
-                content.into(),
-            )),
+            content: ChatCompletionRequestUserMessageContent::TextContent(content.into()),
             role: UserRole::User,
             name: None,
         };
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(message));
         self
     }
 
@@ -132,27 +126,24 @@ impl ChatCompletionBuilder {
         let image_part = ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(
             ChatCompletionRequestMessageContentPartImage {
                 r#type: ImageType::ImageUrl,
-                image_url: Box::new(ChatCompletionRequestMessageContentPartImageImageUrl {
+                image_url: ChatCompletionRequestMessageContentPartImageImageUrl {
                     url: image_url.into(),
                     detail: Some(detail),
-                }),
+                },
                 prompt_cache_breakpoint: None,
             },
         );
 
         let message = ChatCompletionRequestUserMessage {
-            content: Box::new(
-                ChatCompletionRequestUserMessageContent::ArrayOfContentParts(vec![
-                    text_part, image_part,
-                ]),
-            ),
+            content: ChatCompletionRequestUserMessageContent::ArrayOfContentParts(vec![
+                text_part, image_part,
+            ]),
             role: UserRole::User,
             name: None,
         };
 
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(message));
         self
     }
 
@@ -163,14 +154,13 @@ impl ChatCompletionBuilder {
         parts: Vec<ChatCompletionRequestUserMessageContentPart>,
     ) -> Self {
         let message = ChatCompletionRequestUserMessage {
-            content: Box::new(ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts)),
+            content: ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts),
             role: UserRole::User,
             name: None,
         };
 
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(message));
         self
     }
 
@@ -178,9 +168,9 @@ impl ChatCompletionBuilder {
     #[must_use]
     pub fn assistant(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestAssistantMessage {
-            content: Some(Some(Box::new(
+            content: Some(Some(
                 ChatCompletionRequestAssistantMessageContent::TextContent(content.into()),
-            ))),
+            )),
             role: AssistantRole::Assistant,
             name: None,
             tool_calls: None,
@@ -188,9 +178,8 @@ impl ChatCompletionBuilder {
             audio: None,
             refusal: None,
         };
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(message));
         self
     }
 
@@ -209,9 +198,9 @@ impl ChatCompletionBuilder {
             content: if content_str.is_empty() {
                 None
             } else {
-                Some(Some(Box::new(
+                Some(Some(
                     ChatCompletionRequestAssistantMessageContent::TextContent(content_str),
-                )))
+                ))
             },
             role: AssistantRole::Assistant,
             name: None,
@@ -220,9 +209,8 @@ impl ChatCompletionBuilder {
             audio: None,
             refusal: None,
         };
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(message));
         self
     }
 
@@ -233,14 +221,11 @@ impl ChatCompletionBuilder {
     pub fn tool(mut self, tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestToolMessage {
             role: ToolRole::Tool,
-            content: Box::new(ChatCompletionRequestToolMessageContent::TextContent(
-                content.into(),
-            )),
+            content: ChatCompletionRequestToolMessageContent::TextContent(content.into()),
             tool_call_id: tool_call_id.into(),
         };
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestToolMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestToolMessage(message));
         self
     }
 
@@ -368,7 +353,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             match message {
                 ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
                     if let ChatCompletionRequestSystemMessageContent::TextContent(content) =
-                        msg.content.as_ref()
+                        &msg.content
                     {
                         if content.trim().is_empty() {
                             return Err(crate::Error::InvalidRequest(format!(
@@ -378,7 +363,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
                     }
                 }
                 ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
-                    match msg.content.as_ref() {
+                    match &msg.content {
                         ChatCompletionRequestUserMessageContent::TextContent(content) => {
                             if content.trim().is_empty() {
                                 return Err(crate::Error::InvalidRequest(format!(
@@ -402,7 +387,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
                         .as_ref()
                         .and_then(|opt| opt.as_ref())
                         .is_some_and(|c| {
-                            match c.as_ref() {
+                            match c {
                                 ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
                                     !text.trim().is_empty()
                                 }
@@ -521,7 +506,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             }
         }
 
-        let response_format = self.response_format.map(Box::new);
+        let response_format = self.response_format;
 
         Ok(CreateChatCompletionRequest {
             messages: self.messages,
@@ -542,7 +527,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             service_tier: None,
             stop: self
                 .stop
-                .map(|s| Box::new(openai_client_base::models::StopConfiguration::ArrayOfStrings(s)))
+                .map(openai_client_base::models::StopConfiguration::ArrayOfStrings)
                 .map(Some),
             stream: self.stream.map(Some),
             stream_options: None,
@@ -551,12 +536,10 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             tools: self.tools.map(|tools| {
                 tools
                     .into_iter()
-                    .map(|tool| {
-                        CreateChatCompletionRequestAllOfTools::ChatCompletionTool(Box::new(tool))
-                    })
+                    .map(CreateChatCompletionRequestAllOfTools::ChatCompletionTool)
                     .collect()
             }),
-            tool_choice: self.tool_choice.map(Box::new),
+            tool_choice: self.tool_choice,
             parallel_tool_calls: None,
             user: self.user,
             function_call: None,
@@ -617,12 +600,12 @@ pub fn tool_function(
 
     ChatCompletionTool {
         r#type: openai_client_base::models::chat_completion_tool::Type::Function,
-        function: Box::new(FunctionObject {
+        function: FunctionObject {
             name: name.into(),
             description: Some(description.into()),
             parameters: Some(params_map),
             strict: None,
-        }),
+        },
     }
 }
 
@@ -672,10 +655,10 @@ pub fn image_url_part_with_detail(
     ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(
         ChatCompletionRequestMessageContentPartImage {
             r#type: ImageType::ImageUrl,
-            image_url: Box::new(ChatCompletionRequestMessageContentPartImageImageUrl {
+            image_url: ChatCompletionRequestMessageContentPartImageImageUrl {
                 url: url.into(),
                 detail: Some(detail),
-            }),
+            },
             prompt_cache_breakpoint: None,
         },
     )
@@ -726,7 +709,7 @@ mod tests {
         // Verify the message structure
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
-                match msg.content.as_ref() {
+                match &msg.content {
                     ChatCompletionRequestSystemMessageContent::TextContent(content) => {
                         assert_eq!(content, "You are a helpful assistant");
                     }
@@ -747,7 +730,7 @@ mod tests {
         // Verify the message structure
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
-                match msg.content.as_ref() {
+                match &msg.content {
                     ChatCompletionRequestUserMessageContent::TextContent(content) => {
                         assert_eq!(content, "Hello, world!");
                     }
@@ -769,7 +752,7 @@ mod tests {
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(msg) => {
                 if let Some(Some(content)) = &msg.content {
-                    match content.as_ref() {
+                    match content {
                         ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
                             assert_eq!(text, "Hello! How can I help you?");
                         }
@@ -792,7 +775,7 @@ mod tests {
         // Verify the message structure
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
-                match msg.content.as_ref() {
+                match &msg.content {
                     ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
                         assert_eq!(parts.len(), 2);
 
@@ -834,7 +817,7 @@ mod tests {
         // Verify the message structure
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
-                match msg.content.as_ref() {
+                match &msg.content {
                     ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
                         assert_eq!(parts.len(), 2);
 
@@ -867,7 +850,7 @@ mod tests {
         // Verify the message structure
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
-                match msg.content.as_ref() {
+                match &msg.content {
                     ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
                         assert_eq!(parts.len(), 2);
                     }

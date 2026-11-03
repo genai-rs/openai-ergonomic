@@ -158,7 +158,7 @@ fn test_chat_builder_vision() {
         ),
     ) = request.messages.first()
     {
-        match user_msg.content.as_ref() {
+        match &user_msg.content {
             openai_client_base::models::ChatCompletionRequestUserMessageContent::ArrayOfContentParts(parts) => {
                 assert_eq!(parts.len(), 3);
 
@@ -228,7 +228,7 @@ fn test_json_schema_builder() {
 
     assert!(request.response_format.is_some());
     let response_format = request.response_format.unwrap();
-    let schema_format = match response_format.as_ref() {
+    let schema_format = match response_format {
         openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format) => format,
         other => panic!("expected json schema response format, got {other:?}"),
     };

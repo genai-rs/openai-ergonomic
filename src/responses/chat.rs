@@ -56,7 +56,7 @@ impl ChatCompletionResponseExt for CreateChatCompletionResponse {
     }
 
     fn first_message(&self) -> Option<&ChatCompletionResponseMessage> {
-        self.first_choice().map(|choice| choice.message.as_ref())
+        self.first_choice().map(|choice| &choice.message)
     }
 
     fn is_refusal(&self) -> bool {
