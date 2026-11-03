@@ -117,7 +117,7 @@ impl ChatCompletionResponseWrapper {
         self.inner
             .choices
             .first()
-            .and_then(|c| c.message.tool_calls.as_ref())
+            .and_then(|c| c.message.tool_calls.as_ref()?.as_ref())
             .map(|calls| calls.iter().collect())
             .unwrap_or_default()
     }

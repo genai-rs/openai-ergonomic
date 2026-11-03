@@ -138,15 +138,9 @@ impl AssistantBuilder {
     pub fn build(self) -> Result<models::CreateAssistantRequest> {
         let mut request = models::CreateAssistantRequest::new(self.model.clone());
 
-        request.name = self
-            .name
-            .map(|n| Box::new(models::CreateAssistantRequestName::new_text(n)));
-        request.description = self
-            .description
-            .map(|d| Box::new(models::CreateAssistantRequestDescription::new_text(d)));
-        request.instructions = self
-            .instructions
-            .map(|i| Box::new(models::CreateAssistantRequestInstructions::new_text(i)));
+        request.name = self.name.map(Some);
+        request.description = self.description.map(Some);
+        request.instructions = self.instructions.map(Some);
 
         if !self.tools.is_empty() {
             let tools: Result<Vec<_>> = self

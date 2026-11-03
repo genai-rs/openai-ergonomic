@@ -256,23 +256,10 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
         // Convert CreateAssistantRequest to ModifyAssistantRequest
         let mut request = ModifyAssistantRequest::new();
         request.model = Some(request_data.model);
-        // Convert Box<CreateAssistantRequestName> to Option<String> by extracting text
-        request.name = request_data.name.and_then(|n| match *n {
-            openai_client_base::models::CreateAssistantRequestName::Text(text) => Some(Some(text)),
-            openai_client_base::models::CreateAssistantRequestName::Null => None,
-        });
-        request.description = request_data.description.and_then(|d| match *d {
-            openai_client_base::models::CreateAssistantRequestDescription::Text(text) => {
-                Some(Some(text))
-            }
-            openai_client_base::models::CreateAssistantRequestDescription::Null => None,
-        });
-        request.instructions = request_data.instructions.and_then(|i| match *i {
-            openai_client_base::models::CreateAssistantRequestInstructions::Text(text) => {
-                Some(Some(text))
-            }
-            openai_client_base::models::CreateAssistantRequestInstructions::Null => None,
-        });
+        // A null name, description or instructions is left out of the modification.
+        request.name = request_data.name.flatten().map(Some);
+        request.description = request_data.description.flatten().map(Some);
+        request.instructions = request_data.instructions.flatten().map(Some);
         request.tools = request_data.tools;
         request.metadata = request_data.metadata;
 
