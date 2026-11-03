@@ -174,7 +174,7 @@ pub fn assert_valid_chat_request(request: &CreateChatCompletionRequest) {
 pub fn assert_valid_message(message: &ChatCompletionRequestMessage, index: usize) {
     match message {
         ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
-            match msg.content.as_ref() {
+            match &msg.content {
                 openai_client_base::models::ChatCompletionRequestSystemMessageContent::TextContent(content) => {
                     assert!(
                         !content.is_empty(),
@@ -188,7 +188,7 @@ pub fn assert_valid_message(message: &ChatCompletionRequestMessage, index: usize
         }
         ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
             // User messages can have string or array content
-            match msg.content.as_ref() {
+            match &msg.content {
                 openai_client_base::models::ChatCompletionRequestUserMessageContent::TextContent(s) => {
                     assert!(
                         !s.is_empty(),
@@ -206,7 +206,7 @@ pub fn assert_valid_message(message: &ChatCompletionRequestMessage, index: usize
         ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(msg) => {
             // Assistant messages can have content or tool calls, but not both empty
             let has_content = msg.content.as_ref().and_then(|opt| opt.as_ref()).map_or(false, |c| {
-                match c.as_ref() {
+                match c {
                     openai_client_base::models::ChatCompletionRequestAssistantMessageContent::TextContent(text) => !text.is_empty(),
                     _ => true, // Other content types are considered valid
                 }

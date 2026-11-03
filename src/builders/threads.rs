@@ -28,15 +28,15 @@ impl AttachmentTool {
     fn to_api(self) -> CreateMessageRequestAttachmentsInnerToolsInner {
         match self {
             Self::CodeInterpreter => {
-                CreateMessageRequestAttachmentsInnerToolsInner::AssistantToolsCode(Box::new(
+                CreateMessageRequestAttachmentsInnerToolsInner::AssistantToolsCode(
                     AssistantToolsCode::new(assistant_tools_code::Type::CodeInterpreter),
-                ))
+                )
             }
             Self::FileSearch => {
                 CreateMessageRequestAttachmentsInnerToolsInner::AssistantToolsFileSearchTypeOnly(
-                    Box::new(AssistantToolsFileSearchTypeOnly::new(
+                    AssistantToolsFileSearchTypeOnly::new(
                         assistant_tools_file_search_type_only::Type::FileSearch,
-                    )),
+                    ),
                 )
             }
         }

@@ -154,7 +154,7 @@ fn test_responses_builder_json_schema() {
     assert!(request.response_format.is_some());
 
     let response_format = request.response_format.unwrap();
-    let schema_format = match response_format.as_ref() {
+    let schema_format = match response_format {
         openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format) => format,
         other => panic!("expected json schema response format, got {other:?}"),
     };

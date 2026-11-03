@@ -209,9 +209,7 @@ impl Builder<CreateImageRequest> for ImageGenerationBuilder {
             stream: self.stream.map(Some),
             partial_images: self.partial_images,
             size: self.size.map(|size| {
-                Some(Box::new(
-                    openai_client_base::models::CreateImageRequestSize::TextVariant(size),
-                ))
+                Some(openai_client_base::models::CreateImageRequestSize::TextVariant(size))
             }),
             moderation: self.moderation.map(Some),
             background: self.background.map(Some),

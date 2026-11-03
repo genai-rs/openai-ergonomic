@@ -305,10 +305,7 @@ impl ChatCompletionChunk {
     /// Get the delta object directly.
     #[must_use]
     pub fn delta(&self) -> Option<&ChatCompletionStreamResponseDelta> {
-        self.response
-            .choices
-            .first()
-            .map(|choice| choice.delta.as_ref())
+        self.response.choices.first().map(|choice| &choice.delta)
     }
 }
 

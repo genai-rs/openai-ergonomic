@@ -136,7 +136,7 @@ impl Builder<CreateUploadRequest> for UploadBuilder {
         self.validate()?;
         let mut request =
             CreateUploadRequest::new(self.filename, self.purpose, self.bytes, self.mime_type);
-        request.expires_after = self.expires_after.map(Box::new);
+        request.expires_after = self.expires_after;
         Ok(request)
     }
 }

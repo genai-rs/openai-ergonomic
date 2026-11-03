@@ -230,12 +230,12 @@ impl Builder<CreateCompletionRequest> for CompletionsBuilder {
         request.stop = self
             .stop
             .map(|stops| match <[String; 1]>::try_from(stops) {
-                Ok([stop]) => Box::new(StopConfiguration::new_text(stop)),
-                Err(stops) => Box::new(StopConfiguration::new_arrayofstrings(stops)),
+                Ok([stop]) => StopConfiguration::new_text(stop),
+                Err(stops) => StopConfiguration::new_arrayofstrings(stops),
             })
             .map(Some);
         request.stream = self.stream.map(Some);
-        request.stream_options = self.stream_options.map(|opts| Some(Box::new(opts)));
+        request.stream_options = self.stream_options.map(Some);
         request.suffix = self.suffix.map(Some);
         request.temperature = self.temperature.map(Some);
         request.top_p = self.top_p.map(Some);

@@ -150,16 +150,16 @@ impl AssistantBuilder {
                     match tool {
                         AssistantTool::CodeInterpreter => {
                             Ok(models::AssistantObjectToolsInner::AssistantToolsCode(
-                                Box::new(models::AssistantToolsCode::new(
+                                models::AssistantToolsCode::new(
                                     models::assistant_tools_code::Type::CodeInterpreter,
-                                )),
+                                ),
                             ))
                         }
                         AssistantTool::FileSearch => {
                             Ok(models::AssistantObjectToolsInner::AssistantToolsFileSearch(
-                                Box::new(models::AssistantToolsFileSearch::new(
+                                models::AssistantToolsFileSearch::new(
                                     models::assistant_tools_file_search::Type::FileSearch,
-                                )),
+                                ),
                             ))
                         }
                         AssistantTool::Function {
@@ -180,7 +180,7 @@ impl AssistantBuilder {
                                 function_obj,
                             );
                             Ok(models::AssistantObjectToolsInner::AssistantToolsFunction(
-                                Box::new(func),
+                                func,
                             ))
                         }
                     }

@@ -71,15 +71,12 @@ impl ResponsesBuilder {
     #[must_use]
     pub fn system(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestSystemMessage {
-            content: Box::new(ChatCompletionRequestSystemMessageContent::TextContent(
-                content.into(),
-            )),
+            content: ChatCompletionRequestSystemMessageContent::TextContent(content.into()),
             role: SystemRole::System,
             name: None,
         };
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(message));
         self
     }
 
@@ -87,15 +84,12 @@ impl ResponsesBuilder {
     #[must_use]
     pub fn user(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestUserMessage {
-            content: Box::new(ChatCompletionRequestUserMessageContent::TextContent(
-                content.into(),
-            )),
+            content: ChatCompletionRequestUserMessageContent::TextContent(content.into()),
             role: UserRole::User,
             name: None,
         };
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(message));
         self
     }
 
@@ -103,9 +97,9 @@ impl ResponsesBuilder {
     #[must_use]
     pub fn assistant(mut self, content: impl Into<String>) -> Self {
         let message = ChatCompletionRequestAssistantMessage {
-            content: Some(Some(Box::new(
+            content: Some(Some(
                 ChatCompletionRequestAssistantMessageContent::TextContent(content.into()),
-            ))),
+            )),
             role: AssistantRole::Assistant,
             name: None,
             tool_calls: None,
@@ -113,9 +107,8 @@ impl ResponsesBuilder {
             audio: None,
             refusal: None,
         };
-        self.messages.push(
-            ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(Box::new(message)),
-        );
+        self.messages
+            .push(ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(message));
         self
     }
 
@@ -191,9 +184,7 @@ impl ResponsesBuilder {
         let json_object =
             ResponseFormatJsonObject::new(response_format_json_object::Type::JsonObject);
         self.response_format = Some(
-            CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonObject(Box::new(
-                json_object,
-            )),
+            CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonObject(json_object),
         );
         self
     }
@@ -222,11 +213,8 @@ impl ResponsesBuilder {
             json_schema,
         );
 
-        self.response_format = Some(
-            CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(Box::new(
-                format,
-            )),
-        );
+        self.response_format =
+            Some(CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format));
         self
     }
 
@@ -362,7 +350,7 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             }
         }
 
-        let response_format = self.response_format.map(Box::new);
+        let response_format = self.response_format;
 
         Ok(CreateChatCompletionRequest {
             messages: self.messages,
@@ -383,7 +371,7 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             service_tier: None,
             stop: self
                 .stop
-                .map(|s| Box::new(openai_client_base::models::StopConfiguration::ArrayOfStrings(s)))
+                .map(openai_client_base::models::StopConfiguration::ArrayOfStrings)
                 .map(Some),
             stream: self.stream.map(Some),
             stream_options: None,
@@ -392,12 +380,10 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             tools: self.tools.map(|tools| {
                 tools
                     .into_iter()
-                    .map(|tool| {
-                        CreateChatCompletionRequestAllOfTools::ChatCompletionTool(Box::new(tool))
-                    })
+                    .map(CreateChatCompletionRequestAllOfTools::ChatCompletionTool)
                     .collect()
             }),
-            tool_choice: self.tool_choice.map(Box::new),
+            tool_choice: self.tool_choice,
             parallel_tool_calls: None,
             user: self.user,
             function_call: None,
@@ -467,12 +453,12 @@ pub fn responses_tool_function(
 
     ChatCompletionTool {
         r#type: openai_client_base::models::chat_completion_tool::Type::Function,
-        function: Box::new(FunctionObject {
+        function: FunctionObject {
             name: name.into(),
             description: Some(description.into()),
             parameters: Some(params_map),
             strict: None,
-        }),
+        },
     }
 }
 
@@ -519,7 +505,7 @@ mod tests {
         // Verify the message structure
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestSystemMessage(msg) => {
-                match msg.content.as_ref() {
+                match &msg.content {
                     ChatCompletionRequestSystemMessageContent::TextContent(content) => {
                         assert_eq!(content, "You are a helpful assistant");
                     }
@@ -540,7 +526,7 @@ mod tests {
         // Verify the message structure
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestUserMessage(msg) => {
-                match msg.content.as_ref() {
+                match &msg.content {
                     ChatCompletionRequestUserMessageContent::TextContent(content) => {
                         assert_eq!(content, "Hello, world!");
                     }
@@ -562,7 +548,7 @@ mod tests {
         match &builder.messages[0] {
             ChatCompletionRequestMessage::ChatCompletionRequestAssistantMessage(msg) => {
                 if let Some(Some(content)) = &msg.content {
-                    match content.as_ref() {
+                    match content {
                         ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
                             assert_eq!(text, "Hello! How can I help you?");
                         }
