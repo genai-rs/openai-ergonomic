@@ -42,7 +42,7 @@ impl ChatCompletionResponseExt for CreateChatCompletionResponse {
     fn tool_calls(&self) -> Vec<&ChatCompletionMessageToolCallsInner> {
         self.choices
             .first()
-            .and_then(|choice| choice.message.tool_calls.as_ref())
+            .and_then(|choice| choice.message.tool_calls.as_ref()?.as_ref())
             .map(|calls| calls.iter().collect())
             .unwrap_or_default()
     }

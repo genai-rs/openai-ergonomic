@@ -221,7 +221,7 @@ impl Builder<CreateCompletionRequest> for CompletionsBuilder {
         request.best_of = self.best_of.map(Some);
         request.echo = self.echo.map(Some);
         request.frequency_penalty = self.frequency_penalty.map(Some);
-        request.logit_bias = self.logit_bias;
+        request.logit_bias = self.logit_bias.map(Some);
         request.logprobs = self.logprobs.map(Some);
         request.max_tokens = self.max_tokens.map(Some);
         request.n = self.n.map(Some);
