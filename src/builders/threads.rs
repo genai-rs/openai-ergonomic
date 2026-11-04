@@ -131,12 +131,18 @@ impl MetadataState {
 }
 
 /// Builder for messages that seed a thread.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ThreadMessageBuilder {
     role: MessageRole,
     content: String,
     attachments: Vec<MessageAttachment>,
     metadata: MetadataState,
+}
+
+impl Default for ThreadMessageBuilder {
+    fn default() -> Self {
+        Self::user(String::new())
+    }
 }
 
 impl ThreadMessageBuilder {
@@ -351,6 +357,16 @@ mod tests {
         assert_eq!(message.content, Value::String("Hello".to_string()));
         assert!(message.attachments.is_none());
         assert!(message.metadata.is_none());
+    }
+
+    #[test]
+    fn default_is_an_empty_user_message() {
+        let message = ThreadMessageBuilder::default()
+            .build()
+            .expect("builder should succeed");
+
+        assert_eq!(message.role, MessageRole::User);
+        assert_eq!(message.content, Value::String(String::new()));
     }
 
     #[test]
