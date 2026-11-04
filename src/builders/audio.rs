@@ -228,7 +228,7 @@ impl TranscriptionBuilder {
     /// Provide a custom VAD configuration for chunking.
     #[must_use]
     pub fn chunking_strategy_vad(mut self, config: VadConfig) -> Self {
-        self.chunking_strategy = Some(CreateTranscriptionRequestChunkingStrategy::Vadconfig(
+        self.chunking_strategy = Some(CreateTranscriptionRequestChunkingStrategy::VadConfig(
             config,
         ));
         self

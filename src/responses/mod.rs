@@ -29,7 +29,7 @@
 //! ```
 
 use openai_client_base::models::{
-    AssistantsNamedToolChoiceFunction, ChatCompletionTool, ChatCompletionToolChoiceOption,
+    ChatCompletionNamedToolChoiceFunction, ChatCompletionTool, ChatCompletionToolChoiceOption,
     CompletionUsage, CreateChatCompletionResponse, CreateChatCompletionStreamResponse,
     FunctionObject,
 };
@@ -308,11 +308,11 @@ impl ToolChoiceHelper {
 
     /// Require the model to use a specific tool.
     pub fn specific(name: impl Into<String>) -> ChatCompletionToolChoiceOption {
-        ChatCompletionToolChoiceOption::Chatcompletionnamedtoolchoice(
+        ChatCompletionToolChoiceOption::ChatCompletionNamedToolChoice(
             openai_client_base::models::ChatCompletionNamedToolChoice {
                 r#type:
                     openai_client_base::models::chat_completion_named_tool_choice::Type::Function,
-                function: AssistantsNamedToolChoiceFunction { name: name.into() },
+                function: ChatCompletionNamedToolChoiceFunction { name: name.into() },
             },
         )
     }
