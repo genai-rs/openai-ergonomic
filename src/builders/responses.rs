@@ -8,7 +8,7 @@ use openai_client_base::models::{
     ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
     ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessage,
     ChatCompletionRequestUserMessageContent, ChatCompletionTool, ChatCompletionToolChoiceOption,
-    CreateChatCompletionRequest, CreateChatCompletionRequestAllOfTools, FunctionObject,
+    CreateChatCompletionRequest, CreateChatCompletionRequestAllOfToolsInner, FunctionObject,
 };
 // Import the specific Role enums for each message type
 use openai_client_base::models::chat_completion_request_assistant_message::Role as AssistantRole;
@@ -380,7 +380,7 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             tools: self.tools.map(|tools| {
                 tools
                     .into_iter()
-                    .map(CreateChatCompletionRequestAllOfTools::ChatCompletionTool)
+                    .map(CreateChatCompletionRequestAllOfToolsInner::ChatCompletionTool)
                     .collect()
             }),
             tool_choice: self.tool_choice,
@@ -391,19 +391,12 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             store: None,
             metadata: None,
             reasoning_effort: self.reasoning_effort.map(|e| {
-                use openai_client_base::models::reasoning_effort::{
-                    ReasoningEffort, ReasoningEffortTextVariantEnum,
-                };
+                use openai_client_base::models::ReasoningEffort;
                 Some(match e.as_str() {
-                    "minimal" => {
-                        ReasoningEffort::TextVariant(ReasoningEffortTextVariantEnum::Minimal)
-                    }
-                    "low" => ReasoningEffort::TextVariant(ReasoningEffortTextVariantEnum::Low),
-                    "medium" => {
-                        ReasoningEffort::TextVariant(ReasoningEffortTextVariantEnum::Medium)
-                    }
-                    "high" => ReasoningEffort::TextVariant(ReasoningEffortTextVariantEnum::High),
-                    _ => ReasoningEffort::TextVariant(ReasoningEffortTextVariantEnum::Medium),
+                    "minimal" => ReasoningEffort::Minimal,
+                    "low" => ReasoningEffort::Low,
+                    "high" => ReasoningEffort::High,
+                    _ => ReasoningEffort::Medium,
                 })
             }),
             prompt_cache_key: None,
@@ -552,7 +545,9 @@ mod tests {
                         ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
                             assert_eq!(text, "Hello! How can I help you?");
                         }
-                        _ => panic!("Expected text content"),
+                        ChatCompletionRequestAssistantMessageContent::ArrayOfContentParts(_) => {
+                            panic!("Expected text content")
+                        }
                     }
                 } else {
                     panic!("Expected content");

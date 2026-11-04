@@ -143,49 +143,50 @@ impl AssistantBuilder {
         request.instructions = self.instructions.map(Some);
 
         if !self.tools.is_empty() {
-            let tools: Result<Vec<_>> = self
-                .tools
-                .into_iter()
-                .map(|tool| {
-                    match tool {
-                        AssistantTool::CodeInterpreter => {
-                            Ok(models::AssistantObjectToolsInner::AssistantToolsCode(
-                                models::AssistantToolsCode::new(
-                                    models::assistant_tools_code::Type::CodeInterpreter,
+            let tools: Result<Vec<_>> =
+                self.tools
+                    .into_iter()
+                    .map(|tool| {
+                        match tool {
+                            AssistantTool::CodeInterpreter => Ok(
+                                models::CreateAssistantRequestToolsInner::AssistantToolsCode(
+                                    models::AssistantToolsCode::new(
+                                        models::assistant_tools_code::Type::CodeInterpreter,
+                                    ),
                                 ),
-                            ))
-                        }
-                        AssistantTool::FileSearch => {
-                            Ok(models::AssistantObjectToolsInner::AssistantToolsFileSearch(
-                                models::AssistantToolsFileSearch::new(
-                                    models::assistant_tools_file_search::Type::FileSearch,
+                            ),
+                            AssistantTool::FileSearch => Ok(
+                                models::CreateAssistantRequestToolsInner::AssistantToolsFileSearch(
+                                    models::AssistantToolsFileSearch::new(
+                                        models::assistant_tools_file_search::Type::FileSearch,
+                                    ),
                                 ),
-                            ))
-                        }
-                        AssistantTool::Function {
-                            name,
-                            description,
-                            parameters,
-                        } => {
-                            let mut function_obj = models::FunctionObject::new(name);
-                            function_obj.description = Some(description);
-                            // Parameters is expected to be a JSON object, so convert it
-                            if let Value::Object(map) = parameters {
-                                let params_map: HashMap<String, Value> = map.into_iter().collect();
-                                function_obj.parameters = Some(params_map);
-                            }
+                            ),
+                            AssistantTool::Function {
+                                name,
+                                description,
+                                parameters,
+                            } => {
+                                let mut function_obj = models::FunctionObject::new(name);
+                                function_obj.description = Some(description);
+                                // Parameters is expected to be a JSON object, so convert it
+                                if let Value::Object(map) = parameters {
+                                    let params_map: HashMap<String, Value> =
+                                        map.into_iter().collect();
+                                    function_obj.parameters = Some(params_map);
+                                }
 
-                            let func = models::AssistantToolsFunction::new(
-                                models::assistant_tools_function::Type::Function,
-                                function_obj,
-                            );
-                            Ok(models::AssistantObjectToolsInner::AssistantToolsFunction(
+                                let func = models::AssistantToolsFunction::new(
+                                    models::assistant_tools_function::Type::Function,
+                                    function_obj,
+                                );
+                                Ok(models::CreateAssistantRequestToolsInner::AssistantToolsFunction(
                                 func,
                             ))
+                            }
                         }
-                    }
-                })
-                .collect();
+                    })
+                    .collect();
             request.tools = Some(tools?);
         }
 

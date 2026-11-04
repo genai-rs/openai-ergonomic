@@ -248,7 +248,10 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
         assistant_id: impl Into<String>,
         builder: AssistantBuilder,
     ) -> Result<AssistantObject> {
-        use openai_client_base::models::ModifyAssistantRequest;
+        use openai_client_base::models::{
+            CreateAssistantRequestToolsInner, ModifyAssistantRequest,
+            ModifyAssistantRequestToolsInner,
+        };
 
         let id = assistant_id.into();
         let request_data = builder.build()?;
@@ -260,7 +263,22 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
         request.name = request_data.name.flatten().map(Some);
         request.description = request_data.description.flatten().map(Some);
         request.instructions = request_data.instructions.flatten().map(Some);
-        request.tools = request_data.tools;
+        request.tools = request_data.tools.map(|tools| {
+            tools
+                .into_iter()
+                .map(|tool| match tool {
+                    CreateAssistantRequestToolsInner::AssistantToolsCode(tool) => {
+                        ModifyAssistantRequestToolsInner::AssistantToolsCode(tool)
+                    }
+                    CreateAssistantRequestToolsInner::AssistantToolsFileSearch(tool) => {
+                        ModifyAssistantRequestToolsInner::AssistantToolsFileSearch(tool)
+                    }
+                    CreateAssistantRequestToolsInner::AssistantToolsFunction(tool) => {
+                        ModifyAssistantRequestToolsInner::AssistantToolsFunction(tool)
+                    }
+                })
+                .collect()
+        });
         request.metadata = request_data.metadata;
 
         // Prepare interceptor context

@@ -12,7 +12,7 @@ use openai_client_base::models::{
     ChatCompletionRequestToolMessageContent, ChatCompletionRequestUserMessage,
     ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,
     ChatCompletionTool, ChatCompletionToolChoiceOption, CreateChatCompletionRequest,
-    CreateChatCompletionRequestAllOfTools, FunctionObject,
+    CreateChatCompletionRequestAllOfToolsInner, FunctionObject,
 };
 // Import the specific Role enums for each message type
 use openai_client_base::models::chat_completion_request_assistant_message::Role as AssistantRole;
@@ -115,7 +115,7 @@ impl ChatCompletionBuilder {
         image_url: impl Into<String>,
         detail: Detail,
     ) -> Self {
-        let text_part = ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentparttext(
+        let text_part = ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(
             ChatCompletionRequestMessageContentPartText {
                 r#type: TextType::Text,
                 text: text.into(),
@@ -123,7 +123,7 @@ impl ChatCompletionBuilder {
             },
         );
 
-        let image_part = ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(
+        let image_part = ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(
             ChatCompletionRequestMessageContentPartImage {
                 r#type: ImageType::ImageUrl,
                 image_url: ChatCompletionRequestMessageContentPartImageImageUrl {
@@ -391,7 +391,10 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
                                 ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
                                     !text.trim().is_empty()
                                 }
-                                _ => true, // Other content types are considered valid
+                                // Other content types are considered valid
+                                ChatCompletionRequestAssistantMessageContent::ArrayOfContentParts(
+                                    _,
+                                ) => true,
                             }
                         });
                     let has_tool_calls = msg.tool_calls.as_ref().is_some_and(|tc| !tc.is_empty());
@@ -536,7 +539,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             tools: self.tools.map(|tools| {
                 tools
                     .into_iter()
-                    .map(CreateChatCompletionRequestAllOfTools::ChatCompletionTool)
+                    .map(CreateChatCompletionRequestAllOfToolsInner::ChatCompletionTool)
                     .collect()
             }),
             tool_choice: self.tool_choice,
@@ -631,7 +634,7 @@ pub fn tool_web_search() -> ChatCompletionTool {
 /// Helper function to create a text content part.
 #[must_use]
 pub fn text_part(content: impl Into<String>) -> ChatCompletionRequestUserMessageContentPart {
-    ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentparttext(
+    ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(
         ChatCompletionRequestMessageContentPartText {
             r#type: TextType::Text,
             text: content.into(),
@@ -652,7 +655,7 @@ pub fn image_url_part_with_detail(
     url: impl Into<String>,
     detail: Detail,
 ) -> ChatCompletionRequestUserMessageContentPart {
-    ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(
+    ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(
         ChatCompletionRequestMessageContentPartImage {
             r#type: ImageType::ImageUrl,
             image_url: ChatCompletionRequestMessageContentPartImageImageUrl {
@@ -756,7 +759,9 @@ mod tests {
                         ChatCompletionRequestAssistantMessageContent::TextContent(text) => {
                             assert_eq!(text, "Hello! How can I help you?");
                         }
-                        _ => panic!("Expected text content"),
+                        ChatCompletionRequestAssistantMessageContent::ArrayOfContentParts(_) => {
+                            panic!("Expected text content")
+                        }
                     }
                 } else {
                     panic!("Expected content");
@@ -781,7 +786,7 @@ mod tests {
 
                         // Check text part
                         match &parts[0] {
-                            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentparttext(text_part) => {
+                            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(text_part) => {
                                 assert_eq!(text_part.text, "Describe this image");
                             }
                             _ => panic!("Expected text part"),
@@ -789,7 +794,7 @@ mod tests {
 
                         // Check image part
                         match &parts[1] {
-                            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(image_part) => {
+                            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
                                 assert_eq!(image_part.image_url.url, "https://example.com/image.jpg");
                                 assert_eq!(image_part.image_url.detail, Some(Detail::Auto));
                             }
@@ -823,7 +828,7 @@ mod tests {
 
                         // Check image part detail
                         match &parts[1] {
-                            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(image_part) => {
+                            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
                                 assert_eq!(image_part.image_url.detail, Some(Detail::High));
                             }
                             _ => panic!("Expected image part"),
@@ -1015,7 +1020,7 @@ mod tests {
     fn test_text_part() {
         let part = text_part("Hello, world!");
         match part {
-            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentparttext(text_part) => {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartText(text_part) => {
                 assert_eq!(text_part.text, "Hello, world!");
                 assert_eq!(text_part.r#type, TextType::Text);
             }
@@ -1027,7 +1032,7 @@ mod tests {
     fn test_image_url_part() {
         let part = image_url_part("https://example.com/image.jpg");
         match part {
-            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(image_part) => {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
                 assert_eq!(image_part.image_url.url, "https://example.com/image.jpg");
                 assert_eq!(image_part.image_url.detail, Some(Detail::Auto));
                 assert_eq!(image_part.r#type, ImageType::ImageUrl);
@@ -1040,7 +1045,7 @@ mod tests {
     fn test_image_url_part_with_detail() {
         let part = image_url_part_with_detail("https://example.com/image.jpg", Detail::Low);
         match part {
-            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(image_part) => {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
                 assert_eq!(image_part.image_url.url, "https://example.com/image.jpg");
                 assert_eq!(image_part.image_url.detail, Some(Detail::Low));
                 assert_eq!(image_part.r#type, ImageType::ImageUrl);
@@ -1053,7 +1058,7 @@ mod tests {
     fn test_image_base64_part() {
         let part = image_base64_part("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==", "image/png");
         match part {
-            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(image_part) => {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
                 assert!(image_part.image_url.url.starts_with("data:image/png;base64,"));
                 assert_eq!(image_part.image_url.detail, Some(Detail::Auto));
                 assert_eq!(image_part.r#type, ImageType::ImageUrl);
@@ -1066,7 +1071,7 @@ mod tests {
     fn test_image_base64_part_with_detail() {
         let part = image_base64_part_with_detail("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==", "image/jpeg", Detail::High);
         match part {
-            ChatCompletionRequestUserMessageContentPart::Chatcompletionrequestmessagecontentpartimage(image_part) => {
+            ChatCompletionRequestUserMessageContentPart::ChatCompletionRequestMessageContentPartImage(image_part) => {
                 assert!(image_part.image_url.url.starts_with("data:image/jpeg;base64,"));
                 assert_eq!(image_part.image_url.detail, Some(Detail::High));
                 assert_eq!(image_part.r#type, ImageType::ImageUrl);
