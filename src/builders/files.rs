@@ -155,7 +155,7 @@ impl FileRetrievalBuilder {
 #[derive(Debug, Clone, Default)]
 pub struct FileListBuilder {
     purpose: Option<FilePurpose>,
-    limit: Option<i32>,
+    limit: Option<i64>,
     order: Option<FileOrder>,
 }
 
@@ -184,7 +184,7 @@ impl FileListBuilder {
 
     /// Set the maximum number of files to return.
     #[must_use]
-    pub fn limit(mut self, limit: i32) -> Self {
+    pub fn limit(mut self, limit: i64) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -204,7 +204,7 @@ impl FileListBuilder {
 
     /// Get the limit.
     #[must_use]
-    pub fn limit_ref(&self) -> Option<i32> {
+    pub fn limit_ref(&self) -> Option<i64> {
         self.limit
     }
 
@@ -292,7 +292,7 @@ pub fn list_files_by_purpose(purpose: FilePurpose) -> FileListBuilder {
 
 /// Helper function to list files with a limit.
 #[must_use]
-pub fn list_files_with_limit(limit: i32) -> FileListBuilder {
+pub fn list_files_with_limit(limit: i64) -> FileListBuilder {
     FileListBuilder::new().limit(limit)
 }
 

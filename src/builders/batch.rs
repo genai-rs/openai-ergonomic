@@ -105,7 +105,7 @@ impl BatchJobBuilder {
 #[derive(Debug, Clone, Default)]
 pub struct BatchJobListBuilder {
     after: Option<String>,
-    limit: Option<i32>,
+    limit: Option<i64>,
 }
 
 impl BatchJobListBuilder {
@@ -124,7 +124,7 @@ impl BatchJobListBuilder {
 
     /// Set the maximum number of jobs to return.
     #[must_use]
-    pub fn limit(mut self, limit: i32) -> Self {
+    pub fn limit(mut self, limit: i64) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -137,7 +137,7 @@ impl BatchJobListBuilder {
 
     /// Get the limit.
     #[must_use]
-    pub fn limit_ref(&self) -> Option<i32> {
+    pub fn limit_ref(&self) -> Option<i64> {
         self.limit
     }
 }

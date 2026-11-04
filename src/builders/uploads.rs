@@ -32,7 +32,7 @@ use crate::{Builder, Error, Result};
 pub struct UploadBuilder {
     filename: String,
     purpose: Purpose,
-    bytes: i32,
+    bytes: i64,
     mime_type: String,
     expires_after: Option<FileExpirationAfter>,
 }
@@ -43,7 +43,7 @@ impl UploadBuilder {
     pub fn new(
         filename: impl Into<String>,
         purpose: Purpose,
-        bytes: i32,
+        bytes: i64,
         mime_type: impl Into<String>,
     ) -> Self {
         Self {
@@ -64,7 +64,7 @@ impl UploadBuilder {
 
     /// Override the number of bytes expected for the upload.
     #[must_use]
-    pub fn bytes(mut self, bytes: i32) -> Self {
+    pub fn bytes(mut self, bytes: i64) -> Self {
         self.bytes = bytes;
         self
     }
@@ -92,9 +92,9 @@ impl UploadBuilder {
 
     /// Set the expiration in seconds using the default `created_at` anchor.
     #[must_use]
-    pub fn expires_after_seconds(mut self, seconds: i32) -> Self {
+    pub fn expires_after_seconds(mut self, seconds: i64) -> Self {
         let expiration =
-            FileExpirationAfter::new(file_expiration_after::Anchor::CreatedAt, i64::from(seconds));
+            FileExpirationAfter::new(file_expiration_after::Anchor::CreatedAt, seconds);
         self.expires_after = Some(expiration);
         self
     }

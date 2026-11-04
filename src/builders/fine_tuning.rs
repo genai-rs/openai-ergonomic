@@ -26,9 +26,9 @@ pub struct FineTuningJobBuilder {
 #[derive(Debug, Clone, Default)]
 pub struct FineTuningHyperparameters {
     /// Number of epochs to train for
-    pub n_epochs: Option<i32>,
+    pub n_epochs: Option<i64>,
     /// Batch size for training
-    pub batch_size: Option<i32>,
+    pub batch_size: Option<i64>,
     /// Learning rate multiplier
     pub learning_rate_multiplier: Option<f64>,
 }
@@ -73,14 +73,14 @@ impl FineTuningJobBuilder {
 
     /// Set the number of epochs to train for.
     #[must_use]
-    pub fn epochs(mut self, epochs: i32) -> Self {
+    pub fn epochs(mut self, epochs: i64) -> Self {
         self.hyperparameters.n_epochs = Some(epochs);
         self
     }
 
     /// Set the batch size for training.
     #[must_use]
-    pub fn batch_size(mut self, batch_size: i32) -> Self {
+    pub fn batch_size(mut self, batch_size: i64) -> Self {
         self.hyperparameters.batch_size = Some(batch_size);
         self
     }
@@ -153,7 +153,7 @@ impl FineTuningJobBuilder {
 #[derive(Debug, Clone, Default)]
 pub struct FineTuningJobListBuilder {
     after: Option<String>,
-    limit: Option<i32>,
+    limit: Option<i64>,
 }
 
 impl FineTuningJobListBuilder {
@@ -172,7 +172,7 @@ impl FineTuningJobListBuilder {
 
     /// Set the maximum number of jobs to return.
     #[must_use]
-    pub fn limit(mut self, limit: i32) -> Self {
+    pub fn limit(mut self, limit: i64) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -185,7 +185,7 @@ impl FineTuningJobListBuilder {
 
     /// Get the limit.
     #[must_use]
-    pub fn limit_ref(&self) -> Option<i32> {
+    pub fn limit_ref(&self) -> Option<i64> {
         self.limit
     }
 }
@@ -258,7 +258,7 @@ pub fn fine_tune_with_validation(
 pub fn fine_tune_with_params(
     base_model: impl Into<String>,
     training_file: impl Into<String>,
-    epochs: i32,
+    epochs: i64,
     learning_rate: f64,
 ) -> FineTuningJobBuilder {
     FineTuningJobBuilder::new(base_model, training_file)

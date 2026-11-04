@@ -56,7 +56,7 @@ request.stream = Some(Some(false));
 request.stop = Some(None);
 request.n = None;
 
-let max_tokens: Option<i32> = request.max_tokens.flatten();
+let max_tokens: Option<i64> = request.max_tokens.flatten();
 let json = serde_json::to_value(request).unwrap();
 assert_eq!(json["stream"], false);
 assert!(json["stop"].is_null());

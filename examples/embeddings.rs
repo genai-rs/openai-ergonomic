@@ -638,7 +638,7 @@ async fn dimension_reduction_example(_client: &Client) -> Result<(), Box<dyn std
         // let builder = client
         //     .embeddings()
         //     .text(model.as_str(), text)
-        //     .dimensions(dims as i32);
+        //     .dimensions(i64::from(dims));
         // let response = client.embeddings().create(builder).await?;
 
         // Simulate dimension reduction

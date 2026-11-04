@@ -21,7 +21,7 @@ use std::io::{self, Write};
 struct ConversationTurn {
     role: String,
     content: String,
-    token_count: Option<i32>,
+    token_count: Option<i64>,
 }
 
 /// Manages conversation history and token tracking.
@@ -29,7 +29,7 @@ struct ConversationTurn {
 struct ConversationManager {
     history: VecDeque<ConversationTurn>,
     max_history: usize,
-    total_tokens_used: i32,
+    total_tokens_used: i64,
     system_message: Option<String>,
 }
 
@@ -54,7 +54,7 @@ impl ConversationManager {
     }
 
     /// Add an assistant message to the conversation history.
-    fn add_assistant_message(&mut self, content: String, token_count: Option<i32>) {
+    fn add_assistant_message(&mut self, content: String, token_count: Option<i64>) {
         self.add_turn(ConversationTurn {
             role: "assistant".to_string(),
             content,
@@ -72,7 +72,7 @@ impl ConversationManager {
 
     /// Update total token usage from a response.
     #[allow(clippy::missing_const_for_fn)] // example focuses on runtime bookkeeping; const fn isn't meaningfully useful here
-    fn update_token_usage(&mut self, prompt_tokens: i32, completion_tokens: i32) {
+    fn update_token_usage(&mut self, prompt_tokens: i64, completion_tokens: i64) {
         let total = prompt_tokens + completion_tokens;
         self.total_tokens_used += total;
     }

@@ -24,7 +24,7 @@ async fn main() -> Result<()> {
 
     // Get current time and time 30 days ago (in Unix timestamp seconds)
     // Using hardcoded timestamps for demonstration
-    let end_time = 1_700_000_000_i32; // Example: Nov 2023
+    let end_time = 1_700_000_000_i64; // Example: Nov 2023
     let start_time = end_time - (30 * 24 * 60 * 60); // 30 days ago
 
     println!(
@@ -70,7 +70,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn basic_usage_query(client: &Client, start_time: i32, end_time: i32) -> Result<()> {
+async fn basic_usage_query(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time));
 
     let usage = client.usage().completions(builder).await?;
@@ -85,7 +85,7 @@ async fn basic_usage_query(client: &Client, start_time: i32, end_time: i32) -> R
     Ok(())
 }
 
-async fn usage_with_aggregation(client: &Client, start_time: i32, end_time: i32) -> Result<()> {
+async fn usage_with_aggregation(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time))
         .bucket_width(BucketWidth::Day)
         .limit(10);
@@ -99,7 +99,7 @@ async fn usage_with_aggregation(client: &Client, start_time: i32, end_time: i32)
     Ok(())
 }
 
-async fn usage_by_model(client: &Client, start_time: i32, end_time: i32) -> Result<()> {
+async fn usage_by_model(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time))
         .model("gpt-4")
         .limit(100);
@@ -112,7 +112,7 @@ async fn usage_by_model(client: &Client, start_time: i32, end_time: i32) -> Resu
     Ok(())
 }
 
-async fn usage_grouped_by_project(client: &Client, start_time: i32, end_time: i32) -> Result<()> {
+async fn usage_grouped_by_project(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time))
         .group_by(GroupBy::ProjectId)
         .group_by(GroupBy::Model)
@@ -126,7 +126,7 @@ async fn usage_grouped_by_project(client: &Client, start_time: i32, end_time: i3
     Ok(())
 }
 
-async fn cost_data(client: &Client, start_time: i32, end_time: i32) -> Result<()> {
+async fn cost_data(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time))
         .bucket_width(BucketWidth::Day)
         .limit(10);
@@ -139,7 +139,7 @@ async fn cost_data(client: &Client, start_time: i32, end_time: i32) -> Result<()
     Ok(())
 }
 
-async fn audio_usage(client: &Client, start_time: i32, end_time: i32) -> Result<()> {
+async fn audio_usage(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time)).limit(10);
 
     // Audio speeches (text-to-speech)
@@ -156,7 +156,7 @@ async fn audio_usage(client: &Client, start_time: i32, end_time: i32) -> Result<
     Ok(())
 }
 
-async fn image_usage(client: &Client, start_time: i32, end_time: i32) -> Result<()> {
+async fn image_usage(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time))
         .bucket_width(BucketWidth::Day)
         .limit(10);
@@ -169,7 +169,7 @@ async fn image_usage(client: &Client, start_time: i32, end_time: i32) -> Result<
     Ok(())
 }
 
-async fn embeddings_usage(client: &Client, start_time: i32, end_time: i32) -> Result<()> {
+async fn embeddings_usage(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time))
         .model("text-embedding-3-small")
         .limit(100);

@@ -123,7 +123,7 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
     pub async fn list_jobs(
         &self,
         after: Option<&str>,
-        limit: Option<i32>,
+        limit: Option<i64>,
     ) -> Result<ListPaginatedFineTuningJobsResponse> {
         // Prepare interceptor context
         let mut state = T::default();
@@ -316,7 +316,7 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
         &self,
         job_id: impl Into<String>,
         after: Option<&str>,
-        limit: Option<i32>,
+        limit: Option<i64>,
     ) -> Result<ListFineTuningJobEventsResponse> {
         let id = job_id.into();
 
@@ -387,7 +387,7 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
         &self,
         job_id: impl Into<String>,
         after: Option<&str>,
-        limit: Option<i32>,
+        limit: Option<i64>,
     ) -> Result<ListFineTuningJobCheckpointsResponse> {
         let id = job_id.into();
 

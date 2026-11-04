@@ -24,7 +24,7 @@ pub struct VectorStoreBuilder {
 #[derive(Debug, Clone)]
 pub struct VectorStoreExpirationPolicy {
     /// Number of days after which the vector store expires.
-    pub days: i32,
+    pub days: i64,
 }
 
 impl VectorStoreBuilder {
@@ -91,7 +91,7 @@ impl VectorStoreBuilder {
 
     /// Set expiration policy for the vector store.
     #[must_use]
-    pub fn expires_after_days(mut self, days: i32) -> Self {
+    pub fn expires_after_days(mut self, days: i64) -> Self {
         self.expires_after = Some(VectorStoreExpirationPolicy { days });
         self
     }
@@ -181,7 +181,7 @@ impl VectorStoreFileBuilder {
 pub struct VectorStoreSearchBuilder {
     vector_store_id: String,
     query: String,
-    limit: Option<i32>,
+    limit: Option<i64>,
     filter: HashMap<String, String>,
 }
 
@@ -199,7 +199,7 @@ impl VectorStoreSearchBuilder {
 
     /// Set the maximum number of results to return.
     #[must_use]
-    pub fn limit(mut self, limit: i32) -> Self {
+    pub fn limit(mut self, limit: i64) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -225,7 +225,7 @@ impl VectorStoreSearchBuilder {
 
     /// Get the search limit.
     #[must_use]
-    pub fn limit_ref(&self) -> Option<i32> {
+    pub fn limit_ref(&self) -> Option<i64> {
         self.limit
     }
 
@@ -255,7 +255,7 @@ pub fn vector_store_with_files(
 #[must_use]
 pub fn temporary_vector_store(
     name: impl Into<String>,
-    expires_after_days: i32,
+    expires_after_days: i64,
 ) -> VectorStoreBuilder {
     VectorStoreBuilder::new()
         .name(name)
@@ -285,7 +285,7 @@ pub fn search_vector_store(
 pub fn search_vector_store_with_limit(
     vector_store_id: impl Into<String>,
     query: impl Into<String>,
-    limit: i32,
+    limit: i64,
 ) -> VectorStoreSearchBuilder {
     VectorStoreSearchBuilder::new(vector_store_id, query).limit(limit)
 }

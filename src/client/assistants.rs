@@ -106,7 +106,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     /// ```
     pub async fn list(
         &self,
-        limit: Option<i32>,
+        limit: Option<i64>,
         order: Option<&str>,
         after: Option<&str>,
         before: Option<&str>,
@@ -485,7 +485,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     pub async fn list_runs(
         &self,
         thread_id: impl Into<String>,
-        limit: Option<i32>,
+        limit: Option<i64>,
         order: Option<&str>,
         after: Option<&str>,
         before: Option<&str>,
@@ -851,7 +851,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
     pub async fn list_messages(
         &self,
         thread_id: impl Into<String>,
-        limit: Option<i32>,
+        limit: Option<i64>,
         order: Option<&str>,
         after: Option<&str>,
         before: Option<&str>,
@@ -999,7 +999,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
         &self,
         thread_id: impl Into<String>,
         run_id: impl Into<String>,
-        limit: Option<i32>,
+        limit: Option<i64>,
         order: Option<&str>,
         after: Option<&str>,
         before: Option<&str>,

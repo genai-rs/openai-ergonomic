@@ -4,7 +4,6 @@
 #![allow(clippy::doc_markdown)]
 #![allow(clippy::ignore_without_reason)]
 #![allow(clippy::ignored_unit_patterns)]
-#![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::collection_is_never_read)]
 #![allow(clippy::unreadable_literal)]
 #![allow(unused_variables)]
@@ -15,11 +14,14 @@ use openai_ergonomic::{
     Client, Result,
 };
 
-fn get_test_time_range() -> (i32, i32) {
-    let end_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i32;
+fn get_test_time_range() -> (i64, i64) {
+    let end_time = i64::try_from(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
+    )
+    .unwrap();
     let start_time = end_time - (7 * 24 * 60 * 60); // 7 days ago
     (start_time, end_time)
 }

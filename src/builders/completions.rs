@@ -31,13 +31,13 @@ use crate::{Builder, Error, Result};
 pub struct CompletionsBuilder {
     model: String,
     prompt: Option<String>,
-    best_of: Option<i32>,
+    best_of: Option<i64>,
     echo: Option<bool>,
     frequency_penalty: Option<f64>,
-    logit_bias: Option<std::collections::HashMap<String, i32>>,
-    logprobs: Option<i32>,
-    max_tokens: Option<i32>,
-    n: Option<i32>,
+    logit_bias: Option<std::collections::HashMap<String, i64>>,
+    logprobs: Option<i64>,
+    max_tokens: Option<i64>,
+    n: Option<i64>,
     presence_penalty: Option<f64>,
     seed: Option<i64>,
     stop: Option<Vec<String>>,
@@ -89,7 +89,7 @@ impl CompletionsBuilder {
     /// Because this parameter generates many completions, it can quickly consume your token quota.
     /// Use carefully and ensure that you have reasonable settings for `max_tokens` and `stop`.
     #[must_use]
-    pub fn best_of(mut self, best_of: i32) -> Self {
+    pub fn best_of(mut self, best_of: i64) -> Self {
         self.best_of = Some(best_of);
         self
     }
@@ -111,7 +111,7 @@ impl CompletionsBuilder {
 
     /// Modify the likelihood of specified tokens appearing in the completion.
     #[must_use]
-    pub fn logit_bias(mut self, bias: std::collections::HashMap<String, i32>) -> Self {
+    pub fn logit_bias(mut self, bias: std::collections::HashMap<String, i64>) -> Self {
         self.logit_bias = Some(bias);
         self
     }
@@ -119,21 +119,21 @@ impl CompletionsBuilder {
     /// Include the log probabilities on the `logprobs` most likely output tokens.
     /// An integer between 0 and 5.
     #[must_use]
-    pub fn logprobs(mut self, logprobs: i32) -> Self {
+    pub fn logprobs(mut self, logprobs: i64) -> Self {
         self.logprobs = Some(logprobs);
         self
     }
 
     /// The maximum number of tokens that can be generated in the completion.
     #[must_use]
-    pub fn max_tokens(mut self, max_tokens: i32) -> Self {
+    pub fn max_tokens(mut self, max_tokens: i64) -> Self {
         self.max_tokens = Some(max_tokens);
         self
     }
 
     /// How many completions to generate for each prompt.
     #[must_use]
-    pub fn n(mut self, n: i32) -> Self {
+    pub fn n(mut self, n: i64) -> Self {
         self.n = Some(n);
         self
     }

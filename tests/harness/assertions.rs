@@ -236,7 +236,11 @@ pub fn assert_valid_chat_response(response: &CreateChatCompletionResponse) {
 
     // Validate each choice
     for (i, choice) in response.choices.iter().enumerate() {
-        assert_eq!(choice.index, i as i32, "Choice index should match position");
+        assert_eq!(
+            choice.index,
+            i64::try_from(i).unwrap(),
+            "Choice index should match position"
+        );
 
         // Note: Message validation removed due to API structure changes
 
@@ -272,7 +276,11 @@ pub fn assert_valid_stream_chunk(chunk: &CreateChatCompletionStreamResponse) {
 
     // Validate each choice
     for (i, choice) in chunk.choices.iter().enumerate() {
-        assert_eq!(choice.index, i as i32, "Choice index should match position");
+        assert_eq!(
+            choice.index,
+            i64::try_from(i).unwrap(),
+            "Choice index should match position"
+        );
 
         // Delta is always present in the current API structure
         // Note: Delta validation simplified due to API structure changes

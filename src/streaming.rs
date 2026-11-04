@@ -663,8 +663,8 @@ fn update_usage<T: Send + Sync + 'static>(
     chunk: &ChatCompletionChunk,
 ) {
     if let Some(Some(usage)) = &chunk.raw_response().usage {
-        stream.input_tokens = Some(i64::from(usage.prompt_tokens));
-        stream.output_tokens = Some(i64::from(usage.completion_tokens));
+        stream.input_tokens = Some(usage.prompt_tokens);
+        stream.output_tokens = Some(usage.completion_tokens);
     }
 }
 

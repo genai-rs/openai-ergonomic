@@ -120,7 +120,7 @@ impl<T: Default + Send + Sync> BatchClient<'_, T> {
     pub async fn list(
         &self,
         after: Option<&str>,
-        limit: Option<i32>,
+        limit: Option<i64>,
     ) -> Result<ListBatchesResponse> {
         // Prepare interceptor context
         let mut state = T::default();

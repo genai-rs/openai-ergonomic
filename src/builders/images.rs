@@ -23,14 +23,14 @@ use crate::{Builder, Error, Result};
 pub struct ImageGenerationBuilder {
     prompt: String,
     model: Option<String>,
-    n: Option<i32>,
+    n: Option<i64>,
     quality: Option<Quality>,
     response_format: Option<ResponseFormat>,
     output_format: Option<OutputFormat>,
-    output_compression: Option<i32>,
+    output_compression: Option<i64>,
     stream: Option<bool>,
     #[allow(clippy::option_option)]
-    partial_images: Option<Option<i32>>,
+    partial_images: Option<Option<i64>>,
     size: Option<Size>,
     moderation: Option<Moderation>,
     background: Option<Background>,
@@ -71,7 +71,7 @@ impl ImageGenerationBuilder {
 
     /// Set how many images to generate (1-10).
     #[must_use]
-    pub fn n(mut self, n: i32) -> Self {
+    pub fn n(mut self, n: i64) -> Self {
         self.n = Some(n);
         self
     }
@@ -99,7 +99,7 @@ impl ImageGenerationBuilder {
 
     /// Tune image compression (0-100). Only applies to JPEG/WEBP outputs.
     #[must_use]
-    pub fn output_compression(mut self, compression: i32) -> Self {
+    pub fn output_compression(mut self, compression: i64) -> Self {
         self.output_compression = Some(compression);
         self
     }
@@ -113,7 +113,7 @@ impl ImageGenerationBuilder {
 
     /// Configure the number of partial images to emit when streaming (0-3).
     #[must_use]
-    pub fn partial_images(mut self, partial_images: Option<i32>) -> Self {
+    pub fn partial_images(mut self, partial_images: Option<i64>) -> Self {
         self.partial_images = Some(partial_images);
         self
     }
@@ -228,15 +228,15 @@ pub struct ImageEditBuilder {
     mask: Option<PathBuf>,
     background: Option<String>,
     model: Option<String>,
-    n: Option<i32>,
+    n: Option<i64>,
     size: Option<String>,
     response_format: Option<String>,
     output_format: Option<String>,
-    output_compression: Option<i32>,
+    output_compression: Option<i64>,
     user: Option<String>,
     input_fidelity: Option<ImageInputFidelity>,
     stream: Option<bool>,
-    partial_images: Option<i32>,
+    partial_images: Option<i64>,
     quality: Option<String>,
 }
 
@@ -286,7 +286,7 @@ impl ImageEditBuilder {
 
     /// Configure the number of images to generate (1-10).
     #[must_use]
-    pub fn n(mut self, n: i32) -> Self {
+    pub fn n(mut self, n: i64) -> Self {
         self.n = Some(n);
         self
     }
@@ -314,7 +314,7 @@ impl ImageEditBuilder {
 
     /// Configure output compression (0-100).
     #[must_use]
-    pub fn output_compression(mut self, compression: i32) -> Self {
+    pub fn output_compression(mut self, compression: i64) -> Self {
         self.output_compression = Some(compression);
         self
     }
@@ -342,7 +342,7 @@ impl ImageEditBuilder {
 
     /// Configure partial image count when streaming (0-3).
     #[must_use]
-    pub fn partial_images(mut self, value: i32) -> Self {
+    pub fn partial_images(mut self, value: i64) -> Self {
         self.partial_images = Some(value);
         self
     }
@@ -381,7 +381,7 @@ pub struct ImageEditRequest {
     /// Model identifier to use for the edit operation.
     pub model: Option<String>,
     /// Number of images to generate (1-10).
-    pub n: Option<i32>,
+    pub n: Option<i64>,
     /// Requested output size (e.g. `1024x1024`).
     pub size: Option<String>,
     /// Response format for non-streaming outputs (`url`, `b64_json`).
@@ -389,7 +389,7 @@ pub struct ImageEditRequest {
     /// Binary output format (`png`, `jpeg`, `webp`).
     pub output_format: Option<String>,
     /// Compression level for JPEG/WEBP outputs (0-100).
-    pub output_compression: Option<i32>,
+    pub output_compression: Option<i64>,
     /// End-user identifier for abuse monitoring.
     pub user: Option<String>,
     /// Fidelity configuration for how closely to follow the input image.
@@ -397,7 +397,7 @@ pub struct ImageEditRequest {
     /// Whether to stream incremental results.
     pub stream: Option<bool>,
     /// Number of partial images to emit while streaming.
-    pub partial_images: Option<i32>,
+    pub partial_images: Option<i64>,
     /// Additional quality hints accepted by the service.
     pub quality: Option<String>,
 }
@@ -462,7 +462,7 @@ impl Builder<ImageEditRequest> for ImageEditBuilder {
 pub struct ImageVariationBuilder {
     image: PathBuf,
     model: Option<String>,
-    n: Option<i32>,
+    n: Option<i64>,
     response_format: Option<String>,
     size: Option<String>,
     user: Option<String>,
@@ -491,7 +491,7 @@ impl ImageVariationBuilder {
 
     /// Number of variations to generate (1-10).
     #[must_use]
-    pub fn n(mut self, n: i32) -> Self {
+    pub fn n(mut self, n: i64) -> Self {
         self.n = Some(n);
         self
     }
@@ -532,7 +532,7 @@ pub struct ImageVariationRequest {
     /// Optional model override.
     pub model: Option<String>,
     /// Number of variations to create (1-10).
-    pub n: Option<i32>,
+    pub n: Option<i64>,
     /// Response format (`url`, `b64_json`).
     pub response_format: Option<String>,
     /// Output size (e.g. `512x512`).

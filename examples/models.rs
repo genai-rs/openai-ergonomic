@@ -257,7 +257,9 @@ async fn performance_testing(client: &Client) -> Result<()> {
         let elapsed = start.elapsed();
 
         if let Some(usage) = response.usage() {
-            let total_tokens = f64::from(usage.total_tokens);
+            // Only rounds above 2^53, far beyond any token count.
+            #[allow(clippy::cast_precision_loss)]
+            let total_tokens = usage.total_tokens as f64;
             let tokens_per_sec = total_tokens / elapsed.as_secs_f64();
 
             println!("{:<20} {:>10.2?} {:>15.1}", model, elapsed, tokens_per_sec);
