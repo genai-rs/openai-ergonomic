@@ -390,15 +390,14 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             functions: None,
             store: None,
             metadata: None,
-            reasoning_effort: self.reasoning_effort.map(|e| {
-                use openai_client_base::models::ReasoningEffort;
-                Some(match e.as_str() {
-                    "minimal" => ReasoningEffort::Minimal,
-                    "low" => ReasoningEffort::Low,
-                    "high" => ReasoningEffort::High,
-                    _ => ReasoningEffort::Medium,
+            reasoning_effort: self
+                .reasoning_effort
+                .map(|e| {
+                    e.parse::<openai_client_base::models::ReasoningEffort>()
+                        .map(Some)
+                        .map_err(|err| crate::Error::InvalidRequest(err.to_string()))
                 })
-            }),
+                .transpose()?,
             prompt_cache_key: None,
             prompt_cache_retention: None,
             prompt_cache_options: None,
@@ -754,22 +753,37 @@ mod tests {
 
     #[test]
     fn test_responses_builder_reasoning_effort_mapping() {
+        use openai_client_base::models::ReasoningEffort;
+
         let test_cases = vec![
-            ("minimal", "minimal"),
-            ("low", "low"),
-            ("medium", "medium"),
-            ("high", "high"),
-            ("invalid", "medium"), // Should default to medium
+            ("none", ReasoningEffort::None),
+            ("minimal", ReasoningEffort::Minimal),
+            ("low", ReasoningEffort::Low),
+            ("medium", ReasoningEffort::Medium),
+            ("high", ReasoningEffort::High),
+            ("xhigh", ReasoningEffort::Xhigh),
+            ("max", ReasoningEffort::Max),
         ];
 
-        for (input, _expected) in test_cases {
-            let builder = ResponsesBuilder::new("o3-mini")
+        for (input, expected) in test_cases {
+            let request = ResponsesBuilder::new("o3-mini")
                 .user("Test")
-                .reasoning_effort(input);
-            let request = builder.build().unwrap();
+                .reasoning_effort(input)
+                .build()
+                .unwrap();
 
-            // Verify that reasoning_effort is properly set in the request
-            assert!(request.reasoning_effort.is_some());
+            assert_eq!(request.reasoning_effort, Some(Some(expected)));
         }
+    }
+
+    #[test]
+    fn test_responses_builder_rejects_unknown_reasoning_effort() {
+        let error = ResponsesBuilder::new("o3-mini")
+            .user("Test")
+            .reasoning_effort("invalid")
+            .build()
+            .unwrap_err();
+
+        assert!(matches!(error, crate::Error::InvalidRequest(_)));
     }
 }
