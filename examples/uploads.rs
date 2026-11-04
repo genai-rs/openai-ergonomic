@@ -53,7 +53,7 @@ use openai_ergonomic::{builders::uploads::UploadBuilder, Client, UploadPurpose};
 pub struct UploadInfo {
     pub id: String,
     pub filename: String,
-    pub bytes: i32,
+    pub bytes: i64,
     pub purpose: String,
     pub status: String,
 }
@@ -62,7 +62,7 @@ impl UploadInfo {
     pub fn new(
         id: impl Into<String>,
         filename: impl Into<String>,
-        bytes: i32,
+        bytes: i64,
         purpose: impl Into<String>,
         status: impl Into<String>,
     ) -> Self {
@@ -301,10 +301,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n");
 
     struct UploadProgress {
-        total_bytes: i32,
-        uploaded_bytes: i32,
-        total_parts: i32,
-        uploaded_parts: i32,
+        total_bytes: i64,
+        uploaded_bytes: i64,
+        total_parts: i64,
+        uploaded_parts: i64,
     }
 
     impl UploadProgress {
@@ -312,9 +312,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             (self.uploaded_bytes as f64 / self.total_bytes as f64) * 100.0
         }
 
-        fn eta_seconds(&self, bytes_per_second: f64) -> i32 {
+        fn eta_seconds(&self, bytes_per_second: f64) -> f64 {
             let remaining_bytes = self.total_bytes - self.uploaded_bytes;
-            (remaining_bytes as f64 / bytes_per_second) as i32
+            remaining_bytes as f64 / bytes_per_second
         }
 
         fn display(&self, bytes_per_second: f64) {
@@ -328,7 +328,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             print!("] ");
 
             println!(
-                "{:.1}% ({}/{} parts, {} MB/s, ETA: {}s)",
+                "{:.1}% ({}/{} parts, {} MB/s, ETA: {:.0}s)",
                 self.percentage(),
                 self.uploaded_parts,
                 self.total_parts,
@@ -340,9 +340,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let progress = UploadProgress {
         total_bytes: file_size_bytes,
-        uploaded_bytes: (file_size_bytes as f64 * 0.65) as i32,
+        uploaded_bytes: file_size_bytes * 65 / 100,
         total_parts,
-        uploaded_parts: (total_parts as f64 * 0.65) as i32,
+        uploaded_parts: total_parts * 65 / 100,
     };
 
     println!("Current upload progress:");

@@ -31,20 +31,20 @@ pub struct ChatCompletionBuilder {
     model: String,
     messages: Vec<ChatCompletionRequestMessage>,
     temperature: Option<f64>,
-    max_tokens: Option<i32>,
-    max_completion_tokens: Option<i32>,
+    max_tokens: Option<i64>,
+    max_completion_tokens: Option<i64>,
     stream: Option<bool>,
     tools: Option<Vec<ChatCompletionTool>>,
     tool_choice: Option<ChatCompletionToolChoiceOption>,
     response_format:
         Option<openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat>,
-    n: Option<i32>,
+    n: Option<i64>,
     stop: Option<Vec<String>>,
     presence_penalty: Option<f64>,
     frequency_penalty: Option<f64>,
     top_p: Option<f64>,
     user: Option<String>,
-    seed: Option<i32>,
+    seed: Option<i64>,
 }
 
 impl ChatCompletionBuilder {
@@ -238,14 +238,14 @@ impl ChatCompletionBuilder {
 
     /// Set the maximum number of tokens to generate.
     #[must_use]
-    pub fn max_tokens(mut self, max_tokens: i32) -> Self {
+    pub fn max_tokens(mut self, max_tokens: i64) -> Self {
         self.max_tokens = Some(max_tokens);
         self
     }
 
     /// Set the maximum completion tokens (for newer models).
     #[must_use]
-    pub fn max_completion_tokens(mut self, max_completion_tokens: i32) -> Self {
+    pub fn max_completion_tokens(mut self, max_completion_tokens: i64) -> Self {
         self.max_completion_tokens = Some(max_completion_tokens);
         self
     }
@@ -283,7 +283,7 @@ impl ChatCompletionBuilder {
 
     /// Set the number of completions to generate.
     #[must_use]
-    pub fn n(mut self, n: i32) -> Self {
+    pub fn n(mut self, n: i64) -> Self {
         self.n = Some(n);
         self
     }
@@ -325,7 +325,7 @@ impl ChatCompletionBuilder {
 
     /// Set the random seed for deterministic outputs.
     #[must_use]
-    pub fn seed(mut self, seed: i32) -> Self {
+    pub fn seed(mut self, seed: i64) -> Self {
         self.seed = Some(seed);
         self
     }
@@ -526,7 +526,7 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             audio: None,
             presence_penalty: self.presence_penalty.map(Some),
             response_format,
-            seed: self.seed.map(i64::from).map(Some),
+            seed: self.seed.map(Some),
             service_tier: None,
             stop: self
                 .stop

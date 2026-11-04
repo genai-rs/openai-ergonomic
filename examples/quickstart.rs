@@ -329,10 +329,10 @@ async fn main() -> Result<()> {
     println!(" Handled errors gracefully");
     println!(" Built a complete conversational AI");
     println!("\n Total tokens used in examples: {total_tokens}");
-    println!(
-        " Estimated cost: ~${:.4} (assuming GPT-4 pricing)",
-        f64::from(total_tokens) * 0.03 / 1000.0
-    );
+    // Only rounds above 2^53, far beyond any token count.
+    #[allow(clippy::cast_precision_loss)]
+    let estimated_cost = total_tokens as f64 * 0.03 / 1000.0;
+    println!(" Estimated cost: ~${estimated_cost:.4} (assuming GPT-4 pricing)");
 
     println!("\n Next Steps:");
     println!("- Check out other examples in the examples/ directory");

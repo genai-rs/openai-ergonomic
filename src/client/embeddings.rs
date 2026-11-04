@@ -37,7 +37,7 @@ impl<T: Default + Send + Sync> EmbeddingsClient<'_, T> {
     #[must_use]
     pub fn tokens<I>(&self, model: impl Into<String>, tokens: I) -> EmbeddingsBuilder
     where
-        I: IntoIterator<Item = i32>,
+        I: IntoIterator<Item = i64>,
     {
         self.builder(model).input_tokens(tokens)
     }
@@ -84,8 +84,8 @@ impl<T: Default + Send + Sync> EmbeddingsClient<'_, T> {
             &request_json,
             &state,
             duration,
-            Some(i64::from(response.usage.prompt_tokens)),
-            Some(i64::from(response.usage.total_tokens)),
+            Some(response.usage.prompt_tokens),
+            Some(response.usage.total_tokens),
         )
         .await;
 

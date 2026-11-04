@@ -27,7 +27,7 @@ impl<T: Default + Send + Sync> UploadsClient<'_, T> {
         &self,
         filename: impl Into<String>,
         purpose: UploadPurpose,
-        bytes: i32,
+        bytes: i64,
         mime_type: impl Into<String>,
     ) -> UploadBuilder {
         UploadBuilder::new(filename, purpose, bytes, mime_type)

@@ -129,7 +129,7 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     /// ```
     pub async fn list(
         &self,
-        limit: Option<i32>,
+        limit: Option<i64>,
         order: Option<&str>,
         after: Option<&str>,
         before: Option<&str>,
@@ -493,7 +493,7 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
     pub async fn list_files(
         &self,
         vector_store_id: impl Into<String>,
-        limit: Option<i32>,
+        limit: Option<i64>,
         order: Option<&str>,
         after: Option<&str>,
         before: Option<&str>,

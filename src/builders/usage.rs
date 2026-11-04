@@ -74,15 +74,15 @@ impl std::fmt::Display for GroupBy {
 /// ```
 #[derive(Debug, Clone)]
 pub struct UsageBuilder {
-    start_time: i32,
-    end_time: Option<i32>,
+    start_time: i64,
+    end_time: Option<i64>,
     bucket_width: Option<BucketWidth>,
     project_ids: Vec<String>,
     user_ids: Vec<String>,
     api_key_ids: Vec<String>,
     models: Vec<String>,
     group_by: Vec<GroupBy>,
-    limit: Option<i32>,
+    limit: Option<i64>,
     page: Option<String>,
 }
 
@@ -94,7 +94,7 @@ impl UsageBuilder {
     /// * `start_time` - Unix timestamp (in seconds) for the start of the query range
     /// * `end_time` - Optional Unix timestamp (in seconds) for the end of the query range
     #[must_use]
-    pub fn new(start_time: i32, end_time: Option<i32>) -> Self {
+    pub fn new(start_time: i64, end_time: Option<i64>) -> Self {
         Self {
             start_time,
             end_time,
@@ -207,7 +207,7 @@ impl UsageBuilder {
 
     /// Set the maximum number of results to return.
     #[must_use]
-    pub fn limit(mut self, limit: i32) -> Self {
+    pub fn limit(mut self, limit: i64) -> Self {
         self.limit = Some(limit);
         self
     }
@@ -221,13 +221,13 @@ impl UsageBuilder {
 
     /// Get the start time.
     #[must_use]
-    pub fn start_time(&self) -> i32 {
+    pub fn start_time(&self) -> i64 {
         self.start_time
     }
 
     /// Get the end time.
     #[must_use]
-    pub fn end_time(&self) -> Option<i32> {
+    pub fn end_time(&self) -> Option<i64> {
         self.end_time
     }
 
@@ -269,7 +269,7 @@ impl UsageBuilder {
 
     /// Get the limit.
     #[must_use]
-    pub fn limit_ref(&self) -> Option<i32> {
+    pub fn limit_ref(&self) -> Option<i64> {
         self.limit
     }
 

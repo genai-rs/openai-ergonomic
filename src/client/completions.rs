@@ -97,11 +97,8 @@ impl<T: Default + Send + Sync> CompletionsClient<'_, T> {
             &request_json,
             &state,
             duration,
-            response.usage.as_ref().map(|u| i64::from(u.prompt_tokens)),
-            response
-                .usage
-                .as_ref()
-                .map(|u| i64::from(u.completion_tokens)),
+            response.usage.as_ref().map(|u| u.prompt_tokens),
+            response.usage.as_ref().map(|u| u.completion_tokens),
         )
         .await;
 

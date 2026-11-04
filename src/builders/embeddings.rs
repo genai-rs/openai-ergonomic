@@ -18,9 +18,9 @@ pub enum EmbeddingInput {
     /// Multiple strings to embed in one request.
     TextArray(Vec<String>),
     /// A single tokenized input represented as integers.
-    Tokens(Vec<i32>),
+    Tokens(Vec<i64>),
     /// Multiple tokenized inputs.
-    TokensBatch(Vec<Vec<i32>>),
+    TokensBatch(Vec<Vec<i64>>),
 }
 
 impl EmbeddingInput {
@@ -57,7 +57,7 @@ pub struct EmbeddingsBuilder {
     model: String,
     input: Option<EmbeddingInput>,
     encoding_format: Option<EncodingFormat>,
-    dimensions: Option<i32>,
+    dimensions: Option<i64>,
     user: Option<String>,
 }
 
@@ -104,7 +104,7 @@ impl EmbeddingsBuilder {
     #[must_use]
     pub fn input_tokens<I>(mut self, tokens: I) -> Self
     where
-        I: IntoIterator<Item = i32>,
+        I: IntoIterator<Item = i64>,
     {
         self.input = Some(EmbeddingInput::Tokens(tokens.into_iter().collect()));
         self
@@ -115,7 +115,7 @@ impl EmbeddingsBuilder {
     pub fn input_token_batches<I, J>(mut self, batches: I) -> Self
     where
         I: IntoIterator<Item = J>,
-        J: IntoIterator<Item = i32>,
+        J: IntoIterator<Item = i64>,
     {
         let collected = batches
             .into_iter()
@@ -134,7 +134,7 @@ impl EmbeddingsBuilder {
 
     /// Set the output dimensions for supported models.
     #[must_use]
-    pub fn dimensions(mut self, dimensions: i32) -> Self {
+    pub fn dimensions(mut self, dimensions: i64) -> Self {
         self.dimensions = Some(dimensions);
         self
     }
@@ -166,7 +166,7 @@ impl EmbeddingsBuilder {
 
     /// Access the configured dimensions, if set.
     #[must_use]
-    pub fn dimensions_ref(&self) -> Option<i32> {
+    pub fn dimensions_ref(&self) -> Option<i64> {
         self.dimensions
     }
 

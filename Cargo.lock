@@ -1160,9 +1160,9 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "openai-client-base"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "161afc67a7bd4bd71b3c6097a092f7607434e4e9d59af33bee4b3678ba05579c"
+checksum = "d236b7259998af8d2c81a30a7ed53d2198f1a0b6120c9c73aab8cc0965736a08"
 dependencies = [
  "bon",
  "reqwest",
