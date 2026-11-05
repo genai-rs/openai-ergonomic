@@ -237,7 +237,8 @@ impl ChatCompletionChunk {
 
     /// Get the role from this chunk, if any.
     ///
-    /// This is typically only present in the first chunk.
+    /// This is typically only present in the first chunk. `None` means this chunk has no role. A
+    /// role this crate does not know is `Some("unknown")`, and the API's own text is not kept.
     #[must_use]
     pub fn role(&self) -> Option<&str> {
         self.response
@@ -260,6 +261,9 @@ impl ChatCompletionChunk {
                 openai_client_base::models::chat_completion_stream_response_delta::Role::Developer => {
                     "developer"
                 }
+                openai_client_base::models::chat_completion_stream_response_delta::Role::Unknown => {
+                    "unknown"
+                }
             })
     }
 
@@ -276,7 +280,9 @@ impl ChatCompletionChunk {
 
     /// Get the finish reason, if any.
     ///
-    /// This indicates why the generation stopped and is only present in the last chunk.
+    /// This indicates why the generation stopped and is only present in the last chunk. A reason
+    /// this crate does not know is `Some("unknown")`, so [`Self::is_final`] still holds, and the
+    /// API's own text is not kept.
     #[must_use]
     pub fn finish_reason(&self) -> Option<&str> {
         self.response.choices.first().and_then(|choice| choice.finish_reason.as_ref()).and_then(Option::as_ref).map(|reason| {
@@ -286,6 +292,7 @@ impl ChatCompletionChunk {
                 openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::ToolCalls => "tool_calls",
                 openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::ContentFilter => "content_filter",
                 openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::FunctionCall => "function_call",
+                openai_client_base::models::create_chat_completion_stream_response_choices_inner::FinishReason::Unknown => "unknown",
             }
         })
     }
@@ -1257,6 +1264,37 @@ mod tests {
             let chunk = parse_sse_line(&format!("data: {event}")).unwrap().unwrap();
             assert_eq!(chunk.finish_reason(), Some(expected));
         }
+    }
+
+    #[test]
+    fn test_new_finish_reason_is_unknown_and_still_final() {
+        let chunk = parse_sse_line(
+            r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"kept"},"finish_reason":"brand_new_reason"}]}"#,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(chunk.finish_reason(), Some("unknown"));
+        // A stream must not read on for a last chunk because the API found a new way to stop.
+        assert!(chunk.is_final());
+        assert_eq!(chunk.content(), Some("kept"));
+    }
+
+    #[test]
+    fn test_new_role_is_unknown_not_absent() {
+        let with_new_role = parse_sse_line(
+            r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1,"model":"gpt-4","choices":[{"index":0,"delta":{"role":"brand_new_role","content":"kept"},"finish_reason":null}]}"#,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(with_new_role.role(), Some("unknown"));
+        assert_eq!(with_new_role.content(), Some("kept"));
+
+        let without_role = parse_sse_line(
+            r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"kept"},"finish_reason":null}]}"#,
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(without_role.role(), None);
     }
 
     #[test]

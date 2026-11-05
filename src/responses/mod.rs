@@ -141,6 +141,9 @@ impl ChatCompletionResponseWrapper {
     }
 
     /// Get the finish reason for the first choice.
+    ///
+    /// `None` means the response has no choices. A reason this crate does not know is
+    /// `Some("unknown")`, since the choice did finish, and the API's own text is not kept.
     pub fn finish_reason(&self) -> Option<String> {
         use openai_client_base::models::create_chat_completion_response_choices_inner::FinishReason;
         self.inner.choices.first().map(|c| match &c.finish_reason {
@@ -149,6 +152,7 @@ impl ChatCompletionResponseWrapper {
             FinishReason::ToolCalls => "tool_calls".to_string(),
             FinishReason::ContentFilter => "content_filter".to_string(),
             FinishReason::FunctionCall => "function_call".to_string(),
+            FinishReason::Unknown => "unknown".to_string(),
         })
     }
 
@@ -334,3 +338,31 @@ pub struct ResponseBuilder;
 /// Placeholder for the Response struct
 #[derive(Debug, Clone)]
 pub struct ResponsePlaceholder;
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
+    use super::*;
+
+    #[test]
+    fn a_new_finish_reason_is_some_unknown() {
+        let response: CreateChatCompletionResponse = serde_json::from_value(serde_json::json!({
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "created": 1,
+            "model": "gpt-test",
+            "choices": [{
+                "index": 0,
+                "finish_reason": "brand_new_reason",
+                "logprobs": null,
+                "message": {"role": "assistant", "content": "hi", "refusal": null}
+            }]
+        }))
+        .unwrap();
+
+        // The choice finished, so this is not `None`, and it is not passed off as a listed reason.
+        let wrapper = ChatCompletionResponseWrapper::new(response);
+        assert_eq!(wrapper.finish_reason().as_deref(), Some("unknown"));
+    }
+}
