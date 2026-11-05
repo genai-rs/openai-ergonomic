@@ -29,16 +29,16 @@ Add `openai-ergonomic` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-openai-ergonomic = "0.6"
+openai-ergonomic = "0.12"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
-Published version 0.6 uses `openai-client-base` 0.15.0. The 0.7 development line
-targets `openai-client-base` 0.16.0. Both require Rust 1.88 or newer. Generated
-request and response types follow their matching client release. Image generation
-and editing require an explicit `.model(...)`; choose the model before building
-or sending those requests. See the [0.7 migration guide](docs/migration-0.7.md) for
-the generated request field changes.
+Version 0.12 uses `openai-client-base` 0.22 and requires Rust 1.88 or newer.
+Generated request and response types follow their matching client release, so
+check the [changelog](CHANGELOG.md) when you upgrade across a minor version. Image
+generation and editing require an explicit `.model(...)`; choose the model before
+building or sending those requests. See the [0.7 migration guide](docs/migration-0.7.md)
+for the generated request field changes introduced in 0.7.
 
 ### Upgrading to 0.7
 
@@ -91,7 +91,7 @@ cargo feature, which is enabled by default. The interceptor needs an OpenTelemet
 and a Langfuse exporter:
 
 ```toml
-openai-ergonomic = "0.7"
+openai-ergonomic = "0.12"
 tokio = { version = "1", features = ["full"] }
 opentelemetry = { version = "0.33.1", features = ["trace"] }
 opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
