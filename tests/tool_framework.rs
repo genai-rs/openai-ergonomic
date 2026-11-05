@@ -253,6 +253,32 @@ async fn unsupported_and_empty_id_calls_never_execute() {
     assert_eq!(calls.load(Ordering::SeqCst), 0);
 }
 
+#[tokio::test]
+async fn a_call_of_a_new_type_never_executes_and_keeps_its_id() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut tools = ToolRegistry::new();
+    tools.register(Echo::new("echo", &calls)).unwrap();
+    // It even looks like a function call: what the type means is not known, so nothing runs.
+    let model_call: ChatCompletionMessageToolCallsInner = serde_json::from_value(json!({
+        "id": "new-id",
+        "type": "brand_new_tool",
+        "function": {"name": "echo", "arguments": r#"{"message":"ok"}"#}
+    }))
+    .unwrap();
+    assert!(matches!(
+        model_call,
+        ChatCompletionMessageToolCallsInner::Unknown(_)
+    ));
+    match tools.execute_call(&model_call).await.unwrap_err() {
+        ToolError::Call { call_id, source } => {
+            assert_eq!(call_id, "new-id");
+            assert!(matches!(*source, ToolError::InvalidCall { .. }));
+        }
+        other => panic!("unexpected {other}"),
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
 struct Dynamic;
 #[async_trait]
 impl FunctionTool for Dynamic {
