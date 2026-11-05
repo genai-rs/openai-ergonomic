@@ -193,30 +193,34 @@ impl Builder<CreateImageRequest> for ImageGenerationBuilder {
             }
         }
 
-        Ok(CreateImageRequest {
-            prompt: self.prompt,
-            model: self
-                .model
-                .filter(|model| !model.trim().is_empty())
-                .ok_or_else(|| {
-                    Error::InvalidRequest("Image generation requires a model".to_string())
-                })?,
-            n: self.n.map(Some),
-            quality: self.quality.map(Some),
-            response_format: self.response_format.map(Some),
-            output_format: self.output_format.map(Some),
-            output_compression: self.output_compression.map(Some),
-            stream: self.stream.map(Some),
-            partial_images: self.partial_images,
-            size: self.size.map(|size| {
+        let model = self
+            .model
+            .filter(|model| !model.trim().is_empty())
+            .ok_or_else(|| {
+                Error::InvalidRequest("Image generation requires a model".to_string())
+            })?;
+
+        // The generated builder, because a struct literal stops compiling when
+        // the spec adds an optional field.
+        Ok(CreateImageRequest::builder()
+            .prompt(self.prompt)
+            .model(model)
+            .maybe_n(self.n.map(Some))
+            .maybe_quality(self.quality.map(Some))
+            .maybe_response_format(self.response_format.map(Some))
+            .maybe_output_format(self.output_format.map(Some))
+            .maybe_output_compression(self.output_compression.map(Some))
+            .maybe_stream(self.stream.map(Some))
+            .maybe_partial_images(self.partial_images)
+            .maybe_size(self.size.map(|size| {
                 Some(openai_client_base::models::CreateImageRequestSize::TextVariant(size))
-            }),
-            moderation: self.moderation.map(Some),
-            background: self.background.map(Some),
-            style: self.style.map(Some),
-            safety_identifier: self.safety_identifier.map(Some),
-            user: self.user,
-        })
+            }))
+            .maybe_moderation(self.moderation.map(Some))
+            .maybe_background(self.background.map(Some))
+            .maybe_style(self.style.map(Some))
+            .maybe_safety_identifier(self.safety_identifier.map(Some))
+            .maybe_user(self.user)
+            .build())
     }
 }
 
