@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.13.0...v0.14.0) - 2026-11-06
+
+### Added
+
+- [**breaking**] re-exported openai-client-base types come from 0.24
+- parse chat streams with openai-client-base's sse::Events
+
+### Other
+
+- lock openai-client-base 0.24.0
+
 ## [0.13.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.12.0...v0.13.0) - 2026-11-06
 
 ### Added
