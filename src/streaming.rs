@@ -44,15 +44,16 @@
 
 use crate::interceptor::{StreamChunkContext, StreamEndContext, StreamTerminalContext};
 use crate::{Error, Result};
+#[cfg(test)]
 use bytes::Bytes;
 use futures::future::FutureExt;
 use futures::stream::Stream;
 use futures::StreamExt;
+use openai_client_base::apis::sse;
 use openai_client_base::models::{
     ChatCompletionStreamResponseDelta, CreateChatCompletionStreamResponse,
 };
 use std::any::Any;
-use std::collections::VecDeque;
 use std::future::Future;
 use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
@@ -329,10 +330,14 @@ impl ChatCompletionStream {
     ///
     /// Parses Server-Sent Events (SSE) format and yields chat completion chunks.
     pub fn new(response: reqwest::Response) -> Self {
-        let byte_stream = response.bytes_stream();
-        let stream = parse_sse_stream(byte_stream);
+        Self::from_events(sse::Events::from_response(response))
+    }
+
+    /// Create a stream from the events of a response, such as those of a generated `_stream` method
+    /// (`EventStream::into_events`).
+    pub fn from_events(events: sse::Events) -> Self {
         Self {
-            inner: Box::pin(stream),
+            inner: Box::pin(decode_events(events)),
         }
     }
 
@@ -942,153 +947,58 @@ fn panic_diagnostic(payload: &(dyn Any + Send)) -> String {
 
 /// Parse an SSE stream into chat completion chunks.
 ///
-/// Events are dispatched only when a blank line completes the event. Any partial line or
-/// event still buffered at end of stream is discarded, as required by the SSE format.
+/// The `text/event-stream` framing is `openai-client-base`'s parser ([`sse::Events`]): events are dispatched when a
+/// blank line completes them, an incomplete trailing event is discarded, and `data: [DONE]` ends the stream. Each
+/// payload is decoded here, so a parse error keeps the offending chunk. A parse or connection error ends the stream and
+/// releases the HTTP body at once.
+#[cfg(test)]
 fn parse_sse_stream<S>(byte_stream: S) -> impl Stream<Item = Result<ChatCompletionChunk>> + Send
 where
     S: Stream<Item = reqwest::Result<Bytes>> + Send + 'static,
 {
-    struct State<S> {
-        byte_stream: Pin<Box<S>>,
-        buffer: Vec<u8>,
-        swallow_lf: bool,
-        data_lines: Vec<String>,
-        ready: VecDeque<Result<ChatCompletionChunk>>,
-        terminated: bool,
-    }
+    decode_events(sse::Events::from_bytes(byte_stream))
+}
 
-    futures::stream::unfold(
-        State {
-            byte_stream: Box::pin(byte_stream),
-            buffer: Vec::new(),
-            swallow_lf: false,
-            data_lines: Vec::new(),
-            ready: VecDeque::new(),
-            terminated: false,
-        },
-        |mut state| async move {
-            loop {
-                if let Some(item) = state.ready.pop_front() {
-                    return Some((item, state));
+/// Decode the events of a chat completion stream; the first error is the last item.
+fn decode_events(events: sse::Events) -> impl Stream<Item = Result<ChatCompletionChunk>> + Send {
+    futures::stream::unfold(Some(events), |state| async move {
+        let mut events = state?;
+        loop {
+            match events.next().await? {
+                Ok(event) if event.data.is_empty() => {}
+                Ok(event) => {
+                    return Some(match decode_chunk(&event.data) {
+                        Ok(chunk) => (Ok(chunk), Some(events)),
+                        // Dropping the events drops the HTTP body.
+                        Err(error) => (Err(error), None),
+                    });
                 }
-                if state.terminated {
-                    return None;
-                }
-
-                match state.byte_stream.next().await {
-                    Some(Ok(bytes)) => {
-                        state.buffer.extend_from_slice(&bytes);
-                        while let Some(line) =
-                            take_sse_line(&mut state.buffer, &mut state.swallow_lf)
-                        {
-                            if process_sse_line(&line, &mut state.data_lines, &mut state.ready) {
-                                state.terminated = true;
-                                break;
-                            }
-                        }
-                    }
-                    Some(Err(error)) => {
-                        state.ready.push_back(Err(Error::StreamConnection {
+                Err(error) => {
+                    return Some((
+                        Err(Error::StreamConnection {
                             message: format!("Stream connection error: {error}"),
-                        }));
-                        state.terminated = true;
-                    }
-                    None => {
-                        // Other unterminated data remains buffered and, like an incomplete
-                        // event, is discarded.
-                        while let Some(line) =
-                            take_sse_line(&mut state.buffer, &mut state.swallow_lf)
-                        {
-                            if process_sse_line(&line, &mut state.data_lines, &mut state.ready) {
-                                state.terminated = true;
-                                break;
-                            }
-                        }
-                        state.buffer.clear();
-                        state.data_lines.clear();
-                        state.terminated = true;
-                    }
+                        }),
+                        None,
+                    ));
                 }
             }
-        },
-    )
+        }
+    })
     .fuse()
 }
 
-/// Remove one complete SSE line. A CR ends a line immediately; a following LF is swallowed.
-fn take_sse_line(buffer: &mut Vec<u8>, swallow_lf: &mut bool) -> Option<Vec<u8>> {
-    if *swallow_lf {
-        if buffer.first() == Some(&b'\n') {
-            buffer.drain(..1);
-            *swallow_lf = false;
-        } else if !buffer.is_empty() {
-            *swallow_lf = false;
-        }
-        if buffer.is_empty() {
-            return None;
-        }
-    }
-
-    for index in 0..buffer.len() {
-        match buffer[index] {
-            b'\n' => {
-                let line = buffer[..index].to_vec();
-                buffer.drain(..=index);
-                return Some(line);
-            }
-            b'\r' => {
-                let line = buffer[..index].to_vec();
-                buffer.drain(..=index);
-                *swallow_lf = true;
-                return Some(line);
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-/// Process one decoded SSE line. Returns true when the stream reaches DONE or a parse error.
-fn process_sse_line(
-    line_bytes: &[u8],
-    data_lines: &mut Vec<String>,
-    ready: &mut VecDeque<Result<ChatCompletionChunk>>,
-) -> bool {
-    let line = String::from_utf8_lossy(line_bytes).into_owned();
-    if line.is_empty() {
-        if data_lines.is_empty() {
-            return false;
-        }
-
-        let data = std::mem::take(data_lines).join("\n");
-        if data.is_empty() {
-            return false;
-        }
-        if data == "[DONE]" {
-            return true;
-        }
-
-        match parse_sse_line(&format!("data: {data}")) {
-            Ok(Some(chunk)) => ready.push_back(Ok(chunk)),
-            Ok(None) => {}
-            Err(error) => {
-                ready.push_back(Err(error));
-                return true;
-            }
-        }
-        return false;
-    }
-
-    if line.starts_with(':') {
-        return false;
-    }
-    if let Some(data) = line.strip_prefix("data:") {
-        data_lines.push(data.strip_prefix(' ').unwrap_or(data).to_string());
-    }
-    false
+/// Decode one `data:` payload.
+fn decode_chunk(data: &str) -> Result<ChatCompletionChunk> {
+    let response: CreateChatCompletionStreamResponse =
+        serde_json::from_str(data).map_err(|e| Error::StreamParsing {
+            message: format!("Failed to deserialize chunk: {e}"),
+            chunk: data.to_string(),
+        })?;
+    Ok(ChatCompletionChunk::new(response))
 }
 
 /// Parse a single SSE line into a chat completion chunk.
+#[cfg(test)]
 fn parse_sse_line(line: &str) -> Result<Option<ChatCompletionChunk>> {
     // Skip empty lines and comments
     if line.is_empty() || line.starts_with(':') {
@@ -1103,13 +1013,7 @@ fn parse_sse_line(line: &str) -> Result<Option<ChatCompletionChunk>> {
             return Ok(None);
         }
 
-        let response: CreateChatCompletionStreamResponse =
-            serde_json::from_str(data).map_err(|e| Error::StreamParsing {
-                message: format!("Failed to deserialize chunk: {e}"),
-                chunk: data.to_string(),
-            })?;
-
-        return Ok(Some(ChatCompletionChunk::new(response)));
+        return decode_chunk(data).map(Some);
     }
 
     // Ignore other SSE fields (event:, id:, retry:)
