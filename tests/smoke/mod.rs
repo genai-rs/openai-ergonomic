@@ -304,9 +304,9 @@ async fn smoke_test_parameter_boundaries() {
     let request = builder.build().expect("Should build request");
 
     assert_eq!(request.model, config.model);
-    assert_eq!(request.temperature, Some(0.7));
+    assert_eq!(request.temperature, Some(Some(0.7)));
     assert_eq!(request.max_tokens, Some(Some(100)));
-    assert_eq!(request.top_p, Some(0.9));
+    assert_eq!(request.top_p, Some(Some(0.9)));
     assert_eq!(request.frequency_penalty, Some(Some(0.1)));
     assert_eq!(request.presence_penalty, Some(Some(0.1)));
     assert_eq!(request.n, Some(Some(1)));
@@ -401,10 +401,10 @@ async fn smoke_test_comprehensive() {
     // Comprehensive validation
     assert_eq!(request.model, config.model);
     assert_eq!(request.messages.len(), 2);
-    assert_eq!(request.temperature, Some(0.7));
+    assert_eq!(request.temperature, Some(Some(0.7)));
     assert_eq!(request.max_tokens, Some(Some(200)));
     assert!(request.tools.is_some());
-    assert_eq!(request.user, Some("smoke-test-user".to_string()));
+    assert_eq!(request.user, Some(Some("smoke-test-user".to_string())));
 
     let tools = request.tools.unwrap();
     assert_eq!(tools.len(), 1);
