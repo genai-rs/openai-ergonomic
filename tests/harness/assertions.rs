@@ -126,14 +126,14 @@ pub fn assert_valid_chat_request(request: &CreateChatCompletionRequest) {
     }
 
     // Validate parameter ranges if present
-    if let Some(temp) = request.temperature {
+    if let Some(Some(temp)) = request.temperature {
         assert!(
             (0.0..=2.0).contains(&temp),
             "Temperature {temp} is out of valid range [0.0, 2.0]"
         );
     }
 
-    if let Some(top_p) = request.top_p {
+    if let Some(Some(top_p)) = request.top_p {
         assert!(
             (0.0..=1.0).contains(&top_p),
             "Top-p {top_p} is out of valid range [0.0, 1.0]"

@@ -11,7 +11,6 @@ use openai_client_base::models::{
     AssistantToolsFileSearchTypeOnly, CreateMessageRequest, CreateMessageRequestAttachmentsInner,
     CreateMessageRequestAttachmentsInnerToolsInner, CreateThreadRequest,
 };
-use serde_json::Value;
 
 use crate::{Builder, Result};
 
@@ -216,7 +215,7 @@ impl ThreadMessageBuilder {
 
 impl Builder<CreateMessageRequest> for ThreadMessageBuilder {
     fn build(self) -> Result<CreateMessageRequest> {
-        let mut request = CreateMessageRequest::new(self.role, Value::String(self.content));
+        let mut request = CreateMessageRequest::new(self.role, self.content.into());
         if !self.attachments.is_empty() {
             let attachments = self
                 .attachments
@@ -354,7 +353,12 @@ mod tests {
         let message = builder.build().expect("builder should succeed");
 
         assert_eq!(message.role, MessageRole::User);
-        assert_eq!(message.content, Value::String("Hello".to_string()));
+        assert_eq!(
+            message.content,
+            openai_client_base::models::CreateMessageRequestContent::TextContent(
+                "Hello".to_string()
+            )
+        );
         assert!(message.attachments.is_none());
         assert!(message.metadata.is_none());
     }
@@ -366,7 +370,10 @@ mod tests {
             .expect("builder should succeed");
 
         assert_eq!(message.role, MessageRole::User);
-        assert_eq!(message.content, Value::String(String::new()));
+        assert_eq!(
+            message.content,
+            openai_client_base::models::CreateMessageRequestContent::TextContent(String::new())
+        );
     }
 
     #[test]

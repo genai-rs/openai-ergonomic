@@ -79,17 +79,17 @@ fn test_chat_builder_all_parameters() {
 
     assert_eq!(request.model, "gpt-4");
     assert_eq!(request.messages.len(), 2);
-    assert_eq!(request.temperature, Some(0.7));
+    assert_eq!(request.temperature, Some(Some(0.7)));
     assert_eq!(request.max_tokens, Some(Some(500)));
     assert_eq!(request.max_completion_tokens, Some(Some(400)));
-    assert_eq!(request.top_p, Some(0.9));
+    assert_eq!(request.top_p, Some(Some(0.9)));
     assert_eq!(request.frequency_penalty, Some(Some(0.1)));
     assert_eq!(request.presence_penalty, Some(Some(0.1)));
     assert_eq!(request.n, Some(Some(1)));
     assert_eq!(request.seed, Some(Some(12345)));
     assert!(request.stop.is_some());
     assert!(request.tools.is_some());
-    assert_eq!(request.user, Some("test-user".to_string()));
+    assert_eq!(request.user, Some(Some("test-user".to_string())));
 }
 
 /// Test responses builder comprehensive functionality
@@ -122,7 +122,7 @@ fn test_responses_builder_comprehensive() {
 
     assert_eq!(request.model, "gpt-4");
     assert_eq!(request.messages.len(), 2);
-    assert_eq!(request.temperature, Some(0.8));
+    assert_eq!(request.temperature, Some(Some(0.8)));
     assert_eq!(request.max_completion_tokens, Some(Some(500)));
     assert!(request.tools.is_some());
     assert!(request.response_format.is_some());
@@ -265,7 +265,7 @@ fn test_parameter_boundary_validation() {
 
                 if should_be_valid {
                     let request = assert_builder_success!(builder);
-                    assert_eq!(request.temperature, Some(value));
+                    assert_eq!(request.temperature, Some(Some(value)));
                 } else {
                     let result = builder.build();
                     assert!(result.is_err(), "Temperature {value} should be invalid");
@@ -278,7 +278,7 @@ fn test_parameter_boundary_validation() {
 
                 if should_be_valid {
                     let request = assert_builder_success!(builder);
-                    assert_eq!(request.top_p, Some(value));
+                    assert_eq!(request.top_p, Some(Some(value)));
                 } else {
                     let result = builder.build();
                     assert!(result.is_err(), "Top-p {value} should be invalid");

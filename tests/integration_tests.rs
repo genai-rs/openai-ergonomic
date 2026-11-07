@@ -43,7 +43,7 @@ fn test_responses_builder_system_user_integration() {
 
     assert_eq!(request.model, "gpt-4");
     assert_eq!(request.messages.len(), 2);
-    assert_eq!(request.temperature, Some(0.7));
+    assert_eq!(request.temperature, Some(Some(0.7)));
     assert_eq!(request.max_tokens, Some(Some(100)));
 }
 
@@ -190,10 +190,10 @@ fn test_builder_parameter_validation() {
 
     let request = builder.build().unwrap();
 
-    assert_eq!(request.temperature, Some(0.0));
+    assert_eq!(request.temperature, Some(Some(0.0)));
     assert_eq!(request.max_tokens, Some(Some(1)));
     assert_eq!(request.n, Some(Some(1)));
-    assert_eq!(request.top_p, Some(0.1));
+    assert_eq!(request.top_p, Some(Some(0.1)));
     assert_eq!(request.frequency_penalty, Some(Some(-2.0)));
     assert_eq!(request.presence_penalty, Some(Some(2.0)));
 }

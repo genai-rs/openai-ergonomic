@@ -375,8 +375,8 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
                 .map(Some),
             stream: self.stream.map(Some),
             stream_options: None,
-            temperature: self.temperature,
-            top_p: self.top_p,
+            temperature: self.temperature.map(Some),
+            top_p: self.top_p.map(Some),
             tools: self.tools.map(|tools| {
                 tools
                     .into_iter()
@@ -385,7 +385,7 @@ impl super::Builder<CreateChatCompletionRequest> for ResponsesBuilder {
             }),
             tool_choice: self.tool_choice,
             parallel_tool_calls: None,
-            user: self.user,
+            user: self.user.map(Some),
             function_call: None,
             functions: None,
             store: None,

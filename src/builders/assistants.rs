@@ -304,14 +304,12 @@ impl MessageBuilder {
 
     /// Build a `CreateMessageRequest` from this builder.
     pub fn build(self) -> Result<models::CreateMessageRequest> {
-        use serde_json::json;
-
         let role = match self.role.as_str() {
             "assistant" => models::create_message_request::Role::Assistant,
             _ => models::create_message_request::Role::User, // Default for "user" and unknown
         };
 
-        let mut request = models::CreateMessageRequest::new(role, json!(self.content));
+        let mut request = models::CreateMessageRequest::new(role, self.content.into());
 
         if !self.attachments.is_empty() {
             let attachments: Vec<_> = self

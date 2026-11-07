@@ -248,7 +248,7 @@ fn test_builder_with_fixtures() {
     let request = builder.build().unwrap();
 
     assert_eq!(request.model, "gpt-4");
-    assert_eq!(request.temperature, Some(0.7));
+    assert_eq!(request.temperature, Some(Some(0.7)));
     assert_eq!(request.max_tokens, Some(Some(150)));
 }
 
