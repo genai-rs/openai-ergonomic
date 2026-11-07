@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.14.0...v0.14.1) - 2026-11-07
+
+### Added
+
+- send organization and project headers on every request and stream chat through the generated method
+
 ## [0.14.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.13.0...v0.14.0) - 2026-11-06
 
 ### Added
