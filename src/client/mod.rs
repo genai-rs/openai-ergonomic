@@ -126,6 +126,7 @@ mod completions;
 mod embeddings;
 mod files;
 mod fine_tuning;
+mod headers;
 mod images;
 mod models;
 mod moderations;
@@ -250,11 +251,17 @@ impl ClientBuilder {
             client_builder.build()
         };
 
+        // Send the organization and project headers with every request, including those of the
+        // generated openai-client-base operations.
+        let http_client = headers::with_organization_headers(http_client, &config)?;
+
         // Create openai-client-base configuration
         let mut base_configuration = Configuration::new();
 
         // Set the custom HTTP client (with Azure middleware if configured)
         base_configuration.client = http_client.clone();
+        base_configuration.user_agent =
+            Some(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")));
 
         // For Azure OpenAI, we don't use bearer token (handled by middleware)
         // For standard OpenAI, use bearer token
@@ -264,14 +271,6 @@ impl ClientBuilder {
 
         if let Some(base_url) = config.base_url() {
             base_configuration.base_path = base_url.to_string();
-        }
-
-        if let Some(org_id) = config.organization_id() {
-            base_configuration.user_agent = Some(format!(
-                "openai-ergonomic/{} org/{}",
-                env!("CARGO_PKG_VERSION"),
-                org_id
-            ));
         }
 
         Ok(Self {
@@ -671,26 +670,6 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
         crate::streaming::BoxedChatStream,
         crate::streaming::StreamCompletion,
     )> {
-        let uri_str = format!("{}/chat/completions", self.config.api_base());
-
-        let mut req_builder = self
-            .http_client()
-            .request(reqwest::Method::POST, &uri_str)
-            .bearer_auth(self.config.api_key())
-            .json(&request);
-
-        // Add organization ID if present
-        if let Some(org_id) = self.config.organization_id() {
-            req_builder = req_builder.header("OpenAI-Organization", org_id);
-        }
-
-        // Add project ID if present
-        if let Some(project_id) = self.config.project() {
-            req_builder = req_builder.header("OpenAI-Project", project_id);
-        }
-
-        let req = req_builder.build()?;
-
         // Serialize request for interceptors
         let request_json = serde_json::to_string(&request).unwrap_or_else(|_| "{}".to_string());
         let model = request.model.clone();
@@ -707,20 +686,16 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
             self.interceptors.before_request(&mut ctx).await?;
         }
 
-        let response = self.http_client().execute(req).await?;
+        let events = chat_api::create_chat_completion_stream()
+            .configuration(&self.base_configuration)
+            .create_chat_completion_request(request)
+            .call()
+            .await
+            .map_err(map_api_error)?;
 
-        let status = response.status();
-        if !status.is_success() {
-            let error_text = response.text().await?;
-            return Err(Error::Api {
-                status: status.as_u16(),
-                message: error_text,
-                error_type: None,
-                error_code: None,
-            });
-        }
-
-        let stream = crate::streaming::ChatCompletionStream::new(response);
+        // Decode the payloads here rather than through the generated stream, so that a parse
+        // error carries the offending chunk.
+        let stream = crate::streaming::ChatCompletionStream::from_events(events.into_events());
 
         let (intercepted, completion) = crate::streaming::InterceptedStream::new_with_completion(
             stream,
