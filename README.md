@@ -29,14 +29,20 @@ Add `openai-ergonomic` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-openai-ergonomic = "0.16"
+openai-ergonomic = "0.17"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
-Version 0.16 uses `openai-client-base` 0.27 and requires Rust 1.88 or newer.
+Version 0.17 uses `openai-client-base` 0.28 and requires Rust 1.88 or newer.
 Re-exported client types such as `Detail`, `UploadPurpose` and `CreateImageRequest`
-now come from `openai-client-base` 0.27, so code that names them directly from
-`openai-client-base` must move to 0.27 as well. Code that calls the generated
+now come from `openai-client-base` 0.28, so code that names them directly from
+`openai-client-base` must move to 0.28 as well. 0.28 changes two generated items:
+the `bucket_width` parameter of `organization_decisionsusage` is now
+`Option<models::DecisionsUsageBucketWidth>` instead of `Option<&str>`, and the values
+of `ChatkitWorkflow.state_variables` are now `Option<..>`, so a `null` value decodes.
+See the
+[0.27.0 to 0.28.0 migration notes](https://github.com/genai-rs/openai-client-base/blob/main/migration/api-diff-0.27.0-to-0.28.0.md).
+Code that calls the generated
 `openai-client-base` functions itself passes request bodies by reference (`&request`)
 from 0.27 on, and every generated model gains a `validate()` method
 (`openai_client_base::models::validation::Validate`) that checks the spec's limits;
@@ -107,7 +113,7 @@ cargo feature, which is enabled by default. The interceptor needs an OpenTelemet
 and a Langfuse exporter:
 
 ```toml
-openai-ergonomic = "0.16"
+openai-ergonomic = "0.17"
 tokio = { version = "1", features = ["full"] }
 opentelemetry = { version = "0.33.1", features = ["trace"] }
 opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
