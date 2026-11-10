@@ -74,7 +74,7 @@ impl<T: Default + Send + Sync> CompletionsClient<'_, T> {
         // Make the API call
         let response = match completions_api::create_completion()
             .configuration(&self.client.base_configuration)
-            .create_completion_request(request)
+            .create_completion_request(&request)
             .call()
             .await
         {

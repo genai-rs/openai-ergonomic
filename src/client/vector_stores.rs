@@ -82,7 +82,7 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
         // Make the API call
         let response = match vector_stores_api::create_vector_store()
             .configuration(&self.client.base_configuration)
-            .create_vector_store_request(request)
+            .create_vector_store_request(&request)
             .call()
             .await
         {
@@ -307,7 +307,7 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
         let response = match vector_stores_api::modify_vector_store()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&id)
-            .update_vector_store_request(request)
+            .update_vector_store_request(&request)
             .call()
             .await
         {
@@ -445,7 +445,7 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
         let response = match vector_stores_api::create_vector_store_file()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&vs_id)
-            .create_vector_store_file_request(request)
+            .create_vector_store_file_request(&request)
             .call()
             .await
         {
@@ -741,7 +741,7 @@ impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
         let response = match vector_stores_api::search_vector_store()
             .configuration(&self.client.base_configuration)
             .vector_store_id(&vs_id)
-            .vector_store_search_request(request)
+            .vector_store_search_request(&request)
             .call()
             .await
         {

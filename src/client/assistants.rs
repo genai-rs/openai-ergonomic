@@ -59,7 +59,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
         // Make the API call
         let response = match assistants_api::create_assistant()
             .configuration(&self.client.base_configuration)
-            .create_assistant_request(request)
+            .create_assistant_request(&request)
             .call()
             .await
         {
@@ -300,7 +300,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
         let response = match assistants_api::modify_assistant()
             .configuration(&self.client.base_configuration)
             .assistant_id(&id)
-            .modify_assistant_request(request)
+            .modify_assistant_request(&request)
             .call()
             .await
         {
@@ -437,7 +437,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
         let response = match assistants_api::create_run()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
-            .create_run_request(request)
+            .create_run_request(&request)
             .call()
             .await
         {
@@ -732,7 +732,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
             .run_id(&run_id)
-            .submit_tool_outputs_run_request(request)
+            .submit_tool_outputs_run_request(&request)
             .call()
             .await
         {
@@ -803,7 +803,7 @@ impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
         let response = match assistants_api::create_message()
             .configuration(&self.client.base_configuration)
             .thread_id(&thread_id)
-            .create_message_request(request)
+            .create_message_request(&request)
             .call()
             .await
         {

@@ -561,7 +561,7 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
         // Make the API call
         let response = match chat_api::create_chat_completion()
             .configuration(&self.base_configuration)
-            .create_chat_completion_request(request)
+            .create_chat_completion_request(&request)
             .call()
             .await
         {
@@ -688,7 +688,7 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
 
         let events = chat_api::create_chat_completion_stream()
             .configuration(&self.base_configuration)
-            .create_chat_completion_request(request)
+            .create_chat_completion_request(&request)
             .call()
             .await
             .map_err(map_api_error)?;
@@ -894,6 +894,7 @@ mod tests {
         let response = ResponseContent {
             status: reqwest::StatusCode::BAD_REQUEST,
             content: "bad request".to_string(),
+            headers: reqwest::header::HeaderMap::new(),
             entity: Option::<()>::None,
         };
 

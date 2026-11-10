@@ -33,10 +33,14 @@ openai-ergonomic = "0.15"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
-Version 0.15 uses `openai-client-base` 0.26 and requires Rust 1.88 or newer.
+Version 0.16 uses `openai-client-base` 0.27 and requires Rust 1.88 or newer.
 Re-exported client types such as `Detail`, `UploadPurpose` and `CreateImageRequest`
-now come from `openai-client-base` 0.26, so code that names them directly from
-`openai-client-base` must move to 0.26 as well. In 0.26, optional nullable fields
+now come from `openai-client-base` 0.27, so code that names them directly from
+`openai-client-base` must move to 0.27 as well. Code that calls the generated
+`openai-client-base` functions itself passes request bodies by reference (`&request`)
+from 0.27 on, and every generated model gains a `validate()` method
+(`openai_client_base::models::validation::Validate`) that checks the spec's limits;
+nothing calls it for you. Since 0.26, optional nullable fields
 such as `temperature`, `top_p`, `user` and `metadata` are `Option<Option<T>>`, and
 `CreateMessageRequest.content` and `PredictionContent.content` are typed unions
 instead of `serde_json::Value`. The builders still take plain values.

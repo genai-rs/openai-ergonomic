@@ -72,7 +72,7 @@ impl<T: Default + Send + Sync> BatchClient<'_, T> {
         // Make the API call
         let response = match batch_api::create_batch()
             .configuration(&self.client.base_configuration)
-            .create_batch_request(request)
+            .create_batch_request(&request)
             .call()
             .await
         {

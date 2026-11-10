@@ -49,7 +49,7 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
         // Make the API call
         let response = match images_api::create_image()
             .configuration(&self.client.base_configuration)
-            .create_image_request(request)
+            .create_image_request(&request)
             .call()
             .await
         {

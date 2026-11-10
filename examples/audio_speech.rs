@@ -151,7 +151,7 @@ async fn basic_text_to_speech(client: &Client) -> Result<(), Error> {
     let configuration = create_configuration(client);
     let response = audio_api::create_speech()
         .configuration(&configuration)
-        .create_speech_request(request)
+        .create_speech_request(&request)
         .call()
         .await
         .map_err(|e| Error::Api {
@@ -196,7 +196,7 @@ async fn voice_comparison_example(client: &Client) -> Result<(), Error> {
 
         match audio_api::create_speech()
             .configuration(&configuration)
-            .create_speech_request(request)
+            .create_speech_request(&request)
             .call()
             .await
         {
@@ -245,7 +245,7 @@ async fn audio_format_example(client: &Client) -> Result<(), Error> {
 
         match audio_api::create_speech()
             .configuration(&configuration)
-            .create_speech_request(request)
+            .create_speech_request(&request)
             .call()
             .await
         {
@@ -294,7 +294,7 @@ async fn speed_control_example(client: &Client) -> Result<(), Error> {
 
         match audio_api::create_speech()
             .configuration(&configuration)
-            .create_speech_request(request)
+            .create_speech_request(&request)
             .call()
             .await
         {
@@ -339,7 +339,7 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
 
     match audio_api::create_speech()
         .configuration(&configuration)
-        .create_speech_request(request.clone())
+        .create_speech_request(&request)
         .call()
         .await
     {
@@ -370,7 +370,7 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
 
             match audio_api::create_speech()
                 .configuration(&configuration)
-                .create_speech_request(fallback_request)
+                .create_speech_request(&fallback_request)
                 .call()
                 .await
             {
