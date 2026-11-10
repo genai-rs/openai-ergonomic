@@ -29,7 +29,7 @@ Add `openai-ergonomic` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-openai-ergonomic = "0.15"
+openai-ergonomic = "0.16"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -40,7 +40,13 @@ now come from `openai-client-base` 0.27, so code that names them directly from
 `openai-client-base` functions itself passes request bodies by reference (`&request`)
 from 0.27 on, and every generated model gains a `validate()` method
 (`openai_client_base::models::validation::Validate`) that checks the spec's limits;
-nothing calls it for you. Since 0.26, optional nullable fields
+nothing calls it for you. Error responses changed too: `apis::ResponseContent` gained
+a `headers` field, so code that builds one by hand adds
+`headers: reqwest::header::HeaderMap::new()`, and the variant in `entity` now follows
+the response status (exact code, then range, then the default response) instead of
+the first variant whose type accepts the body. See the
+[0.26.0 to 0.27.0 migration notes](https://github.com/genai-rs/openai-client-base/blob/main/migration/api-diff-0.26.0-to-0.27.0.md)
+for the full list. Since 0.26, optional nullable fields
 such as `temperature`, `top_p`, `user` and `metadata` are `Option<Option<T>>`, and
 `CreateMessageRequest.content` and `PredictionContent.content` are typed unions
 instead of `serde_json::Value`. The builders still take plain values.
@@ -101,7 +107,7 @@ cargo feature, which is enabled by default. The interceptor needs an OpenTelemet
 and a Langfuse exporter:
 
 ```toml
-openai-ergonomic = "0.15"
+openai-ergonomic = "0.16"
 tokio = { version = "1", features = ["full"] }
 opentelemetry = { version = "0.33.1", features = ["trace"] }
 opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
