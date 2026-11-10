@@ -52,7 +52,7 @@ impl<T: Default + Send + Sync> AudioClient<'_, T> {
         // Make the API call
         let response = match audio_api::create_speech()
             .configuration(&self.client.base_configuration)
-            .create_speech_request(request)
+            .create_speech_request(&request)
             .call()
             .await
         {

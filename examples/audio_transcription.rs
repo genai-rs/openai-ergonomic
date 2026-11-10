@@ -165,7 +165,7 @@ async fn create_sample_audio_files(client: &Client) -> Result<(), Error> {
 
             match audio_api::create_speech()
                 .configuration(&configuration)
-                .create_speech_request(request)
+                .create_speech_request(&request)
                 .call()
                 .await
             {

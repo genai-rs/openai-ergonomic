@@ -52,7 +52,7 @@ impl<T: Default + Send + Sync> UploadsClient<'_, T> {
         // Make the API call
         let response = match uploads_api::create_upload()
             .configuration(&self.client.base_configuration)
-            .create_upload_request(request)
+            .create_upload_request(&request)
             .call()
             .await
         {

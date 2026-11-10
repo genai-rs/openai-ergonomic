@@ -61,7 +61,7 @@ impl<T: Default + Send + Sync> EmbeddingsClient<'_, T> {
         // Make the API call
         let response = match embeddings_api::create_embedding()
             .configuration(&self.client.base_configuration)
-            .create_embedding_request(request)
+            .create_embedding_request(&request)
             .call()
             .await
         {

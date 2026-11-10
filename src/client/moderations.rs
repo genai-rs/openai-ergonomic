@@ -114,7 +114,7 @@ impl<T: Default + Send + Sync> ModerationsClient<'_, T> {
         // Make the API call
         let response = match moderations_api::create_moderation()
             .configuration(&self.client.base_configuration)
-            .create_moderation_request(request)
+            .create_moderation_request(&request)
             .call()
             .await
         {

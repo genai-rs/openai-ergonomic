@@ -75,7 +75,7 @@ impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
         // Make the API call
         let response = match fine_tuning_api::create_fine_tuning_job()
             .configuration(&self.client.base_configuration)
-            .create_fine_tuning_job_request(request)
+            .create_fine_tuning_job_request(&request)
             .call()
             .await
         {

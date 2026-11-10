@@ -46,7 +46,7 @@ impl<T: Default + Send + Sync> ThreadsClient<'_, T> {
         // Make the API call
         let response = match assistants_api::create_thread()
             .configuration(&self.client.base_configuration)
-            .maybe_create_thread_request(Some(request))
+            .maybe_create_thread_request(Some(&request))
             .call()
             .await
         {
