@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.17.0...v0.18.0) - 2026-11-12
+
+### Added
+
+- [**breaking**] upgrade to openai-client-base 0.29
+
 ## [0.17.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.16.0...v0.17.0) - 2026-11-10
 
 ### Added
