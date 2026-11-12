@@ -8,9 +8,10 @@
 use std::path::{Path, PathBuf};
 
 pub use openai_client_base::models::create_image_request::{
-    Background, Moderation, OutputFormat, Quality, ResponseFormat, Style,
+    Background, Moderation, Quality, ResponseFormat, Style,
 };
 pub use openai_client_base::models::create_image_request_size::CreateImageRequestSizeTextVariantEnum as Size;
+pub use openai_client_base::models::ImagesApiOutputFormat as OutputFormat;
 pub use openai_client_base::models::{CreateImageRequest, InputFidelity};
 
 /// Backwards-compatible alias for the generated `InputFidelity` enum.

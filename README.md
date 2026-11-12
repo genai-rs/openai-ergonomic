@@ -29,14 +29,20 @@ Add `openai-ergonomic` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-openai-ergonomic = "0.17"
+openai-ergonomic = "0.18"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
-Version 0.17 uses `openai-client-base` 0.28 and requires Rust 1.88 or newer.
+Version 0.18 uses `openai-client-base` 0.29 and requires Rust 1.88 or newer.
 Re-exported client types such as `Detail`, `UploadPurpose` and `CreateImageRequest`
-now come from `openai-client-base` 0.28, so code that names them directly from
-`openai-client-base` must move to 0.28 as well. 0.28 changes two generated items:
+now come from `openai-client-base` 0.29, so code that names them directly from
+`openai-client-base` must move to 0.29 as well. The re-exported image `OutputFormat`
+is now `openai-client-base`'s `ImagesApiOutputFormat`, which adds `Gif`, `Svg` and
+`Unknown`, so an exhaustive `match` on it must handle those. `ImageEditBuilder::output_format`
+still takes a string; a value that is not a known format is rejected with
+`Error::InvalidRequest` before the request is sent. See the
+[0.28.0 to 0.29.0 migration notes](https://github.com/genai-rs/openai-client-base/blob/main/migration/api-diff-0.28.0-to-0.29.0.md)
+for the other generated changes. 0.28 changed two generated items:
 the `bucket_width` parameter of `organization_decisionsusage` is now
 `Option<models::DecisionsUsageBucketWidth>` instead of `Option<&str>`, and the values
 of `ChatkitWorkflow.state_variables` are now `Option<..>`, so a `null` value decodes.
@@ -113,7 +119,7 @@ cargo feature, which is enabled by default. The interceptor needs an OpenTelemet
 and a Langfuse exporter:
 
 ```toml
-openai-ergonomic = "0.17"
+openai-ergonomic = "0.18"
 tokio = { version = "1", features = ["full"] }
 opentelemetry = { version = "0.33.1", features = ["trace"] }
 opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }

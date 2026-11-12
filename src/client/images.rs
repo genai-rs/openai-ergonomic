@@ -3,7 +3,7 @@
 use super::{map_api_error, Client};
 use crate::builders::images::{
     ImageEditBuilder, ImageEditRequest, ImageGenerationBuilder, ImageVariationBuilder,
-    ImageVariationRequest,
+    ImageVariationRequest, OutputFormat,
 };
 use crate::builders::Builder;
 use crate::errors::Result;
@@ -129,6 +129,12 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
             quality,
         } = request;
 
+        let output_format = output_format
+            .as_deref()
+            .map(str::parse::<OutputFormat>)
+            .transpose()
+            .map_err(|e| Error::InvalidRequest(format!("Invalid image output format: {e}")))?;
+
         let start_time = Instant::now();
 
         // Make the API call
@@ -142,7 +148,7 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
             .maybe_n(n)
             .maybe_size(size.map(Into::into))
             .maybe_response_format(response_format.as_deref())
-            .maybe_output_format(output_format.as_deref())
+            .maybe_output_format(output_format)
             .maybe_output_compression(output_compression)
             .maybe_user(user.as_deref())
             .maybe_input_fidelity(input_fidelity)
