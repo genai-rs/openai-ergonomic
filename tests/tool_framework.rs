@@ -1,5 +1,7 @@
 //! Consumer-level tool definition, dispatch and replay contracts.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// serde derives an empty field enum for `NoArgs {}` (clippy::empty_enums, new in Rust 1.100).
+#![allow(unknown_lints, clippy::empty_enums)]
 use async_trait::async_trait;
 use openai_client_base::models::ChatCompletionMessageToolCallsInner;
 use openai_ergonomic::{

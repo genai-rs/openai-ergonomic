@@ -1169,7 +1169,7 @@ dependencies = [
 
 [[package]]
 name = "openai-ergonomic"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
