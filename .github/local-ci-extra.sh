@@ -3,5 +3,6 @@
 # genai-rs/.github scripts/local-ci.sh after the shared checks.
 set -euo pipefail
 
-# ci.yml `build` matrix: release build for the host target.
+# ci.yml `build` matrix: release build for the host target only (CI builds
+# every target on main).
 cargo +stable build --release --all-features
