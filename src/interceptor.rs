@@ -42,7 +42,7 @@
 //! ```
 
 use crate::streaming::StreamOutcome;
-use crate::{BoxFuture, Result};
+use crate::{BoxFuture, MaybeSend, MaybeSync, Result};
 use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
@@ -169,14 +169,16 @@ pub struct ErrorContext<'a, T = ()> {
 /// the hooks you're interested in.
 ///
 /// Implement the hooks with plain `async fn`; no attribute macro is needed. The
-/// returned futures must be `Send`, which the compiler checks for each `async fn`.
+/// returned futures must be `Send` ([`MaybeSend`]), which the compiler checks for each
+/// `async fn`; on WebAssembly neither the interceptor nor its futures need to be `Send` or
+/// `Sync`.
 ///
 /// The generic type parameter `T` defines the state type that will be passed
 /// through the request lifecycle. Use `()` (the default) for simple interceptors
 /// that don't need to maintain state across hooks.
 ///
 /// `Box<I>` and `Arc<I>` implement `Interceptor<T>` whenever `I` does.
-pub trait Interceptor<T = ()>: Send + Sync {
+pub trait Interceptor<T = ()>: MaybeSend + MaybeSync {
     /// Called before a request is sent.
     ///
     /// This method can modify the state that will be passed through
@@ -184,7 +186,7 @@ pub trait Interceptor<T = ()>: Send + Sync {
     fn before_request(
         &self,
         _ctx: &mut BeforeRequestContext<'_, T>,
-    ) -> impl Future<Output = Result<()>> + Send {
+    ) -> impl Future<Output = Result<()>> + MaybeSend {
         async { Ok(()) }
     }
 
@@ -192,7 +194,7 @@ pub trait Interceptor<T = ()>: Send + Sync {
     fn after_response(
         &self,
         _ctx: &AfterResponseContext<'_, T>,
-    ) -> impl Future<Output = Result<()>> + Send {
+    ) -> impl Future<Output = Result<()>> + MaybeSend {
         async { Ok(()) }
     }
 
@@ -200,7 +202,7 @@ pub trait Interceptor<T = ()>: Send + Sync {
     fn on_stream_chunk(
         &self,
         _ctx: &StreamChunkContext<'_, T>,
-    ) -> impl Future<Output = Result<()>> + Send {
+    ) -> impl Future<Output = Result<()>> + MaybeSend {
         async { Ok(()) }
     }
 
@@ -208,7 +210,7 @@ pub trait Interceptor<T = ()>: Send + Sync {
     fn on_stream_end(
         &self,
         _ctx: &StreamEndContext<'_, T>,
-    ) -> impl Future<Output = Result<()>> + Send {
+    ) -> impl Future<Output = Result<()>> + MaybeSend {
         async { Ok(()) }
     }
 
@@ -220,9 +222,9 @@ pub trait Interceptor<T = ()>: Send + Sync {
     fn on_stream_terminal(
         &self,
         ctx: &StreamTerminalContext<'_, T>,
-    ) -> impl Future<Output = Result<()>> + Send
+    ) -> impl Future<Output = Result<()>> + MaybeSend
     where
-        T: Sync,
+        T: MaybeSync,
     {
         async move {
             if matches!(ctx.outcome, StreamOutcome::Completed) {
@@ -239,7 +241,7 @@ pub trait Interceptor<T = ()>: Send + Sync {
     /// [`Self::on_stream_terminal`] and is not automatically sent to this hook. Other request
     /// and non-streaming error paths retain their existing behavior. This method doesn't
     /// return a `Result` as it's called during error handling and shouldn't fail.
-    fn on_error(&self, _ctx: &ErrorContext<'_, T>) -> impl Future<Output = ()> + Send {
+    fn on_error(&self, _ctx: &ErrorContext<'_, T>) -> impl Future<Output = ()> + MaybeSend {
         // Default: no-op
         async {}
     }
@@ -251,42 +253,42 @@ macro_rules! forward_interceptor {
             fn before_request(
                 &self,
                 ctx: &mut BeforeRequestContext<'_, T>,
-            ) -> impl Future<Output = Result<()>> + Send {
+            ) -> impl Future<Output = Result<()>> + MaybeSend {
                 (**self).before_request(ctx)
             }
 
             fn after_response(
                 &self,
                 ctx: &AfterResponseContext<'_, T>,
-            ) -> impl Future<Output = Result<()>> + Send {
+            ) -> impl Future<Output = Result<()>> + MaybeSend {
                 (**self).after_response(ctx)
             }
 
             fn on_stream_chunk(
                 &self,
                 ctx: &StreamChunkContext<'_, T>,
-            ) -> impl Future<Output = Result<()>> + Send {
+            ) -> impl Future<Output = Result<()>> + MaybeSend {
                 (**self).on_stream_chunk(ctx)
             }
 
             fn on_stream_end(
                 &self,
                 ctx: &StreamEndContext<'_, T>,
-            ) -> impl Future<Output = Result<()>> + Send {
+            ) -> impl Future<Output = Result<()>> + MaybeSend {
                 (**self).on_stream_end(ctx)
             }
 
             fn on_stream_terminal(
                 &self,
                 ctx: &StreamTerminalContext<'_, T>,
-            ) -> impl Future<Output = Result<()>> + Send
+            ) -> impl Future<Output = Result<()>> + MaybeSend
             where
-                T: Sync,
+                T: MaybeSync,
             {
                 (**self).on_stream_terminal(ctx)
             }
 
-            fn on_error(&self, ctx: &ErrorContext<'_, T>) -> impl Future<Output = ()> + Send {
+            fn on_error(&self, ctx: &ErrorContext<'_, T>) -> impl Future<Output = ()> + MaybeSend {
                 (**self).on_error(ctx)
             }
         }
@@ -297,7 +299,7 @@ forward_interceptor!(Box, Arc);
 
 /// Object-safe form of [`Interceptor`], boxing each hook's future so that
 /// heterogeneous interceptors can be stored in one chain.
-pub(crate) trait ErasedInterceptor<T>: Send + Sync {
+pub(crate) trait ErasedInterceptor<T>: MaybeSend + MaybeSync {
     fn before_request<'a>(
         &'a self,
         ctx: &'a mut BeforeRequestContext<'_, T>,
@@ -316,7 +318,7 @@ pub(crate) trait ErasedInterceptor<T>: Send + Sync {
         ctx: &'a StreamTerminalContext<'_, T>,
     ) -> BoxFuture<'a, Result<()>>
     where
-        T: Sync;
+        T: MaybeSync;
     fn on_error<'a>(&'a self, ctx: &'a ErrorContext<'_, T>) -> BoxFuture<'a, ()>;
 }
 
@@ -347,7 +349,7 @@ impl<T, I: Interceptor<T>> ErasedInterceptor<T> for I {
         ctx: &'a StreamTerminalContext<'_, T>,
     ) -> BoxFuture<'a, Result<()>>
     where
-        T: Sync,
+        T: MaybeSync,
     {
         Box::pin(Interceptor::on_stream_terminal(self, ctx))
     }
@@ -401,7 +403,7 @@ impl<T> InterceptorChain<T> {
     /// Execute the `after_response` hook for all interceptors.
     pub async fn after_response(&self, ctx: &AfterResponseContext<'_, T>) -> Result<()>
     where
-        T: Sync,
+        T: MaybeSync,
     {
         for interceptor in &self.interceptors {
             interceptor.after_response(ctx).await?;
@@ -412,7 +414,7 @@ impl<T> InterceptorChain<T> {
     /// Execute the `on_stream_chunk` hook for all interceptors.
     pub async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_, T>) -> Result<()>
     where
-        T: Sync,
+        T: MaybeSync,
     {
         for interceptor in &self.interceptors {
             interceptor.on_stream_chunk(ctx).await?;
@@ -423,7 +425,7 @@ impl<T> InterceptorChain<T> {
     /// Execute the `on_stream_end` hook for all interceptors.
     pub async fn on_stream_end(&self, ctx: &StreamEndContext<'_, T>) -> Result<()>
     where
-        T: Sync,
+        T: MaybeSync,
     {
         for interceptor in &self.interceptors {
             interceptor.on_stream_end(ctx).await?;
@@ -437,7 +439,7 @@ impl<T> InterceptorChain<T> {
     /// cascading failures during error handling.
     pub async fn on_error(&self, ctx: &ErrorContext<'_, T>)
     where
-        T: Sync,
+        T: MaybeSync,
     {
         for interceptor in &self.interceptors {
             // Ignore errors in error handlers to prevent cascading failures

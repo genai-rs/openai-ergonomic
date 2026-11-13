@@ -5,10 +5,10 @@ use crate::builders::usage::UsageBuilder;
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::usage_api;
 use openai_client_base::models::UsageResponse;
-use std::time::Instant;
 
 /// Client for usage API.
 #[derive(Debug, Clone, Copy)]

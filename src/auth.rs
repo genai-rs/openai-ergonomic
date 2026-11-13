@@ -42,20 +42,22 @@
 //! # }
 //! ```
 
-use crate::{BoxFuture, Error, Result};
+use crate::time::Instant;
+use crate::{BoxFuture, Error, MaybeSend, MaybeSync, Result};
 use http::header::{HeaderName, HeaderValue, AUTHORIZATION};
 use http::{HeaderMap, Request, StatusCode};
 use std::fmt;
 use std::future::Future;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use timvw_rust_runtime::{Body, BoxError, ExposeSecret, SecretString};
 use tower::{Layer, Service, ServiceExt};
 
 /// Supplies the credentials of each request, and refreshes them after a `401`.
 ///
-/// Implement it with `async fn`s; the futures must be `Send`. See the
+/// Implement it with `async fn`s; the futures must be `Send` ([`MaybeSend`]: not on
+/// WebAssembly). See the
 /// [module documentation](self).
 ///
 /// ```rust
@@ -75,12 +77,15 @@ use tower::{Layer, Service, ServiceExt};
 ///     }
 /// }
 /// ```
-pub trait AuthProvider: Send + Sync + 'static {
+pub trait AuthProvider: MaybeSend + MaybeSync + 'static {
     /// Adds the credentials to a request to the provider, and returns the request to send.
     ///
     /// An error fails the request without sending it; it reaches the caller as
     /// [`Error::Http`] whose source is the error returned here.
-    fn apply(&self, request: Request<Body>) -> impl Future<Output = Result<Request<Body>>> + Send;
+    fn apply(
+        &self,
+        request: Request<Body>,
+    ) -> impl Future<Output = Result<Request<Body>>> + MaybeSend;
 
     /// Called when the provider rejected a request with `401 Unauthorized`, with the headers
     /// that request was sent with. Returns whether new credentials are available, in which case
@@ -90,14 +95,14 @@ pub trait AuthProvider: Send + Sync + 'static {
     fn refresh_after_unauthorized(
         &self,
         rejected_headers: &HeaderMap,
-    ) -> impl Future<Output = Result<bool>> + Send {
+    ) -> impl Future<Output = Result<bool>> + MaybeSend {
         let _ = rejected_headers;
         async { Ok(false) }
     }
 }
 
 /// [`AuthProvider`] with boxed futures, to be stored as a trait object.
-pub(crate) trait ErasedAuthProvider: Send + Sync {
+pub(crate) trait ErasedAuthProvider: MaybeSend + MaybeSync {
     fn apply(&self, request: Request<Body>) -> BoxFuture<'_, Result<Request<Body>>>;
     fn refresh_after_unauthorized<'a>(
         &'a self,
@@ -239,10 +244,10 @@ fn try_clone_request(request: &Request<Body>) -> Option<Request<Body>> {
 
 impl<S, B> Service<Request<Body>> for AuthService<S>
 where
-    S: Service<Request<Body>, Response = http::Response<B>> + Clone + Send + 'static,
+    S: Service<Request<Body>, Response = http::Response<B>> + Clone + MaybeSend + 'static,
     S::Error: Into<BoxError>,
-    S::Future: Send + 'static,
-    B: Send + 'static,
+    S::Future: MaybeSend + 'static,
+    B: MaybeSend + 'static,
 {
     type Response = http::Response<B>;
     type Error = BoxError;
@@ -316,6 +321,7 @@ impl AuthToken {
     }
 
     /// The token expires at `instant`: it is fetched again shortly (30 s) before that.
+    /// (`std::time::Instant`; `web_time::Instant` on WebAssembly.)
     #[must_use]
     pub fn expires_at(mut self, instant: Instant) -> Self {
         self.expires_at = Some(instant);
@@ -339,7 +345,10 @@ impl fmt::Debug for AuthToken {
 
 const EXPIRY_MARGIN: Duration = Duration::from_secs(30);
 
+#[cfg(not(target_family = "wasm"))]
 type Fetch = Arc<dyn Fn() -> BoxFuture<'static, Result<AuthToken>> + Send + Sync>;
+#[cfg(target_family = "wasm")]
+type Fetch = Arc<dyn Fn() -> BoxFuture<'static, Result<AuthToken>>>;
 
 /// An [`AuthProvider`] for bearer tokens fetched with a function of yours.
 ///
@@ -361,8 +370,8 @@ impl BearerTokenAuth {
     /// Tokens fetched with `fetch`.
     pub fn new<F, Fut>(fetch: F) -> Self
     where
-        F: Fn() -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = Result<AuthToken>> + Send + 'static,
+        F: Fn() -> Fut + MaybeSend + MaybeSync + 'static,
+        Fut: Future<Output = Result<AuthToken>> + MaybeSend + 'static,
     {
         Self {
             fetch: Arc::new(move || Box::pin(fetch())),

@@ -4,6 +4,7 @@ use super::{map_api_error, Client};
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::vector_stores_api;
 use openai_client_base::models::{
@@ -11,7 +12,6 @@ use openai_client_base::models::{
     ListVectorStoresResponse, VectorStoreFileObject, VectorStoreObject,
     VectorStoreSearchResultsPage,
 };
-use std::time::Instant;
 
 /// Client for vector stores API.
 #[derive(Debug, Clone, Copy)]

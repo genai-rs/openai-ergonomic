@@ -6,10 +6,10 @@ use crate::builders::Builder;
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::embeddings_api;
 use openai_client_base::models::CreateEmbeddingResponse;
-use std::time::Instant;
 
 /// Client for embeddings API.
 #[derive(Debug, Clone, Copy)]

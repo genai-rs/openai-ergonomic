@@ -9,10 +9,10 @@ use crate::builders::Builder;
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::images_api;
 use openai_client_base::models::ImagesResponse;
-use std::time::Instant;
 
 /// Client for images API.
 #[derive(Debug, Clone, Copy)]

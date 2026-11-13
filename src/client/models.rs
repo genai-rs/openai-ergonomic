@@ -5,10 +5,10 @@ use crate::builders::models::{ModelDeleteBuilder, ModelRetrievalBuilder};
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::models_api;
 use openai_client_base::models::{DeleteModelResponse, ListModelsResponse, Model};
-use std::time::Instant;
 
 /// Client for models API.
 #[derive(Debug, Clone, Copy)]

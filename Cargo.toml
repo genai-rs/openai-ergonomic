@@ -15,7 +15,7 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { path = "/Users/tim/runner-setup/workspace/_sessions/cse_01HMZBkbrVdWFeznYPW678Ks/openai-client-base", default-features = false, features = [
+openai-client-base = { version = "^0.32.0", default-features = false, features = [
     # Every model (`types`), and the API groups whose operations the client calls.
     "types",
     "administration", # usage
@@ -35,7 +35,8 @@ openai-client-base = { path = "/Users/tim/runner-setup/workspace/_sessions/cse_0
 ] }
 serde = { version = "^1.0.229", features = ["derive"] }
 serde_json = "^1.0.151"
-tokio = { version = "^1.53.3", features = ["rt", "macros", "sync", "time", "fs", "io-util"] }
+# `sync` and `macros` (`select!`) work on any target; the runtime, timers and files only natively (below).
+tokio = { version = "^1.53.3", features = ["macros", "sync"] }
 reqwest = { version = "^0.13.5", default-features = false }
 timvw-rust-runtime = { version = "^0.3.0", default-features = false, features = ["reqwest", "retry", "fs"] }
 tower = { version = "^0.5.2", default-features = false, features = ["util", "retry"] }
@@ -51,15 +52,26 @@ opentelemetry_sdk = { optional = true, version = "^0.33.1", features = ["rt-toki
 opentelemetry-otlp = { optional = true, version = "^0.33.1", default-features = false, features = ["trace", "http-proto", "reqwest-client"] }
 base64 = "^0.23.1"
 bytes = "^1.12.1"
-tokio-stream = { version = "^0.1.19", features = ["io-util"] }
-mockito = { version = "^1.7.2", optional = true }
 http = "^1.5.0"
 http-body = "^1.0.1"
 hmac = { version = "^0.12.1", optional = true }
 sha2 = { version = "^0.10.9", optional = true }
 
-[dev-dependencies]
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+# Streaming callbacks (`spawn`), retry backoff of upload parts (`time`), media saved to files (`fs`).
+tokio = { version = "^1.53.3", features = ["rt", "time", "fs"] }
+mockito = { version = "^1.7.2", optional = true }
+
+# WebAssembly in a JavaScript host (wasm32-unknown-unknown): streaming callbacks run with `spawn_local`, timers are the
+# host's `setTimeout` and clocks `performance.now()`/`Date.now()` (std's panic there). See "WebAssembly" in README.md.
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen-futures = "0.4"
+gloo-timers = { version = "0.3", features = ["futures"] }
+web-time = "1"
+
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 tokio = { version = "^1.53.3", features = ["full"] }
+tokio-stream = { version = "^0.1.19", features = ["io-util"] }
 mockito = "^1.7.2"
 tracing-subscriber = { version = "^0.3.23", features = ["env-filter"] }
 regex = "^1.13.1"
@@ -67,6 +79,10 @@ tempfile = "^3.27.0"
 rand = "^0.10.3"
 tower = { version = "^0.5.2", features = ["util", "retry", "timeout"] }
 reqwest = { version = "^0.13.5", default-features = false, features = ["json", "stream"] }
+
+# `tests/wasm.rs`, run in Node.js with wasm-bindgen-test-runner (see "WebAssembly" in README.md).
+[target.'cfg(target_family = "wasm")'.dev-dependencies]
+wasm-bindgen-test = "0.3"
 
 [features]
 default = ["rustls-tls", "otel"]
@@ -76,7 +92,8 @@ rustls-tls = ["openai-client-base/rustls", "timvw-rust-runtime/rustls"]
 native-tls = ["openai-client-base/native-tls", "timvw-rust-runtime/native-tls", "reqwest/native-tls-vendored"]
 # `timvw_rust_runtime::trace::TraceLayer`: logs each HTTP request and retry with `tracing`.
 tracing-http = ["timvw-rust-runtime/tracing", "openai-client-base/tracing"]
-test-utils = ["mockito"]
+# Native only (mockito).
+test-utils = ["dep:mockito"]
 # `webhooks`: verify the signatures of OpenAI webhook deliveries and decode their events.
 webhook = ["dep:hmac", "dep:sha2"]
 
