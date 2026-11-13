@@ -29,7 +29,7 @@
 //! let tracer = provider.tracer("openai-ergonomic");
 //! let interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
 //! let client = Client::from_env()?
-//!     .with_interceptor(Box::new(interceptor))
+//!     .with_interceptor(interceptor)
 //!     .build();
 //!
 //! // Traces are automatically sent to Langfuse
@@ -54,6 +54,7 @@ use opentelemetry_semantic_conventions::attribute::{
     GEN_AI_USAGE_OUTPUT_TOKENS,
 };
 use serde_json::Value;
+use std::future::Future;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, error, info};
 
@@ -216,12 +217,18 @@ where
     }
 }
 
-#[async_trait::async_trait]
-impl<T: Tracer + Send + Sync> Interceptor<LangfuseState<T::Span>> for LangfuseInterceptor<T>
+// The hooks only record spans synchronously; the trait impl below wraps them in
+// ready futures. They keep the `Interceptor` hook signatures, hence the allows.
+#[allow(
+    clippy::unnecessary_wraps,
+    clippy::unused_self,
+    clippy::needless_pass_by_ref_mut
+)]
+impl<T: Tracer + Send + Sync> LangfuseInterceptor<T>
 where
     T::Span: Send + Sync + 'static,
 {
-    async fn before_request(
+    fn record_before_request(
         &self,
         ctx: &mut BeforeRequestContext<'_, LangfuseState<T::Span>>,
     ) -> Result<()> {
@@ -292,7 +299,7 @@ where
         Ok(())
     }
 
-    async fn after_response(
+    fn record_after_response(
         &self,
         ctx: &AfterResponseContext<'_, LangfuseState<T::Span>>,
     ) -> Result<()> {
@@ -374,7 +381,7 @@ where
         Ok(())
     }
 
-    async fn on_stream_chunk(
+    fn record_on_stream_chunk(
         &self,
         _ctx: &StreamChunkContext<'_, LangfuseState<T::Span>>,
     ) -> Result<()> {
@@ -383,7 +390,7 @@ where
         Ok(())
     }
 
-    async fn on_stream_end(
+    fn record_on_stream_end(
         &self,
         ctx: &StreamEndContext<'_, LangfuseState<T::Span>>,
     ) -> Result<()> {
@@ -440,14 +447,14 @@ where
         Ok(())
     }
 
-    async fn on_stream_terminal(
+    fn record_on_stream_terminal(
         &self,
         ctx: &StreamTerminalContext<'_, LangfuseState<T::Span>>,
     ) -> Result<()> {
         use opentelemetry::trace::Span;
 
         if matches!(ctx.outcome, crate::streaming::StreamOutcome::Completed) {
-            return self.on_stream_end(&ctx.summary).await;
+            return self.record_on_stream_end(&ctx.summary);
         }
 
         let Some(mut span) = ctx
@@ -511,7 +518,7 @@ where
         Ok(())
     }
 
-    async fn on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
+    fn record_on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
         use opentelemetry::trace::{Span, Status};
 
         // Take the span from state if available
@@ -563,51 +570,56 @@ where
     }
 }
 
-// Implement Interceptor for Arc<LangfuseInterceptor<T>> to allow sharing the interceptor
-#[async_trait::async_trait]
-impl<T: Tracer + Send + Sync> Interceptor<LangfuseState<T::Span>> for Arc<LangfuseInterceptor<T>>
+impl<T: Tracer + Send + Sync> Interceptor<LangfuseState<T::Span>> for LangfuseInterceptor<T>
 where
     T::Span: Send + Sync + 'static,
 {
-    async fn before_request(
+    fn before_request(
         &self,
         ctx: &mut BeforeRequestContext<'_, LangfuseState<T::Span>>,
-    ) -> Result<()> {
-        (**self).before_request(ctx).await
+    ) -> impl Future<Output = Result<()>> + Send {
+        std::future::ready(self.record_before_request(ctx))
     }
 
-    async fn after_response(
+    fn after_response(
         &self,
         ctx: &AfterResponseContext<'_, LangfuseState<T::Span>>,
-    ) -> Result<()> {
-        (**self).after_response(ctx).await
+    ) -> impl Future<Output = Result<()>> + Send {
+        std::future::ready(self.record_after_response(ctx))
     }
 
-    async fn on_stream_chunk(
+    fn on_stream_chunk(
         &self,
         ctx: &StreamChunkContext<'_, LangfuseState<T::Span>>,
-    ) -> Result<()> {
-        (**self).on_stream_chunk(ctx).await
+    ) -> impl Future<Output = Result<()>> + Send {
+        std::future::ready(self.record_on_stream_chunk(ctx))
     }
 
-    async fn on_stream_end(
+    fn on_stream_end(
         &self,
         ctx: &StreamEndContext<'_, LangfuseState<T::Span>>,
-    ) -> Result<()> {
-        (**self).on_stream_end(ctx).await
+    ) -> impl Future<Output = Result<()>> + Send {
+        std::future::ready(self.record_on_stream_end(ctx))
     }
 
-    async fn on_stream_terminal(
+    fn on_stream_terminal(
         &self,
         ctx: &StreamTerminalContext<'_, LangfuseState<T::Span>>,
-    ) -> Result<()> {
-        (**self).on_stream_terminal(ctx).await
+    ) -> impl Future<Output = Result<()>> + Send {
+        std::future::ready(self.record_on_stream_terminal(ctx))
     }
 
-    async fn on_error(&self, ctx: &ErrorContext<'_, LangfuseState<T::Span>>) {
-        (**self).on_error(ctx).await;
+    fn on_error(
+        &self,
+        ctx: &ErrorContext<'_, LangfuseState<T::Span>>,
+    ) -> impl Future<Output = ()> + Send {
+        self.record_on_error(ctx);
+        std::future::ready(())
     }
 }
+
+// `Arc<LangfuseInterceptor<T>>` implements `Interceptor` through the blanket
+// `Arc<I>` forwarding implementation in `crate::interceptor`.
 
 #[cfg(test)]
 mod tests {

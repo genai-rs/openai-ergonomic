@@ -61,7 +61,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     // 4. Create the OpenAI client and add the Langfuse interceptor
     let client = Client::from_env()?
-        .with_interceptor(Box::new(langfuse_interceptor))
+        .with_interceptor(langfuse_interceptor)
         .build();
 
     println!("✅ Client initialized successfully!");
@@ -279,7 +279,6 @@ mod tests {
 
     struct TerminalCounter(Arc<AtomicUsize>);
 
-    #[async_trait::async_trait]
     impl Interceptor for TerminalCounter {
         async fn on_stream_terminal(
             &self,

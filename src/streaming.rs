@@ -1023,6 +1023,9 @@ fn parse_sse_line(line: &str) -> Result<Option<ChatCompletionChunk>> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+    // Test hooks are plain `async fn` without `.await`, as users write them; the lint
+    // exists only in newer Clippy, hence `unknown_lints` for the MSRV toolchain.
+    #![allow(unknown_lints, clippy::unused_async_trait_impl)]
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -1049,7 +1052,6 @@ mod tests {
 
     struct TerminalFlag(Arc<AtomicBool>);
 
-    #[async_trait::async_trait]
     impl crate::interceptor::Interceptor for TerminalFlag {
         async fn on_stream_terminal(&self, _ctx: &StreamTerminalContext<'_>) -> Result<()> {
             self.0.store(true, Ordering::SeqCst);

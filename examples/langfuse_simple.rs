@@ -53,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. Create the OpenAI client and add the Langfuse interceptor
     let client = Client::from_env()?
-        .with_interceptor(Box::new(langfuse_interceptor))
+        .with_interceptor(langfuse_interceptor)
         .build();
 
     println!(" Client initialized successfully!");

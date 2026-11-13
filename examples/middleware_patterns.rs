@@ -31,35 +31,47 @@
 //!
 //! Run with: `cargo run --example middleware_patterns`
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// Plain `async fn` hooks without `.await` are fine; newer Clippy's pedantic
+// `unused_async_trait_impl` would flag them (`unknown_lints` keeps Rust 1.88 quiet).
+#![allow(unknown_lints, clippy::unused_async_trait_impl)]
 
-use async_trait::async_trait;
 use openai_ergonomic::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
-/// Core middleware trait that all middleware must implement
-#[async_trait]
+/// Core middleware trait that all middleware must implement.
+///
+/// Implementations use plain `async fn`; the `+ Send` bound on each returned
+/// future lets the chain box them (see [`DynMiddleware`]).
 trait Middleware: Send + Sync + std::fmt::Debug {
     /// Process a request before it's sent to the API
-    async fn before_request(&self, context: &mut RequestContext) -> Result<()> {
-        let _ = context;
-        Ok(())
+    fn before_request(
+        &self,
+        _context: &mut RequestContext,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async { Ok(()) }
     }
 
     /// Process a response after it's received from the API
-    async fn after_response(&self, context: &mut ResponseContext) -> Result<()> {
-        let _ = context;
-        Ok(())
+    fn after_response(
+        &self,
+        _context: &mut ResponseContext,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async { Ok(()) }
     }
 
     /// Handle errors that occur during request processing
-    async fn on_error(&self, context: &mut ErrorContext) -> Result<ErrorAction> {
-        let _ = context;
-        Ok(ErrorAction::Propagate)
+    fn on_error(
+        &self,
+        _context: &mut ErrorContext,
+    ) -> impl Future<Output = Result<ErrorAction>> + Send {
+        async { Ok(ErrorAction::Propagate) }
     }
 
     /// Get middleware name for logging and debugging
@@ -68,6 +80,36 @@ trait Middleware: Send + Sync + std::fmt::Debug {
     /// Get middleware priority (lower values execute first)
     fn priority(&self) -> i32 {
         100
+    }
+}
+
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+/// Object-safe form of [`Middleware`] so different middlewares can share one
+/// `Vec<Arc<dyn DynMiddleware>>`. Every `Middleware` implements it.
+trait DynMiddleware: Send + Sync + std::fmt::Debug {
+    fn before_request<'a>(&'a self, context: &'a mut RequestContext) -> BoxFuture<'a, Result<()>>;
+    fn after_response<'a>(&'a self, context: &'a mut ResponseContext) -> BoxFuture<'a, Result<()>>;
+    fn on_error<'a>(&'a self, context: &'a mut ErrorContext) -> BoxFuture<'a, Result<ErrorAction>>;
+    fn name(&self) -> &str;
+    fn priority(&self) -> i32;
+}
+
+impl<M: Middleware> DynMiddleware for M {
+    fn before_request<'a>(&'a self, context: &'a mut RequestContext) -> BoxFuture<'a, Result<()>> {
+        Box::pin(Middleware::before_request(self, context))
+    }
+    fn after_response<'a>(&'a self, context: &'a mut ResponseContext) -> BoxFuture<'a, Result<()>> {
+        Box::pin(Middleware::after_response(self, context))
+    }
+    fn on_error<'a>(&'a self, context: &'a mut ErrorContext) -> BoxFuture<'a, Result<ErrorAction>> {
+        Box::pin(Middleware::on_error(self, context))
+    }
+    fn name(&self) -> &str {
+        Middleware::name(self)
+    }
+    fn priority(&self) -> i32 {
+        Middleware::priority(self)
     }
 }
 
@@ -136,7 +178,7 @@ enum ErrorAction {
 /// Middleware manager that orchestrates the middleware chain
 #[derive(Debug)]
 struct MiddlewareChain {
-    middlewares: Vec<Arc<dyn Middleware>>,
+    middlewares: Vec<Arc<dyn DynMiddleware>>,
 }
 
 impl MiddlewareChain {
@@ -148,7 +190,7 @@ impl MiddlewareChain {
     }
 
     /// Add middleware to the chain
-    fn add_middleware(mut self, middleware: Arc<dyn Middleware>) -> Self {
+    fn add_middleware(mut self, middleware: Arc<dyn DynMiddleware>) -> Self {
         self.middlewares.push(middleware);
         // Sort by priority to ensure correct execution order
         self.middlewares.sort_by_key(|m| m.priority());
@@ -328,7 +370,6 @@ impl AuthenticationMiddleware {
     }
 }
 
-#[async_trait]
 impl Middleware for AuthenticationMiddleware {
     async fn before_request(&self, context: &mut RequestContext) -> Result<()> {
         debug!("Adding authentication headers");
@@ -397,7 +438,6 @@ impl RateLimitingMiddleware {
     }
 }
 
-#[async_trait]
 impl Middleware for RateLimitingMiddleware {
     async fn before_request(&self, context: &mut RequestContext) -> Result<()> {
         if self.should_rate_limit() {
@@ -446,7 +486,6 @@ impl LoggingMiddleware {
     }
 }
 
-#[async_trait]
 impl Middleware for LoggingMiddleware {
     async fn before_request(&self, context: &mut RequestContext) -> Result<()> {
         if self.log_requests {
@@ -533,7 +572,6 @@ impl ValidationMiddleware {
     }
 }
 
-#[async_trait]
 impl Middleware for ValidationMiddleware {
     async fn before_request(&self, context: &mut RequestContext) -> Result<()> {
         // Validate request size
@@ -576,7 +614,6 @@ impl Middleware for ValidationMiddleware {
 #[derive(Debug)]
 struct ResponseTransformationMiddleware;
 
-#[async_trait]
 impl Middleware for ResponseTransformationMiddleware {
     async fn after_response(&self, context: &mut ResponseContext) -> Result<()> {
         // Add processing metadata to response
@@ -629,7 +666,6 @@ impl RetryMiddleware {
     }
 }
 
-#[async_trait]
 impl Middleware for RetryMiddleware {
     async fn on_error(&self, context: &mut ErrorContext) -> Result<ErrorAction> {
         match &context.error {
@@ -727,7 +763,6 @@ impl MetricsSnapshot {
     }
 }
 
-#[async_trait]
 impl Middleware for MetricsMiddleware {
     async fn before_request(&self, _context: &mut RequestContext) -> Result<()> {
         *self.request_count.lock().unwrap() += 1;
@@ -770,7 +805,7 @@ impl MiddlewareClient {
     }
 
     /// Add middleware to the client
-    fn with_middleware(mut self, middleware: Arc<dyn Middleware>) -> Self {
+    fn with_middleware(mut self, middleware: Arc<dyn DynMiddleware>) -> Self {
         self.chain = self.chain.add_middleware(middleware);
         self
     }
@@ -951,7 +986,6 @@ async fn main() -> Result<()> {
         }
     }
 
-    #[async_trait]
     impl Middleware for CustomHeaderMiddleware {
         async fn before_request(&self, context: &mut RequestContext) -> Result<()> {
             for (key, value) in &self.headers {
@@ -1026,7 +1060,6 @@ async fn main() -> Result<()> {
         }
     }
 
-    #[async_trait]
     impl Middleware for ConditionalMiddleware {
         async fn before_request(&self, context: &mut RequestContext) -> Result<()> {
             if (self.condition)(context) {
@@ -1104,7 +1137,6 @@ async fn main() -> Result<()> {
         }
     }
 
-    #[async_trait]
     impl Middleware for PerformanceMiddleware {
         async fn after_response(&self, context: &mut ResponseContext) -> Result<()> {
             if context.duration > self.slow_request_threshold {

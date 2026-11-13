@@ -97,7 +97,7 @@ let interceptor = LangfuseInterceptorBuilder::new()
     .build()?;
 
 let client = Client::from_env()?
-    .with_interceptor(Box::new(interceptor))
+    .with_interceptor(interceptor)
     .build();
 ```
 
@@ -169,7 +169,7 @@ use std::time::Duration;
 
 let interceptor = LangfuseInterceptor::from_env()?;
 let client = Client::from_env()?
-    .with_interceptor(Box::new(interceptor))
+    .with_interceptor(interceptor)
     .build();
 
 let builder = client.chat().user("Tell me a story");

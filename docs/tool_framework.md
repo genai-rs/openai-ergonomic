@@ -13,7 +13,7 @@ cargo run --example tool_framework_typed
 
 The [simple example](../examples/tool_framework.rs) defines a typed search tool with a required query and optional limit. The [chat example](../examples/tool_framework_typed.rs) registers two tools, reads shared application state asynchronously, and builds a complete assistant/tool exchange using actual client models. The crate's [`tool_framework` rustdoc](../src/tool_framework.rs) also contains a compiling minimal greeting tool.
 
-Implementations use `#[async_trait::async_trait]`, Serde input/output types, and `serde_json::json!` for the schema. Add `async-trait`, `serde` (with `derive`), and `serde_json` as direct application dependencies. Store clients or `Arc` state in your tool struct; `execute(&self, input)` can await I/O. The handler returns the crate's `Result<Output>`. Use `Error::application(domain_error)` to preserve custom error sources. Registry errors convert into the crate's `Error`, so `?` works in a function returning `openai_ergonomic::Result`.
+Implementations write `execute` as a plain `async fn` (no attribute macro; the returned future must be `Send`), use Serde input/output types, and `serde_json::json!` for the schema. Add `serde` (with `derive`) and `serde_json` as direct application dependencies. Store clients or `Arc` state in your tool struct; `execute(&self, input)` can await I/O. The handler returns the crate's `Result<Output>`. Use `Error::application(domain_error)` to preserve custom error sources. Registry errors convert into the crate's `Error`, so `?` works in a function returning `openai_ergonomic::Result`.
 
 ```rust,ignore
 let mut tools = ToolRegistry::new();

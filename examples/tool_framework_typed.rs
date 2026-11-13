@@ -1,7 +1,9 @@
 //! Multiple tools, async application state and a complete chat replay, offline.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// Plain `async fn` hooks without `.await` are fine; newer Clippy's pedantic
+// `unused_async_trait_impl` would flag them (`unknown_lints` keeps Rust 1.88 quiet).
+#![allow(unknown_lints, clippy::unused_async_trait_impl)]
 
-use async_trait::async_trait;
 use openai_client_base::models::{
     ChatCompletionMessageToolCallsInner, CreateChatCompletionResponse,
 };
@@ -34,7 +36,6 @@ struct Lookup {
     records: Arc<RwLock<BTreeMap<String, String>>>,
 }
 
-#[async_trait]
 impl FunctionTool for Lookup {
     type Input = LookupInput;
     type Output = LookupOutput;
@@ -62,7 +63,6 @@ impl FunctionTool for Lookup {
 
 // Dynamic JSON uses the same trait. Validate application constraints in execute.
 struct Echo;
-#[async_trait]
 impl FunctionTool for Echo {
     type Input = Value;
     type Output = Value;

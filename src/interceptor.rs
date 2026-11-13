@@ -26,7 +26,6 @@
 //!
 //! struct LoggingInterceptor;
 //!
-//! #[async_trait::async_trait]
 //! impl Interceptor for LoggingInterceptor {
 //!     async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
 //!         println!("Calling {} with model {}", ctx.operation, ctx.model);
@@ -36,14 +35,16 @@
 //!
 //! # fn example() -> Result<()> {
 //! let client = Client::from_env()?
-//!     .with_interceptor(Box::new(LoggingInterceptor))
+//!     .with_interceptor(LoggingInterceptor)
 //!     .build();
 //! # Ok(())
 //! # }
 //! ```
 
 use crate::streaming::StreamOutcome;
-use crate::Result;
+use crate::{BoxFuture, Result};
+use std::future::Future;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Context provided before a request is sent.
@@ -167,32 +168,48 @@ pub struct ErrorContext<'a, T = ()> {
 /// All methods have default no-op implementations, so you only need to implement
 /// the hooks you're interested in.
 ///
+/// Implement the hooks with plain `async fn`; no attribute macro is needed. The
+/// returned futures must be `Send`, which the compiler checks for each `async fn`.
+///
 /// The generic type parameter `T` defines the state type that will be passed
 /// through the request lifecycle. Use `()` (the default) for simple interceptors
 /// that don't need to maintain state across hooks.
-#[async_trait::async_trait]
+///
+/// `Box<I>` and `Arc<I>` implement `Interceptor<T>` whenever `I` does.
 pub trait Interceptor<T = ()>: Send + Sync {
     /// Called before a request is sent.
     ///
     /// This method can modify the state that will be passed through
     /// the request lifecycle.
-    async fn before_request(&self, _ctx: &mut BeforeRequestContext<'_, T>) -> Result<()> {
-        Ok(())
+    fn before_request(
+        &self,
+        _ctx: &mut BeforeRequestContext<'_, T>,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async { Ok(()) }
     }
 
     /// Called after a successful non-streaming response is received.
-    async fn after_response(&self, _ctx: &AfterResponseContext<'_, T>) -> Result<()> {
-        Ok(())
+    fn after_response(
+        &self,
+        _ctx: &AfterResponseContext<'_, T>,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async { Ok(()) }
     }
 
     /// Called for each chunk in a streaming response.
-    async fn on_stream_chunk(&self, _ctx: &StreamChunkContext<'_, T>) -> Result<()> {
-        Ok(())
+    fn on_stream_chunk(
+        &self,
+        _ctx: &StreamChunkContext<'_, T>,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async { Ok(()) }
     }
 
     /// Called when a streaming response completes successfully.
-    async fn on_stream_end(&self, _ctx: &StreamEndContext<'_, T>) -> Result<()> {
-        Ok(())
+    fn on_stream_end(
+        &self,
+        _ctx: &StreamEndContext<'_, T>,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async { Ok(()) }
     }
 
     /// Called once when an established stream completes, fails, or is cancelled.
@@ -200,14 +217,19 @@ pub trait Interceptor<T = ()>: Send + Sync {
     /// By default, successful completion is forwarded to [`Self::on_stream_end`].
     /// Failure and cancellation do not call `on_stream_end`. An override that also needs its
     /// existing successful end behavior must explicitly call `on_stream_end` for `Completed`.
-    async fn on_stream_terminal(&self, ctx: &StreamTerminalContext<'_, T>) -> Result<()>
+    fn on_stream_terminal(
+        &self,
+        ctx: &StreamTerminalContext<'_, T>,
+    ) -> impl Future<Output = Result<()>> + Send
     where
         T: Sync,
     {
-        if matches!(ctx.outcome, StreamOutcome::Completed) {
-            self.on_stream_end(&ctx.summary).await
-        } else {
-            Ok(())
+        async move {
+            if matches!(ctx.outcome, StreamOutcome::Completed) {
+                self.on_stream_end(&ctx.summary).await
+            } else {
+                Ok(())
+            }
         }
     }
 
@@ -217,8 +239,120 @@ pub trait Interceptor<T = ()>: Send + Sync {
     /// [`Self::on_stream_terminal`] and is not automatically sent to this hook. Other request
     /// and non-streaming error paths retain their existing behavior. This method doesn't
     /// return a `Result` as it's called during error handling and shouldn't fail.
-    async fn on_error(&self, _ctx: &ErrorContext<'_, T>) {
+    fn on_error(&self, _ctx: &ErrorContext<'_, T>) -> impl Future<Output = ()> + Send {
         // Default: no-op
+        async {}
+    }
+}
+
+macro_rules! forward_interceptor {
+    ($($pointer:ident),+) => {$(
+        impl<T, I: Interceptor<T> + ?Sized> Interceptor<T> for $pointer<I> {
+            fn before_request(
+                &self,
+                ctx: &mut BeforeRequestContext<'_, T>,
+            ) -> impl Future<Output = Result<()>> + Send {
+                (**self).before_request(ctx)
+            }
+
+            fn after_response(
+                &self,
+                ctx: &AfterResponseContext<'_, T>,
+            ) -> impl Future<Output = Result<()>> + Send {
+                (**self).after_response(ctx)
+            }
+
+            fn on_stream_chunk(
+                &self,
+                ctx: &StreamChunkContext<'_, T>,
+            ) -> impl Future<Output = Result<()>> + Send {
+                (**self).on_stream_chunk(ctx)
+            }
+
+            fn on_stream_end(
+                &self,
+                ctx: &StreamEndContext<'_, T>,
+            ) -> impl Future<Output = Result<()>> + Send {
+                (**self).on_stream_end(ctx)
+            }
+
+            fn on_stream_terminal(
+                &self,
+                ctx: &StreamTerminalContext<'_, T>,
+            ) -> impl Future<Output = Result<()>> + Send
+            where
+                T: Sync,
+            {
+                (**self).on_stream_terminal(ctx)
+            }
+
+            fn on_error(&self, ctx: &ErrorContext<'_, T>) -> impl Future<Output = ()> + Send {
+                (**self).on_error(ctx)
+            }
+        }
+    )+};
+}
+
+forward_interceptor!(Box, Arc);
+
+/// Object-safe form of [`Interceptor`], boxing each hook's future so that
+/// heterogeneous interceptors can be stored in one chain.
+pub(crate) trait ErasedInterceptor<T>: Send + Sync {
+    fn before_request<'a>(
+        &'a self,
+        ctx: &'a mut BeforeRequestContext<'_, T>,
+    ) -> BoxFuture<'a, Result<()>>;
+    fn after_response<'a>(
+        &'a self,
+        ctx: &'a AfterResponseContext<'_, T>,
+    ) -> BoxFuture<'a, Result<()>>;
+    fn on_stream_chunk<'a>(
+        &'a self,
+        ctx: &'a StreamChunkContext<'_, T>,
+    ) -> BoxFuture<'a, Result<()>>;
+    fn on_stream_end<'a>(&'a self, ctx: &'a StreamEndContext<'_, T>) -> BoxFuture<'a, Result<()>>;
+    fn on_stream_terminal<'a>(
+        &'a self,
+        ctx: &'a StreamTerminalContext<'_, T>,
+    ) -> BoxFuture<'a, Result<()>>
+    where
+        T: Sync;
+    fn on_error<'a>(&'a self, ctx: &'a ErrorContext<'_, T>) -> BoxFuture<'a, ()>;
+}
+
+impl<T, I: Interceptor<T>> ErasedInterceptor<T> for I {
+    fn before_request<'a>(
+        &'a self,
+        ctx: &'a mut BeforeRequestContext<'_, T>,
+    ) -> BoxFuture<'a, Result<()>> {
+        Box::pin(Interceptor::before_request(self, ctx))
+    }
+    fn after_response<'a>(
+        &'a self,
+        ctx: &'a AfterResponseContext<'_, T>,
+    ) -> BoxFuture<'a, Result<()>> {
+        Box::pin(Interceptor::after_response(self, ctx))
+    }
+    fn on_stream_chunk<'a>(
+        &'a self,
+        ctx: &'a StreamChunkContext<'_, T>,
+    ) -> BoxFuture<'a, Result<()>> {
+        Box::pin(Interceptor::on_stream_chunk(self, ctx))
+    }
+    fn on_stream_end<'a>(&'a self, ctx: &'a StreamEndContext<'_, T>) -> BoxFuture<'a, Result<()>> {
+        Box::pin(Interceptor::on_stream_end(self, ctx))
+    }
+    fn on_stream_terminal<'a>(
+        &'a self,
+        ctx: &'a StreamTerminalContext<'_, T>,
+    ) -> BoxFuture<'a, Result<()>>
+    where
+        T: Sync,
+    {
+        Box::pin(Interceptor::on_stream_terminal(self, ctx))
+    }
+    fn on_error<'a>(&'a self, ctx: &'a ErrorContext<'_, T>) -> BoxFuture<'a, ()> {
+        Box::pin(Interceptor::on_error(self, ctx))
     }
 }
 
@@ -231,7 +365,7 @@ pub trait Interceptor<T = ()>: Send + Sync {
 /// through the request lifecycle. Use `()` (the default) for interceptors
 /// that don't need to maintain state.
 pub struct InterceptorChain<T = ()> {
-    interceptors: Vec<Box<dyn Interceptor<T>>>,
+    interceptors: Vec<Box<dyn ErasedInterceptor<T>>>,
 }
 
 impl<T> Default for InterceptorChain<T> {
@@ -251,8 +385,9 @@ impl<T> InterceptorChain<T> {
     /// Add an interceptor to the chain.
     ///
     /// Interceptors are executed in the order they are added.
-    pub fn add(&mut self, interceptor: Box<dyn Interceptor<T>>) {
-        self.interceptors.push(interceptor);
+    /// Accepts any interceptor by value, including a `Box<I>` or `Arc<I>`.
+    pub fn add<I: Interceptor<T> + 'static>(&mut self, interceptor: I) {
+        self.interceptors.push(Box::new(interceptor));
     }
 
     /// Execute the `before_request` hook for all interceptors.
@@ -320,7 +455,7 @@ impl<T> InterceptorChain<T> {
         self.interceptors.len()
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &dyn Interceptor<T>> {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &dyn ErasedInterceptor<T>> {
         self.interceptors.iter().map(Box::as_ref)
     }
 }
@@ -328,6 +463,9 @@ impl<T> InterceptorChain<T> {
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+    // Test hooks are plain `async fn` without `.await`, as users write them; the lint
+    // exists only in newer Clippy, hence `unknown_lints` for the MSRV toolchain.
+    #![allow(unknown_lints, clippy::unused_async_trait_impl)]
     use super::*;
     use std::collections::HashMap;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -355,7 +493,6 @@ mod tests {
         }
     }
 
-    #[async_trait::async_trait]
     impl Interceptor for TestInterceptor {
         async fn before_request(&self, _ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
             self.before_request_count.fetch_add(1, Ordering::SeqCst);
@@ -412,7 +549,6 @@ mod tests {
     async fn test_interceptor_chain_handles_errors() {
         struct FailingInterceptor;
 
-        #[async_trait::async_trait]
         impl Interceptor for FailingInterceptor {
             async fn before_request(&self, _ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
                 Err(crate::Error::Internal("Test error".to_string()))
@@ -455,7 +591,6 @@ mod tests {
     async fn test_state_passing() {
         struct StateInterceptor;
 
-        #[async_trait::async_trait]
         impl Interceptor<HashMap<String, String>> for StateInterceptor {
             async fn before_request(
                 &self,
@@ -489,7 +624,6 @@ mod tests {
             called: Arc<AtomicUsize>,
         }
 
-        #[async_trait::async_trait]
         impl Interceptor for ErrorInterceptor {
             async fn on_error(&self, _ctx: &ErrorContext<'_>) {
                 self.called.fetch_add(1, Ordering::SeqCst);

@@ -1,7 +1,9 @@
 //! Define a typed tool and execute it locally. No API key required.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// Plain `async fn` hooks without `.await` are fine; newer Clippy's pedantic
+// `unused_async_trait_impl` would flag them (`unknown_lints` keeps Rust 1.88 quiet).
+#![allow(unknown_lints, clippy::unused_async_trait_impl)]
 
-use async_trait::async_trait;
 use openai_ergonomic::{Error, FunctionTool, Result, ToolRegistry};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -20,7 +22,6 @@ struct SearchResults {
 
 struct Search;
 
-#[async_trait]
 impl FunctionTool for Search {
     type Input = SearchParams;
     type Output = SearchResults;

@@ -1,8 +1,9 @@
 //! Consumer-level tool definition, dispatch and replay contracts.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 // serde derives an empty field enum for `NoArgs {}` (clippy::empty_enums, new in Rust 1.100).
-#![allow(unknown_lints, clippy::empty_enums)]
-use async_trait::async_trait;
+// Plain `async fn` tools without `.await` are fine; newer Clippy's pedantic
+// `unused_async_trait_impl` would flag them (`unknown_lints` keeps Rust 1.88 quiet).
+#![allow(unknown_lints, clippy::empty_enums, clippy::unused_async_trait_impl)]
 use openai_client_base::models::ChatCompletionMessageToolCallsInner;
 use openai_ergonomic::{
     builders::{chat::ChatCompletionBuilder, Builder},
@@ -40,7 +41,6 @@ impl Echo {
         }
     }
 }
-#[async_trait]
 impl FunctionTool for Echo {
     type Input = Input;
     type Output = String;
@@ -282,7 +282,6 @@ async fn a_call_of_a_new_type_never_executes_and_keeps_its_id() {
 }
 
 struct Dynamic;
-#[async_trait]
 impl FunctionTool for Dynamic {
     type Input = Value;
     type Output = Value;
@@ -306,7 +305,6 @@ impl Serialize for BadOutput {
     }
 }
 struct BadEncoder;
-#[async_trait]
 impl FunctionTool for BadEncoder {
     type Input = Value;
     type Output = BadOutput;
@@ -347,7 +345,6 @@ async fn dynamic_json_and_output_encoding_failures() {
 struct Stateful {
     revision: Arc<AtomicUsize>,
 }
-#[async_trait]
 impl FunctionTool for Stateful {
     type Input = Value;
     type Output = usize;
@@ -396,7 +393,6 @@ struct MissingRecord;
 #[serde(deny_unknown_fields)]
 struct NoArgs {}
 struct FailingTool;
-#[async_trait]
 impl FunctionTool for FailingTool {
     type Input = NoArgs;
     type Output = Value;
