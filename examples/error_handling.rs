@@ -220,7 +220,7 @@ async fn auth_error_handling() -> Result<()> {
 
 async fn network_error_handling() -> Result<()> {
     use openai_ergonomic::Config;
-    use reqwest_middleware::ClientBuilder;
+    use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
 
     // Create a reqwest client with very short timeout to simulate network issues
     let reqwest_client = reqwest::Client::builder()
@@ -228,7 +228,8 @@ async fn network_error_handling() -> Result<()> {
         .build()
         .expect("Failed to build reqwest client");
 
-    let http_client = ClientBuilder::new(reqwest_client).build();
+    // The bare reqwest service, without retries, so the failure surfaces at once.
+    let http_client = HttpClient::from_service(ReqwestService::new(reqwest_client));
 
     let config = Config::builder()
         .api_key("test-key")

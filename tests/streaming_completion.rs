@@ -173,7 +173,9 @@ async fn intercepted(
     drop(mock);
     drop(server);
 
-    let response = reqwest::Response::from(http::Response::new(bytes));
+    let response = timvw_rust_runtime::Response::from(http::Response::new(
+        timvw_rust_runtime::Body::from(bytes),
+    ));
     let (events, receiver) = mpsc::unbounded_channel();
     let mut chain = InterceptorChain::new();
     for probe in build_probes(events) {
@@ -481,7 +483,9 @@ async fn drop_before_first_poll_is_cancelled_and_drains_terminal_hook() {
     let (events, mut calls) = mpsc::unbounded_channel();
     let mut chain = InterceptorChain::new();
     chain.add(Box::new(probe(0, &events)));
-    let response = reqwest::Response::from(http::Response::new(bytes::Bytes::new()));
+    let response = timvw_rust_runtime::Response::from(http::Response::new(
+        timvw_rust_runtime::Body::from(bytes::Bytes::new()),
+    ));
     let (stream, completion) = InterceptedStream::new_with_completion(
         ChatCompletionStream::new(response),
         Arc::new(chain),
@@ -511,7 +515,9 @@ async fn shared_interceptors_can_process_different_streams_concurrently() {
     chain.add(Box::new(probe(0, &events)));
     let chain = Arc::new(chain);
     let make_stream = |body: String| {
-        let response = reqwest::Response::from(http::Response::new(bytes::Bytes::from(body)));
+        let response = timvw_rust_runtime::Response::from(http::Response::new(
+            timvw_rust_runtime::Body::from(bytes::Bytes::from(body)),
+        ));
         InterceptedStream::new_with_completion(
             ChatCompletionStream::new(response),
             Arc::clone(&chain),
@@ -625,7 +631,9 @@ async fn client_chat_and_responses_methods_return_completion_handles() {
 
 #[test]
 fn direct_completion_constructor_reports_missing_runtime_without_panicking() {
-    let response = reqwest::Response::from(http::Response::new(bytes::Bytes::new()));
+    let response = timvw_rust_runtime::Response::from(http::Response::new(
+        timvw_rust_runtime::Body::from(bytes::Bytes::new()),
+    ));
     let chain = Arc::new(InterceptorChain::new());
     let result = InterceptedStream::new_with_completion(
         ChatCompletionStream::new(response),
@@ -639,7 +647,9 @@ fn direct_completion_constructor_reports_missing_runtime_without_panicking() {
         matches!(result, Err(Error::Config(message)) if message.contains("active Tokio runtime"))
     );
 
-    let response = reqwest::Response::from(http::Response::new(bytes::Bytes::new()));
+    let response = timvw_rust_runtime::Response::from(http::Response::new(
+        timvw_rust_runtime::Body::from(bytes::Bytes::new()),
+    ));
     let stream = InterceptedStream::new(
         ChatCompletionStream::new(response),
         chain,

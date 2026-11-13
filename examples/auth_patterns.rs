@@ -189,36 +189,37 @@ fn proxy_config() -> Result<()> {
 }
 
 fn multiple_clients() -> Result<()> {
-    use reqwest_middleware::ClientBuilder;
     use std::time::Duration;
+    use timvw_rust_runtime::retry::RetryPolicy;
+    use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
+    use tower::retry::RetryLayer;
 
     // Create multiple clients for different use cases
 
     // Production client with retries and longer timeout
-    let prod_http_client = ClientBuilder::new(
+    // A custom HTTP client is used as is, so add the retry layer here.
+    let prod_http_client = HttpClient::from_service(ReqwestService::new(
         reqwest::Client::builder()
             .timeout(Duration::from_secs(60))
             .build()
             .expect("Failed to build reqwest client"),
-    )
-    .build();
+    ))
+    .layer(RetryLayer::new(RetryPolicy::new(5)));
 
     let prod_config = Config::builder()
         .api_key("prod-api-key")
         .organization("org-prod")
         .http_client(prod_http_client)
-        .max_retries(5)
         .build();
     let prod_client = Client::builder(prod_config)?.build();
 
     // Development client with debug logging and shorter timeout
-    let dev_http_client = ClientBuilder::new(
+    let dev_http_client = HttpClient::from_service(ReqwestService::new(
         reqwest::Client::builder()
             .timeout(Duration::from_secs(10))
             .build()
             .expect("Failed to build reqwest client"),
-    )
-    .build();
+    ));
 
     let dev_config = Config::builder()
         .api_key("dev-api-key")

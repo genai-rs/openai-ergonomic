@@ -157,13 +157,12 @@ async fn headers_go_through_a_user_supplied_client_once() {
     // not repeated.
     let mut defaults = reqwest::header::HeaderMap::new();
     defaults.insert(ORGANIZATION, "org-default".parse().unwrap());
-    let http_client = reqwest_middleware::ClientBuilder::new(
+    let http_client = timvw_rust_runtime::Client::from_reqwest(
         reqwest::Client::builder()
             .default_headers(defaults)
             .build()
             .unwrap(),
-    )
-    .build();
+    );
     let client = Client::builder(
         config(&server)
             .organization("org-123")
@@ -200,7 +199,10 @@ fn an_invalid_header_value_is_a_config_error() {
 #[tokio::test]
 async fn generated_stream_keeps_error_mapping() {
     let mut server = Server::new_async().await;
-    let client = Client::builder(config(&server).build()).unwrap().build();
+    // Without retries, so the 429 is returned at once.
+    let client = Client::builder(config(&server).max_retries(0).build())
+        .unwrap()
+        .build();
 
     let rejected = server
         .mock("POST", "/chat/completions")

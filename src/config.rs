@@ -4,8 +4,8 @@
 //! including API key management, base URLs, timeouts, and retry settings.
 
 use crate::{errors::Result, Error};
-use reqwest_middleware::ClientWithMiddleware;
 use std::env;
+use timvw_rust_runtime::Client as HttpClient;
 
 /// Configuration for the `OpenAI` client.
 ///
@@ -56,7 +56,7 @@ pub struct Config {
     project: Option<String>,
     max_retries: u32,
     default_model: String,
-    http_client: Option<ClientWithMiddleware>,
+    http_client: Option<HttpClient>,
     azure_deployment: Option<String>,
     azure_api_version: Option<String>,
 }
@@ -72,7 +72,10 @@ impl std::fmt::Debug for Config {
             .field("default_model", &self.default_model)
             .field(
                 "http_client",
-                &self.http_client.as_ref().map(|_| "<ClientWithMiddleware>"),
+                &self
+                    .http_client
+                    .as_ref()
+                    .map(|_| "<timvw_rust_runtime::Client>"),
             )
             .field("azure_deployment", &self.azure_deployment)
             .field("azure_api_version", &self.azure_api_version)
@@ -198,7 +201,7 @@ impl Config {
     }
 
     /// Get the custom HTTP client, if set.
-    pub fn http_client(&self) -> Option<&ClientWithMiddleware> {
+    pub fn http_client(&self) -> Option<&HttpClient> {
         self.http_client.as_ref()
     }
 
@@ -243,7 +246,7 @@ pub struct ConfigBuilder {
     project: Option<String>,
     max_retries: Option<u32>,
     default_model: Option<String>,
-    http_client: Option<ClientWithMiddleware>,
+    http_client: Option<HttpClient>,
     azure_deployment: Option<String>,
     azure_api_version: Option<String>,
 }
@@ -277,7 +280,11 @@ impl ConfigBuilder {
         self
     }
 
-    /// Set the maximum number of retries.
+    /// Set the maximum number of retries (default: 3).
+    ///
+    /// The default HTTP client retries `429`, `408` and `5xx` responses and failed connections
+    /// up to this many times, with exponential backoff that honours `Retry-After`. `0` disables
+    /// retries. It has no effect on a client set with [`ConfigBuilder::http_client`].
     #[must_use]
     pub fn max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = Some(max_retries);
@@ -293,20 +300,33 @@ impl ConfigBuilder {
 
     /// Set a custom HTTP client.
     ///
-    /// This allows you to provide a pre-configured `ClientWithMiddleware` with
-    /// custom settings like retry policies, connection pooling, proxies, etc.
+    /// The client is a [`timvw_rust_runtime::Client`]: a [tower](https://docs.rs/tower) service
+    /// stack around an HTTP client (reqwest by default). Use it to configure retries, timeouts,
+    /// proxies, connection pooling, logging or any other tower layer.
+    ///
+    /// When a custom client is set, the client is used as is: [`ConfigBuilder::max_retries`] and
+    /// the default 120 second timeout do not apply, and for Azure `OpenAI` you need to add
+    /// [`AzureAuthMiddleware`](crate::azure_middleware::AzureAuthMiddleware) yourself. The
+    /// organization and project headers are still added.
     ///
     /// # Example
     ///
     /// ```rust,no_run
     /// use openai_ergonomic::Config;
-    /// use reqwest_middleware::ClientBuilder;
-    /// use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
+    /// use std::time::Duration;
+    /// use timvw_rust_runtime::retry::RetryPolicy;
+    /// use timvw_rust_runtime::{Client, ReqwestService};
+    /// use tower::retry::RetryLayer;
     ///
-    /// let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
-    /// let client = ClientBuilder::new(reqwest::Client::new())
-    ///     .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-    ///     .build();
+    /// let reqwest_client = reqwest::Client::builder()
+    ///     .connect_timeout(Duration::from_secs(5))
+    ///     .timeout(Duration::from_secs(60))
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// // A bare reqwest service, wrapped in a retry layer with up to 5 retries.
+    /// let client = Client::from_service(ReqwestService::new(reqwest_client))
+    ///     .layer(RetryLayer::new(RetryPolicy::new(5)));
     ///
     /// let config = Config::builder()
     ///     .api_key("sk-...")
@@ -314,7 +334,7 @@ impl ConfigBuilder {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn http_client(mut self, client: ClientWithMiddleware) -> Self {
+    pub fn http_client(mut self, client: HttpClient) -> Self {
         self.http_client = Some(client);
         self
     }
@@ -387,13 +407,12 @@ mod tests {
 
     #[test]
     fn test_config_with_custom_http_client() {
-        let http_client = reqwest_middleware::ClientBuilder::new(
+        let http_client = HttpClient::from_reqwest(
             reqwest::Client::builder()
                 .timeout(Duration::from_secs(30))
                 .build()
                 .unwrap(),
-        )
-        .build();
+        );
 
         let config = Config::builder()
             .api_key("test-key")
@@ -424,7 +443,7 @@ mod tests {
 
     #[test]
     fn test_config_debug_with_http_client() {
-        let http_client = reqwest_middleware::ClientBuilder::new(reqwest::Client::new()).build();
+        let http_client = HttpClient::default();
         let config = Config::builder()
             .api_key("test-key")
             .http_client(http_client)
@@ -433,6 +452,6 @@ mod tests {
         let debug_output = format!("{config:?}");
 
         // Should show placeholder for HTTP client
-        assert!(debug_output.contains("<ClientWithMiddleware>"));
+        assert!(debug_output.contains("<timvw_rust_runtime::Client>"));
     }
 }
