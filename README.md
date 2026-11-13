@@ -16,7 +16,10 @@ Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder pattern
 - **Streaming** - first-class support for streaming responses
 - **Bring your own types** - send and decode request/response types of your own, for fewer fields or `OpenAI`-compatible providers
 - **Comprehensive** - covers all `OpenAI` API endpoints
-- **Azure `OpenAI`** - seamless support for Azure `OpenAI` deployments
+- **Providers** - `OpenAI`, Azure `OpenAI`, `OpenRouter`, Groq, Ollama or any `OpenAI`-compatible API, for the builders, the generated operations and raw requests alike
+- **Pluggable authentication** - per-request credentials (Entra ID / Azure AD tokens, gateways) refreshed after a `401`
+- **Webhooks** - verify `OpenAI` webhook signatures and decode their events (feature `webhook`)
+- **Large files** - parallel, retried uploads through the Uploads API; images, speech and file contents streamed to disk
 - **Well-tested** - extensive test coverage with mock support
 - **Well-documented** - rich documentation with examples
 
@@ -30,7 +33,7 @@ Add `openai-ergonomic` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-openai-ergonomic = "0.19"
+openai-ergonomic = "0.20"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
@@ -82,6 +85,39 @@ check the [changelog](CHANGELOG.md) when you upgrade across a minor version. Ima
 generation and editing require an explicit `.model(...)`; choose the model before
 building or sending those requests. See the [0.7 migration guide](docs/migration-0.7.md)
 for the generated request field changes introduced in 0.7.
+
+### Upgrading to 0.20
+
+Version 0.20 moves to [`timvw-rust-runtime`](https://docs.rs/timvw-rust-runtime) 0.3 and
+`openai-client-base` 0.31.
+
+- **Runtime 0.3.** `Config::builder().http_client(..)`, `Client::http_client()`, `Error::Http`,
+  `ChatCompletionStream::new` and `ChatCompletionStream::from_events` use
+  `timvw_rust_runtime` 0.3 types (`Client`, `Error`, `Response`, `sse::Events`): depend on
+  `timvw-rust-runtime = "0.3"` if you name them.
+- **Native async traits.** `FunctionTool` and `Interceptor` no longer use `async-trait` (see
+  [below](#upgrading-native-async-traits)).
+- **Secret credentials.** The credentials of the generated `Configuration`
+  (`bearer_access_token`, `api_key`, ...) are `SecretString`s: code that drives
+  `openai-client-base` itself sets them with `Some("sk-...".into())` and reads them with
+  `ExposeSecret::expose_secret`. Their `Debug` output is redacted.
+- **Quota errors are not retried.** A `429` whose error code is `insufficient_quota` is
+  returned at once as `Error::Api` instead of being retried: waiting does not refill a quota.
+- **Providers.** `Config::builder().provider(Provider::...)` sets the base URL, credentials,
+  headers, query parameters and paths in one go (see [Providers](#providers)). The existing
+  settings keep working: `api_key`/`api_base` describe an `OpenAI` provider, and
+  `azure_deployment` (or an `*.openai.azure.com` base) an Azure one.
+- **Credentials only go to the provider.** The `Authorization` (or Azure `api-key`) header and
+  the organization and project headers are added by the provider's layer, and only to requests
+  under the provider's base URL. The provider's layer now also wraps a client set with
+  `http_client(..)`, so a custom client no longer needs `AzureAuthMiddleware`, which is
+  deprecated in favour of `Provider::azure` (adding it anyway does no harm).
+- **Streaming errors.** Chat and Responses streams are sent as raw requests: an error status
+  before the first event is an `Error::Api` with the `type` and `code` of an `OpenAI` error body.
+- **New:** `AuthProvider`/`BearerTokenAuth` ([Authentication](#authentication)), webhook
+  verification ([Webhooks](#webhooks)), `Client::upload_large_file`, `ImagesClient::save`,
+  `AudioClient::speech_to_file`, `FilesClient::upload_file` and `FilesClient::download_to`
+  ([Large Files and Media](#large-files-and-media)).
 
 ### Upgrading: native async traits
 
@@ -251,10 +287,10 @@ timeout and retries `429`, `408` and `5xx` responses and failed connections up t
 honours `Retry-After`.
 
 To change the stack (a proxy, other timeouts, a retry policy, logging, rate limits, layers of
-your own), build a client and pass it with `Config::builder().http_client(..)`. A custom client
-is used as is: `max_retries` and the default timeout do not apply, and for Azure you add
-`azure_middleware::AzureAuthMiddleware` yourself. Layers apply from the inside out: the last one
-added sees a request first.
+your own), build a client and pass it with `Config::builder().http_client(..)`. For a custom
+client `max_retries` and the default timeout do not apply; the client still gets the provider's
+layer (base URL, credentials, headers, paths, including Azure's) and the `AuthProvider`, if any.
+Layers apply from the inside out: the last one added sees a request first.
 
 ```rust,no_run
 use openai_ergonomic::{Client, Config};
@@ -299,8 +335,8 @@ and retry with `tracing`. See [`examples/http_middleware_retry.rs`](examples/htt
 The builders use the `OpenAI` spec's models. To send and decode types of your own (a struct with
 only the fields you need, `serde_json::Value`, or an `OpenAI`-compatible provider whose replies
 differ from the spec), use `post_json`, `get_json`, `send_json` and `send_json_stream`. They send
-to `{api_base}{path}` through the same HTTP client (retries, layers, Azure, organization and
-project headers) with the same authentication, and map an error status to `Error::Api`.
+to `{api_base}{path}` through the same HTTP client (retries, layers, the provider's layer,
+organization and project headers) with the same authentication, and map an error status to `Error::Api`.
 Interceptors (such as Langfuse) are not called for these requests.
 
 ```rust,no_run
@@ -353,6 +389,178 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Providers
+
+A `Provider` says where requests go and how they are authenticated. Set it with
+`Config::builder().provider(..)`: the builders, the generated `openai-client-base` operations and
+the raw `send_json` calls then all go to the provider, through a
+[`ProviderLayer`](https://docs.rs/timvw-rust-runtime/latest/timvw_rust_runtime/provider/struct.ProviderLayer.html)
+that adds its credentials, headers and query parameters and rewrites its paths. Requests to other
+hosts (an image download, say) never get the provider's credentials.
+
+| Preset | Base URL | Authentication | Extras |
+|---|---|---|---|
+| `Provider::openai(key)` (default) | `https://api.openai.com/v1` | `Authorization: Bearer` | |
+| `Provider::azure(endpoint, key, deployment)` | `{endpoint}/openai` | `api-key` | `/deployments/{deployment}` paths, `api-version` (`.api_version(..)`) |
+| `Provider::azure_entra(endpoint, deployment)` | same | an `AuthProvider` | |
+| `Provider::openrouter(key)` | `https://openrouter.ai/api/v1` | `Authorization: Bearer` | `.http_referer(..)`, `.title(..)` |
+| `Provider::groq(key)` | `https://api.groq.com/openai/v1` | `Authorization: Bearer` | |
+| `Provider::ollama()` | `http://localhost:11434/v1` | none | |
+| `Provider::custom(base_url)` | `base_url` | `.bearer(..)` or `.api_key_header(..)` | |
+
+Every preset takes `.base_url(..)` (a proxy, another host), `.header(..)`,
+`.sensitive_header(..)`, `.query(..)` and `.map_path(..)`.
+
+```rust,no_run
+use openai_ergonomic::{Client, Config, Provider};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Config::builder()
+        .provider(
+            Provider::openrouter(std::env::var("OPENROUTER_API_KEY")?)
+                .http_referer("https://my-app.example")
+                .title("My App"),
+        )
+        .default_model("openai/gpt-4o-mini")
+        .build();
+    let client = Client::builder(config)?.build();
+
+    let response = client.send_chat(client.chat_simple("Hello!")).await?;
+    println!("{}", response.content().unwrap_or_default());
+
+    // A local Ollama server, without a key
+    let local = Client::builder(
+        Config::builder()
+            .provider(Provider::ollama())
+            .default_model("llama3.2")
+            .build(),
+    )?
+    .build();
+    let response = local.send_chat(local.chat_simple("Hi")).await?;
+    println!("{}", response.content().unwrap_or_default());
+    Ok(())
+}
+```
+
+`Provider::layer()` gives the layer on its own, for an HTTP client you build yourself.
+
+### Authentication
+
+For credentials that change (Microsoft Entra ID / Azure AD tokens, short-lived gateway tokens,
+request signing), implement `AuthProvider` and set it with `Config::builder().auth_provider(..)`.
+`apply` gets every request to the provider and returns it with its credentials;
+`refresh_after_unauthorized` is called when the provider answers `401` with the headers of the
+rejected request, and when it returns `true` the request is authenticated again and sent once
+more. It runs as a tower layer around the HTTP client, so the generated operations and the raw
+requests are covered too. Both methods are plain `async fn`s (no `async-trait`).
+
+`BearerTokenAuth` covers the common case: it fetches a token with a function of yours, caches it
+until shortly before it expires, and refreshes it once when several concurrent requests are
+rejected with the same token.
+
+```rust,no_run
+use openai_ergonomic::auth::{AuthToken, BearerTokenAuth};
+use openai_ergonomic::{Client, Config, Provider};
+use std::time::Duration;
+
+async fn fetch_entra_token() -> openai_ergonomic::Result<String> {
+    // e.g. with the azure_identity crate
+    Ok("eyJ0eXAi...".to_string())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let auth = BearerTokenAuth::new(|| async {
+        let token = fetch_entra_token().await?;
+        Ok(AuthToken::new(token).expires_in(Duration::from_secs(3600)))
+    });
+    let config = Config::builder()
+        .provider(Provider::azure_entra("https://my-resource.openai.azure.com", "gpt-4o"))
+        .auth_provider(auth)
+        .build();
+    let client = Client::builder(config)?.build();
+    let response = client.send_chat(client.chat_simple("Hello!")).await?;
+    println!("{}", response.content().unwrap_or_default());
+    Ok(())
+}
+```
+
+A request is sent again after a `401` only when its body can be sent again (JSON bodies and file
+uploads can, a one-shot stream cannot); a second `401` is returned as is.
+
+### Webhooks
+
+With the `webhook` feature, `webhooks::WebhookVerifier` verifies `OpenAI` webhook deliveries
+([Standard Webhooks](https://www.standardwebhooks.com/) signatures: the `webhook-id`,
+`webhook-timestamp` and `webhook-signature` headers, HMAC-SHA256 with your `whsec_...` secret,
+any of several signatures, timestamps within 5 minutes by default) and decodes them into
+`WebhookEvent`, whose variants hold the `openai-client-base` `Webhook*` models. Pass the body
+exactly as received.
+
+```toml
+openai-ergonomic = { version = "0.20", features = ["webhook"] }
+```
+
+```rust,ignore
+use openai_ergonomic::webhooks::{WebhookEvent, WebhookVerifier};
+
+let verifier = WebhookVerifier::new(&std::env::var("OPENAI_WEBHOOK_SECRET")?)?;
+// In your HTTP handler, with the request's headers and raw body:
+match verifier.unwrap(&headers, &body)? {
+    WebhookEvent::ResponseCompleted(event) => println!("response {} completed", event.data.id),
+    WebhookEvent::BatchCompleted(event) => println!("batch {} completed", event.data.id),
+    other => println!("ignoring {}", other.event_type()),
+}
+```
+
+`WebhookVerifier::sign` produces a valid `webhook-signature`, to test your handler.
+
+### Large Files and Media
+
+`Client::upload_large_file` sends a file of up to 8 GB through the Uploads API: it creates an
+upload, sends parts of at most 64 MB several at a time (4 by default), each read straight from
+its offset in the file and retried on its own, and completes the upload. It takes anything that
+converts into a `timvw_rust_runtime::Upload`: a path, bytes, or a reader or stream with a known
+length.
+
+```rust,no_run
+use openai_ergonomic::{Client, UploadPurpose};
+use std::path::PathBuf;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?.build();
+    let upload = client
+        .upload_large_file(
+            PathBuf::from("training.jsonl"),
+            "training.jsonl",
+            UploadPurpose::FineTune,
+            "application/jsonl",
+        )
+        .concurrency(8)
+        .await?;
+    println!("uploaded: {:?}", upload.file);
+
+    // Generated media, straight to disk
+    let images = client
+        .images()
+        .create(client.images().generate("A lighthouse at dusk").model("gpt-image-1"))
+        .await?;
+    let paths = client.images().save_all(&images, ".", "lighthouse").await?;
+    println!("saved {paths:?}");
+
+    let speech = client.audio().speech("gpt-4o-mini-tts", "Hello there", "alloy");
+    client.audio().speech_to_file(speech, "hello.mp3").await?;
+    Ok(())
+}
+```
+
+`ImagesClient::save` decodes `b64_json` or downloads the image's `url`;
+`AudioClient::speech_to_file` and `FilesClient::download_to` stream the body to a temporary file
+that replaces the target once complete. `FilesClient::upload_file` uploads a path, bytes or a
+stream without copying it to a temporary file first.
+
 ### Azure `OpenAI` Support
 
 The crate seamlessly supports Azure `OpenAI` deployments. Azure-specific configuration can be provided through environment variables or programmatically.
@@ -402,6 +610,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+Or, equivalently, with a [provider](#providers):
+`Config::builder().provider(Provider::azure("https://my-resource.openai.azure.com", "your-azure-api-key", "gpt-4").api_version("2024-02-01"))`.
+For Microsoft Entra ID (Azure AD) tokens, use `Provider::azure_entra` with an
+[`AuthProvider`](#authentication).
 
 **Note:** The library automatically handles the differences between Azure `OpenAI` and standard `OpenAI` (authentication, URL paths, API versioning). You use the same API regardless of the provider.
 

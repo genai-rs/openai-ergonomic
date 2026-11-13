@@ -113,6 +113,9 @@
 //! - [`responses`] - Response type wrappers with ergonomic helpers
 //! - [`client`] - Main client for API interactions
 //! - [`config`] - Configuration management
+//! - [`provider`] - Providers: `OpenAI`, Azure `OpenAI`, `OpenRouter`, Groq, Ollama, custom
+//! - [`auth`] - Pluggable, refreshable authentication
+//! - `webhooks` - Webhook signature verification and events (feature `webhook`)
 //! - [`errors`] - Error types and handling
 
 // Core modules
