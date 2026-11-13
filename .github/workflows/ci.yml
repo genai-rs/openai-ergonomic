@@ -7,14 +7,14 @@ on:
 
 jobs:
   ci:
-    uses: genai-rs/.github/.github/workflows/rust-ci.yml@ci/local-ci-gate
+    uses: genai-rs/.github/.github/workflows/rust-ci.yml@main
     with:
       msrv: "1.88"
     secrets: inherit
 
   # Decides whether heavy jobs run (see genai-rs/.github local-ci-gate.yml).
   gate:
-    uses: genai-rs/.github/.github/workflows/local-ci-gate.yml@ci/local-ci-gate
+    uses: genai-rs/.github/.github/workflows/local-ci-gate.yml@main
 
   # macOS/Windows targets build on main only (or PRs labelled full-ci); all
   # targets skip for PRs attested by scripts/local-ci.sh and release-plz PRs.
