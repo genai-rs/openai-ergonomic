@@ -30,11 +30,11 @@ Add `openai-ergonomic` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-openai-ergonomic = "0.18"
+openai-ergonomic = "0.19"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
-The next release moves the HTTP stack from `reqwest-middleware` to
+Version 0.19 moves the HTTP stack from `reqwest-middleware` to
 [`timvw-rust-runtime`](https://docs.rs/timvw-rust-runtime), a [tower](https://docs.rs/tower)-based
 client (with `openai-client-base` 0.30; see its
 [0.29.0 to 0.30.0 migration notes](https://github.com/genai-rs/openai-client-base/blob/main/migration/api-diff-0.29.0-to-0.30.0.md)). `Config::builder().http_client(..)` and
@@ -134,7 +134,7 @@ cargo feature, which is enabled by default. The interceptor needs an OpenTelemet
 and a Langfuse exporter:
 
 ```toml
-openai-ergonomic = "0.18"
+openai-ergonomic = "0.19"
 tokio = { version = "1", features = ["full"] }
 opentelemetry = { version = "0.33.1", features = ["trace"] }
 opentelemetry_sdk = { version = "0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
