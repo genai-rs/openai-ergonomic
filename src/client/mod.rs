@@ -122,6 +122,7 @@ macro_rules! impl_interceptor_helpers {
 
 mod assistants;
 mod audio;
+mod base_bridge;
 mod batch;
 mod completions;
 mod embeddings;
@@ -223,12 +224,15 @@ impl<T> std::fmt::Debug for Client<T> {
 // Implementation for ClientBuilder with default state type ()
 impl ClientBuilder {
     /// Create a new client builder with the given configuration.
+    ///
+    /// The HTTP client is the configured one, or a reqwest client with a 120 second timeout and
+    /// retries ([`Config::max_retries`]). Around it go, from the inside out: the
+    /// [`AuthProvider`](crate::auth::AuthProvider)'s layer when one is set, then the
+    /// [provider](Config::provider)'s layer (base URL, credentials, headers, query parameters,
+    /// paths) with the organization and project headers.
     pub fn new(config: Config) -> Result<Self> {
-        // Check if we're using Azure OpenAI
-        let is_azure = config.is_azure();
-
         // Use custom HTTP client if provided, otherwise build a default one
-        let http_client = if let Some(client) = config.http_client() {
+        let mut http_client = if let Some(client) = config.http_client() {
             client.clone()
         } else {
             let reqwest_client = reqwest::Client::builder()
@@ -237,46 +241,38 @@ impl ClientBuilder {
                 .build()
                 .map_err(|e| Error::Config(format!("failed to build the HTTP client: {e}")))?;
 
-            let mut client = HttpClient::from_service(ReqwestService::new(reqwest_client));
-
-            // Add Azure authentication middleware if using Azure OpenAI
-            if is_azure {
-                client = client.layer(crate::azure_middleware::AzureAuthMiddleware::new(
-                    config.api_key().to_string(),
-                    config.azure_api_version().map(String::from),
-                    config.azure_deployment().map(String::from),
-                ));
-            }
-
             // Retry transient failures (429, 408, 5xx, failed connections); 0 disables retries. A 429
             // for an exhausted quota (`insufficient_quota`) is permanent: it is returned, not retried.
             let max_retries = usize::try_from(config.max_retries()).unwrap_or(usize::MAX);
-            client.layer(
-                RetryLayer::new(RetryPolicy::new(max_retries)).permanent_429(openai_insufficient_quota),
+            HttpClient::from_service(ReqwestService::new(reqwest_client)).layer(
+                RetryLayer::new(RetryPolicy::new(max_retries))
+                    .permanent_429(openai_insufficient_quota),
             )
         };
 
-        // Send the organization and project headers with every request, including those of the
-        // generated openai-client-base operations.
-        let http_client = headers::with_organization_headers(http_client, &config)?;
+        let provider = config.provider();
+
+        // Per-request credentials, refreshed after a 401; only for requests to the provider.
+        if let Some(auth) = config.auth_provider() {
+            http_client = http_client.layer(
+                crate::auth::AuthLayer::from_shared(auth.clone()).scope(provider.api_base())?,
+            );
+        }
+
+        // Send every request under the provider's base URL there, with its credentials,
+        // headers, query parameters and paths, and the organization and project headers. The
+        // generated openai-client-base operations go through it too.
+        http_client =
+            http_client.layer(provider.layer_with(headers::organization_headers(&config)?)?);
 
         // Create openai-client-base configuration
         let mut base_configuration = Configuration::new();
-
-        // Set the custom HTTP client (with Azure middleware if configured)
-        base_configuration.client = http_client.clone();
+        base_configuration.client = base_bridge::base_client(&http_client);
         base_configuration.user_agent =
             Some(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")));
-
-        // For Azure OpenAI, we don't use bearer token (handled by middleware)
-        // For standard OpenAI, use bearer token
-        if !is_azure {
-            base_configuration.bearer_access_token = Some(config.api_key().into());
-        }
-
-        if let Some(base_url) = config.base_url() {
-            base_configuration.base_path = base_url.to_string();
-        }
+        // The provider's layer authenticates the requests.
+        base_configuration.bearer_access_token = None;
+        base_configuration.base_path = provider.api_base().to_string();
 
         Ok(Self {
             config: Arc::new(config),
@@ -690,16 +686,12 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
             self.interceptors.before_request(&mut ctx).await?;
         }
 
-        let events = chat_api::create_chat_completion_stream()
-            .configuration(&self.base_configuration)
-            .create_chat_completion_request(&request)
-            .call()
-            .await
-            .map_err(map_api_error)?;
-
-        // Decode the payloads here rather than through the generated stream, so that a parse
-        // error carries the offending chunk.
-        let stream = crate::streaming::ChatCompletionStream::from_events(events.into_events());
+        // Sent as a raw request and decoded here rather than through the generated stream, so
+        // that a parse error carries the offending chunk.
+        let response = self
+            .send_event_stream_request(http::Method::POST, "/chat/completions", &request)
+            .await?;
+        let stream = crate::streaming::ChatCompletionStream::new(response);
 
         let (intercepted, completion) = crate::streaming::InterceptedStream::new_with_completion(
             stream,
@@ -872,7 +864,7 @@ impl<T: Default + Send + Sync> Client<T> {
 
 fn map_api_error<T>(error: ApiError<T>) -> Error {
     match error {
-        ApiError::Http(err) => Error::Http(err),
+        ApiError::Http(err) => base_bridge::http_error(&err),
         ApiError::Serde(err) => Error::Json(err),
         ApiError::Io(err) => Error::File(err),
         ApiError::ResponseError(response) => Error::Api {

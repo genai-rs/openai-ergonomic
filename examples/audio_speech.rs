@@ -162,7 +162,10 @@ async fn basic_text_to_speech(client: &Client) -> Result<(), Error> {
         })?;
 
     // Save the audio data to file
-    let audio_data = response.bytes().await.map_err(Error::Http)?;
+    let audio_data = response
+        .bytes()
+        .await
+        .map_err(|e| Error::Internal(e.to_string()))?;
     let filename = "basic_speech.mp3";
     save_audio_file(&audio_data, filename)?;
 
@@ -201,7 +204,10 @@ async fn voice_comparison_example(client: &Client) -> Result<(), Error> {
             .await
         {
             Ok(response) => {
-                let audio_data = response.bytes().await.map_err(Error::Http)?;
+                let audio_data = response
+                    .bytes()
+                    .await
+                    .map_err(|e| Error::Internal(e.to_string()))?;
                 let filename = format!("voice_{voice}.mp3");
                 save_audio_file(&audio_data, &filename)?;
                 println!("      Saved to: {filename} ({} bytes)", audio_data.len());
@@ -250,7 +256,10 @@ async fn audio_format_example(client: &Client) -> Result<(), Error> {
             .await
         {
             Ok(response) => {
-                let audio_data = response.bytes().await.map_err(Error::Http)?;
+                let audio_data = response
+                    .bytes()
+                    .await
+                    .map_err(|e| Error::Internal(e.to_string()))?;
                 let filename = format!("format_example.{extension}");
                 save_audio_file(&audio_data, &filename)?;
                 println!("      Saved to: {filename} ({} bytes)", audio_data.len());
@@ -299,7 +308,10 @@ async fn speed_control_example(client: &Client) -> Result<(), Error> {
             .await
         {
             Ok(response) => {
-                let audio_data = response.bytes().await.map_err(Error::Http)?;
+                let audio_data = response
+                    .bytes()
+                    .await
+                    .map_err(|e| Error::Internal(e.to_string()))?;
                 let filename = format!("speed_{speed}.mp3");
                 save_audio_file(&audio_data, &filename)?;
                 println!("      Saved to: {filename} ({} bytes)", audio_data.len());
@@ -344,7 +356,10 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
         .await
     {
         Ok(response) => {
-            let audio_data = response.bytes().await.map_err(Error::Http)?;
+            let audio_data = response
+                .bytes()
+                .await
+                .map_err(|e| Error::Internal(e.to_string()))?;
             let filename = "streaming_example.mp3";
             save_audio_file(&audio_data, filename)?;
             println!(
@@ -375,7 +390,10 @@ async fn streaming_audio_example(client: &Client) -> Result<(), Error> {
                 .await
             {
                 Ok(response) => {
-                    let audio_data = response.bytes().await.map_err(Error::Http)?;
+                    let audio_data = response
+                        .bytes()
+                        .await
+                        .map_err(|e| Error::Internal(e.to_string()))?;
                     let filename = "fallback_example.mp3";
                     save_audio_file(&audio_data, filename)?;
                     println!(

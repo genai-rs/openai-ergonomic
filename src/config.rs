@@ -3,6 +3,8 @@
 //! This module provides configuration options for the `OpenAI` client,
 //! including API key management, base URLs, timeouts, and retry settings.
 
+use crate::auth::{AuthProvider, SharedAuthProvider};
+use crate::provider::{Provider, ProviderKind, OPENAI_BASE_URL};
 use crate::{errors::Result, Error};
 use std::env;
 use timvw_rust_runtime::Client as HttpClient;
@@ -47,6 +49,12 @@ use timvw_rust_runtime::Client as HttpClient;
 ///     .azure_deployment("my-deployment")
 ///     .azure_api_version("2024-02-01")
 ///     .build();
+///
+/// // Another provider: base URL, authentication, headers and paths in one go
+/// use openai_ergonomic::Provider;
+/// let config = Config::builder()
+///     .provider(Provider::openrouter("sk-or-..."))
+///     .build();
 /// ```
 #[derive(Clone)]
 pub struct Config {
@@ -59,6 +67,8 @@ pub struct Config {
     http_client: Option<HttpClient>,
     azure_deployment: Option<String>,
     azure_api_version: Option<String>,
+    provider: Option<Provider>,
+    auth_provider: Option<SharedAuthProvider>,
 }
 
 impl std::fmt::Debug for Config {
@@ -79,6 +89,8 @@ impl std::fmt::Debug for Config {
             )
             .field("azure_deployment", &self.azure_deployment)
             .field("azure_api_version", &self.azure_api_version)
+            .field("provider", &self.provider)
+            .field("auth_provider", &self.auth_provider)
             .finish()
     }
 }
@@ -118,8 +130,7 @@ impl Config {
             let key = env::var("OPENAI_API_KEY").map_err(|_| {
                 Error::Config("OPENAI_API_KEY environment variable is required".to_string())
             })?;
-            let base = env::var("OPENAI_API_BASE")
-                .unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+            let base = env::var("OPENAI_API_BASE").unwrap_or_else(|_| OPENAI_BASE_URL.to_string());
             (key, base)
         };
 
@@ -144,17 +155,68 @@ impl Config {
             http_client: None,
             azure_deployment,
             azure_api_version,
+            provider: None,
+            auth_provider: None,
         })
     }
 
-    /// Get the API key.
+    /// Get the API key: the key of the [provider](ConfigBuilder::provider) when one is set
+    /// (empty when it has none).
     pub fn api_key(&self) -> &str {
-        &self.api_key
+        match &self.provider {
+            Some(provider) => provider.api_key().unwrap_or_default(),
+            None => &self.api_key,
+        }
     }
 
-    /// Get the API base URL.
+    /// Get the API base URL: the base URL of the [provider](ConfigBuilder::provider) when one
+    /// is set.
     pub fn api_base(&self) -> &str {
-        &self.api_base
+        match &self.provider {
+            Some(provider) => provider.api_base(),
+            None => &self.api_base,
+        }
+    }
+
+    /// The provider requests go to: the one set with [`ConfigBuilder::provider`], or else the
+    /// one the other settings describe (Azure `OpenAI` when [`Config::is_azure`], `OpenAI` at
+    /// [`Config::api_base`] otherwise).
+    pub fn provider(&self) -> Provider {
+        if let Some(provider) = &self.provider {
+            return provider.clone();
+        }
+        if self.is_azure() {
+            // Without a deployment: the key, and the paths as they are.
+            let mut provider = self.azure_deployment.as_ref().map_or_else(
+                || {
+                    Provider::custom(self.api_base.clone())
+                        .api_key_header("api-key", self.api_key.clone())
+                },
+                |deployment| {
+                    Provider::azure(self.api_base.clone(), self.api_key.clone(), deployment)
+                },
+            );
+            if let Some(version) = &self.azure_api_version {
+                provider = provider.api_version(version.clone());
+            }
+            return provider;
+        }
+        let provider = Provider::openai(self.api_key.clone());
+        if self.api_base.trim_end_matches('/') == OPENAI_BASE_URL {
+            provider
+        } else {
+            provider.base_url(self.api_base.clone())
+        }
+    }
+
+    /// The [`AuthProvider`] set with [`ConfigBuilder::auth_provider`], if any.
+    pub(crate) fn auth_provider(&self) -> Option<&SharedAuthProvider> {
+        self.auth_provider.as_ref()
+    }
+
+    /// Whether an [`AuthProvider`] is set.
+    pub fn has_auth_provider(&self) -> bool {
+        self.auth_provider.is_some()
     }
 
     /// Get the organization ID, if set.
@@ -183,10 +245,11 @@ impl Config {
 
     /// Get the base URL, if different from default.
     pub fn base_url(&self) -> Option<&str> {
-        if self.api_base == "https://api.openai.com/v1" {
+        let base = self.api_base();
+        if base.trim_end_matches('/') == OPENAI_BASE_URL {
             None
         } else {
-            Some(&self.api_base)
+            Some(base)
         }
     }
 
@@ -197,7 +260,7 @@ impl Config {
 
     /// Create an authorization header value.
     pub fn auth_header(&self) -> String {
-        format!("Bearer {}", self.api_key)
+        format!("Bearer {}", self.api_key())
     }
 
     /// Get the custom HTTP client, if set.
@@ -207,16 +270,27 @@ impl Config {
 
     /// Get the Azure deployment name, if set.
     pub fn azure_deployment(&self) -> Option<&str> {
-        self.azure_deployment.as_deref()
+        self.provider
+            .as_ref()
+            .map_or(self.azure_deployment.as_deref(), Provider::azure_deployment)
     }
 
     /// Get the Azure API version, if set.
     pub fn azure_api_version(&self) -> Option<&str> {
-        self.azure_api_version.as_deref()
+        match &self.provider {
+            Some(provider) if provider.kind() == ProviderKind::Azure => {
+                provider.query_param("api-version")
+            }
+            Some(_) => None,
+            None => self.azure_api_version.as_deref(),
+        }
     }
 
     /// Check if this configuration is for Azure `OpenAI`.
     pub fn is_azure(&self) -> bool {
+        if let Some(provider) = &self.provider {
+            return provider.kind() == ProviderKind::Azure;
+        }
         self.azure_deployment.is_some() || self.api_base.contains(".openai.azure.com")
     }
 }
@@ -233,6 +307,8 @@ impl Default for Config {
             http_client: None,
             azure_deployment: None,
             azure_api_version: None,
+            provider: None,
+            auth_provider: None,
         }
     }
 }
@@ -249,6 +325,18 @@ pub struct ConfigBuilder {
     http_client: Option<HttpClient>,
     azure_deployment: Option<String>,
     azure_api_version: Option<String>,
+    provider: Option<Provider>,
+    auth_provider: Option<SharedAuthProvider>,
+}
+
+impl std::fmt::Debug for ConfigBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConfigBuilder")
+            .field("api_key", &self.api_key.as_ref().map(|_| "***"))
+            .field("api_base", &self.api_base)
+            .field("provider", &self.provider)
+            .finish_non_exhaustive()
+    }
 }
 
 impl ConfigBuilder {
@@ -304,10 +392,11 @@ impl ConfigBuilder {
     /// stack around an HTTP client (reqwest by default). Use it to configure retries, timeouts,
     /// proxies, connection pooling, logging or any other tower layer.
     ///
-    /// When a custom client is set, the client is used as is: [`ConfigBuilder::max_retries`] and
-    /// the default 120 second timeout do not apply, and for Azure `OpenAI` you need to add
-    /// [`AzureAuthMiddleware`](crate::azure_middleware::AzureAuthMiddleware) yourself. The
-    /// organization and project headers are still added.
+    /// When a custom client is set, [`ConfigBuilder::max_retries`] and the default 120 second
+    /// timeout do not apply: the client's own layers do. The client still gets the
+    /// [provider](ConfigBuilder::provider)'s layer (base URL, credentials, headers, query
+    /// parameters and paths, including Azure's), the organization and project headers, and the
+    /// [`AuthProvider`], if any.
     ///
     /// # Example
     ///
@@ -350,10 +439,38 @@ impl ConfigBuilder {
 
     /// Set the Azure API version.
     ///
-    /// Defaults to "2024-02-01" if not specified.
+    /// Defaults to [`AZURE_DEFAULT_API_VERSION`](crate::provider::AZURE_DEFAULT_API_VERSION) ("2024-02-01") if not specified.
     #[must_use]
     pub fn azure_api_version(mut self, version: impl Into<String>) -> Self {
         self.azure_api_version = Some(version.into());
+        self
+    }
+
+    /// Set the provider: where requests go and how they are authenticated (see
+    /// [`Provider`]). It takes the place of [`ConfigBuilder::api_key`],
+    /// [`ConfigBuilder::api_base`] and the Azure settings.
+    ///
+    /// ```rust
+    /// use openai_ergonomic::{Config, Provider};
+    ///
+    /// let config = Config::builder()
+    ///     .provider(Provider::groq("gsk-..."))
+    ///     .default_model("llama-3.3-70b-versatile")
+    ///     .build();
+    /// assert_eq!(config.api_base(), "https://api.groq.com/openai/v1");
+    /// ```
+    #[must_use]
+    pub fn provider(mut self, provider: Provider) -> Self {
+        self.provider = Some(provider);
+        self
+    }
+
+    /// Set an [`AuthProvider`] that supplies (and refreshes) the credentials of each request to
+    /// the provider, such as [`BearerTokenAuth`](crate::auth::BearerTokenAuth). See the
+    /// [`auth`](crate::auth) module.
+    #[must_use]
+    pub fn auth_provider(mut self, auth_provider: impl AuthProvider) -> Self {
+        self.auth_provider = Some(SharedAuthProvider::new(auth_provider));
         self
     }
 
@@ -372,6 +489,8 @@ impl ConfigBuilder {
             http_client: self.http_client,
             azure_deployment: self.azure_deployment,
             azure_api_version: self.azure_api_version,
+            provider: self.provider,
+            auth_provider: self.auth_provider,
         }
     }
 }

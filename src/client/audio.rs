@@ -65,7 +65,10 @@ impl<T: Default + Send + Sync> AudioClient<'_, T> {
             }
         };
 
-        let bytes = response.bytes().await.map_err(Error::Http)?;
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(|error| super::base_bridge::http_error(&error))?;
         let duration = start_time.elapsed();
 
         // Call after_response hook (note: no JSON response for audio)
