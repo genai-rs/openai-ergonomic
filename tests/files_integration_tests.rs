@@ -12,8 +12,8 @@ fn test_file_upload_builder_basic() {
     let builder = FileUploadBuilder::new("test.txt", FilePurpose::Assistants, content.clone());
 
     assert_eq!(builder.filename(), "test.txt");
-    assert_eq!(builder.content(), content.as_slice());
-    assert_eq!(builder.content_size(), content.len());
+    assert_eq!(builder.content(), Some(content.as_slice()));
+    assert_eq!(builder.content_size(), Some(content.len() as u64));
     assert!(!builder.is_empty());
 }
 
@@ -40,7 +40,7 @@ fn test_file_upload_builder_from_json() {
 
     assert_eq!(builder.filename(), "data.json");
     assert!(!builder.is_empty());
-    assert!(builder.content_size() > 0);
+    assert!(builder.content_size().unwrap_or_default() > 0);
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn test_file_upload_builder_empty() {
     let builder = FileUploadBuilder::new("empty.txt", FilePurpose::Assistants, vec![]);
 
     assert!(builder.is_empty());
-    assert_eq!(builder.content_size(), 0);
+    assert_eq!(builder.content_size(), Some(0));
     assert_eq!(builder.content_as_string(), Some(String::new()));
 }
 
@@ -187,8 +187,8 @@ fn test_file_upload_builder_content_methods() {
     let builder = FileUploadBuilder::from_text("test.txt", FilePurpose::Assistants, content);
 
     assert_eq!(builder.content_as_string(), Some(content.to_string()));
-    assert_eq!(builder.content(), content.as_bytes());
-    assert_eq!(builder.content_size(), content.len());
+    assert_eq!(builder.content(), Some(content.as_bytes()));
+    assert_eq!(builder.content_size(), Some(content.len() as u64));
 }
 
 // Note: These tests require API credentials and should be run with care

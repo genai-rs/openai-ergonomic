@@ -5,7 +5,7 @@
 //! workflows. Builders perform lightweight validation and produce values that
 //! can be passed directly to `openai-client-base` request functions.
 
-use std::path::{Path, PathBuf};
+use timvw_rust_runtime::Upload;
 
 use openai_client_base::models::create_transcription_request_chunking_strategy::CreateTranscriptionRequestChunkingStrategyTextVariantEnum;
 use openai_client_base::models::{
@@ -151,7 +151,7 @@ impl TimestampGranularity {
 /// Builder for audio transcription requests.
 #[derive(Debug, Clone)]
 pub struct TranscriptionBuilder {
-    file: PathBuf,
+    file: Upload,
     model: String,
     language: Option<String>,
     prompt: Option<String>,
@@ -165,10 +165,14 @@ pub struct TranscriptionBuilder {
 
 impl TranscriptionBuilder {
     /// Create a new transcription builder for the given audio file and model.
+    ///
+    /// `file` is anything that converts into an [`Upload`]: a path (`PathBuf`, `&Path`, streamed
+    /// from disk), bytes (`Vec<u8>`, `Bytes`), or an [`Upload`] made from a stream. Give bytes a
+    /// file name with [`Upload::file_name`]: the API reads the audio format from its extension.
     #[must_use]
-    pub fn new(file: impl AsRef<Path>, model: impl Into<String>) -> Self {
+    pub fn new(file: impl Into<Upload>, model: impl Into<String>) -> Self {
         Self {
-            file: file.as_ref().to_path_buf(),
+            file: file.into(),
             model: model.into(),
             language: None,
             prompt: None,
@@ -269,9 +273,9 @@ impl TranscriptionBuilder {
         self
     }
 
-    /// Access the source file path.
+    /// Access the audio file.
     #[must_use]
-    pub fn file(&self) -> &Path {
+    pub fn file(&self) -> &Upload {
         &self.file
     }
 
@@ -298,7 +302,7 @@ impl TranscriptionBuilder {
 #[derive(Debug, Clone)]
 pub struct TranscriptionRequest {
     /// Audio file to upload for transcription.
-    pub file: PathBuf,
+    pub file: Upload,
     /// Model identifier to use (e.g., `gpt-4o-mini-transcribe`).
     pub model: String,
     /// Optional language hint.
@@ -355,7 +359,7 @@ impl Builder<TranscriptionRequest> for TranscriptionBuilder {
 /// Builder for audio translation (audio → English text).
 #[derive(Debug, Clone)]
 pub struct TranslationBuilder {
-    file: PathBuf,
+    file: Upload,
     model: String,
     prompt: Option<String>,
     response_format: Option<AudioResponseFormat>,
@@ -364,10 +368,12 @@ pub struct TranslationBuilder {
 
 impl TranslationBuilder {
     /// Create a new translation builder for the given audio file and model.
+    ///
+    /// `file` is anything that converts into an [`Upload`]; see [`TranscriptionBuilder::new`].
     #[must_use]
-    pub fn new(file: impl AsRef<Path>, model: impl Into<String>) -> Self {
+    pub fn new(file: impl Into<Upload>, model: impl Into<String>) -> Self {
         Self {
-            file: file.as_ref().to_path_buf(),
+            file: file.into(),
             model: model.into(),
             prompt: None,
             response_format: None,
@@ -402,9 +408,9 @@ impl TranslationBuilder {
         &self.model
     }
 
-    /// Access the configured file path.
+    /// Access the audio file.
     #[must_use]
-    pub fn file(&self) -> &Path {
+    pub fn file(&self) -> &Upload {
         &self.file
     }
 }
@@ -413,7 +419,7 @@ impl TranslationBuilder {
 #[derive(Debug, Clone)]
 pub struct TranslationRequest {
     /// Audio file to translate.
-    pub file: PathBuf,
+    pub file: Upload,
     /// Model to use for translation.
     pub model: String,
     /// Optional prompt for style control.
@@ -448,6 +454,7 @@ impl Builder<TranslationRequest> for TranslationBuilder {
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn builds_speech_request() {
@@ -478,7 +485,7 @@ mod tests {
 
     #[test]
     fn builds_transcription_request() {
-        let request = TranscriptionBuilder::new("audio.wav", "gpt-4o-mini-transcribe")
+        let request = TranscriptionBuilder::new(Path::new("audio.wav"), "gpt-4o-mini-transcribe")
             .language("en")
             .prompt("Friendly tone")
             .response_format(AudioResponseFormat::VerboseJson)
@@ -491,6 +498,7 @@ mod tests {
             .expect("valid transcription builder");
 
         assert_eq!(request.model, "gpt-4o-mini-transcribe");
+        assert_eq!(request.file.name(), Some("audio.wav"));
         assert_eq!(request.language.as_deref(), Some("en"));
         assert!(matches!(
             request.timestamp_granularities,
@@ -508,7 +516,7 @@ mod tests {
 
     #[test]
     fn transcription_temperature_validation() {
-        let err = TranscriptionBuilder::new("audio.wav", "gpt-4o-mini-transcribe")
+        let err = TranscriptionBuilder::new(Path::new("audio.wav"), "gpt-4o-mini-transcribe")
             .temperature(1.2)
             .build()
             .expect_err("temperature outside range");
@@ -517,7 +525,7 @@ mod tests {
 
     #[test]
     fn builds_translation_request() {
-        let request = TranslationBuilder::new("clip.mp3", "gpt-4o-mini-transcribe")
+        let request = TranslationBuilder::new(Path::new("clip.mp3"), "gpt-4o-mini-transcribe")
             .prompt("Keep humour")
             .response_format(AudioResponseFormat::Text)
             .temperature(0.3)
@@ -530,7 +538,7 @@ mod tests {
 
     #[test]
     fn translation_temperature_validation() {
-        let err = TranslationBuilder::new("clip.mp3", "gpt-4o-mini-transcribe")
+        let err = TranslationBuilder::new(Path::new("clip.mp3"), "gpt-4o-mini-transcribe")
             .temperature(1.5)
             .build()
             .expect_err("temperature outside range");

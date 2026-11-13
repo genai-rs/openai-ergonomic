@@ -27,9 +27,9 @@ pub const DEFAULT_UPLOAD_CONCURRENCY: usize = 4;
 pub struct LargeUpload<'a, T = ()> {
     client: &'a Client<T>,
     upload: Upload,
-    filename: String,
+    filename: Option<String>,
     purpose: UploadPurpose,
-    mime_type: String,
+    mime_type: Option<String>,
     part_size: u64,
     concurrency: usize,
     part_retries: usize,
@@ -60,6 +60,14 @@ impl<T> Client<T> {
     /// (`Vec<u8>`, `Bytes`), or an `Upload` made from a reader or a stream (give it its length
     /// with [`Upload::len`]: the Uploads API needs the size up front).
     ///
+    /// The file name is the upload's ([`Upload::name`]: a path's last component, or the one set
+    /// with [`Upload::file_name`]) unless set with [`filename`](LargeUpload::filename); an upload
+    /// without one is rejected. The media type is the upload's ([`Upload::media_type`]: guessed
+    /// from a path's extension, or set with [`Upload::mime`]) unless set with
+    /// [`mime_type`](LargeUpload::mime_type), and `application/octet-stream` otherwise. The API
+    /// checks it against the purpose: set it when the guess is not what the API expects (such
+    /// as `text/jsonl` for a fine-tuning file).
+    ///
     /// - A file is read part by part, each part straight from its offset in the file
     ///   ([`Upload::slice`]), and bytes are sliced without a copy. A stream or a reader is read
     ///   once, in order, holding at most [`concurrency`](LargeUpload::concurrency) + 1 parts in
@@ -78,12 +86,8 @@ impl<T> Client<T> {
     /// # async fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?.build();
     /// let upload = client
-    ///     .upload_large_file(
-    ///         PathBuf::from("training.jsonl"),
-    ///         "training.jsonl",
-    ///         UploadPurpose::FineTune,
-    ///         "application/jsonl",
-    ///     )
+    ///     .upload_large_file(PathBuf::from("training.jsonl"), UploadPurpose::FineTune)
+    ///     .mime_type("text/jsonl")
     ///     .concurrency(8)
     ///     .await?;
     /// println!("file: {:?}", upload.file);
@@ -93,16 +97,14 @@ impl<T> Client<T> {
     pub fn upload_large_file(
         &self,
         upload: impl Into<Upload>,
-        filename: impl Into<String>,
         purpose: UploadPurpose,
-        mime_type: impl Into<String>,
     ) -> LargeUpload<'_, T> {
         LargeUpload {
             client: self,
             upload: upload.into(),
-            filename: filename.into(),
+            filename: None,
             purpose,
-            mime_type: mime_type.into(),
+            mime_type: None,
             part_size: MAX_UPLOAD_PART_SIZE,
             concurrency: DEFAULT_UPLOAD_CONCURRENCY,
             part_retries: 2,
@@ -113,6 +115,19 @@ impl<T> Client<T> {
 }
 
 impl<T> LargeUpload<'_, T> {
+    /// The name of the file (default: the upload's, [`Upload::name`]).
+    pub fn filename(mut self, filename: impl Into<String>) -> Self {
+        self.filename = Some(filename.into());
+        self
+    }
+
+    /// The media type of the file (default: the upload's, [`Upload::media_type`], or else
+    /// `application/octet-stream`).
+    pub fn mime_type(mut self, mime_type: impl Into<String>) -> Self {
+        self.mime_type = Some(mime_type.into());
+        self
+    }
+
     /// The size of each part but the last (default and maximum [`MAX_UPLOAD_PART_SIZE`]).
     pub fn part_size(mut self, bytes: u64) -> Self {
         self.part_size = bytes;
@@ -151,6 +166,21 @@ impl<T> LargeUpload<'_, T> {
                 self.part_size
             )));
         }
+        let filename = self
+            .filename
+            .clone()
+            .or_else(|| self.upload.name().map(str::to_string))
+            .ok_or_else(|| {
+                Error::InvalidRequest(
+                    "the upload has no file name: set it with `LargeUpload::filename` or `Upload::file_name`"
+                        .to_string(),
+                )
+            })?;
+        let mime_type = self
+            .mime_type
+            .clone()
+            .or_else(|| self.upload.media_type().map(str::to_string))
+            .unwrap_or_else(|| "application/octet-stream".to_string());
         let upload = self.upload.clone().resolve().await?;
         let length = upload.content_length().ok_or_else(|| {
             Error::InvalidRequest(
@@ -158,11 +188,11 @@ impl<T> LargeUpload<'_, T> {
             )
         })?;
         let request = CreateUploadRequest {
-            filename: self.filename.clone(),
+            filename,
             purpose: self.purpose,
             bytes: i64::try_from(length)
                 .map_err(|_| Error::InvalidRequest("the upload is too large".to_string()))?,
-            mime_type: self.mime_type.clone(),
+            mime_type,
             expires_after: None,
         };
         let created: UploadObject = self.client.post_json("/uploads", &request).await?;

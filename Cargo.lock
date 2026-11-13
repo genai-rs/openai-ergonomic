@@ -1237,8 +1237,6 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 [[package]]
 name = "openai-client-base"
 version = "0.31.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a9170a6a0bb5898cd45196d5797b84c3be3eca11fbe767e0d1b73409d94e5d1"
 dependencies = [
  "bon",
  "futures-core",
@@ -1247,9 +1245,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "serde_with",
- "timvw-rust-runtime 0.2.0",
- "tokio",
- "tokio-util",
+ "timvw-rust-runtime",
  "url",
 ]
 
@@ -1277,8 +1273,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "thiserror",
- "timvw-rust-runtime 0.2.0",
- "timvw-rust-runtime 0.3.0",
+ "timvw-rust-runtime",
  "tokio",
  "tokio-stream",
  "tower",
@@ -2304,31 +2299,9 @@ dependencies = [
 
 [[package]]
 name = "timvw-rust-runtime"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbaa07776abd25de0e0975710461bdb2dafd0820399bee6ba1221dbfc867acbc"
-dependencies = [
- "base64 0.22.1",
- "bytes",
- "futures-core",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "reqwest",
- "secrecy",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "sync_wrapper",
- "tower",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "timvw-rust-runtime"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b21a1f76151fe556b483ffbe2a60d1127e41d0964ede0a98b2a95878c7554e4c"
 dependencies = [
  "base64 0.22.1",
  "bytes",

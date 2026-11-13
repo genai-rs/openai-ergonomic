@@ -115,12 +115,8 @@ async fn upload_and_check(upload: Upload) {
     let mocks = mocks(&mut server).await;
     let client = client(&server);
     let result = client
-        .upload_large_file(
-            upload,
-            "data.jsonl",
-            UploadPurpose::FineTune,
-            "application/jsonl",
-        )
+        .upload_large_file(upload.file_name("data.jsonl"), UploadPurpose::FineTune)
+        .mime_type("application/jsonl")
         .part_size(4)
         .concurrency(3)
         .await
@@ -158,10 +154,8 @@ async fn a_stream_without_a_length_is_rejected() {
     let chunks = [Ok::<_, std::io::Error>(Bytes::from_static(b"abc"))];
     let error = client(&server)
         .upload_large_file(
-            Upload::stream(futures::stream::iter(chunks)),
-            "x",
+            Upload::stream(futures::stream::iter(chunks)).file_name("x"),
             UploadPurpose::Batch,
-            "text/plain",
         )
         .await
         .unwrap_err();
@@ -281,10 +275,10 @@ async fn parts_are_sent_in_parallel_within_the_bound_and_retried_on_their_own() 
     let upload = client
         .upload_large_file(
             Upload::bytes(b"abcdefghijkl".to_vec()),
-            "data.jsonl",
             UploadPurpose::FineTune,
-            "application/jsonl",
         )
+        .filename("data.jsonl")
+        .mime_type("application/jsonl")
         .part_size(2)
         .concurrency(2)
         .retry_backoff(Duration::from_millis(1))
@@ -311,12 +305,9 @@ async fn a_part_that_keeps_failing_cancels_the_upload() {
     let fake = FakeUploads::new(&[("ef", 10)]);
     let client = fake.client();
     let error = client
-        .upload_large_file(
-            Upload::bytes(b"abcdefgh".to_vec()),
-            "data.jsonl",
-            UploadPurpose::FineTune,
-            "application/jsonl",
-        )
+        .upload_large_file(Upload::bytes(b"abcdefgh".to_vec()), UploadPurpose::FineTune)
+        .filename("data.jsonl")
+        .mime_type("application/jsonl")
         .part_size(2)
         .part_retries(1)
         .retry_backoff(Duration::from_millis(1))
@@ -326,4 +317,58 @@ async fn a_part_that_keeps_failing_cancels_the_upload() {
     assert_eq!(fake.attempts.lock().unwrap()["ef"], 2);
     assert_eq!(fake.cancelled.load(Ordering::SeqCst), 1);
     assert!(fake.completed_with.lock().unwrap().is_none());
+}
+
+#[tokio::test]
+async fn the_file_name_and_media_type_default_to_the_uploads() {
+    let mut server = Server::new_async().await;
+    let create = server
+        .mock("POST", "/uploads")
+        .match_body(Matcher::Json(json!({
+            "filename": "notes.txt",
+            "purpose": "assistants",
+            "bytes": 2,
+            "mime_type": "text/plain"
+        })))
+        .with_status(400)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"error": {"message": "stop here", "type": "invalid_request_error"}}"#)
+        .expect(1)
+        .create_async()
+        .await;
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("notes.txt");
+    std::fs::write(&path, b"hi").unwrap();
+    let error = client(&server)
+        .upload_large_file(path, UploadPurpose::Assistants)
+        .await
+        .unwrap_err();
+    assert!(matches!(error, Error::Api { status: 400, .. }), "{error:?}");
+    create.assert_async().await;
+}
+
+#[tokio::test]
+async fn an_upload_without_a_file_name_is_rejected() {
+    let server = Server::new_async().await;
+    let error = client(&server)
+        .upload_large_file(Upload::bytes(CONTENT), UploadPurpose::Batch)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&error, Error::InvalidRequest(message) if message.contains("file name")),
+        "{error:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_missing_file_is_an_io_error() {
+    let server = Server::new_async().await;
+    let error = client(&server)
+        .upload_large_file(
+            std::path::PathBuf::from("/no/such/dir/data.jsonl"),
+            UploadPurpose::FineTune,
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(&error, Error::Http(e) if e.is_io()), "{error:?}");
 }

@@ -8,17 +8,24 @@
 //! - Documents for assistants and RAG applications
 //! - Images for vision models
 
+use bytes::Bytes;
 use std::path::Path;
+use timvw_rust_runtime::Upload;
 
 /// Builder for file upload operations.
 ///
 /// This builder provides a fluent interface for uploading files to `OpenAI`
-/// with specified purposes and metadata.
+/// with specified purposes and metadata. The content is an [`Upload`]: bytes held in memory
+/// ([`FileUploadBuilder::new`], [`FileUploadBuilder::from_text`]), a file streamed from disk
+/// ([`FileUploadBuilder::from_path`]) or any other upload ([`FileUploadBuilder::from_upload`]).
+/// Nothing is copied to a temporary file.
 #[derive(Debug, Clone)]
 pub struct FileUploadBuilder {
     filename: String,
     purpose: FilePurpose,
-    content: Vec<u8>,
+    upload: Upload,
+    /// The content, when it is held in memory.
+    content: Option<Bytes>,
 }
 
 /// Purpose for which the file is being uploaded.
@@ -37,7 +44,7 @@ pub enum FilePurpose {
 }
 
 impl FileUploadBuilder {
-    /// Create a new file upload builder with file content and purpose.
+    /// Create a new file upload builder with file content held in memory and a purpose.
     ///
     /// # Examples
     ///
@@ -48,28 +55,55 @@ impl FileUploadBuilder {
     /// let builder = FileUploadBuilder::new("hello.txt", FilePurpose::Assistants, content.to_vec());
     /// ```
     #[must_use]
-    pub fn new(filename: impl Into<String>, purpose: FilePurpose, content: Vec<u8>) -> Self {
+    pub fn new(
+        filename: impl Into<String>,
+        purpose: FilePurpose,
+        content: impl Into<Bytes>,
+    ) -> Self {
+        let filename = filename.into();
+        let content = content.into();
         Self {
-            filename: filename.into(),
+            upload: Upload::bytes(content.clone()).file_name(filename.clone()),
+            filename,
             purpose,
-            content,
+            content: Some(content),
+        }
+    }
+
+    /// Create a file upload builder from anything that converts into an [`Upload`]: a path
+    /// (`PathBuf`, `&Path`), bytes, or an [`Upload`] made from a stream or a reader.
+    ///
+    /// The file name is the upload's ([`Upload::name`]: a path's last component, or the one set
+    /// with [`Upload::file_name`]), `file` when it has none.
+    ///
+    /// ```rust
+    /// use openai_ergonomic::builders::files::{FileUploadBuilder, FilePurpose};
+    /// use timvw_rust_runtime::Upload;
+    ///
+    /// let upload = Upload::bytes(b"{}\n".to_vec()).file_name("batch.jsonl");
+    /// let builder = FileUploadBuilder::from_upload(upload, FilePurpose::Batch);
+    /// assert_eq!(builder.filename(), "batch.jsonl");
+    /// ```
+    #[must_use]
+    pub fn from_upload(upload: impl Into<Upload>, purpose: FilePurpose) -> Self {
+        let upload = upload.into();
+        let filename = upload.name().unwrap_or("file").to_string();
+        Self {
+            upload: upload.file_name(filename.clone()),
+            filename,
+            purpose,
+            content: None,
         }
     }
 
     /// Create a file upload builder from a file path.
     ///
-    /// This is a convenience method that reads the file from disk.
-    /// Note: This is a sync operation and will read the entire file into memory.
-    pub fn from_path(path: impl AsRef<Path>, purpose: FilePurpose) -> Result<Self, std::io::Error> {
-        let path = path.as_ref();
-        let content = std::fs::read(path)?;
-        let filename = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("file")
-            .to_string();
-
-        Ok(Self::new(filename, purpose, content))
+    /// The file is streamed from disk when the request is sent, not read here: a file that does
+    /// not exist fails the upload with [`Error::Http`](crate::Error::Http), whose
+    /// `is_io()` is `true`.
+    #[must_use]
+    pub fn from_path(path: impl AsRef<Path>, purpose: FilePurpose) -> Self {
+        Self::from_upload(path.as_ref(), purpose)
     }
 
     /// Create a file upload builder from text content.
@@ -92,6 +126,13 @@ impl FileUploadBuilder {
         Ok(Self::new(filename, purpose, content))
     }
 
+    /// Set the media type of the file (the `Content-Type` of its multipart part).
+    #[must_use]
+    pub fn mime(mut self, mime: impl Into<String>) -> Self {
+        self.upload = self.upload.mime(mime.into());
+        self
+    }
+
     /// Get the filename for this upload.
     #[must_use]
     pub fn filename(&self) -> &str {
@@ -104,28 +145,42 @@ impl FileUploadBuilder {
         &self.purpose
     }
 
-    /// Get the content for this upload.
+    /// The upload, named [`filename`](FileUploadBuilder::filename).
     #[must_use]
-    pub fn content(&self) -> &[u8] {
-        &self.content
+    pub fn upload(&self) -> &Upload {
+        &self.upload
     }
 
-    /// Get the size of the content in bytes.
+    /// The content, when it is held in memory (not for a path, a stream or a reader).
     #[must_use]
-    pub fn content_size(&self) -> usize {
-        self.content.len()
+    pub fn content(&self) -> Option<&[u8]> {
+        self.content.as_deref()
     }
 
-    /// Check if the file is empty.
+    /// The size of the content in bytes, when known: content held in memory, or an upload
+    /// given its length. A path's size is only known once it is read.
+    #[must_use]
+    pub fn content_size(&self) -> Option<u64> {
+        self.upload.content_length()
+    }
+
+    /// Whether the content is known to be empty.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.content.is_empty()
+        self.content_size() == Some(0)
     }
 
-    /// Get the content as a string (if it's valid UTF-8).
+    /// The content as a string, when it is held in memory and valid UTF-8.
     #[must_use]
     pub fn content_as_string(&self) -> Option<String> {
-        String::from_utf8(self.content.clone()).ok()
+        self.content
+            .as_deref()
+            .and_then(|content| String::from_utf8(content.to_vec()).ok())
+    }
+
+    /// The parts of the request: the upload and the purpose.
+    pub(crate) fn into_parts(self) -> (Upload, FilePurpose) {
+        (self.upload, self.purpose)
     }
 }
 
@@ -264,11 +319,9 @@ pub fn upload_json_file(
     FileUploadBuilder::from_json(filename, purpose, json)
 }
 
-/// Helper function to upload a file from a path.
-pub fn upload_file_from_path(
-    path: impl AsRef<Path>,
-    purpose: FilePurpose,
-) -> Result<FileUploadBuilder, std::io::Error> {
+/// Helper function to upload a file from a path (streamed from disk when sent).
+#[must_use]
+pub fn upload_file_from_path(path: impl AsRef<Path>, purpose: FilePurpose) -> FileUploadBuilder {
     FileUploadBuilder::from_path(path, purpose)
 }
 
@@ -334,8 +387,9 @@ mod tests {
         let builder = FileUploadBuilder::new("test.txt", FilePurpose::Assistants, content.clone());
 
         assert_eq!(builder.filename(), "test.txt");
-        assert_eq!(builder.content(), content.as_slice());
-        assert_eq!(builder.content_size(), content.len());
+        assert_eq!(builder.content(), Some(content.as_slice()));
+        assert_eq!(builder.content_size(), Some(content.len() as u64));
+        assert_eq!(builder.upload().name(), Some("test.txt"));
         assert!(!builder.is_empty());
         match builder.purpose() {
             FilePurpose::Assistants => {}
@@ -371,7 +425,7 @@ mod tests {
 
         assert_eq!(builder.filename(), "data.json");
         assert!(!builder.is_empty());
-        assert!(builder.content_size() > 0);
+        assert!(builder.content_size().unwrap() > 0);
         match builder.purpose() {
             FilePurpose::Batch => {}
             _ => panic!("Expected Batch purpose"),
@@ -496,7 +550,31 @@ mod tests {
     fn test_empty_file() {
         let builder = FileUploadBuilder::new("empty.txt", FilePurpose::Assistants, vec![]);
         assert!(builder.is_empty());
-        assert_eq!(builder.content_size(), 0);
+        assert_eq!(builder.content_size(), Some(0));
         assert_eq!(builder.content_as_string(), Some(String::new()));
+    }
+
+    #[test]
+    fn test_from_path_is_lazy_and_named_after_the_file() {
+        let builder =
+            FileUploadBuilder::from_path("/no/such/dir/train.jsonl", FilePurpose::FineTune);
+        assert_eq!(builder.filename(), "train.jsonl");
+        assert_eq!(builder.content(), None);
+        assert_eq!(builder.content_size(), None);
+        assert!(!builder.is_empty());
+    }
+
+    #[test]
+    fn test_from_upload_without_a_name() {
+        let builder = FileUploadBuilder::from_upload(b"data".to_vec(), FilePurpose::Assistants);
+        assert_eq!(builder.filename(), "file");
+        assert_eq!(builder.content_size(), Some(4));
+        let named = FileUploadBuilder::from_upload(
+            Upload::bytes(b"x".to_vec()).file_name("x.txt"),
+            FilePurpose::Assistants,
+        )
+        .mime("text/plain");
+        assert_eq!(named.filename(), "x.txt");
+        assert_eq!(named.upload().media_type(), Some("text/plain"));
     }
 }
