@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.18.0...v0.19.0) - 2026-11-13
+
+### Added
+
+- [**breaking**] send through timvw-rust-runtime (tower), add bring-your-own-types calls
+
+### Other
+
+- bump to 0.19.0 for the breaking HTTP stack change, allow clippy::empty_enums in a test
+
 ## [0.18.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.17.0...v0.18.0) - 2026-11-12
 
 ### Added
