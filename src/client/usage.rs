@@ -18,7 +18,7 @@ pub struct UsageClient<'a, T = ()> {
 
 impl_interceptor_helpers!(UsageClient<'_, T>);
 
-impl<T: Default + Send + Sync> UsageClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> UsageClient<'_, T> {
     /// Get usage data for audio speeches.
     ///
     /// # Example

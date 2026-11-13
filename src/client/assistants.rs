@@ -22,7 +22,7 @@ pub struct AssistantsClient<'a, T = ()> {
 
 impl_interceptor_helpers!(AssistantsClient<'_, T>);
 
-impl<T: Default + Send + Sync> AssistantsClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> AssistantsClient<'_, T> {
     /// Create a new assistant.
     ///
     /// # Example

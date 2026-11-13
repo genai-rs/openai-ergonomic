@@ -19,7 +19,7 @@ pub struct ModerationsClient<'a, T = ()> {
 
 impl_interceptor_helpers!(ModerationsClient<'_, T>);
 
-impl<T: Default + Send + Sync> ModerationsClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> {
     /// Create a moderation builder for checking text content.
     ///
     /// # Example

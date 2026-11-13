@@ -19,7 +19,7 @@ pub struct CompletionsClient<'a, T = ()> {
 
 impl_interceptor_helpers!(CompletionsClient<'_, T>);
 
-impl<T: Default + Send + Sync> CompletionsClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> CompletionsClient<'_, T> {
     /// Create a completions builder for the specified model.
     ///
     /// # Example

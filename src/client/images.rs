@@ -23,7 +23,7 @@ pub struct ImagesClient<'a, T = ()> {
 
 impl_interceptor_helpers!(ImagesClient<'_, T>);
 
-impl<T: Default + Send + Sync> ImagesClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> ImagesClient<'_, T> {
     /// Create a builder for image generation requests.
     #[must_use]
     pub fn generate(&self, prompt: impl Into<String>) -> ImageGenerationBuilder {

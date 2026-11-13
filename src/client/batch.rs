@@ -18,7 +18,7 @@ pub struct BatchClient<'a, T = ()> {
 
 impl_interceptor_helpers!(BatchClient<'_, T>);
 
-impl<T: Default + Send + Sync> BatchClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> BatchClient<'_, T> {
     /// Create a new batch job.
     ///
     /// # Example

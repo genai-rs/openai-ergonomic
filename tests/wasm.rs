@@ -1,6 +1,6 @@
 //! WebAssembly: the client in a JavaScript host against a scripted HTTP service (a tower service
 //! that is not `Send`, in place of a server): a chat completion, a streamed one with an
-//! interceptor, a tool call through the tool framework, a webhook verification, and retries with
+//! interceptor, an interceptor whose state holds an `Rc`, a tool call through the tool framework, a webhook verification, and retries with
 //! backoff (the runtime's retry layer, and the parts of a large upload).
 //!
 //! `cargo test --target wasm32-unknown-unknown --no-default-features --features webhook --test wasm`, with
@@ -18,8 +18,8 @@ use std::time::Duration;
 
 use futures::StreamExt;
 use openai_ergonomic::{
-    Client, Config, FunctionTool, Interceptor, StreamChunkContext, StreamTerminalContext,
-    ToolRegistry, UploadPurpose,
+    AfterResponseContext, BeforeRequestContext, Client, Config, FunctionTool, Interceptor,
+    StreamChunkContext, StreamTerminalContext, ToolRegistry, UploadPurpose,
 };
 use serde_json::{json, Value};
 use timvw_rust_runtime::retry::{RetryLayer, RetryPolicy};
@@ -190,6 +190,70 @@ async fn streamed_chat_completion_with_an_interceptor() {
     assert_eq!(report.total_chunks, 2);
     assert_eq!(chunks.get(), 2);
     assert!(finished.get());
+}
+
+/// Interceptor state that holds an `Rc`: neither `Send` nor `Sync`, which WebAssembly allows.
+#[derive(Default)]
+struct RcState {
+    log: Rc<RefCell<Vec<String>>>,
+}
+
+/// Puts its log into the state before the request and appends to it after the response.
+struct RecordWithRcState {
+    log: Rc<RefCell<Vec<String>>>,
+}
+
+impl Interceptor<RcState> for RecordWithRcState {
+    async fn before_request(
+        &self,
+        ctx: &mut BeforeRequestContext<'_, RcState>,
+    ) -> openai_ergonomic::Result<()> {
+        ctx.state.log = self.log.clone();
+        ctx.state
+            .log
+            .borrow_mut()
+            .push(format!("before {}", ctx.operation));
+        Ok(())
+    }
+
+    async fn after_response(
+        &self,
+        ctx: &AfterResponseContext<'_, RcState>,
+    ) -> openai_ergonomic::Result<()> {
+        ctx.state.log.borrow_mut().push(format!(
+            "after {} ({} output tokens)",
+            ctx.operation,
+            ctx.output_tokens.unwrap_or_default()
+        ));
+        Ok(())
+    }
+}
+
+#[wasm_bindgen_test]
+async fn interceptor_state_that_is_not_send() {
+    let (http, _seen) = scripted(|_, _| {
+        json_reply(&completion(
+            &json!({"role": "assistant", "content": "Hi", "refusal": null}),
+        ))
+    });
+    let log = Rc::new(RefCell::new(Vec::new()));
+    let config = Config::builder()
+        .api_key("sk-test")
+        .api_base("https://api.example/v1")
+        .http_client(http)
+        .build();
+    let client: Client<RcState> = Client::builder(config)
+        .unwrap()
+        .with_interceptor(RecordWithRcState { log: log.clone() })
+        .build();
+    let response = client.send_chat(client.chat_simple("Hi")).await.unwrap();
+    assert_eq!(response.content(), Some("Hi"));
+    // A sub-client works with the state too.
+    let _ = client.models();
+    assert_eq!(
+        *log.borrow(),
+        ["before chat", "after chat (2 output tokens)"]
+    );
 }
 
 /// A tool that keeps its state in an `Rc`: not `Send` or `Sync`, as WebAssembly allows.

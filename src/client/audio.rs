@@ -23,7 +23,7 @@ pub struct AudioClient<'a, T = ()> {
 
 impl_interceptor_helpers!(AudioClient<'_, T>);
 
-impl<T: Default + Send + Sync> AudioClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> AudioClient<'_, T> {
     /// Create a speech builder for text-to-speech generation.
     #[must_use]
     pub fn speech(

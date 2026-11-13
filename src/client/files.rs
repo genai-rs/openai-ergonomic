@@ -21,7 +21,7 @@ pub struct FilesClient<'a, T = ()> {
 
 impl_interceptor_helpers!(FilesClient<'_, T>);
 
-impl<T: Default + Send + Sync> FilesClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> FilesClient<'_, T> {
     /// Upload a file to `OpenAI`.
     ///
     /// # Example

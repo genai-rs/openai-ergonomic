@@ -177,7 +177,8 @@ where
 
 /// `Send` natively, any type on WebAssembly; `Sync` natively, any type on WebAssembly.
 ///
-/// The bounds of [`FunctionTool`], [`Interceptor`], [`AuthProvider`] and their futures: on
+/// The bounds of [`FunctionTool`], [`Interceptor`], [`AuthProvider`], their futures and the
+/// interceptor state `T` of [`Client<T>`](Client): on
 /// WebAssembly (`wasm32-unknown-unknown`) futures and streams of the JavaScript host are not
 /// `Send`, so nothing there needs to be. Natively they are exactly `Send` and `Sync`.
 pub use timvw_rust_runtime::{MaybeSend, MaybeSync};

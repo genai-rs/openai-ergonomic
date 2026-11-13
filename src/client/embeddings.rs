@@ -20,7 +20,7 @@ pub struct EmbeddingsClient<'a, T = ()> {
 
 impl_interceptor_helpers!(EmbeddingsClient<'_, T>);
 
-impl<T: Default + Send + Sync> EmbeddingsClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> EmbeddingsClient<'_, T> {
     /// Start a builder for creating embeddings requests with the given model.
     #[must_use]
     pub fn builder(&self, model: impl Into<String>) -> EmbeddingsBuilder {
