@@ -25,7 +25,7 @@ use timvw_rust_runtime::{RequestBuilder, Response};
 
 impl<T> Client<T> {
     /// Start a request to `{api_base}{path}` with the client's authentication and user agent.
-    fn raw_request(&self, method: Method, path: &str) -> RequestBuilder {
+    pub(super) fn raw_request(&self, method: Method, path: &str) -> RequestBuilder {
         let configuration = &self.base_configuration;
         let base = configuration.base_path.trim_end_matches('/');
         let url = if path.starts_with('/') {
