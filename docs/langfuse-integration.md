@@ -15,18 +15,15 @@ The Langfuse interceptor provides OpenTelemetry-based observability for OpenAI A
 
 The Langfuse integration is included in the main crate. Ensure your `Cargo.toml` includes:
 
-```toml
-[dependencies]
-openai-ergonomic = "=0.6.0"
-tokio = { version = "1", features = ["full"] }
-opentelemetry = { version = "0.32", features = ["trace"] }
-opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
+```bash
+cargo add openai-ergonomic
+cargo add tokio --features full
+cargo add opentelemetry --features trace
+cargo add opentelemetry_sdk --features rt-tokio,trace,experimental_trace_batch_span_processor_with_async_runtime
 ```
 
-For the current, unpublished repository source, use the exact source revision and
-OpenTelemetry 0.33.1 manifest shown in the [README's development setup](../README.md#langfuse-setup).
-The published 0.6.0 crate and that development revision require different
-OpenTelemetry minor versions; do not mix the dependency sets.
+Use the OpenTelemetry minor version that `openai-ergonomic` depends on (see its `Cargo.toml`);
+mixing two OpenTelemetry versions makes the tracer types incompatible.
 
 ## Configuration
 
@@ -68,13 +65,11 @@ let interceptor = LangfuseInterceptor::new(config)?;
 
 ### Basic Usage
 
-Follow the [compiled Langfuse setup in the README](../README.md#langfuse-setup).
-That single source is included in crate documentation and checked by
-`cargo test --doc --all-features` as a `no_run` doctest. It constructs the exporter,
+Follow the [compiled Langfuse setup](interceptors.md#langfuse-and-opentelemetry).
+It is checked by `cargo test --doc --all-features` as a `no_run` doctest. It constructs the exporter,
 tracer provider, and interceptor, sends a request with `send_chat`, and flushes
 spans before exiting. Compilation needs no credentials or live API calls.
 
-The dependencies above match the published 0.6.0 package. The README also records a separately pinned development-source manifest.
 Set `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_SECRET_KEY` only when
 running it.
 

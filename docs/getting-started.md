@@ -1,106 +1,89 @@
-# Getting Started with openai-ergonomic
+# Getting started
 
-This guide helps you configure the crate, create a client, and make your first
-request against the OpenAI API using the ergonomic builders provided by
-`openai-ergonomic`.
-
-## Installation
-
-Add the crate to your `Cargo.toml` (Tokio is required for async examples):
-
-```toml
-[dependencies]
-openai-ergonomic = "0.1"
-tokio = { version = "1.37", features = ["full"] }
-```
-
-## Prerequisites
-
-### 1. Obtain an OpenAI API Key
-Create an API key from the [OpenAI dashboard](https://platform.openai.com/api-keys)
-and export it locally:
+## Installing
 
 ```bash
-export OPENAI_API_KEY="sk-your-key"
+cargo add openai-ergonomic
+cargo add tokio --features full
 ```
 
-Optionally set `OPENAI_ORG_ID` if you need to scope requests to a specific
-organization.
+The default features are `rustls-tls` (TLS with rustls) and `otel` (the Langfuse /
+OpenTelemetry integration, see [interceptors](interceptors.md)). The others:
 
-### 2. Minimum Tooling
-- Rust 1.83 or newer
-- `cargo` and `rustup`
-- Network access to the OpenAI REST endpoints
+| Feature | What it adds |
+| --- | --- |
+| `native-tls` | TLS with the platform's library instead of rustls |
+| `webhook` | [webhook](webhooks.md) signature verification and events |
+| `tracing-http` | `timvw_rust_runtime::trace::TraceLayer`: logs every request and retry with `tracing` |
+| `test-utils` | a mockito-based mock server for your tests (native only) |
 
-## Creating a Client
+For WebAssembly, turn the default features off: see [WebAssembly](webassembly.md). The minimum
+supported Rust version is in `Cargo.toml` (`rust-version`).
 
-The simplest way to construct a client is via environment variables:
+## A client
 
-```rust
+`Client::from_env()` reads the configuration from the environment:
+
+| Variable | Meaning |
+| --- | --- |
+| `OPENAI_API_KEY` | the API key (required for `OpenAI`) |
+| `OPENAI_API_BASE` | another base URL |
+| `OPENAI_ORGANIZATION`, `OPENAI_PROJECT` | the organization and project headers |
+| `OPENAI_MAX_RETRIES` | retries of the default HTTP client (default 3) |
+| `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION` | Azure `OpenAI` instead (see [configuration](configuration.md#azure-openai)) |
+
+Or build the configuration yourself:
+
+```rust,no_run
+use openai_ergonomic::{Client, Config};
+
+# fn main() -> openai_ergonomic::Result<()> {
+let config = Config::builder()
+    .api_key("sk-...")
+    .organization("org-123")
+    .default_model("gpt-4o-mini")
+    .max_retries(5)
+    .build();
+let client = Client::builder(config)?.build();
+# let _ = client;
+# Ok(())
+# }
+```
+
+[Configuration](configuration.md) covers providers (Azure `OpenAI`, `OpenRouter`, Groq, Ollama, any
+`OpenAI`-compatible API), refreshable credentials, retries, timeouts and custom HTTP clients.
+
+## Chat completions
+
+```rust,no_run
 use openai_ergonomic::Client;
 
 #[tokio::main]
-async fn main() -> openai_ergonomic::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?.build();
-    println!("Client ready: default model = {:?}", client.config().default_model());
+
+    let builder = client
+        .chat()
+        .system("You are an upbeat assistant.")
+        .user("Suggest a codename for a Rust project building on OpenAI.")
+        .temperature(0.7);
+    let response = client.send_chat(builder).await?;
+    println!("{}", response.content().unwrap_or_default());
+
+    // One user message with the default model
+    let response = client.send_chat(client.chat_simple("Hello!")).await?;
+    println!("{}", response.content().unwrap_or_default());
     Ok(())
 }
 ```
 
-You can also build a configuration explicitly:
+## The Responses API
 
-```rust
-use openai_ergonomic::{Client, Config};
-
-#[tokio::main]
-async fn main() -> openai_ergonomic::Result<()> {
-    let config = Config::builder()
-        .api_key("sk-your-key")
-        .api_base("https://api.openai.com/v1")
-        .default_model("gpt-4.1-mini")
-        .build();
-
-    let client = Client::new(config)?.build();
-    // Use the client …
-    Ok(())
-}
-```
-
-To configure a custom timeout, provide a custom HTTP client (a
-[`timvw_rust_runtime::Client`](https://docs.rs/timvw-rust-runtime), which you can wrap in
-[tower](https://docs.rs/tower) layers):
-
-```rust
-use openai_ergonomic::{Client, Config};
-use std::time::Duration;
+```rust,no_run
+use openai_ergonomic::Client;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // reqwest with a 30 s timeout, and the default retries
-    let http_client = timvw_rust_runtime::Client::from_reqwest(
-        reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .build()?,
-    );
-
-    let config = Config::builder()
-        .api_key("sk-your-key")
-        .http_client(http_client)
-        .build();
-
-    let client = Client::new(config)?.build();
-    // Use the client …
-    Ok(())
-}
-```
-
-## First Request: Responses API
-
-```rust
-use openai_ergonomic::{Client, Result};
-
-#[tokio::main]
-async fn main() -> Result<()> {
     let client = Client::from_env()?.build();
 
     let builder = client
@@ -108,163 +91,47 @@ async fn main() -> Result<()> {
         .system("You are a concise assistant.")
         .user("Summarise the benefits of type-safe builders in Rust.")
         .temperature(0.4);
-
     let response = client.send_responses(builder).await?;
-    println!("Answer: {}", response.primary_text());
+    println!("{}", response.content().unwrap_or_default());
     Ok(())
 }
 ```
 
-`ChatCompletionResponseWrapper::primary_text()` extracts the first text chunk for
-convenience. Inspect `.usage()` or iterate through `.choices()` for more detail.
+More in [chat and responses](chat-and-responses.md) and [Responses workflows](responses_workflows.md);
+streaming in [streaming](streaming.md).
 
-## Chat Completions
+## Errors
 
-```rust
-use openai_ergonomic::{Client, Result};
+Every fallible call returns `openai_ergonomic::Result<T>`, whose `Error` has a variant per kind
+of failure: `Error::Api` (an error status, with the `OpenAI` error's type and code),
+`Error::RateLimit`, `Error::Http` (sending failed: `is_timeout()`, `is_connect()`, `is_io()`),
+`Error::InvalidRequest` (a builder rejected its input before sending), `Error::Config`, and more.
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let client = Client::from_env()?.build();
-
-    let builder = client
-        .chat()
-        .system("You are an upbeat assistant.")
-        .user("Suggest a codename for a Rust project building on OpenAI.");
-
-    let response = client.send_chat(builder).await?;
-    println!("Suggestion: {}", response.primary_text());
-    Ok(())
-}
-```
-
-## Text-to-Speech
-
-```rust
-use openai_client_base::models::create_speech_request::ResponseFormat as SpeechResponseFormat;
-use openai_ergonomic::{Client, Result};
+```rust,no_run
+use openai_ergonomic::{Client, Error};
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?.build();
 
-    let speech = client
-        .audio()
-        .speech("gpt-4o-mini-tts", "Narrate this update", "alloy")
-        .response_format(SpeechResponseFormat::Mp3)
-        .speed(1.1);
-
-    let audio_bytes = client.audio().create_speech(speech).await?;
-    std::fs::write("speech.mp3", audio_bytes)?;
-    Ok(())
-}
-```
-
-## Audio Transcription
-
-```rust
-use openai_client_base::models::AudioResponseFormat;
-use openai_ergonomic::{Client, Result, TimestampGranularity};
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let client = Client::from_env()?.build();
-
-    let transcription = client
-        .audio()
-        .transcription("meeting.wav", "gpt-4o-mini-transcribe")
-        .language("en")
-        .response_format(AudioResponseFormat::VerboseJson)
-        .timestamp_granularities([TimestampGranularity::Segment, TimestampGranularity::Word]);
-
-    let response = client.audio().create_transcription(transcription).await?;
-    println!("Transcript: {}", response.text);
-    Ok(())
-}
-```
-
-## Image Generation
-
-```rust
-use openai_ergonomic::{Client, Result, Size, Style};
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let client = Client::from_env()?.build();
-
-    let request = client
-        .images()
-        .generate("A watercolor landscape with snow-capped mountains")
-        .size(Size::Variant1024x1024)
-        .style(Style::Natural);
-
-    let response = client.images().create(request).await?;
-
-    if let Some(first) = response.data.first() {
-        if let Some(url) = &first.url {
-            println!("Download the generated image at: {url}");
-        }
+    match client.send_chat(client.chat_simple("Hello")).await {
+        Ok(response) => println!("{}", response.content().unwrap_or_default()),
+        Err(Error::RateLimit(message)) => eprintln!("rate limited ({message}), retry later"),
+        Err(Error::Api { status, message, .. }) => eprintln!("API error {status}: {message}"),
+        Err(error) => eprintln!("request failed: {error}"),
     }
-
     Ok(())
 }
 ```
 
-## Working with Tools
+## Examples
 
-The assistants builders expose convenience helpers for common tooling. For
-example, enabling the code interpreter while configuring metadata:
+The [`examples/`](../examples) directory has a runnable example per area (chat, streaming,
+tools, the Responses API, images, audio, files, assistants, batches, Azure, Langfuse, ...); the
+[examples index](examples-index.md) lists them by category.
 
-```rust
-use openai_ergonomic::builders::assistants::{
-    assistant_with_instructions, tool_code_interpreter,
-};
-
-let assistant = assistant_with_instructions(
-        "gpt-4.1", "Analytics Buddy", "You analyse CSV datasets and surface insights.")
-    .description("Data analysis assistant")
-    .add_tool(tool_code_interpreter())
-    .add_metadata("team", "data-platform");
-
-println!("Assistant ready with {} tools", assistant.tools_ref().len());
+```bash
+export OPENAI_API_KEY="sk-..."
+cargo run --example quickstart
+cargo run --example responses_streaming
 ```
-
-Combine these builders with the examples in `examples/assistants_*` to orchestrate
-threads, file search, and vector store runs.
-
-## Error Handling
-
-All fallible operations return `openai_ergonomic::Result<T>`. Handle errors with
-the re-exported `Error` type:
-
-```rust
-use openai_ergonomic::{Client, Error, Result};
-
-#[tokio::main]
-async fn main() -> Result<()> {
-    let client = Client::from_env()?.build();
-
-    match client.send_chat(client.chat().user("Hello?")).await {
-        Ok(resp) => println!("{}", resp.primary_text()),
-        Err(Error::RateLimit { .. }) => eprintln!("Back off and retry later"),
-        Err(other) => eprintln!("Request failed: {other}"),
-    }
-
-    Ok(())
-}
-```
-
-## Next Steps
-
-- Browse the curated `examples/` directory for end-to-end workflows
-- Review the [architecture overview](architecture.md) and [API surface design](design/api_surface.md)
-- Run `cargo doc --open` locally to explore the generated documentation
-- Read [CONTRIBUTING.md](../CONTRIBUTING.md) and [docs/workflow.md](workflow.md) before opening PRs
-
-## Getting Help
-
-- Check the docs on [docs.rs](https://docs.rs/openai-ergonomic)
-- Search existing issues or open a new one on GitHub
-- Reach out on the maintainer channels listed in `AUTOMATION_AGENTS.md`
-
-Happy coding with `openai-ergonomic`!
