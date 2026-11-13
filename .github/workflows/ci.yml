@@ -7,13 +7,22 @@ on:
 
 jobs:
   ci:
-    uses: genai-rs/.github/.github/workflows/rust-ci.yml@main
+    uses: genai-rs/.github/.github/workflows/rust-ci.yml@ci/local-ci-gate
     with:
       msrv: "1.88"
     secrets: inherit
 
+  # Decides whether heavy jobs run (see genai-rs/.github local-ci-gate.yml).
+  gate:
+    uses: genai-rs/.github/.github/workflows/local-ci-gate.yml@ci/local-ci-gate
+
+  # macOS/Windows targets build on main only (or PRs labelled full-ci); all
+  # targets skip for PRs attested by scripts/local-ci.sh and release-plz PRs.
+  # Skipping is per step so the required "Build (<target>)" checks still pass.
   build:
     name: Build
+    needs: gate
+    if: ${{ !cancelled() }}
     strategy:
       matrix:
         target:
@@ -30,12 +39,23 @@ jobs:
             os: windows-latest
           - target: aarch64-apple-darwin
             os: macos-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ (needs.gate.outputs.heavy != 'false' && (matrix.os == 'ubuntu-latest' || needs.gate.outputs.all-os != 'false')) && matrix.os || 'ubuntu-latest' }}
+    env:
+      RUN: ${{ needs.gate.outputs.heavy != 'false' && (matrix.os == 'ubuntu-latest' || needs.gate.outputs.all-os != 'false') }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Skip (${{ needs.gate.outputs.mode }})
+        if: env.RUN != 'true'
+        env:
+          REASON: ${{ needs.gate.outputs.reason }}
+        run: echo "Skipped - $REASON"
+      - if: env.RUN == 'true'
+        uses: actions/checkout@v7
+      - if: env.RUN == 'true'
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+      - if: env.RUN == 'true'
+        uses: Swatinem/rust-cache@v2
       - name: Build
+        if: env.RUN == 'true'
         run: cargo build --release --target ${{ matrix.target }} --all-features
