@@ -15,7 +15,24 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { path = "/Users/tim/runner-setup/workspace/_sessions/cse_01HMZBkbrVdWFeznYPW678Ks/openai-client-base", default-features = false, features = ["full"] }
+openai-client-base = { path = "/Users/tim/runner-setup/workspace/_sessions/cse_01HMZBkbrVdWFeznYPW678Ks/openai-client-base", default-features = false, features = [
+    # Every model (`types`), and the API groups whose operations the client calls.
+    "types",
+    "administration", # usage
+    "assistants",
+    "audio",
+    "batch",
+    "chat-completion",
+    "completions",
+    "embedding",
+    "file",
+    "finetuning",
+    "image",
+    "model",
+    "moderation",
+    "upload",
+    "vectorstore",
+] }
 serde = { version = "^1.0.229", features = ["derive"] }
 serde_json = "^1.0.151"
 tokio = { version = "^1.53.3", features = ["rt", "macros", "sync", "time", "fs", "io-util"] }
