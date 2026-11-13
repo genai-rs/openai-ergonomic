@@ -5,7 +5,7 @@
 //!
 //! `cargo test --target wasm32-unknown-unknown --no-default-features --features webhook --test wasm`, with
 //! `wasm-bindgen-test-runner` as the target's runner (it runs the tests in Node.js); see
-//! "WebAssembly" in README.md.
+//! docs/webassembly.md.
 #![cfg(target_family = "wasm")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(unknown_lints, clippy::unused_async_trait_impl)]

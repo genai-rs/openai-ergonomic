@@ -10,110 +10,7 @@
     allow(clippy::future_not_send, clippy::arc_with_non_send_sync)
 )]
 
-//! # openai-ergonomic
-//!
-//! An ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder patterns
-//! and async/await support for all `OpenAI` endpoints.
-//!
-//! ## Features
-//!
-//! - **Type-safe builders** - Use builder patterns with compile-time validation
-//! - **Async/await support** - Built on tokio and a tower-based HTTP client
-//!   ([`timvw_rust_runtime::Client`], reqwest underneath) whose layers you can customise
-//! - **Streaming responses** - First-class support for real-time streaming
-//! - **Comprehensive coverage** - Support for all `OpenAI` API endpoints
-//! - **Error handling** - Structured error types for robust applications
-//! - **Testing support** - Mock-friendly design for unit testing
-//! - **Bring your own types** - [`Client::post_json`], [`Client::get_json`], [`Client::send_json`]
-//!   and [`Client::send_json_stream`] send and decode types of your own
-//!
-//! The [basic usage](#basic-usage) and [Langfuse setup](#langfuse-setup)
-//! examples above are compiled directly from the README as `no_run` doctests.
-//!
-//! ## Streaming Example
-//!
-//! ```rust,no_run
-//! use openai_ergonomic::Client;
-//! use futures::StreamExt;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let client = Client::from_env()?.build();
-//!
-//!     // Stream chat completions
-//!     let builder = client
-//!         .chat()
-//!         .user("Tell me a story");
-//!
-//!     let mut stream = client.send_chat_stream(builder).await?;
-//!
-//!     while let Some(chunk) = stream.next().await {
-//!         let chunk = chunk?;
-//!         if let Some(content) = chunk.content() {
-//!             print!("{}", content);
-//!         }
-//!     }
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ## Error Handling
-//!
-//! ```rust,no_run
-//! use openai_ergonomic::{Client, Error};
-//!
-//! #[tokio::main]
-//! async fn main() {
-//!     let client = Client::from_env().expect("API key required").build();
-//!
-//!     match client.send_chat(client.chat_simple("Hello")).await {
-//!         Ok(response) => println!("{}", response.content().unwrap_or_default()),
-//!         Err(Error::RateLimit { .. }) => {
-//!             println!("Rate limited, please retry later");
-//!         }
-//!         Err(e) => eprintln!("Error: {}", e),
-//!     }
-//! }
-//! ```
-//!
-//! ## Custom Configuration
-//!
-//! ```rust,no_run
-//! use openai_ergonomic::{Client, Config};
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let config = Config::builder()
-//!         .api_key("your-api-key")
-//!         .organization("org-123")
-//!         .max_retries(5)
-//!         .build();
-//!
-//!     let client = Client::builder(config)?.build();
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ## Testing with Mocks
-//!
-//! ```rust,no_run
-//! #[cfg(test)]
-//! mod tests {
-//!     use openai_ergonomic::test_utils::MockOpenAIServer;
-//!
-//!     #[tokio::test]
-//!     async fn test_chat_completion() {
-//!         let mock = MockOpenAIServer::new();
-//!         mock.mock_chat_completion("Hello!", "Hi there!");
-//!
-//!         let client = mock.client();
-//!         let response = client.chat_simple("Hello!").await.unwrap();
-//!         assert_eq!(response, "Hi there!");
-//!     }
-//! }
-//! ```
-//!
-//! # Modules
+//! ## Modules
 //!
 //! - [`builders`] - Builder pattern implementations for API requests
 //! - [`responses`] - Response type wrappers with ergonomic helpers
@@ -259,4 +156,31 @@ mod tests {
         let result = Client::builder(config);
         assert!(result.is_ok());
     }
+}
+
+/// The guides under `docs/`, compiled as doc tests so that their examples keep working (the README
+/// is the crate documentation, so its examples are doc tests already).
+#[cfg(doctest)]
+mod doc_pages {
+    #[doc = include_str!("../docs/getting-started.md")]
+    struct GettingStarted;
+    #[doc = include_str!("../docs/configuration.md")]
+    struct Configuration;
+    #[doc = include_str!("../docs/chat-and-responses.md")]
+    struct ChatAndResponses;
+    #[doc = include_str!("../docs/streaming.md")]
+    struct Streaming;
+    #[doc = include_str!("../docs/interceptors.md")]
+    struct Interceptors;
+    #[cfg(feature = "webhook")]
+    #[doc = include_str!("../docs/webhooks.md")]
+    struct Webhooks;
+    #[doc = include_str!("../docs/files-and-media.md")]
+    struct FilesAndMedia;
+    #[doc = include_str!("../docs/webassembly.md")]
+    struct WebAssembly;
+    #[doc = include_str!("../docs/migration.md")]
+    struct Migration;
+    #[doc = include_str!("../docs/development.md")]
+    struct Development;
 }

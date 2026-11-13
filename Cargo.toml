@@ -63,7 +63,7 @@ tokio = { version = "^1.53.3", features = ["rt", "time", "fs"] }
 mockito = { version = "^1.7.2", optional = true }
 
 # WebAssembly in a JavaScript host (wasm32-unknown-unknown): streaming callbacks run with `spawn_local`, timers are the
-# host's `setTimeout` and clocks `performance.now()`/`Date.now()` (std's panic there). See "WebAssembly" in README.md.
+# host's `setTimeout` and clocks `performance.now()`/`Date.now()` (std's panic there). See docs/webassembly.md.
 [target.'cfg(target_family = "wasm")'.dependencies]
 wasm-bindgen-futures = "0.4"
 gloo-timers = { version = "0.3", features = ["futures"] }
@@ -80,7 +80,7 @@ rand = "^0.10.3"
 tower = { version = "^0.5.2", features = ["util", "retry", "timeout"] }
 reqwest = { version = "^0.13.5", default-features = false, features = ["json", "stream"] }
 
-# `tests/wasm.rs`, run in Node.js with wasm-bindgen-test-runner (see "WebAssembly" in README.md).
+# `tests/wasm.rs`, run in Node.js with wasm-bindgen-test-runner (see docs/webassembly.md).
 [target.'cfg(target_family = "wasm")'.dev-dependencies]
 wasm-bindgen-test = "0.3"
 
