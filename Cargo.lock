@@ -1151,8 +1151,6 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 [[package]]
 name = "openai-client-base"
 version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69d1947c294e61474905ae898a89a2384161ac19daa454194acc4abfc8085dd1"
 dependencies = [
  "bon",
  "futures-core",
@@ -1169,7 +1167,7 @@ dependencies = [
 
 [[package]]
 name = "openai-ergonomic"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -1864,6 +1862,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
+dependencies = [
+ "zeroize",
+]
+
+[[package]]
 name = "security-framework"
 version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2194,9 +2201,9 @@ dependencies = [
 
 [[package]]
 name = "timvw-rust-runtime"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c80eeb80d46cce7397f8ece27114deb7ff94b5211227ae1b4a91f7bb8ad9ab6"
+checksum = "dbaa07776abd25de0e0975710461bdb2dafd0820399bee6ba1221dbfc867acbc"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -2206,6 +2213,7 @@ dependencies = [
  "http-body",
  "http-body-util",
  "reqwest",
+ "secrecy",
  "serde",
  "serde_json",
  "serde_urlencoded",

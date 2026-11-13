@@ -22,10 +22,9 @@ use openai_client_base::apis::Error as ApiError;
 use openai_client_base::models::CreateChatCompletionRequest;
 use std::sync::Arc;
 use std::time::Instant;
-use timvw_rust_runtime::retry::RetryPolicy;
+use timvw_rust_runtime::retry::{openai_insufficient_quota, RetryLayer, RetryPolicy};
 use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
 use tokio::time::Duration;
-use tower::retry::RetryLayer;
 
 // Helper macro to generate interceptor helper methods for sub-clients
 macro_rules! impl_interceptor_helpers {
@@ -249,9 +248,12 @@ impl ClientBuilder {
                 ));
             }
 
-            // Retry transient failures (429, 408, 5xx, failed connections); 0 disables retries.
+            // Retry transient failures (429, 408, 5xx, failed connections); 0 disables retries. A 429
+            // for an exhausted quota (`insufficient_quota`) is permanent: it is returned, not retried.
             let max_retries = usize::try_from(config.max_retries()).unwrap_or(usize::MAX);
-            client.layer(RetryLayer::new(RetryPolicy::new(max_retries)))
+            client.layer(
+                RetryLayer::new(RetryPolicy::new(max_retries)).permanent_429(openai_insufficient_quota),
+            )
         };
 
         // Send the organization and project headers with every request, including those of the
@@ -269,7 +271,7 @@ impl ClientBuilder {
         // For Azure OpenAI, we don't use bearer token (handled by middleware)
         // For standard OpenAI, use bearer token
         if !is_azure {
-            base_configuration.bearer_access_token = Some(config.api_key().to_string());
+            base_configuration.bearer_access_token = Some(config.api_key().into());
         }
 
         if let Some(base_url) = config.base_url() {

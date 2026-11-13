@@ -1,6 +1,6 @@
 [package]
 name = "openai-ergonomic"
-version = "0.19.0"
+version = "0.20.0"
 authors = ["Tim Van Wassenhove <github@timvw.be>"]
 edition = "2021"
 rust-version = "1.88"
@@ -15,12 +15,12 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { version = "^0.30.0", default-features = false }
+openai-client-base = { path = "../openai-client-base", default-features = false, features = ["full"] }
 serde = { version = "^1.0.229", features = ["derive"] }
 serde_json = "^1.0.151"
 tokio = { version = "^1.53.3", features = ["rt", "macros", "sync", "time"] }
 reqwest = { version = "^0.13.5", default-features = false }
-timvw-rust-runtime = { version = "^0.1.0", default-features = false, features = ["reqwest", "retry"] }
+timvw-rust-runtime = { version = "^0.2.0", default-features = false, features = ["reqwest", "retry"] }
 tower = { version = "^0.5.2", default-features = false, features = ["util", "retry"] }
 url = "^2.5.8"
 futures = "^0.3.34"
