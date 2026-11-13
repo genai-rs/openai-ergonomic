@@ -10,4 +10,7 @@ allow-licenses:
   - MPL-2.0
   - Unicode-3.0
   - CDLA-Permissive-2.0
-comment-summary-in-pr: always
+comment-summary-in-pr: always# minicov (a wasm-bindgen-test dependency, wasm tests only) declares "Apache-2.0/MIT" in the old slash syntax, which
+# GitHub reads as "LicenseRef-bad-apache-2.0mit"; both licenses are allowed above.
+allow-dependencies-licenses:
+  - pkg:cargo/minicov
