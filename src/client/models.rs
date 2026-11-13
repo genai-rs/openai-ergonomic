@@ -18,7 +18,7 @@ pub struct ModelsClient<'a, T = ()> {
 
 impl_interceptor_helpers!(ModelsClient<'_, T>);
 
-impl<T: Default + Send + Sync> ModelsClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModelsClient<'_, T> {
     /// List all available models.
     ///
     /// # Example

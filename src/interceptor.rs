@@ -175,7 +175,8 @@ pub struct ErrorContext<'a, T = ()> {
 ///
 /// The generic type parameter `T` defines the state type that will be passed
 /// through the request lifecycle. Use `()` (the default) for simple interceptors
-/// that don't need to maintain state across hooks.
+/// that don't need to maintain state across hooks. The client needs `T: Default` and
+/// `MaybeSend + MaybeSync` (`Send + Sync` natively; on WebAssembly the state may hold an `Rc`).
 ///
 /// `Box<I>` and `Arc<I>` implement `Interceptor<T>` whenever `I` does.
 pub trait Interceptor<T = ()>: MaybeSend + MaybeSync {

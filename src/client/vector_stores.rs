@@ -22,7 +22,7 @@ pub struct VectorStoresClient<'a, T = ()> {
 
 impl_interceptor_helpers!(VectorStoresClient<'_, T>);
 
-impl<T: Default + Send + Sync> VectorStoresClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> VectorStoresClient<'_, T> {
     /// Create a new vector store.
     ///
     /// # Example

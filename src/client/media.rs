@@ -36,7 +36,7 @@ use timvw_rust_runtime::multipart::{Form, Part};
 use timvw_rust_runtime::Upload;
 
 #[cfg(not(target_family = "wasm"))]
-impl<T: Default + Send + Sync> ImagesClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> ImagesClient<'_, T> {
     /// Saves a generated image to `path` and returns the number of bytes written: decodes its
     /// `b64_json`, or downloads its `url`.
     ///
@@ -88,7 +88,7 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
 }
 
 #[cfg(not(target_family = "wasm"))]
-impl<T: Default + Send + Sync> AudioClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> AudioClient<'_, T> {
     /// Synthesizes speech and streams the audio to `path` as it arrives, without holding it in
     /// memory; returns the number of bytes written.
     ///
@@ -161,7 +161,7 @@ impl<T: Default + Send + Sync> AudioClient<'_, T> {
     }
 }
 
-impl<T: Default + Send + Sync> FilesClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> FilesClient<'_, T> {
     /// Uploads a file from anything that converts into an [`Upload`]: a path (streamed from
     /// disk, named after its last component), bytes, a reader or a stream. Name an upload of
     /// bytes with [`Upload::file_name`]: the API uses the extension.

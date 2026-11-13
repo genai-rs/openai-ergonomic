@@ -20,7 +20,7 @@ pub struct UploadsClient<'a, T = ()> {
 
 impl_interceptor_helpers!(UploadsClient<'_, T>);
 
-impl<T: Default + Send + Sync> UploadsClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> UploadsClient<'_, T> {
     /// Create a new upload builder for the given file metadata.
     #[must_use]
     pub fn builder(

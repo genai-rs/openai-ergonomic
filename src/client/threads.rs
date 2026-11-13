@@ -20,7 +20,7 @@ pub struct ThreadsClient<'a, T = ()> {
 
 impl_interceptor_helpers!(ThreadsClient<'_, T>);
 
-impl<T: Default + Send + Sync> ThreadsClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> ThreadsClient<'_, T> {
     /// Start building a new thread request.
     #[must_use]
     pub fn builder(&self) -> ThreadRequestBuilder {

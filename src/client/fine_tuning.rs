@@ -21,7 +21,7 @@ pub struct FineTuningClient<'a, T = ()> {
 
 impl_interceptor_helpers!(FineTuningClient<'_, T>);
 
-impl<T: Default + Send + Sync> FineTuningClient<'_, T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> FineTuningClient<'_, T> {
     /// Create a new fine-tuning job.
     ///
     /// # Example
