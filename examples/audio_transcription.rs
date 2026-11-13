@@ -170,7 +170,10 @@ async fn create_sample_audio_files(client: &Client) -> Result<(), Error> {
                 .await
             {
                 Ok(response) => {
-                    let audio_data = response.bytes().await.map_err(Error::Http)?;
+                    let audio_data = response
+                        .bytes()
+                        .await
+                        .map_err(|e| Error::Internal(e.to_string()))?;
                     save_audio_file(&audio_data, filename)?;
                     println!("      Created: {filename}");
                 }

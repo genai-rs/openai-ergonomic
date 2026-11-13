@@ -1,45 +1,28 @@
-//! Tower layer that adds the `OpenAI-Organization` and `OpenAI-Project` headers to every request.
+//! The `OpenAI-Organization` and `OpenAI-Project` headers, which the provider's layer sets on
+//! every request to the provider, so that the generated `openai-client-base` operations send
+//! them too.
+//!
+//! A header already on the request is replaced rather than repeated, and a default header of a
+//! user-supplied `reqwest::Client` is not added on top, since reqwest only fills in defaults that
+//! the request does not have.
 
 use crate::config::Config;
 use crate::{Error, Result};
 use http::header::{HeaderName, HeaderValue};
-use http::Request;
-use timvw_rust_runtime::{Body, Client as HttpClient};
-use tower::util::MapRequestLayer;
 
 const ORGANIZATION: HeaderName = HeaderName::from_static("openai-organization");
 const PROJECT: HeaderName = HeaderName::from_static("openai-project");
 
-/// Sets the organization and project headers on each request that goes through the client, so
-/// that the generated `openai-client-base` operations send them too.
-///
-/// A header already on the request is replaced rather than repeated, and a default header of a
-/// user-supplied `reqwest::Client` is not added on top, since reqwest only fills in defaults that
-/// the request does not have.
-#[derive(Clone, Debug)]
-struct OrganizationHeaders {
-    organization: Option<HeaderValue>,
-    project: Option<HeaderValue>,
-}
-
-impl OrganizationHeaders {
-    fn from_config(config: &Config) -> Result<Option<Self>> {
-        let organization = config
-            .organization()
-            .map(|value| header_value("organization", value))
-            .transpose()?;
-        let project = config
-            .project()
-            .map(|value| header_value("project", value))
-            .transpose()?;
-        if organization.is_none() && project.is_none() {
-            return Ok(None);
-        }
-        Ok(Some(Self {
-            organization,
-            project,
-        }))
+/// The organization and project headers of `config`, if set.
+pub(super) fn organization_headers(config: &Config) -> Result<Vec<(HeaderName, HeaderValue)>> {
+    let mut headers = Vec::new();
+    if let Some(organization) = config.organization() {
+        headers.push((ORGANIZATION, header_value("organization", organization)?));
     }
+    if let Some(project) = config.project() {
+        headers.push((PROJECT, header_value("project", project)?));
+    }
+    Ok(headers)
 }
 
 fn header_value(name: &str, value: &str) -> Result<HeaderValue> {
@@ -47,28 +30,4 @@ fn header_value(name: &str, value: &str) -> Result<HeaderValue> {
         .map_err(|_| Error::Config(format!("the {name} ID is not a valid header value")))?;
     value.set_sensitive(true);
     Ok(value)
-}
-
-impl OrganizationHeaders {
-    fn apply(&self, mut request: Request<Body>) -> Request<Body> {
-        let headers = request.headers_mut();
-        if let Some(organization) = &self.organization {
-            headers.insert(ORGANIZATION, organization.clone());
-        }
-        if let Some(project) = &self.project {
-            headers.insert(PROJECT, project.clone());
-        }
-        request
-    }
-}
-
-/// The client with the organization and project headers of `config` added to its requests, or
-/// the client unchanged when neither is configured.
-pub(super) fn with_organization_headers(client: HttpClient, config: &Config) -> Result<HttpClient> {
-    Ok(match OrganizationHeaders::from_config(config)? {
-        Some(headers) => client.layer(MapRequestLayer::new(move |request: Request<Body>| {
-            headers.apply(request)
-        })),
-        None => client,
-    })
 }

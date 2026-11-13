@@ -116,6 +116,7 @@
 //! - [`errors`] - Error types and handling
 
 // Core modules
+pub mod auth;
 pub mod azure_middleware;
 pub mod builders;
 pub mod client;
@@ -128,6 +129,7 @@ pub mod langfuse_context;
 pub mod langfuse_exporter;
 #[cfg(feature = "otel")]
 pub mod langfuse_interceptor;
+pub mod provider;
 pub mod responses;
 pub mod semantic_conventions;
 pub mod streaming;
@@ -141,6 +143,7 @@ pub(crate) type BoxFuture<'a, T> =
     std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
 
 // Re-export commonly used types
+pub use auth::{AuthLayer, AuthProvider, AuthToken, BearerTokenAuth};
 pub use client::Client;
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, Result};
@@ -154,6 +157,7 @@ pub use langfuse_context::LangfuseContext;
 pub use langfuse_exporter::{langfuse_exporter_from_env, LangfuseExporterError};
 #[cfg(feature = "otel")]
 pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor, LangfuseState};
+pub use provider::{Provider, ProviderKind};
 pub use tool_framework::{FunctionTool, ToolError, ToolOutput, ToolRegistry};
 
 // Re-export specific builder and response types for convenience

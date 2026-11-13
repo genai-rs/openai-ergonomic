@@ -363,7 +363,11 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
             }
         };
 
-        let response = response.bytes().await?.to_vec();
+        let response = response
+            .bytes()
+            .await
+            .map_err(|error| super::base_bridge::http_error(&error))?
+            .to_vec();
         let duration = start_time.elapsed();
 
         // Call after_response hook

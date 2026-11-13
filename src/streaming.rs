@@ -49,7 +49,6 @@ use bytes::Bytes;
 use futures::future::FutureExt;
 use futures::stream::Stream;
 use futures::StreamExt;
-use openai_client_base::apis::sse;
 use openai_client_base::models::{
     ChatCompletionStreamResponseDelta, CreateChatCompletionStreamResponse,
 };
@@ -60,6 +59,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
+use timvw_rust_runtime::sse;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self, OwnedPermit};
 use tokio::sync::watch;
@@ -947,7 +947,7 @@ fn panic_diagnostic(payload: &(dyn Any + Send)) -> String {
 
 /// Parse an SSE stream into chat completion chunks.
 ///
-/// The `text/event-stream` framing is `openai-client-base`'s parser ([`sse::Events`]): events are dispatched when a
+/// The `text/event-stream` framing is the runtime's parser ([`sse::Events`]): events are dispatched when a
 /// blank line completes them, an incomplete trailing event is discarded, and `data: [DONE]` ends the stream. Each
 /// payload is decoded here, so a parse error keeps the offending chunk. A parse or connection error ends the stream and
 /// releases the HTTP body at once.

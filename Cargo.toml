@@ -18,9 +18,13 @@ exclude = [".github", "docs/", ".gitignore"]
 openai-client-base = { version = "^0.31.0", default-features = false, features = ["full"] }
 serde = { version = "^1.0.229", features = ["derive"] }
 serde_json = "^1.0.151"
-tokio = { version = "^1.53.3", features = ["rt", "macros", "sync", "time"] }
+tokio = { version = "^1.53.3", features = ["rt", "macros", "sync", "time", "fs", "io-util"] }
 reqwest = { version = "^0.13.5", default-features = false }
-timvw-rust-runtime = { version = "^0.2.0", default-features = false, features = ["reqwest", "retry"] }
+# Runtime 0.3 (unreleased: by path until it is published). openai-client-base 0.31 still uses runtime 0.2; its
+# generated operations reach the 0.3 client through `client::base_bridge` until it is regenerated against 0.3.
+timvw-rust-runtime = { path = "/Users/tim/runner-setup/workspace/_sessions/cse_01HMZBkbrVdWFeznYPW678Ks/openapi-generator-timvw-rust/runtime", version = "0.3.0", default-features = false, features = ["reqwest", "retry", "fs"] }
+# Runtime 0.2, the one openai-client-base 0.31 is built on: only for `client::base_bridge`. Transitional.
+base-runtime = { package = "timvw-rust-runtime", version = "^0.2.0", default-features = false }
 tower = { version = "^0.5.2", default-features = false, features = ["util", "retry"] }
 url = "^2.5.8"
 futures = "^0.3.34"
@@ -37,6 +41,9 @@ bytes = "^1.12.1"
 tokio-stream = { version = "^0.1.19", features = ["io-util"] }
 mockito = { version = "^1.7.2", optional = true }
 http = "^1.5.0"
+http-body = "^1.0.1"
+hmac = { version = "^0.12.1", optional = true }
+sha2 = { version = "^0.10.9", optional = true }
 
 [dev-dependencies]
 tokio = { version = "^1.53.3", features = ["full"] }
@@ -57,6 +64,8 @@ native-tls = ["openai-client-base/native-tls", "timvw-rust-runtime/native-tls", 
 # `timvw_rust_runtime::trace::TraceLayer`: logs each HTTP request and retry with `tracing`.
 tracing-http = ["timvw-rust-runtime/tracing", "openai-client-base/tracing"]
 test-utils = ["mockito"]
+# `webhooks`: verify the signatures of OpenAI webhook deliveries and decode their events.
+webhook = ["dep:hmac", "dep:sha2"]
 
 [profile.dev]
 opt-level = 0

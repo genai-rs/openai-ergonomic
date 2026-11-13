@@ -1,12 +1,18 @@
 //! Middleware for Azure `OpenAI` authentication.
 //!
-//! This module provides a [tower](https://docs.rs/tower) layer that adds the appropriate
-//! authentication header for Azure `OpenAI` API requests and transforms paths to Azure format.
+//! Deprecated: the client now sends requests to Azure `OpenAI` with
+//! [`Provider::azure`](crate::Provider::azure), whose [`ProviderLayer`](crate::provider::ProviderLayer)
+//! sets the `api-key` header, the deployment path and the `api-version` query parameter, also
+//! around an HTTP client of your own (set with
+//! [`ConfigBuilder::http_client`](crate::ConfigBuilder::http_client)). Adding this layer to such a
+//! client as well is harmless: the paths it sees are already Azure paths.
 //!
-//! The default client adds it when the configuration is for Azure. To use it with a client of
-//! your own, add it with [`timvw_rust_runtime::Client::layer`]:
+//! This module provides a [tower](https://docs.rs/tower) layer that adds the appropriate
+//! authentication header for Azure `OpenAI` API requests and transforms paths to Azure format,
+//! whatever the host.
 //!
 //! ```rust
+//! # #![allow(deprecated)]
 //! use openai_ergonomic::azure_middleware::AzureAuthMiddleware;
 //!
 //! let client = timvw_rust_runtime::Client::default().layer(AzureAuthMiddleware::new(
@@ -16,6 +22,8 @@
 //! ));
 //! # let _ = client;
 //! ```
+
+#![allow(deprecated)]
 
 use http::header::{HeaderName, HeaderValue};
 use http::Request;
@@ -34,6 +42,10 @@ const API_KEY: HeaderName = HeaderName::from_static("api-key");
 ///   (and any other path not under `/openai/` to `/openai/deployments/{deployment}{path}`), adding
 ///   an `api-version` query parameter unless one is present.
 #[derive(Clone)]
+#[deprecated(
+    since = "0.20.0",
+    note = "use `Provider::azure` (`Config::builder().provider(..)`), or `Provider::azure(..).layer()` for a client of your own"
+)]
 pub struct AzureAuthMiddleware {
     api_key: Arc<String>,
     api_version: Arc<String>,

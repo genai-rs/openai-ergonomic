@@ -7,9 +7,9 @@
 //! whose replies differ from the spec.
 //!
 //! The requests go through the same HTTP client as every other call, so its tower layers apply
-//! (retries, timeouts, the Azure layer, the organization and project headers, layers of your
-//! own), and they carry the same authentication (`Authorization: Bearer <api key>`, except for
-//! Azure, where the Azure layer sets `api-key`) and user agent.
+//! (retries, timeouts, the provider's layer with its credentials, headers and paths, the
+//! [`AuthProvider`](crate::auth::AuthProvider), layers of your own), and they carry the same
+//! user agent.
 //!
 //! Interceptors (such as the Langfuse interceptor) are **not** called for these requests.
 
@@ -37,9 +37,7 @@ impl<T> Client<T> {
         if let Some(user_agent) = &configuration.user_agent {
             request = request.header(USER_AGENT, user_agent.as_str());
         }
-        if let Some(token) = &configuration.bearer_access_token {
-            request = request.bearer_auth(timvw_rust_runtime::ExposeSecret::expose_secret(token));
-        }
+        // The provider's layer adds the credentials.
         request
     }
 
@@ -51,9 +49,9 @@ impl<T> Client<T> {
     /// `type` and `code` of an `OpenAI` `{"error": {...}}` body, when present). A reply that does
     /// not decode into `O` becomes [`Error::Http`] (whose `is_decode()` is true).
     ///
-    /// The request goes through the configured HTTP client and its layers (retries, the Azure
-    /// layer, the organization and project headers), with the same authentication as the other
-    /// calls. Interceptors are not called.
+    /// The request goes through the configured HTTP client and its layers (retries, the
+    /// provider's layer, the organization and project headers), with the same authentication as
+    /// the other calls. Interceptors are not called.
     ///
     /// For the common cases, see [`Client::post_json`] and [`Client::get_json`].
     ///
@@ -290,6 +288,23 @@ impl<T> Client<T> {
     }
 }
 
+impl<T> Client<T> {
+    /// Send a JSON request that answers with server-sent events, and return the response once
+    /// its status is known to be 2xx.
+    pub(super) fn send_event_stream_request<I: Serialize + ?Sized>(
+        &self,
+        method: Method,
+        path: &str,
+        body: &I,
+    ) -> impl Future<Output = Result<Response>> + Send + 'static {
+        let request = self
+            .raw_request(method, path)
+            .header(ACCEPT, "text/event-stream")
+            .json(body);
+        async move { check_status(request.send().await?).await }
+    }
+}
+
 /// The server-sent events of a response, each `data:` payload decoded into `O`.
 fn decode_events<O: DeserializeOwned + 'static>(
     response: Response,
@@ -313,7 +328,7 @@ fn decode_events<O: DeserializeOwned + 'static>(
 }
 
 /// The response if its status is 2xx, or else an [`Error::Api`] with the status and body text.
-async fn check_status(response: Response) -> Result<Response> {
+pub(super) async fn check_status(response: Response) -> Result<Response> {
     let status = response.status();
     if status.is_success() {
         return Ok(response);
