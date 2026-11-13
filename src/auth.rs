@@ -79,7 +79,7 @@ pub trait AuthProvider: Send + Sync + 'static {
     /// Adds the credentials to a request to the provider, and returns the request to send.
     ///
     /// An error fails the request without sending it; it reaches the caller as
-    /// [`Error::Http`](crate::Error::Http) whose source is the error returned here.
+    /// [`Error::Http`] whose source is the error returned here.
     fn apply(&self, request: Request<Body>) -> impl Future<Output = Result<Request<Body>>> + Send;
 
     /// Called when the provider rejected a request with `401 Unauthorized`, with the headers
@@ -210,17 +210,18 @@ impl<S> fmt::Debug for AuthService<S> {
 /// Whether `uri` is under `base`: same scheme, host and port, and a path under the base's at a
 /// segment boundary.
 fn in_scope(base: &url::Url, uri: &http::Uri) -> bool {
-    let Ok(url) = url::Url::parse(&uri.to_string()) else {
+    let Ok(target) = url::Url::parse(&uri.to_string()) else {
         return false;
     };
-    if url.scheme() != base.scheme()
-        || url.host_str() != base.host_str()
-        || url.port_or_known_default() != base.port_or_known_default()
+    if target.scheme() != base.scheme()
+        || target.host_str() != base.host_str()
+        || target.port_or_known_default() != base.port_or_known_default()
     {
         return false;
     }
     let prefix = base.path().trim_end_matches('/');
-    url.path()
+    target
+        .path()
         .strip_prefix(prefix)
         .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
 }
