@@ -3,9 +3,9 @@
 
 use super::raw::check_status;
 use super::Client;
-use crate::{BoxFuture, Error, Result, UploadPurpose};
+use crate::{box_stream, BoxFuture, BoxStream, Error, MaybeSend, MaybeSync, Result, UploadPurpose};
 use bytes::{Bytes, BytesMut};
-use futures::stream::{self, BoxStream, StreamExt, TryStreamExt};
+use futures::stream::{self, StreamExt, TryStreamExt};
 use http::Method;
 use openai_client_base::models::{
     CompleteUploadRequest, CreateUploadRequest, Upload as UploadObject, UploadPart,
@@ -263,7 +263,7 @@ impl<T> LargeUpload<'_, T> {
                     tracing::debug!(
                         "retrying a part of upload {upload_id} in {backoff:?}: {error}"
                     );
-                    tokio::time::sleep(backoff).await;
+                    crate::time::sleep(backoff).await;
                     attempt += 1;
                 }
                 Err(error) => return Err(error),
@@ -272,7 +272,7 @@ impl<T> LargeUpload<'_, T> {
     }
 }
 
-impl<'a, T: Send + Sync> IntoFuture for LargeUpload<'a, T> {
+impl<'a, T: MaybeSend + MaybeSync> IntoFuture for LargeUpload<'a, T> {
     type Output = Result<UploadObject>;
     type IntoFuture = BoxFuture<'a, Result<UploadObject>>;
 
@@ -299,22 +299,21 @@ fn is_transient(error: &Error) -> bool {
 /// bytes), or chunks read in order from a stream. An empty upload has one empty part.
 fn split(upload: Upload, length: u64, part_size: u64) -> BoxStream<'static, Result<Upload>> {
     if length == 0 {
-        return stream::once(async { Ok(Upload::bytes(Bytes::new())) }).boxed();
+        return box_stream(stream::once(async { Ok(Upload::bytes(Bytes::new())) }));
     }
     if upload.is_replayable() {
         let count = length.div_ceil(part_size);
-        return stream::iter((0..count).map(move |index| {
+        return box_stream(stream::iter((0..count).map(move |index| {
             let start = index * part_size;
             let end = (start + part_size).min(length);
             Ok(upload.clone().slice(start..end))
-        }))
-        .boxed();
+        })));
     }
     let response = timvw_rust_runtime::Response::from(http::Response::new(Body::from(upload)));
     let part_size = usize::try_from(part_size).unwrap_or(usize::MAX);
-    stream::try_unfold(
+    box_stream(stream::try_unfold(
         (
-            response.bytes_stream().boxed(),
+            box_stream(response.bytes_stream()),
             BytesMut::new(),
             0u64,
             false,
@@ -342,6 +341,5 @@ fn split(upload: Upload, length: u64, part_size: u64) -> BoxStream<'static, Resu
             let part = buffer.split_to(buffer.len().min(part_size)).freeze();
             Ok(Some((Upload::bytes(part), (chunks, buffer, read, done))))
         },
-    )
-    .boxed()
+    ))
 }

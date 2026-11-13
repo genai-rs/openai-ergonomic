@@ -5,7 +5,9 @@
 
 use crate::auth::{AuthProvider, SharedAuthProvider};
 use crate::provider::{Provider, ProviderKind, OPENAI_BASE_URL};
+#[cfg(not(target_family = "wasm"))]
 use crate::{errors::Result, Error};
+#[cfg(not(target_family = "wasm"))]
 use std::env;
 use timvw_rust_runtime::Client as HttpClient;
 
@@ -106,6 +108,10 @@ impl Config {
     ///
     /// Supports both standard `OpenAI` and Azure `OpenAI` configurations.
     /// For Azure `OpenAI`, set `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_OPENAI_DEPLOYMENT`.
+    ///
+    /// Not available on WebAssembly, which has no process environment: configure
+    /// [`Config::builder`] explicitly there.
+    #[cfg(not(target_family = "wasm"))]
     pub fn from_env() -> Result<Self> {
         // Check for Azure OpenAI configuration first
         let azure_endpoint = env::var("AZURE_OPENAI_ENDPOINT").ok();

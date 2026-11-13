@@ -20,6 +20,7 @@ Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder pattern
 - **Pluggable authentication** - per-request credentials (Entra ID / Azure AD tokens, gateways) refreshed after a `401`
 - **Webhooks** - verify `OpenAI` webhook signatures and decode their events (feature `webhook`)
 - **Large files** - parallel, retried uploads through the Uploads API; images, speech and file contents streamed to disk
+- **WebAssembly** - builds for `wasm32-unknown-unknown` (browsers, Node.js, Cloudflare Workers); see [WebAssembly](#webassembly)
 - **Well-tested** - extensive test coverage with mock support
 - **Well-documented** - rich documentation with examples
 
@@ -89,12 +90,35 @@ for the generated request field changes introduced in 0.7.
 ### Upgrading to 0.20
 
 Version 0.20 moves to [`timvw-rust-runtime`](https://docs.rs/timvw-rust-runtime) 0.3 and
-`openai-client-base` 0.31.
+`openai-client-base` 0.32 (generated on runtime 0.3, so the generated operations send through
+the same HTTP client and layers as the rest of the crate).
 
 - **Runtime 0.3.** `Config::builder().http_client(..)`, `Client::http_client()`, `Error::Http`,
   `ChatCompletionStream::new` and `ChatCompletionStream::from_events` use
   `timvw_rust_runtime` 0.3 types (`Client`, `Error`, `Response`, `sse::Events`): depend on
   `timvw-rust-runtime = "0.3"` if you name them.
+- **File parameters are `Upload`s.** `TranscriptionBuilder::new`, `TranslationBuilder::new`,
+  `ImageEditBuilder::new`/`mask`, `ImageVariationBuilder::new` and the `audio()`/`images()`
+  shortcuts take `impl Into<timvw_rust_runtime::Upload>`: a `PathBuf` or `&Path` (streamed from
+  disk) still works, and so do bytes (`Vec<u8>`, `Bytes`; name them with `Upload::file_name`)
+  and streams. A `&str` is no longer taken as a path: write `Path::new("audio.wav")`. Their
+  `file()`/`image()` accessors and the request structs' fields are `Upload`s.
+- **No temporary files.** `FilesClient::upload`/`create` send the `FileUploadBuilder`'s content
+  as it is (bytes from memory, a path streamed from disk). `FileUploadBuilder::from_path` (and
+  `upload_file_from_path`, `FilesClient::upload_from_path`) no longer read the file and no
+  longer return a `Result`; `FileUploadBuilder::from_upload` and `FilesClient::upload_from`
+  take any `Upload`. `content()`, `content_size()` return `Option`s (`None` for a path).
+- **A missing file** to upload is an `Error::Http` whose `is_io()` is `true`, raised before
+  anything is sent (and reported to the interceptors' `on_error`); `Error::is_io()` and
+  `Error::io_error()` (with its `kind()`, `NotFound`) read it, for `Error::File` as well.
+- **`upload_large_file(upload, purpose)`.** The file name defaults to the upload's
+  (`Upload::name`, a path's last component) and the media type to its own
+  (`Upload::media_type`, guessed from a path's extension); set them with
+  `.filename(..)`/`.mime_type(..)`.
+- **WebAssembly.** The crate builds for `wasm32-unknown-unknown` (see
+  [WebAssembly](#webassembly)). The bounds of `FunctionTool`, `Interceptor` and `AuthProvider`
+  (and of their futures) are `MaybeSend`/`MaybeSync` (re-exported from the runtime): exactly
+  `Send`/`Sync` natively, nothing on WebAssembly. Natively nothing changes for implementers.
 - **Native async traits.** `FunctionTool` and `Interceptor` no longer use `async-trait` (see
   [below](#upgrading-native-async-traits)).
 - **Secret credentials.** The credentials of the generated `Configuration`
@@ -554,8 +578,66 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 `ImagesClient::save` decodes `b64_json` or downloads the image's `url`;
 `AudioClient::speech_to_file` and `FilesClient::download_to` stream the body to a temporary file
-that replaces the target once complete. `FilesClient::upload_file` uploads a path, bytes or a
-stream without copying it to a temporary file first.
+that replaces the target once complete (native only: WebAssembly has no file system).
+`FilesClient::upload_file` uploads a path, bytes or a stream without copying it to a temporary
+file first.
+
+### WebAssembly
+
+The crate builds for `wasm32-unknown-unknown` in a JavaScript host (a browser, a web worker,
+Node.js, Cloudflare Workers): the client, the builders, streaming, interceptors, the tool
+framework, providers and authentication, large uploads and webhooks work as natively. Build it
+without the default features: the TLS features add nothing there (the host's `fetch` does TLS)
+and `otel` (Langfuse/OpenTelemetry export) is native only:
+
+```toml
+[dependencies]
+openai-ergonomic = { version = "0.20", default-features = false }
+# optionally: features = ["webhook", "tracing-http"]
+```
+
+```bash
+cargo build --target wasm32-unknown-unknown --no-default-features --features webhook
+```
+
+What differs, behind `#[cfg(target_family = "wasm")]` (following
+[`timvw-rust-runtime`'s WebAssembly support](https://docs.rs/timvw-rust-runtime)):
+
+- **Configuration.** There is no process environment: `Config::from_env`, `Client::from_env`
+  and `ClientBuilder::from_env` are not available. Use `Config::builder()` (for example with a
+  Worker's `env` bindings).
+- **HTTP.** reqwest sends with the host's `fetch`, which owns connections, timeouts and the user
+  agent: the default client has no 120 second timeout there (retries remain; add a
+  `tower::timeout::TimeoutLayer` if you need one). `Config::builder().http_client(..)` takes a
+  `timvw_rust_runtime::Client` as natively; its service need not be `Send`.
+- **`Send` and `Sync`.** The host's futures cannot leave its thread, so on WebAssembly nothing
+  needs to be `Send` or `Sync`: `FunctionTool`, `Interceptor`, `AuthProvider`, their futures,
+  `BearerTokenAuth`'s fetch function and `BoxedChatStream` are bound by `MaybeSend`/`MaybeSync`
+  (`Send`/`Sync` natively, nothing on WebAssembly). A tool or an interceptor may hold an `Rc`.
+- **Time and tasks.** Streaming interceptor callbacks run with
+  `wasm_bindgen_futures::spawn_local` instead of a tokio task (no tokio runtime is needed);
+  retry backoff (the runtime's retry layer and `upload_large_file`'s parts) waits with the
+  host's `setTimeout`; clocks are `performance.now()`/`Date.now()` (`web-time`), as
+  `std::time::Instant::now()` panics there. `AuthToken::expires_at` and
+  `WebhookVerifier::verify_at` take `web_time::Instant`/`web_time::SystemTime` there.
+- **No files.** `ImagesClient::save`/`save_all`, `AudioClient::speech_to_file` and
+  `FilesClient::download_to` are native only. Upload bytes or streams
+  (`Upload::bytes(..).file_name(..)`); a path upload fails with an `Error::Http` whose
+  `io_error()` is of kind `Unsupported`. `upload_large_file` sends its parts concurrently on the
+  host's event loop. `test-utils` (mockito) is native only.
+
+`tests/wasm.rs` runs a chat completion, a streamed one with an interceptor, a tool call through
+the tool framework, a webhook verification, and retries with backoff in Node.js against a
+scripted, non-`Send` tower service, with
+[`wasm-bindgen-test-runner`](https://wasm-bindgen.github.io/wasm-bindgen/wasm-bindgen-test/index.html)
+(install `wasm-bindgen-cli` of the `wasm-bindgen` version in `Cargo.lock`):
+
+```bash
+CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner \
+  cargo test --target wasm32-unknown-unknown --no-default-features --features webhook --test wasm
+```
+
+The other tests and the examples are native only.
 
 ### Azure `OpenAI` Support
 

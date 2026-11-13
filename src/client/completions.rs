@@ -6,10 +6,10 @@ use crate::builders::Builder;
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::completions_api;
 use openai_client_base::models::CreateCompletionResponse;
-use std::time::Instant;
 
 /// Client for completions API.
 #[derive(Debug, Clone, Copy)]

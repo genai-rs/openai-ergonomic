@@ -45,19 +45,21 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 
 use crate::{
-    builders::chat::tool_function, responses::chat::ToolCallExt, BoxFuture, Error, Result,
+    builders::chat::tool_function, responses::chat::ToolCallExt, BoxFuture, Error, MaybeSend,
+    MaybeSync, Result,
 };
 
 /// A function tool. Store application state (for example an `Arc` or HTTP client)
 /// in the implementing struct and access it through `&self` during execution.
 ///
 /// Implement [`FunctionTool::execute`] with a plain `async fn`; no attribute macro
-/// is needed. The returned future must be `Send`.
-pub trait FunctionTool: Send + Sync {
+/// is needed. The returned future must be `Send` ([`MaybeSend`]); on WebAssembly neither
+/// the tool nor its future needs to be `Send` or `Sync`.
+pub trait FunctionTool: MaybeSend + MaybeSync {
     /// Arguments decoded with Serde. Use `Value` for a dynamic JSON tool.
-    type Input: DeserializeOwned + Send;
+    type Input: DeserializeOwned + MaybeSend;
     /// Result encoded as JSON, including quotes for string outputs.
-    type Output: Serialize + Send;
+    type Output: Serialize + MaybeSend;
     /// Stable name: 1–64 ASCII letters, digits, underscores or hyphens.
     fn name(&self) -> &str;
     /// Describe what the tool does and when the model should use it.
@@ -76,7 +78,7 @@ pub trait FunctionTool: Send + Sync {
     fn execute(
         &self,
         input: Self::Input,
-    ) -> impl std::future::Future<Output = Result<Self::Output>> + Send;
+    ) -> impl std::future::Future<Output = Result<Self::Output>> + MaybeSend;
 }
 
 /// Registration or execution failure, with the tool name and original source.
@@ -163,7 +165,7 @@ pub struct ToolOutput {
 
 /// Object-safe form of [`FunctionTool`] that decodes arguments, boxes the
 /// future and encodes the output as JSON.
-trait ErasedTool: Send + Sync {
+trait ErasedTool: MaybeSend + MaybeSync {
     fn execute<'a>(
         &'a self,
         name: &'a str,

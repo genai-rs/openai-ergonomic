@@ -5,10 +5,10 @@ use crate::builders::moderations::ModerationBuilder;
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::moderations_api;
 use openai_client_base::models::CreateModerationResponse;
-use std::time::Instant;
 
 /// Client for moderations API.
 #[derive(Debug, Clone, Copy)]

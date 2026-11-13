@@ -3,6 +3,12 @@
 #![allow(clippy::use_self)]
 #![allow(clippy::io_other_error)]
 #![allow(async_fn_in_trait)]
+// On WebAssembly futures, clients and their configuration are not `Send`: the JavaScript host's
+// cannot leave its thread.
+#![cfg_attr(
+    target_family = "wasm",
+    allow(clippy::future_not_send, clippy::arc_with_non_send_sync)
+)]
 
 //! # openai-ergonomic
 //!
@@ -140,12 +146,41 @@ pub mod tool_framework;
 #[cfg(feature = "webhook")]
 pub mod webhooks;
 
+mod time;
+
 /// Boxed future used internally to store heterogeneous async trait
-/// implementations (`ErasedTool`, `ErasedInterceptor`). The `Send` bound of
-/// type-erased futures lives here only, so a future non-`Send` (WASM) target
-/// can relax it in one place.
+/// implementations (`ErasedTool`, `ErasedInterceptor`): `Send` natively, not on
+/// WebAssembly, whose futures cannot leave the JavaScript host's thread.
+#[cfg(not(target_family = "wasm"))]
 pub(crate) type BoxFuture<'a, T> =
     std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
+/// Boxed future used internally to store heterogeneous async trait
+/// implementations (`ErasedTool`, `ErasedInterceptor`): `Send` natively, not on
+/// WebAssembly, whose futures cannot leave the JavaScript host's thread.
+#[cfg(target_family = "wasm")]
+pub(crate) type BoxFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + 'a>>;
+
+/// Boxed stream used internally: `Send` natively, not on WebAssembly.
+#[cfg(not(target_family = "wasm"))]
+pub(crate) type BoxStream<'a, T> = futures::stream::BoxStream<'a, T>;
+/// Boxed stream used internally: `Send` natively, not on WebAssembly.
+#[cfg(target_family = "wasm")]
+pub(crate) type BoxStream<'a, T> = futures::stream::LocalBoxStream<'a, T>;
+
+/// Boxes a stream: `Send` natively, not on WebAssembly.
+pub(crate) fn box_stream<'a, S>(stream: S) -> BoxStream<'a, S::Item>
+where
+    S: futures::Stream + MaybeSend + 'a,
+{
+    Box::pin(stream)
+}
+
+/// `Send` natively, any type on WebAssembly; `Sync` natively, any type on WebAssembly.
+///
+/// The bounds of [`FunctionTool`], [`Interceptor`], [`AuthProvider`] and their futures: on
+/// WebAssembly (`wasm32-unknown-unknown`) futures and streams of the JavaScript host are not
+/// `Send`, so nothing there needs to be. Natively they are exactly `Send` and `Sync`.
+pub use timvw_rust_runtime::{MaybeSend, MaybeSync};
 
 // Re-export commonly used types
 pub use auth::{AuthLayer, AuthProvider, AuthToken, BearerTokenAuth};
@@ -202,8 +237,8 @@ pub use streaming::{
     StreamCompletionReport, StreamFailure, StreamFailureKind, StreamOutcome,
 };
 
-// Test utilities (feature-gated)
-#[cfg(feature = "test-utils")]
+// Test utilities (feature-gated; native only: mockito)
+#[cfg(all(feature = "test-utils", not(target_family = "wasm")))]
 pub mod test_utils;
 
 #[cfg(test)]

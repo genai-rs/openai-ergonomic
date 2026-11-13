@@ -1,23 +1,41 @@
 //! Saving generated media to files, and uploading files without a temporary copy.
+//!
+//! Saving to files is native only: WebAssembly has no file system.
 
 use super::raw::check_status;
-use super::{AudioClient, FilesClient, ImagesClient};
+use super::FilesClient;
+#[cfg(not(target_family = "wasm"))]
+use super::{AudioClient, ImagesClient};
+#[cfg(not(target_family = "wasm"))]
 use crate::builders::audio::SpeechBuilder;
 use crate::builders::files::FilePurpose;
+#[cfg(not(target_family = "wasm"))]
 use crate::builders::Builder;
+#[cfg(not(target_family = "wasm"))]
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
+#[cfg(not(target_family = "wasm"))]
 use crate::semantic_conventions::operation_names;
-use crate::{Error, Result};
+#[cfg(not(target_family = "wasm"))]
+use crate::time::Instant;
+#[cfg(not(target_family = "wasm"))]
+use crate::Error;
+use crate::Result;
+#[cfg(not(target_family = "wasm"))]
 use base64::engine::general_purpose::STANDARD as BASE64;
+#[cfg(not(target_family = "wasm"))]
 use base64::Engine;
 use http::Method;
-use openai_client_base::models::{Image, ImagesResponse, OpenAiFile};
+use openai_client_base::models::OpenAiFile;
+#[cfg(not(target_family = "wasm"))]
+use openai_client_base::models::{Image, ImagesResponse};
+#[cfg(not(target_family = "wasm"))]
 use std::path::{Path, PathBuf};
+#[cfg(not(target_family = "wasm"))]
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Instant;
 use timvw_rust_runtime::multipart::{Form, Part};
 use timvw_rust_runtime::Upload;
 
+#[cfg(not(target_family = "wasm"))]
 impl<T: Default + Send + Sync> ImagesClient<'_, T> {
     /// Saves a generated image to `path` and returns the number of bytes written: decodes its
     /// `b64_json`, or downloads its `url`.
@@ -69,6 +87,7 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 impl<T: Default + Send + Sync> AudioClient<'_, T> {
     /// Synthesizes speech and streams the audio to `path` as it arrives, without holding it in
     /// memory; returns the number of bytes written.
@@ -187,8 +206,9 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     }
 
     /// Streams the content of a file to `path`, without holding it in memory; returns the
-    /// number of bytes written. The content goes to a temporary file that replaces `path` once
+    /// number of bytes written. Native only (not on WebAssembly). The content goes to a temporary file that replaces `path` once
     /// complete. Interceptors are not called.
+    #[cfg(not(target_family = "wasm"))]
     pub async fn download_to(&self, file_id: &str, path: impl AsRef<Path>) -> Result<u64> {
         let response = self
             .client
@@ -199,6 +219,7 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     }
 }
 
+#[cfg(not(target_family = "wasm"))]
 /// Writes `bytes` to a temporary file next to `path` and renames it to `path`.
 async fn write_atomically(path: &Path, bytes: &[u8]) -> Result<()> {
     static COUNTER: AtomicU64 = AtomicU64::new(0);

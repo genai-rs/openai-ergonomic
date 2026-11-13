@@ -15,16 +15,17 @@ use crate::interceptor::{
 };
 use crate::responses::ChatCompletionResponseWrapper;
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::chat_api;
 use openai_client_base::apis::configuration::Configuration;
 use openai_client_base::apis::Error as ApiError;
 use openai_client_base::models::CreateChatCompletionRequest;
 use std::sync::Arc;
-use std::time::Instant;
+#[cfg(not(target_family = "wasm"))]
+use std::time::Duration;
 use timvw_rust_runtime::retry::{openai_insufficient_quota, RetryLayer, RetryPolicy};
 use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
-use tokio::time::Duration;
 
 // Helper macro to generate interceptor helper methods for sub-clients
 macro_rules! impl_interceptor_helpers {
@@ -228,15 +229,22 @@ impl ClientBuilder {
     /// Create a new client builder with the given configuration.
     ///
     /// The HTTP client is the configured one, or a reqwest client with a 120 second timeout and
-    /// retries ([`Config::max_retries`]). Around it go, from the inside out: the
+    /// retries ([`Config::max_retries`]); on WebAssembly a reqwest client with retries (the
+    /// host's `fetch` owns timeouts). Around it go, from the inside out: the
     /// [`AuthProvider`](crate::auth::AuthProvider)'s layer when one is set, then the
     /// [provider](Config::provider)'s layer (base URL, credentials, headers, query parameters,
     /// paths) with the organization and project headers.
     pub fn new(config: Config) -> Result<Self> {
         // Use custom HTTP client if provided, otherwise build a default one
+        #[cfg_attr(target_family = "wasm", allow(clippy::option_if_let_else))]
         let mut http_client = if let Some(client) = config.http_client() {
             client.clone()
         } else {
+            // On WebAssembly reqwest sends with the host's `fetch`, which owns timeouts and the
+            // user agent: a plain client.
+            #[cfg(target_family = "wasm")]
+            let reqwest_client = reqwest::Client::new();
+            #[cfg(not(target_family = "wasm"))]
             let reqwest_client = reqwest::Client::builder()
                 .timeout(Duration::from_secs(120)) // Default timeout: 120 seconds
                 .user_agent(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")))
@@ -285,6 +293,9 @@ impl ClientBuilder {
     }
 
     /// Create a new client builder with default configuration from environment variables.
+    ///
+    /// Not available on WebAssembly ([`Config::from_env`]).
+    #[cfg(not(target_family = "wasm"))]
     pub fn from_env() -> Result<Self> {
         Self::new(Config::from_env()?)
     }
@@ -415,6 +426,9 @@ impl Client {
     }
 
     /// Create a new client builder with default configuration from environment variables.
+    ///
+    /// Not available on WebAssembly ([`Config::from_env`]).
+    #[cfg(not(target_family = "wasm"))]
     pub fn from_env() -> Result<ClientBuilder> {
         ClientBuilder::from_env()
     }

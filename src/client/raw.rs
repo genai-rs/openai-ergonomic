@@ -14,7 +14,7 @@
 //! Interceptors (such as the Langfuse interceptor) are **not** called for these requests.
 
 use super::Client;
-use crate::{Error, Result};
+use crate::{Error, MaybeSend, Result};
 use futures::stream::{Stream, StreamExt};
 use http::header::{ACCEPT, USER_AGENT};
 use http::Method;
@@ -75,7 +75,7 @@ impl<T> Client<T> {
         method: Method,
         path: &str,
         body: Option<&I>,
-    ) -> impl Future<Output = Result<O>> + Send + 'static
+    ) -> impl Future<Output = Result<O>> + MaybeSend + 'static
     where
         I: Serialize + ?Sized,
         O: DeserializeOwned,
@@ -164,7 +164,7 @@ impl<T> Client<T> {
         &self,
         path: &str,
         body: &I,
-    ) -> impl Future<Output = Result<O>> + Send + 'static
+    ) -> impl Future<Output = Result<O>> + MaybeSend + 'static
     where
         I: Serialize + ?Sized,
         O: DeserializeOwned,
@@ -201,7 +201,7 @@ impl<T> Client<T> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_json<O>(&self, path: &str) -> impl Future<Output = Result<O>> + Send + 'static
+    pub fn get_json<O>(&self, path: &str) -> impl Future<Output = Result<O>> + MaybeSend + 'static
     where
         O: DeserializeOwned,
     {
@@ -270,8 +270,8 @@ impl<T> Client<T> {
         &self,
         path: &str,
         body: &I,
-    ) -> impl Future<Output = Result<impl Stream<Item = Result<O>> + Send + Unpin + 'static>>
-           + Send
+    ) -> impl Future<Output = Result<impl Stream<Item = Result<O>> + MaybeSend + Unpin + 'static>>
+           + MaybeSend
            + 'static
     where
         I: Serialize + ?Sized,
@@ -296,7 +296,7 @@ impl<T> Client<T> {
         method: Method,
         path: &str,
         body: &I,
-    ) -> impl Future<Output = Result<Response>> + Send + 'static {
+    ) -> impl Future<Output = Result<Response>> + MaybeSend + 'static {
         let request = self
             .raw_request(method, path)
             .header(ACCEPT, "text/event-stream")
@@ -308,7 +308,7 @@ impl<T> Client<T> {
 /// The server-sent events of a response, each `data:` payload decoded into `O`.
 fn decode_events<O: DeserializeOwned + 'static>(
     response: Response,
-) -> impl Stream<Item = Result<O>> + Send + Unpin + 'static {
+) -> impl Stream<Item = Result<O>> + MaybeSend + Unpin + 'static {
     Box::pin(response.events().filter_map(|event| async move {
         match event {
             Ok(event) if event.data.trim().is_empty() => None,

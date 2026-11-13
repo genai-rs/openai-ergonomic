@@ -4,13 +4,13 @@ use super::{map_api_error, Client};
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::fine_tuning_api;
 use openai_client_base::models::{
     CreateFineTuningJobRequest, FineTuningJob, ListFineTuningJobCheckpointsResponse,
     ListFineTuningJobEventsResponse, ListPaginatedFineTuningJobsResponse,
 };
-use std::time::Instant;
 
 /// Client for fine-tuning API.
 #[derive(Debug, Clone, Copy)]

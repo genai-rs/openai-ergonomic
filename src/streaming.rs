@@ -43,7 +43,8 @@
 //! See the `langfuse_streaming` example for a complete demonstration.
 
 use crate::interceptor::{StreamChunkContext, StreamEndContext, StreamTerminalContext};
-use crate::{Error, Result};
+use crate::time::{Instant, Spawner};
+use crate::{Error, MaybeSend, MaybeSync, Result};
 #[cfg(test)]
 use bytes::Bytes;
 use futures::future::FutureExt;
@@ -58,9 +59,8 @@ use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use timvw_rust_runtime::sse;
-use tokio::runtime::Handle;
 use tokio::sync::mpsc::{self, OwnedPermit};
 use tokio::sync::watch;
 
@@ -207,7 +207,20 @@ impl StreamCompletion {
 ///
 /// Client methods use this type to preserve one public stream shape while managing ordered
 /// interceptor callbacks and stream lifecycle reporting.
+///
+/// The stream is `Send` natively; on WebAssembly, where the host's streams cannot leave its
+/// thread, it is not.
+#[cfg(not(target_family = "wasm"))]
 pub type BoxedChatStream = Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>;
+/// Type alias for a boxed stream of chat completion chunks.
+///
+/// Client methods use this type to preserve one public stream shape while managing ordered
+/// interceptor callbacks and stream lifecycle reporting.
+///
+/// The stream is `Send` natively; on WebAssembly, where the host's streams cannot leave its
+/// thread, it is not.
+#[cfg(target_family = "wasm")]
+pub type BoxedChatStream = Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>>>>;
 
 /// A streaming chunk from a chat completion response.
 ///
@@ -322,7 +335,7 @@ impl ChatCompletionChunk {
 /// This stream yields `ChatCompletionChunk` items as the model generates the response.
 /// The stream ends when the model finishes generating or encounters an error.
 pub struct ChatCompletionStream {
-    inner: Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>,
+    inner: BoxedChatStream,
 }
 
 impl ChatCompletionStream {
@@ -371,20 +384,19 @@ struct ChunkEvent {
     output_tokens: Option<i64>,
 }
 
-type ReserveFuture = Pin<
-    Box<
-        dyn Future<
-                Output = std::result::Result<OwnedPermit<ChunkEvent>, mpsc::error::SendError<()>>,
-            > + Send,
-    >,
+type ReserveFuture = crate::BoxFuture<
+    'static,
+    std::result::Result<OwnedPermit<ChunkEvent>, mpsc::error::SendError<()>>,
 >;
 
 /// Wrapper for a stream that dispatches bounded, ordered interceptor callbacks.
 ///
 /// The wrapper's direct constructor may be called outside a Tokio runtime, but it must be polled
-/// inside one. Use [`Self::new_with_completion`] to validate the runtime and obtain a drain handle.
-pub struct InterceptedStream<T: Send + Sync + 'static = ()> {
-    inner: Option<Pin<Box<dyn Stream<Item = Result<ChatCompletionChunk>> + Send>>>,
+/// inside one (natively; on WebAssembly the callbacks run on the JavaScript host's event loop,
+/// `wasm_bindgen_futures::spawn_local`, and no Tokio runtime is involved). Use
+/// [`Self::new_with_completion`] to validate the runtime and obtain a drain handle.
+pub struct InterceptedStream<T: MaybeSend + MaybeSync + 'static = ()> {
+    inner: Option<BoxedChatStream>,
     interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
     operation: String,
     model: String,
@@ -403,7 +415,7 @@ pub struct InterceptedStream<T: Send + Sync + 'static = ()> {
     terminated: bool,
 }
 
-impl<T: Send + Sync + 'static> InterceptedStream<T> {
+impl<T: MaybeSend + MaybeSync + 'static> InterceptedStream<T> {
     /// Create an intercepted stream.
     ///
     /// Construction does not require a runtime. The first poll must occur inside an active
@@ -439,8 +451,8 @@ impl<T: Send + Sync + 'static> InterceptedStream<T> {
 
     /// Create an intercepted stream and a handle that resolves after callback drain.
     ///
-    /// An active Tokio runtime is required. This method returns an error instead of panicking
-    /// when called outside one.
+    /// An active Tokio runtime is required natively (not on WebAssembly). This method returns an
+    /// error instead of panicking when called outside one.
     pub fn new_with_completion(
         inner: ChatCompletionStream,
         interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
@@ -449,7 +461,7 @@ impl<T: Send + Sync + 'static> InterceptedStream<T> {
         request_json: String,
         state: T,
     ) -> Result<(Self, StreamCompletion)> {
-        let runtime = Handle::try_current().map_err(|_| {
+        let runtime = Spawner::current().ok_or_else(|| {
             Error::Config(
                 "InterceptedStream::new_with_completion requires an active Tokio runtime".into(),
             )
@@ -459,7 +471,7 @@ impl<T: Send + Sync + 'static> InterceptedStream<T> {
         Ok((stream, completion))
     }
 
-    fn start_lifecycle(&mut self, runtime: &Handle) -> StreamCompletion {
+    fn start_lifecycle(&mut self, runtime: &Spawner) -> StreamCompletion {
         let (report_tx, report_rx) = watch::channel(None);
         if self.interceptors.is_empty() {
             self.started = true;
@@ -558,7 +570,7 @@ impl<T: Send + Sync + 'static> InterceptedStream<T> {
     }
 }
 
-impl<T: Send + Sync + 'static> Drop for InterceptedStream<T> {
+impl<T: MaybeSend + MaybeSync + 'static> Drop for InterceptedStream<T> {
     fn drop(&mut self) {
         if !self.terminated {
             self.finish(StreamOutcome::Cancelled);
@@ -566,7 +578,7 @@ impl<T: Send + Sync + 'static> Drop for InterceptedStream<T> {
     }
 }
 
-impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
+impl<T: MaybeSend + MaybeSync + 'static> Stream for InterceptedStream<T> {
     type Item = Result<ChatCompletionChunk>;
 
     #[allow(clippy::expect_used)] // the queue sender and reserved slot are set before use
@@ -577,7 +589,7 @@ impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
         }
 
         if !this.started {
-            let Ok(runtime) = Handle::try_current() else {
+            let Some(runtime) = Spawner::current() else {
                 this.terminated = true;
                 this.inner.take();
                 return Poll::Ready(Some(Err(Error::Config(
@@ -670,7 +682,7 @@ impl<T: Send + Sync + 'static> Stream for InterceptedStream<T> {
     }
 }
 
-fn update_usage<T: Send + Sync + 'static>(
+fn update_usage<T: MaybeSend + MaybeSync + 'static>(
     stream: &mut InterceptedStream<T>,
     chunk: &ChatCompletionChunk,
 ) {
@@ -680,7 +692,7 @@ fn update_usage<T: Send + Sync + 'static>(
     }
 }
 
-async fn dispatch_stream_callbacks<T: Send + Sync + 'static>(
+async fn dispatch_stream_callbacks<T: MaybeSend + MaybeSync + 'static>(
     mut queue: mpsc::Receiver<ChunkEvent>,
     mut terminal: watch::Receiver<Option<StreamOutcome>>,
     report_tx: watch::Sender<Option<Arc<StreamCompletionReport>>>,
@@ -774,7 +786,7 @@ async fn dispatch_stream_callbacks<T: Send + Sync + 'static>(
     let _ = report_tx.send(Some(Arc::new(report)));
 }
 
-async fn dispatch_chunk_event<T: Send + Sync + 'static>(
+async fn dispatch_chunk_event<T: MaybeSend + MaybeSync + 'static>(
     report: &mut StreamCompletionReport,
     interceptors: &crate::interceptor::InterceptorChain<T>,
     operation: &str,
@@ -811,7 +823,7 @@ async fn dispatch_chunk_event<T: Send + Sync + 'static>(
     }
 }
 
-async fn dispatch_terminal_event<T: Send + Sync + 'static>(
+async fn dispatch_terminal_event<T: MaybeSend + MaybeSync + 'static>(
     report: &mut StreamCompletionReport,
     interceptors: &crate::interceptor::InterceptorChain<T>,
     operation: &str,
@@ -850,8 +862,8 @@ async fn record_callback<F, Fut>(
     chunk_index: Option<usize>,
     callback: F,
 ) where
-    F: FnOnce() -> Fut + Send,
-    Fut: Future<Output = Result<()>> + Send,
+    F: FnOnce() -> Fut + MaybeSend,
+    Fut: Future<Output = Result<()>> + MaybeSend,
 {
     report.callback_attempts = report.callback_attempts.saturating_add(1);
     let callback_future = match std::panic::catch_unwind(AssertUnwindSafe(callback)) {
@@ -960,7 +972,9 @@ where
 }
 
 /// Decode the events of a chat completion stream; the first error is the last item.
-fn decode_events(events: sse::Events) -> impl Stream<Item = Result<ChatCompletionChunk>> + Send {
+fn decode_events(
+    events: sse::Events,
+) -> impl Stream<Item = Result<ChatCompletionChunk>> + MaybeSend {
     futures::stream::unfold(Some(events), |state| async move {
         let mut events = state?;
         loop {

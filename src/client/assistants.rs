@@ -5,6 +5,7 @@ use crate::builders::assistants::{AssistantBuilder, MessageBuilder, RunBuilder};
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
+use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::assistants_api;
 use openai_client_base::models::{
@@ -12,7 +13,6 @@ use openai_client_base::models::{
     ListRunStepsResponse, ListRunsResponse, MessageObject, RunObject, RunStepObject,
     SubmitToolOutputsRunRequestToolOutputsInner,
 };
-use std::time::Instant;
 
 /// Client for assistants API.
 #[derive(Debug, Clone, Copy)]

@@ -30,6 +30,8 @@
 //! Pass the body exactly as received: the signature covers its bytes, so parse it only after
 //! verifying (which [`WebhookVerifier::unwrap`] does).
 
+use crate::time::SystemTime;
+use crate::time::UNIX_EPOCH;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use hmac::{Hmac, Mac};
@@ -39,7 +41,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sha2::Sha256;
 use std::fmt;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -130,7 +132,8 @@ impl WebhookVerifier {
         self.verify_at(headers, body, SystemTime::now())
     }
 
-    /// [`WebhookVerifier::verify`], with `now` as the current time.
+    /// [`WebhookVerifier::verify`], with `now` as the current time (`std::time::SystemTime`;
+    /// `web_time::SystemTime` on WebAssembly).
     pub fn verify_at(
         &self,
         headers: &HeaderMap,
