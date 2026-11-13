@@ -1,6 +1,11 @@
 //! File parameters are `timvw_rust_runtime::Upload`s: paths are streamed from disk, bytes are
 //! sent from memory (no temporary files), and a missing file is an `Error::Http` with `is_io()`.
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::significant_drop_tightening
+)]
 #![allow(unknown_lints, clippy::unused_async_trait_impl)]
 
 use mockito::{Matcher, Server};
