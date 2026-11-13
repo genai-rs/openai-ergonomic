@@ -84,7 +84,7 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
     #[must_use]
     pub fn edit(
         &self,
-        image: impl AsRef<std::path::Path>,
+        image: impl Into<timvw_rust_runtime::Upload>,
         prompt: impl Into<String>,
     ) -> ImageEditBuilder {
         ImageEditBuilder::new(image, prompt)
@@ -187,7 +187,7 @@ impl<T: Default + Send + Sync> ImagesClient<'_, T> {
 
     /// Create an image variation builder.
     #[must_use]
-    pub fn variation(&self, image: impl AsRef<std::path::Path>) -> ImageVariationBuilder {
+    pub fn variation(&self, image: impl Into<timvw_rust_runtime::Upload>) -> ImageVariationBuilder {
         ImageVariationBuilder::new(image)
     }
 

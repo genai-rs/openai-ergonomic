@@ -122,7 +122,6 @@ macro_rules! impl_interceptor_helpers {
 
 mod assistants;
 mod audio;
-mod base_bridge;
 mod batch;
 mod completions;
 mod embeddings;
@@ -270,7 +269,7 @@ impl ClientBuilder {
 
         // Create openai-client-base configuration
         let mut base_configuration = Configuration::new();
-        base_configuration.client = base_bridge::base_client(&http_client);
+        base_configuration.client = http_client.clone();
         base_configuration.user_agent =
             Some(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")));
         // The provider's layer authenticates the requests.
@@ -867,7 +866,7 @@ impl<T: Default + Send + Sync> Client<T> {
 
 fn map_api_error<T>(error: ApiError<T>) -> Error {
     match error {
-        ApiError::Http(err) => base_bridge::http_error(&err),
+        ApiError::Http(err) => Error::Http(err),
         ApiError::Serde(err) => Error::Json(err),
         ApiError::Io(err) => Error::File(err),
         ApiError::ResponseError(response) => Error::Api {
@@ -948,8 +947,8 @@ mod tests {
         let builder = FileUploadBuilder::new("test.txt", FilePurpose::Assistants, content.clone());
 
         assert_eq!(builder.filename(), "test.txt");
-        assert_eq!(builder.content(), content.as_slice());
-        assert_eq!(builder.content_size(), content.len());
+        assert_eq!(builder.content(), Some(content.as_slice()));
+        assert_eq!(builder.content_size(), Some(content.len() as u64));
         assert!(!builder.is_empty());
     }
 

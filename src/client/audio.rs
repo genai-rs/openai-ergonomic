@@ -65,10 +65,7 @@ impl<T: Default + Send + Sync> AudioClient<'_, T> {
             }
         };
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|error| super::base_bridge::http_error(&error))?;
+        let bytes = response.bytes().await.map_err(Error::Http)?;
         let duration = start_time.elapsed();
 
         // Call after_response hook (note: no JSON response for audio)
@@ -92,7 +89,7 @@ impl<T: Default + Send + Sync> AudioClient<'_, T> {
     #[must_use]
     pub fn transcription(
         &self,
-        file: impl AsRef<std::path::Path>,
+        file: impl Into<timvw_rust_runtime::Upload>,
         model: impl Into<String>,
     ) -> TranscriptionBuilder {
         TranscriptionBuilder::new(file, model)
@@ -183,7 +180,7 @@ impl<T: Default + Send + Sync> AudioClient<'_, T> {
     #[must_use]
     pub fn translation(
         &self,
-        file: impl AsRef<std::path::Path>,
+        file: impl Into<timvw_rust_runtime::Upload>,
         model: impl Into<String>,
     ) -> TranslationBuilder {
         TranslationBuilder::new(file, model)

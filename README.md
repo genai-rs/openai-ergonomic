@@ -532,12 +532,8 @@ use std::path::PathBuf;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?.build();
     let upload = client
-        .upload_large_file(
-            PathBuf::from("training.jsonl"),
-            "training.jsonl",
-            UploadPurpose::FineTune,
-            "application/jsonl",
-        )
+        .upload_large_file(PathBuf::from("training.jsonl"), UploadPurpose::FineTune)
+        .mime_type("text/jsonl")
         .concurrency(8)
         .await?;
     println!("uploaded: {:?}", upload.file);

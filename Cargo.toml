@@ -15,16 +15,12 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { version = "^0.31.0", default-features = false, features = ["full"] }
+openai-client-base = { path = "/Users/tim/runner-setup/workspace/_sessions/cse_01HMZBkbrVdWFeznYPW678Ks/openai-client-base", default-features = false, features = ["full"] }
 serde = { version = "^1.0.229", features = ["derive"] }
 serde_json = "^1.0.151"
 tokio = { version = "^1.53.3", features = ["rt", "macros", "sync", "time", "fs", "io-util"] }
 reqwest = { version = "^0.13.5", default-features = false }
-# Runtime 0.3 (unreleased: by path until it is published). openai-client-base 0.31 still uses runtime 0.2; its
-# generated operations reach the 0.3 client through `client::base_bridge` until it is regenerated against 0.3.
-timvw-rust-runtime = { path = "/Users/tim/runner-setup/workspace/_sessions/cse_01HMZBkbrVdWFeznYPW678Ks/openapi-generator-timvw-rust/runtime", version = "0.3.0", default-features = false, features = ["reqwest", "retry", "fs"] }
-# Runtime 0.2, the one openai-client-base 0.31 is built on: only for `client::base_bridge`. Transitional.
-base-runtime = { package = "timvw-rust-runtime", version = "^0.2.0", default-features = false }
+timvw-rust-runtime = { version = "^0.3.0", default-features = false, features = ["reqwest", "retry", "fs"] }
 tower = { version = "^0.5.2", default-features = false, features = ["util", "retry"] }
 url = "^2.5.8"
 futures = "^0.3.34"

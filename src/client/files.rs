@@ -41,58 +41,42 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
     /// # }
     /// ```
     pub async fn upload(&self, builder: FileUploadBuilder) -> Result<OpenAiFile> {
-        // Write content to a temporary file
-        let temp_dir = std::env::temp_dir();
-        let temp_file_path = temp_dir.join(builder.filename());
-        std::fs::write(&temp_file_path, builder.content()).map_err(Error::File)?;
-
-        // Convert FilePurpose to a string for the API
-        let purpose = builder.purpose().to_string();
-
         // Prepare interceptor context
         let mut state = T::default();
         let operation = operation_names::FILE_UPLOAD;
         let model = "file-upload"; // No model for file operations
-        let request_json = format!(
-            r#"{{"filename":"{}","purpose":"{}","size":{}}}"#,
-            builder.filename(),
-            builder.purpose(),
-            builder.content().len()
-        );
+        let request_json = serde_json::json!({
+            "filename": builder.filename(),
+            "purpose": builder.purpose().to_string(),
+            "size": builder.content_size(),
+        })
+        .to_string();
 
         // Call before_request hook
-        if let Err(e) = self
-            .call_before_request(operation, model, &request_json, &mut state)
-            .await
-        {
-            // Clean up temp file before returning
-            let _ = std::fs::remove_file(&temp_file_path);
-            return Err(e);
-        }
+        self.call_before_request(operation, model, &request_json, &mut state)
+            .await?;
 
+        let (upload, purpose) = builder.into_parts();
+        let purpose = purpose.to_string();
         let start_time = Instant::now();
 
-        // Make the API call
+        // Make the API call: the upload is streamed as it is (a path from disk), no temporary
+        // copy. A missing file is an `Error::Http` whose `is_io()` is true.
         let result = match files_api::create_file()
             .configuration(&self.client.base_configuration)
-            .file(temp_file_path.clone())
+            .file(upload)
             .purpose(&purpose)
             .call()
             .await
         {
             Ok(resp) => resp,
             Err(e) => {
-                // Clean up temp file
-                let _ = std::fs::remove_file(&temp_file_path);
                 let error = self
                     .handle_api_error(e, operation, model, &request_json, &state)
                     .await;
                 return Err(error);
             }
         };
-
-        // Clean up temporary file
-        let _ = std::fs::remove_file(temp_file_path);
 
         let duration = start_time.elapsed();
 
@@ -151,18 +135,31 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
         &self,
         filename: impl Into<String>,
         purpose: crate::builders::files::FilePurpose,
-        content: Vec<u8>,
+        content: impl Into<bytes::Bytes>,
     ) -> FileUploadBuilder {
         FileUploadBuilder::new(filename, purpose, content)
     }
 
-    /// Create a file upload builder from a file path.
+    /// Create a file upload builder from a file path. The file is streamed from disk when the
+    /// upload is sent; a missing file fails it with [`Error::Http`] (`is_io()`).
+    #[must_use]
     pub fn upload_from_path(
         &self,
         path: impl AsRef<std::path::Path>,
         purpose: crate::builders::files::FilePurpose,
-    ) -> Result<FileUploadBuilder> {
-        FileUploadBuilder::from_path(path, purpose).map_err(Error::File)
+    ) -> FileUploadBuilder {
+        FileUploadBuilder::from_path(path, purpose)
+    }
+
+    /// Create a file upload builder from anything that converts into an
+    /// [`Upload`](timvw_rust_runtime::Upload): a path, bytes, or an upload made from a stream.
+    #[must_use]
+    pub fn upload_from(
+        &self,
+        upload: impl Into<timvw_rust_runtime::Upload>,
+        purpose: crate::builders::files::FilePurpose,
+    ) -> FileUploadBuilder {
+        FileUploadBuilder::from_upload(upload, purpose)
     }
 
     /// List files.
@@ -363,11 +360,7 @@ impl<T: Default + Send + Sync> FilesClient<'_, T> {
             }
         };
 
-        let response = response
-            .bytes()
-            .await
-            .map_err(|error| super::base_bridge::http_error(&error))?
-            .to_vec();
+        let response = response.bytes().await?.to_vec();
         let duration = start_time.elapsed();
 
         // Call after_response hook

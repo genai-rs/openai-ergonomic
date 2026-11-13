@@ -165,6 +165,36 @@ impl Error {
     pub fn is_retryable(&self) -> bool {
         self.is_rate_limit() || self.is_server_error()
     }
+
+    /// Check if this is a file error: [`Error::File`], or an [`Error::Http`] whose
+    /// [`is_io`](timvw_rust_runtime::Error::is_io) is true, such as an upload of a file that does
+    /// not exist (or, on WebAssembly, any upload from a path: there is no file system).
+    pub fn is_io(&self) -> bool {
+        match self {
+            Error::File(_) => true,
+            Error::Http(error) => error.is_io(),
+            _ => false,
+        }
+    }
+
+    /// The I/O error behind a file error ([`Error::is_io`]), to read its
+    /// [`kind`](std::io::Error::kind) (`NotFound` for a missing file). Its message names the path.
+    pub fn io_error(&self) -> Option<&std::io::Error> {
+        match self {
+            Error::File(error) => Some(error),
+            Error::Http(error) if error.is_io() => {
+                let mut source = std::error::Error::source(error);
+                while let Some(current) = source {
+                    if let Some(io) = current.downcast_ref::<std::io::Error>() {
+                        return Some(io);
+                    }
+                    source = current.source();
+                }
+                None
+            }
+            _ => None,
+        }
+    }
 }
 
 /// Specialized error types for different API endpoints.
@@ -235,6 +265,29 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
     use std::io;
+
+    #[tokio::test]
+    async fn test_io_errors() {
+        let missing = timvw_rust_runtime::Upload::path("/no/such/dir/data.jsonl")
+            .resolve()
+            .await
+            .unwrap_err();
+        let error = Error::Http(missing);
+        assert!(error.is_io());
+        assert_eq!(error.io_error().unwrap().kind(), io::ErrorKind::NotFound);
+        assert!(error.to_string().contains("data.jsonl"));
+
+        let error = Error::File(io::Error::new(io::ErrorKind::PermissionDenied, "denied"));
+        assert!(error.is_io());
+        assert_eq!(
+            error.io_error().unwrap().kind(),
+            io::ErrorKind::PermissionDenied
+        );
+
+        let error = Error::InvalidRequest("x".to_string());
+        assert!(!error.is_io());
+        assert!(error.io_error().is_none());
+    }
 
     #[test]
     fn test_error_display() {

@@ -5,7 +5,7 @@
 //! produce request types that can be supplied directly to the generated client
 //! functions.
 
-use std::path::{Path, PathBuf};
+use timvw_rust_runtime::Upload;
 
 pub use openai_client_base::models::create_image_request::{
     Background, Moderation, Quality, ResponseFormat, Style,
@@ -228,9 +228,9 @@ impl Builder<CreateImageRequest> for ImageGenerationBuilder {
 /// Builder describing an image edit request (`/images/edits`).
 #[derive(Debug, Clone)]
 pub struct ImageEditBuilder {
-    image: PathBuf,
+    image: Upload,
     prompt: String,
-    mask: Option<PathBuf>,
+    mask: Option<Upload>,
     background: Option<String>,
     model: Option<String>,
     n: Option<i64>,
@@ -247,10 +247,14 @@ pub struct ImageEditBuilder {
 
 impl ImageEditBuilder {
     /// Create a new edit request using a base image and prompt.
+    ///
+    /// `image` is anything that converts into an [`Upload`]: a path (`PathBuf`, `&Path`, streamed
+    /// from disk), bytes (`Vec<u8>`, `Bytes`), or an [`Upload`] made from a stream. Give bytes a
+    /// file name and a media type with [`Upload::file_name`] and [`Upload::mime`].
     #[must_use]
-    pub fn new(image: impl AsRef<Path>, prompt: impl Into<String>) -> Self {
+    pub fn new(image: impl Into<Upload>, prompt: impl Into<String>) -> Self {
         Self {
-            image: image.as_ref().to_path_buf(),
+            image: image.into(),
             prompt: prompt.into(),
             mask: None,
             background: None,
@@ -270,8 +274,8 @@ impl ImageEditBuilder {
 
     /// Supply a mask file that indicates editable regions.
     #[must_use]
-    pub fn mask(mut self, mask: impl AsRef<Path>) -> Self {
-        self.mask = Some(mask.as_ref().to_path_buf());
+    pub fn mask(mut self, mask: impl Into<Upload>) -> Self {
+        self.mask = Some(mask.into());
         self
     }
 
@@ -359,9 +363,9 @@ impl ImageEditBuilder {
         self
     }
 
-    /// Borrow the underlying image path.
+    /// Borrow the image to edit.
     #[must_use]
-    pub fn image(&self) -> &Path {
+    pub fn image(&self) -> &Upload {
         &self.image
     }
 
@@ -375,12 +379,12 @@ impl ImageEditBuilder {
 /// Fully prepared payload for the edit endpoint.
 #[derive(Debug, Clone)]
 pub struct ImageEditRequest {
-    /// Path to the original image that will be edited.
-    pub image: PathBuf,
+    /// The original image that will be edited.
+    pub image: Upload,
     /// Natural-language instructions describing the edit.
     pub prompt: String,
     /// Optional mask describing editable regions.
-    pub mask: Option<PathBuf>,
+    pub mask: Option<Upload>,
     /// Optional background mode (`transparent`, `opaque`, ...).
     pub background: Option<String>,
     /// Model identifier to use for the edit operation.
@@ -465,7 +469,7 @@ impl Builder<ImageEditRequest> for ImageEditBuilder {
 /// Builder describing an image variation request (`/images/variations`).
 #[derive(Debug, Clone)]
 pub struct ImageVariationBuilder {
-    image: PathBuf,
+    image: Upload,
     model: Option<String>,
     n: Option<i64>,
     response_format: Option<String>,
@@ -475,10 +479,12 @@ pub struct ImageVariationBuilder {
 
 impl ImageVariationBuilder {
     /// Create a variation builder for the provided image file.
+    ///
+    /// `image` is anything that converts into an [`Upload`]; see [`ImageEditBuilder::new`].
     #[must_use]
-    pub fn new(image: impl AsRef<Path>) -> Self {
+    pub fn new(image: impl Into<Upload>) -> Self {
         Self {
-            image: image.as_ref().to_path_buf(),
+            image: image.into(),
             model: None,
             n: None,
             response_format: None,
@@ -522,9 +528,9 @@ impl ImageVariationBuilder {
         self
     }
 
-    /// Borrow the base image path.
+    /// Borrow the base image.
     #[must_use]
-    pub fn image(&self) -> &Path {
+    pub fn image(&self) -> &Upload {
         &self.image
     }
 }
@@ -532,8 +538,8 @@ impl ImageVariationBuilder {
 /// Fully prepared payload for the variation endpoint.
 #[derive(Debug, Clone)]
 pub struct ImageVariationRequest {
-    /// Path to the source image to transform.
-    pub image: PathBuf,
+    /// The source image to transform.
+    pub image: Upload,
     /// Optional model override.
     pub model: Option<String>,
     /// Number of variations to create (1-10).
@@ -571,6 +577,7 @@ impl Builder<ImageVariationRequest> for ImageVariationBuilder {
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
+    use std::path::Path;
 
     #[test]
     fn builds_image_generation_request() {
@@ -668,8 +675,8 @@ mod tests {
 
     #[test]
     fn builds_image_edit_request() {
-        let request = ImageEditBuilder::new("image.png", "Remove the background")
-            .mask("mask.png")
+        let request = ImageEditBuilder::new(Path::new("image.png"), "Remove the background")
+            .mask(Path::new("mask.png"))
             .background("transparent")
             .model("gpt-image-1")
             .n(1)
@@ -685,9 +692,13 @@ mod tests {
             .build()
             .expect("valid edit builder");
 
-        assert_eq!(request.image, PathBuf::from("image.png"));
+        assert_eq!(request.image.name(), Some("image.png"));
+        assert_eq!(request.image.media_type(), Some("image/png"));
         assert_eq!(request.prompt, "Remove the background");
-        assert_eq!(request.mask, Some(PathBuf::from("mask.png")));
+        assert_eq!(
+            request.mask.as_ref().and_then(Upload::name),
+            Some("mask.png")
+        );
         assert_eq!(request.background.as_deref(), Some("transparent"));
         assert_eq!(request.model.as_deref(), Some("gpt-image-1"));
         assert_eq!(request.size.as_deref(), Some("1024x1024"));
@@ -700,21 +711,21 @@ mod tests {
 
     #[test]
     fn edit_validates_ranges() {
-        let err = ImageEditBuilder::new("image.png", "Prompt")
+        let err = ImageEditBuilder::new(Path::new("image.png"), "Prompt")
             .model("gpt-image-1")
             .n(20)
             .build()
             .unwrap_err();
         assert!(matches!(err, Error::InvalidRequest(_)));
 
-        let err = ImageEditBuilder::new("image.png", "Prompt")
+        let err = ImageEditBuilder::new(Path::new("image.png"), "Prompt")
             .model("gpt-image-1")
             .output_compression(150)
             .build()
             .unwrap_err();
         assert!(matches!(err, Error::InvalidRequest(_)));
 
-        let err = ImageEditBuilder::new("image.png", "Prompt")
+        let err = ImageEditBuilder::new(Path::new("image.png"), "Prompt")
             .model("gpt-image-1")
             .partial_images(5)
             .build()
@@ -724,7 +735,7 @@ mod tests {
 
     #[test]
     fn builds_image_variation_request() {
-        let request = ImageVariationBuilder::new("image.png")
+        let request = ImageVariationBuilder::new(Path::new("image.png"))
             .model("dall-e-2")
             .n(3)
             .response_format("url")
@@ -733,7 +744,8 @@ mod tests {
             .build()
             .expect("valid variation builder");
 
-        assert_eq!(request.image, PathBuf::from("image.png"));
+        assert_eq!(request.image.name(), Some("image.png"));
+        assert_eq!(request.image.media_type(), Some("image/png"));
         assert_eq!(request.model.as_deref(), Some("dall-e-2"));
         assert_eq!(request.n, Some(3));
         assert_eq!(request.response_format.as_deref(), Some("url"));
@@ -742,7 +754,7 @@ mod tests {
 
     #[test]
     fn variation_validates_n() {
-        let err = ImageVariationBuilder::new("image.png")
+        let err = ImageVariationBuilder::new(Path::new("image.png"))
             .n(0)
             .build()
             .unwrap_err();
@@ -753,7 +765,7 @@ mod tests {
     fn image_generation_and_edit_require_a_model() {
         for model in [None, Some(""), Some("   ")] {
             let mut generation = ImageGenerationBuilder::new("Prompt");
-            let mut edit = ImageEditBuilder::new("image.png", "Prompt");
+            let mut edit = ImageEditBuilder::new(Path::new("image.png"), "Prompt");
             if let Some(model) = model {
                 generation = generation.model(model);
                 edit = edit.model(model);
