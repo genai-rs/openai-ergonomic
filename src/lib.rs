@@ -133,6 +133,13 @@ pub mod semantic_conventions;
 pub mod streaming;
 pub mod tool_framework;
 
+/// Boxed future used internally to store heterogeneous async trait
+/// implementations (`ErasedTool`, `ErasedInterceptor`). The `Send` bound of
+/// type-erased futures lives here only, so a future non-`Send` (WASM) target
+/// can relax it in one place.
+pub(crate) type BoxFuture<'a, T> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
+
 // Re-export commonly used types
 pub use client::Client;
 pub use config::{Config, ConfigBuilder};

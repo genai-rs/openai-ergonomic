@@ -83,6 +83,31 @@ generation and editing require an explicit `.model(...)`; choose the model befor
 building or sending those requests. See the [0.7 migration guide](docs/migration-0.7.md)
 for the generated request field changes introduced in 0.7.
 
+### Upgrading: native async traits
+
+`FunctionTool` and `Interceptor` are now native async traits; the crate no longer
+depends on `async-trait`. Drop `#[async_trait]` from your `impl FunctionTool` /
+`impl Interceptor` blocks and keep the methods as plain `async fn` (their futures
+must be `Send`). `with_interceptor`, `add_interceptor` and `InterceptorChain::add`
+take the interceptor by value; `Box<I>` and `Arc<I>` still work because they
+implement `Interceptor` too. `dyn Interceptor` is no longer a valid type: collect
+heterogeneous interceptors in an `InterceptorChain` instead.
+
+```rust,ignore
+// Before
+#[async_trait::async_trait]
+impl Interceptor for Logger {
+    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> { Ok(()) }
+}
+let client = Client::from_env()?.with_interceptor(Box::new(Logger)).build();
+
+// After
+impl Interceptor for Logger {
+    async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> { Ok(()) }
+}
+let client = Client::from_env()?.with_interceptor(Logger).build();
+```
+
 ### Upgrading to 0.7
 
 The generated request structs now use nested options for fields that distinguish
@@ -171,7 +196,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         LangfuseConfig::new(),
     );
     let client = Client::from_env()?
-        .with_interceptor(Box::new(interceptor))
+        .with_interceptor(interceptor)
         .build();
 
     // Keep the result so spans are flushed even when the request fails.

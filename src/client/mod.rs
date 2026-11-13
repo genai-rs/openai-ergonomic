@@ -166,12 +166,11 @@ pub use vector_stores::VectorStoresClient;
 ///
 /// struct MyInterceptor;
 ///
-/// #[async_trait::async_trait]
 /// impl Interceptor for MyInterceptor {}
 ///
 /// # fn example() -> openai_ergonomic::Result<()> {
 /// let client = Client::from_env()?
-///     .with_interceptor(Box::new(MyInterceptor))
+///     .with_interceptor(MyInterceptor)
 ///     .build();
 /// # Ok(())
 /// # }
@@ -299,6 +298,8 @@ impl<T> ClientBuilder<T> {
     /// hooks into the request/response lifecycle for observability, logging, and custom
     /// processing.
     ///
+    /// The interceptor is taken by value; `Box<I>` and `Arc<I>` are accepted too.
+    ///
     /// Note: This method transforms the builder's type, so it can only be called once.
     /// For multiple interceptors with the same state type, use a composite interceptor
     /// or call this method multiple times (each will replace the previous chain).
@@ -311,7 +312,6 @@ impl<T> ClientBuilder<T> {
     ///
     /// struct LoggingInterceptor;
     ///
-    /// #[async_trait::async_trait]
     /// impl Interceptor for LoggingInterceptor {
     ///     async fn before_request(&self, ctx: &mut BeforeRequestContext<'_>) -> Result<()> {
     ///         println!("Calling {}", ctx.operation);
@@ -321,7 +321,7 @@ impl<T> ClientBuilder<T> {
     ///
     /// # fn example() -> Result<()> {
     /// let client = Client::from_env()?
-    ///     .with_interceptor(Box::new(LoggingInterceptor))
+    ///     .with_interceptor(LoggingInterceptor)
     ///     .build();
     /// # Ok(())
     /// # }
@@ -338,17 +338,17 @@ impl<T> ClientBuilder<T> {
     /// let tracer = global::tracer("openai-ergonomic");
     /// let interceptor = LangfuseInterceptor::new(tracer, LangfuseConfig::new());
     /// let client: Client<LangfuseState<_>> = Client::from_env()?
-    ///     .with_interceptor(Box::new(interceptor))
+    ///     .with_interceptor(interceptor)
     ///     .build();
     /// # Ok(())
     /// # }
     /// # }
     /// ```
     #[must_use]
-    pub fn with_interceptor<U>(
-        self,
-        interceptor: Box<dyn crate::interceptor::Interceptor<U>>,
-    ) -> ClientBuilder<U> {
+    pub fn with_interceptor<U, I>(self, interceptor: I) -> ClientBuilder<U>
+    where
+        I: crate::interceptor::Interceptor<U> + 'static,
+    {
         let mut new_chain = InterceptorChain::new();
         new_chain.add(interceptor);
 
@@ -373,24 +373,22 @@ impl<T> ClientBuilder<T> {
     /// struct Logger;
     /// struct Metrics;
     ///
-    /// #[async_trait::async_trait]
     /// impl Interceptor for Logger {}
-    /// #[async_trait::async_trait]
     /// impl Interceptor for Metrics {}
     ///
     /// # fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?
-    ///     .add_interceptor(Box::new(Logger))
-    ///     .add_interceptor(Box::new(Metrics))
+    ///     .add_interceptor(Logger)
+    ///     .add_interceptor(Metrics)
     ///     .build();
     /// # Ok(())
     /// # }
     /// ```
     #[must_use]
-    pub fn add_interceptor(
-        mut self,
-        interceptor: Box<dyn crate::interceptor::Interceptor<T>>,
-    ) -> Self {
+    pub fn add_interceptor<I>(mut self, interceptor: I) -> Self
+    where
+        I: crate::interceptor::Interceptor<T> + 'static,
+    {
         self.interceptors.add(interceptor);
         self
     }

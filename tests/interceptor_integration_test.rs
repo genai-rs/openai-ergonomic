@@ -1,5 +1,8 @@
 //! Integration tests for the interceptor system.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// Test hooks are plain `async fn` without `.await`, as users write them; the lint
+// exists only in newer Clippy, hence `unknown_lints` for the MSRV toolchain.
+#![allow(unknown_lints, clippy::unused_async_trait_impl)]
 
 #[cfg(test)]
 mod tests {
@@ -33,7 +36,6 @@ mod tests {
         }
     }
 
-    #[async_trait::async_trait]
     impl Interceptor for CountingInterceptor {
         async fn before_request(
             &self,

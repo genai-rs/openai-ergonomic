@@ -1,5 +1,8 @@
 //! Deterministic tests for the streaming interceptor completion contract.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// Plain `async fn` hooks without `.await` are fine; newer Clippy's pedantic
+// `unused_async_trait_impl` would flag them (`unknown_lints` keeps Rust 1.88 quiet).
+#![allow(unknown_lints, clippy::unused_async_trait_impl)]
 
 use futures::StreamExt;
 use openai_ergonomic::interceptor::{
@@ -88,7 +91,6 @@ impl Probe {
     }
 }
 
-#[async_trait::async_trait]
 impl Interceptor for Probe {
     async fn on_stream_chunk(&self, ctx: &StreamChunkContext<'_>) -> Result<()> {
         let gate = self
@@ -131,7 +133,6 @@ impl Interceptor for Probe {
 
 struct LegacyEndProbe(mpsc::UnboundedSender<Call>);
 
-#[async_trait::async_trait]
 impl Interceptor for LegacyEndProbe {
     async fn on_stream_end(&self, ctx: &StreamEndContext<'_>) -> Result<()> {
         self.0
@@ -146,6 +147,14 @@ impl Interceptor for LegacyEndProbe {
     }
 }
 
+fn chain<I: Interceptor + 'static>(probes: impl IntoIterator<Item = I>) -> InterceptorChain {
+    let mut chain = InterceptorChain::new();
+    for probe in probes {
+        chain.add(probe);
+    }
+    chain
+}
+
 type TestStream = (
     InterceptedStream,
     StreamCompletion,
@@ -154,7 +163,7 @@ type TestStream = (
 
 async fn intercepted(
     body: String,
-    build_probes: impl FnOnce(mpsc::UnboundedSender<Call>) -> Vec<Box<dyn Interceptor>>,
+    build_probes: impl FnOnce(mpsc::UnboundedSender<Call>) -> InterceptorChain,
 ) -> TestStream {
     let mut server = mockito::Server::new_async().await;
     let mock = server
@@ -177,10 +186,7 @@ async fn intercepted(
         timvw_rust_runtime::Body::from(bytes),
     ));
     let (events, receiver) = mpsc::unbounded_channel();
-    let mut chain = InterceptorChain::new();
-    for probe in build_probes(events) {
-        chain.add(probe);
-    }
+    let chain = build_probes(events);
     let (stream, completion) = InterceptedStream::new_with_completion(
         ChatCompletionStream::new(response),
         Arc::new(chain),
@@ -216,7 +222,7 @@ fn probe(index: usize, events: &mpsc::UnboundedSender<Call>) -> Probe {
 async fn callbacks_are_ordered_and_report_includes_usage_only_chunks() {
     let (mut stream, completion, mut calls) =
         intercepted(format!("{}{}", chunk("hello"), usage_chunk()), |events| {
-            vec![Box::new(probe(0, &events)), Box::new(probe(1, &events))]
+            chain([probe(0, &events), probe(1, &events)])
         })
         .await;
 
@@ -266,7 +272,7 @@ async fn terminal_callback_must_finish_before_report_and_wait_is_repeatable() {
     let (mut stream, completion, mut calls) = intercepted(String::new(), move |events| {
         let mut delayed = probe(0, &events);
         delayed.terminal_gate = Some(gate_for_probe);
-        vec![Box::new(delayed)]
+        chain([delayed])
     })
     .await;
 
@@ -306,7 +312,7 @@ async fn dropping_a_full_queue_drains_admitted_chunks_before_cancel_terminal() {
         move |events| {
             let mut blocked = probe(0, &events);
             blocked.blocked_chunk = Some((0, gate_for_probe));
-            vec![Box::new(blocked)]
+            chain([blocked])
         },
     )
     .await;
@@ -346,7 +352,7 @@ async fn dropping_a_full_queue_drains_admitted_chunks_before_cancel_terminal() {
 #[tokio::test]
 async fn stream_error_is_yielded_once_and_only_terminal_hook_is_called() {
     let (mut stream, completion, mut calls) = intercepted("data: not-json\n\n".into(), |events| {
-        vec![Box::new(probe(0, &events))]
+        chain([probe(0, &events)])
     })
     .await;
 
@@ -377,7 +383,7 @@ async fn callback_errors_and_panics_are_recorded_and_later_callbacks_run() {
         first.chunk_behavior = Behavior::Panic;
         let mut second = probe(1, &events);
         second.terminal_behavior = Behavior::ReturnError;
-        vec![Box::new(first), Box::new(second)]
+        chain([first, second])
     })
     .await;
 
@@ -412,7 +418,7 @@ async fn panicking_error_diagnostic_does_not_skip_later_callbacks_or_terminal_ho
     let (mut stream, completion, mut calls) = intercepted(chunk("one"), |events| {
         let mut first = probe(0, &events);
         first.chunk_behavior = Behavior::ReturnErrorWithPanickingDisplay;
-        vec![Box::new(first), Box::new(probe(1, &events))]
+        chain([first, probe(1, &events)])
     })
     .await;
 
@@ -449,10 +455,8 @@ async fn panicking_error_diagnostic_does_not_skip_later_callbacks_or_terminal_ho
 
 #[tokio::test]
 async fn legacy_on_stream_end_is_forwarded_once_on_success() {
-    let (mut stream, completion, mut calls) = intercepted(String::new(), |events| {
-        vec![Box::new(LegacyEndProbe(events))]
-    })
-    .await;
+    let (mut stream, completion, mut calls) =
+        intercepted(String::new(), |events| chain([LegacyEndProbe(events)])).await;
 
     assert!(stream.next().await.is_none());
     let report = completion.wait().await.unwrap();
@@ -468,7 +472,8 @@ async fn legacy_on_stream_end_is_forwarded_once_on_success() {
 
 #[tokio::test]
 async fn empty_interceptor_chain_reports_completion_without_callbacks() {
-    let (mut stream, completion, _calls) = intercepted(String::new(), |_| Vec::new()).await;
+    let (mut stream, completion, _calls) =
+        intercepted(String::new(), |_| InterceptorChain::new()).await;
     assert!(stream.next().await.is_none());
     let report = completion.wait().await.unwrap();
     assert_eq!(report.outcome, StreamOutcome::Completed);
@@ -555,13 +560,11 @@ async fn shared_interceptors_can_process_different_streams_concurrently() {
 #[tokio::test]
 async fn callback_failure_details_are_bounded_with_exact_truncation_count() {
     let (mut stream, completion, _calls) = intercepted(String::new(), |events| {
-        (0..66)
-            .map(|index| {
-                let mut failing = probe(index, &events);
-                failing.terminal_behavior = Behavior::ReturnError;
-                Box::new(failing) as Box<dyn Interceptor>
-            })
-            .collect()
+        chain((0..66).map(|index| {
+            let mut failing = probe(index, &events);
+            failing.terminal_behavior = Behavior::ReturnError;
+            failing
+        }))
     })
     .await;
 

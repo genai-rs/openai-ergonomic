@@ -6,7 +6,6 @@
 //! execution authority; the application decides which calls to execute.
 //!
 //! ```
-//! use async_trait::async_trait;
 //! use openai_ergonomic::{FunctionTool, ToolRegistry, Result};
 //! use serde::Deserialize;
 //! use serde_json::{json, Value};
@@ -15,7 +14,6 @@
 //! #[serde(deny_unknown_fields)]
 //! struct Greeting { name: String }
 //! struct Greet;
-//! #[async_trait]
 //! impl FunctionTool for Greet {
 //!     type Input = Greeting;
 //!     type Output = String;
@@ -42,16 +40,19 @@
 
 use std::collections::{btree_map::Entry, BTreeMap};
 
-use async_trait::async_trait;
 use openai_client_base::models::{ChatCompletionMessageToolCallsInner, ChatCompletionTool};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 
-use crate::{builders::chat::tool_function, responses::chat::ToolCallExt, Error, Result};
+use crate::{
+    builders::chat::tool_function, responses::chat::ToolCallExt, BoxFuture, Error, Result,
+};
 
 /// A function tool. Store application state (for example an `Arc` or HTTP client)
 /// in the implementing struct and access it through `&self` during execution.
-#[async_trait]
+///
+/// Implement [`FunctionTool::execute`] with a plain `async fn`; no attribute macro
+/// is needed. The returned future must be `Send`.
 pub trait FunctionTool: Send + Sync {
     /// Arguments decoded with Serde. Use `Value` for a dynamic JSON tool.
     type Input: DeserializeOwned + Send;
@@ -72,7 +73,10 @@ pub trait FunctionTool: Send + Sync {
     /// Execute after the caller has made any required authorization decisions.
     /// Use `Error::application` to preserve custom domain errors. Errors remain local
     /// unless the application chooses to send them to a model.
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output>;
+    fn execute(
+        &self,
+        input: Self::Input,
+    ) -> impl std::future::Future<Output = Result<Self::Output>> + Send;
 }
 
 /// Registration or execution failure, with the tool name and original source.
@@ -157,34 +161,43 @@ pub struct ToolOutput {
     pub content: String,
 }
 
-#[async_trait]
+/// Object-safe form of [`FunctionTool`] that decodes arguments, boxes the
+/// future and encodes the output as JSON.
 trait ErasedTool: Send + Sync {
-    async fn execute(&self, name: &str, args: &str) -> std::result::Result<Value, ToolError>;
+    fn execute<'a>(
+        &'a self,
+        name: &'a str,
+        args: &'a str,
+    ) -> BoxFuture<'a, std::result::Result<Value, ToolError>>;
 }
 
-#[async_trait]
 impl<T: FunctionTool> ErasedTool for T {
-    async fn execute(&self, name: &str, args: &str) -> std::result::Result<Value, ToolError> {
-        let argument_error = |source| ToolError::Arguments {
-            name: name.into(),
-            source,
-        };
-        let value: Value = serde_json::from_str(args).map_err(argument_error)?;
-        if !value.is_object() {
-            return Err(ToolError::InvalidArguments { name: name.into() });
-        }
-        // Decode the original text so Serde still detects duplicate struct fields.
-        let input = serde_json::from_str(args).map_err(argument_error)?;
-        let output =
-            FunctionTool::execute(self, input)
-                .await
-                .map_err(|source| ToolError::Execution {
+    fn execute<'a>(
+        &'a self,
+        name: &'a str,
+        args: &'a str,
+    ) -> BoxFuture<'a, std::result::Result<Value, ToolError>> {
+        Box::pin(async move {
+            let argument_error = |source| ToolError::Arguments {
+                name: name.into(),
+                source,
+            };
+            let value: Value = serde_json::from_str(args).map_err(argument_error)?;
+            if !value.is_object() {
+                return Err(ToolError::InvalidArguments { name: name.into() });
+            }
+            // Decode the original text so Serde still detects duplicate struct fields.
+            let input = serde_json::from_str(args).map_err(argument_error)?;
+            let output = FunctionTool::execute(self, input).await.map_err(|source| {
+                ToolError::Execution {
                     name: name.into(),
                     source,
-                })?;
-        serde_json::to_value(output).map_err(|source| ToolError::Output {
-            name: name.into(),
-            source,
+                }
+            })?;
+            serde_json::to_value(output).map_err(|source| ToolError::Output {
+                name: name.into(),
+                source,
+            })
         })
     }
 }
