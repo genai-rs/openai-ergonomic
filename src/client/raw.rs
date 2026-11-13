@@ -38,7 +38,7 @@ impl<T> Client<T> {
             request = request.header(USER_AGENT, user_agent.as_str());
         }
         if let Some(token) = &configuration.bearer_access_token {
-            request = request.bearer_auth(token);
+            request = request.bearer_auth(timvw_rust_runtime::ExposeSecret::expose_secret(token));
         }
         request
     }

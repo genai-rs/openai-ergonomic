@@ -337,6 +337,58 @@ async fn default_client_retries_transient_errors() {
 }
 
 #[tokio::test]
+async fn an_exhausted_quota_is_not_retried() {
+    let mut server = Server::new_async().await;
+    let quota = server
+        .mock("GET", "/models")
+        .with_status(429)
+        .with_header("retry-after", "0")
+        .with_body(
+            r#"{"error":{"message":"You exceeded your current quota","type":"insufficient_quota","code":"insufficient_quota"}}"#,
+        )
+        .expect(1)
+        .create_async()
+        .await;
+    let config = Config::builder()
+        .api_key("test-key")
+        .api_base(server.url())
+        .max_retries(3)
+        .build();
+    let client = Client::builder(config).unwrap().build();
+
+    let error = client.get_json::<Value>("/models").await.unwrap_err();
+    // Returned at once, with OpenAI's error intact.
+    assert!(
+        matches!(&error, Error::Api { status: 429, message, .. } if message.contains("quota")),
+        "{error:?}"
+    );
+    quota.assert_async().await;
+}
+
+#[tokio::test]
+async fn a_rate_limit_is_retried() {
+    let mut server = Server::new_async().await;
+    let limited = server
+        .mock("GET", "/models")
+        .with_status(429)
+        .with_header("retry-after", "0")
+        .with_body(r#"{"error":{"message":"Rate limit reached","type":"requests","code":"rate_limit_exceeded"}}"#)
+        .expect(2)
+        .create_async()
+        .await;
+    let config = Config::builder()
+        .api_key("test-key")
+        .api_base(server.url())
+        .max_retries(1)
+        .build();
+    let client = Client::builder(config).unwrap().build();
+
+    let error = client.get_json::<Value>("/models").await.unwrap_err();
+    assert!(matches!(error, Error::Api { status: 429, .. }));
+    limited.assert_async().await;
+}
+
+#[tokio::test]
 async fn azure_auth_and_paths_apply_to_raw_calls() {
     let mut server = Server::new_async().await;
     let mock = server
