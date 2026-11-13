@@ -26,7 +26,8 @@ modules interact to provide an ergonomic layer on top of
 ├─────────────────────────┤
 │  openai-client-base     │  ← generated OpenAPI client (models + apis)
 ├─────────────────────────┤
-│  reqwest, tokio         │  ← transport
+│  timvw-rust-runtime     │  ← tower HTTP client (layers: retry,
+│  (tower + reqwest)      │     Azure, org headers), tokio
 └─────────────────────────┘
 ```
 
@@ -51,7 +52,7 @@ points:
 ```rust
 pub struct Client {
     config: Arc<Config>,
-    http: reqwest::Client,
+    http: timvw_rust_runtime::Client, // tower service stack around reqwest
     base_configuration: openai_client_base::apis::configuration::Configuration,
 }
 ```

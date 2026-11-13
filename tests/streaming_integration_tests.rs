@@ -573,6 +573,9 @@ async fn test_streaming_builder_integration() {
 async fn collect_stream_chunks(
     response: reqwest::Response,
 ) -> Vec<CreateChatCompletionStreamResponse> {
+    let response = timvw_rust_runtime::Response::from(
+        http::Response::from(response).map(timvw_rust_runtime::Body::wrap),
+    );
     let mut stream = ChatCompletionStream::new(response);
     let mut chunks = Vec::new();
     while let Some(chunk) = stream.next().await {

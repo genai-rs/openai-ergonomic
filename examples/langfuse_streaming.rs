@@ -312,7 +312,9 @@ mod tests {
         let terminal_calls = Arc::new(AtomicUsize::new(0));
         let mut interceptors = InterceptorChain::new();
         interceptors.add(Box::new(TerminalCounter(Arc::clone(&terminal_calls))));
-        let response = reqwest::Response::from(http::Response::new(bytes));
+        let response = timvw_rust_runtime::Response::from(http::Response::new(
+            timvw_rust_runtime::Body::from(bytes),
+        ));
         let (stream, completion) = InterceptedStream::new_with_completion(
             ChatCompletionStream::new(response),
             Arc::new(interceptors),

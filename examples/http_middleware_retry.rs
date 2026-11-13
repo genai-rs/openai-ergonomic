@@ -1,51 +1,45 @@
-//! HTTP middleware with retry support using reqwest-middleware.
+//! HTTP middleware with retry support using tower layers.
 //!
-//! This example demonstrates how to use `reqwest-middleware` with `reqwest-retry`
-//! to add automatic retry capabilities with exponential backoff to the `OpenAI` client.
+//! The client sends every request through a [`timvw_rust_runtime::Client`]: a tower service
+//! stack around reqwest. Everything around sending a request is a tower layer: retries,
+//! timeouts, logging, headers, rate limits.
 //!
-//! The middleware approach allows you to:
-//! - Automatically retry transient errors (network failures, timeouts, 5xx errors)
-//! - Configure exponential backoff strategies
-//! - Add custom middleware for logging, metrics, or other cross-cutting concerns
-//! - Compose multiple middleware layers
+//! This example shows how to:
+//! - Tune the retries of the default client with `Config::max_retries`
+//! - Build your own client with a retry policy (exponential backoff, `Retry-After`)
+//! - Bound each attempt with a timeout layer
+//! - Log each request and retry with `TraceLayer` (feature `tracing-http`)
 //!
-//! Run with: `cargo run --example http_middleware_retry`
+//! Layers apply from the inside out: the last one added sees a request first.
+//!
+//! Run with: `cargo run --example http_middleware_retry --features tracing-http`
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{Client, Config, Response, Result};
-use reqwest_middleware::ClientBuilder;
-use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use std::time::Duration;
+use timvw_rust_runtime::retry::RetryPolicy;
+use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
+use tower::retry::RetryLayer;
+use tower::timeout::TimeoutLayer;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("=== HTTP Middleware with Retry Example ===\n");
 
-    // Example 1: Basic client with retry middleware
-    println!("1. Creating client with retry middleware");
+    let api_key =
+        std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY environment variable must be set");
 
-    // Create a retry policy with exponential backoff
-    // This will retry transient errors up to 3 times with exponential delays
-    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    // Example 1: The default client already retries 429, 408, 5xx and failed connections.
+    // `max_retries` sets how many times (0 disables retries).
+    println!("1. Default client with 5 retries");
 
-    // Build an HTTP client with retry middleware
-    let http_client = ClientBuilder::new(reqwest::Client::new())
-        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-        .build();
-
-    // Create OpenAI client with custom HTTP client
     let config = Config::builder()
-        .api_key(
-            std::env::var("OPENAI_API_KEY")
-                .expect("OPENAI_API_KEY environment variable must be set"),
-        )
-        .http_client(http_client)
+        .api_key(api_key.clone())
+        .max_retries(5)
         .build();
-
     let client = Client::builder(config)?.build();
 
-    // Use the client normally - retries are handled automatically
     println!("Sending chat completion request (retries are automatic)...");
-
     let builder = client.chat_simple("Hello! How are you today?");
     match client.send_chat(builder).await {
         Ok(response) => {
@@ -59,39 +53,38 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Example 2: Custom retry policy with more retries and custom delays
-    println!("\n2. Creating client with custom retry policy");
+    // Example 2: A client of your own: a custom reqwest client, a timeout per attempt, logging
+    // of each attempt, and a custom retry policy around them.
+    println!("\n2. Creating client with custom tower layers");
 
-    let custom_retry_policy = ExponentialBackoff::builder()
-        .retry_bounds(
-            std::time::Duration::from_millis(100), // minimum delay
-            std::time::Duration::from_secs(30),    // maximum delay
-        )
-        .build_with_max_retries(5); // up to 5 retries
+    let reqwest_client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .build()
+        .expect("Failed to build reqwest client");
 
-    let custom_http_client = ClientBuilder::new(
-        reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(60))
-            .build()
-            .expect("Failed to build reqwest client"),
-    )
-    .with(RetryTransientMiddleware::new_with_policy(
-        custom_retry_policy,
-    ))
-    .build();
+    let retry_policy = RetryPolicy::new(5) // up to 5 retries
+        .base_delay(Duration::from_millis(100)) // first backoff delay, doubled each retry
+        .max_delay(Duration::from_secs(30)); // cap, also on `Retry-After`
 
+    let http_client = HttpClient::from_service(ReqwestService::new(reqwest_client))
+        // Innermost: bounds each attempt.
+        .layer(TimeoutLayer::new(Duration::from_secs(60)));
+
+    // Logs each attempt (`RUST_LOG=timvw_rust_runtime=debug`).
+    #[cfg(feature = "tracing-http")]
+    let http_client = http_client.layer(timvw_rust_runtime::trace::TraceLayer::new());
+
+    // Outermost: retries the attempts above.
+    let http_client = http_client.layer(RetryLayer::new(retry_policy));
+
+    // A custom HTTP client is used as is: `max_retries` and the default timeout do not apply.
     let custom_config = Config::builder()
-        .api_key(
-            std::env::var("OPENAI_API_KEY")
-                .expect("OPENAI_API_KEY environment variable must be set"),
-        )
-        .http_client(custom_http_client)
+        .api_key(api_key)
+        .http_client(http_client)
         .build();
-
     let custom_client = Client::builder(custom_config)?.build();
 
     println!("Sending request with custom retry policy (up to 5 retries)...");
-
     let builder = custom_client.chat_simple("Explain quantum computing in one sentence.");
     match custom_client.send_chat(builder).await {
         Ok(response) => {
@@ -106,7 +99,7 @@ async fn main() -> Result<()> {
     }
 
     // Example 3: Using the builder pattern for more complex requests
-    println!("\n3. Using builder pattern with retry middleware");
+    println!("\n3. Using builder pattern with the custom client");
 
     let builder = custom_client
         .responses()
@@ -132,10 +125,10 @@ async fn main() -> Result<()> {
     }
 
     println!("\n=== Example completed successfully! ===");
-    println!("\nKey benefits of using reqwest-middleware:");
-    println!("  - Automatic retry of transient failures");
+    println!("\nKey benefits of tower layers:");
+    println!("  - Automatic retry of transient failures, honouring Retry-After");
     println!("  - Exponential backoff to avoid overwhelming servers");
-    println!("  - Composable middleware for logging, metrics, etc.");
+    println!("  - Composable layers for timeouts, logging, metrics, rate limits, etc.");
     println!("  - Transparent to application code - works with any request");
 
     Ok(())

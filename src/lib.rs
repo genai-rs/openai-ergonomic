@@ -12,11 +12,14 @@
 //! ## Features
 //!
 //! - **Type-safe builders** - Use builder patterns with compile-time validation
-//! - **Async/await support** - Built on tokio and reqwest for modern async Rust
+//! - **Async/await support** - Built on tokio and a tower-based HTTP client
+//!   ([`timvw_rust_runtime::Client`], reqwest underneath) whose layers you can customise
 //! - **Streaming responses** - First-class support for real-time streaming
 //! - **Comprehensive coverage** - Support for all `OpenAI` API endpoints
 //! - **Error handling** - Structured error types for robust applications
 //! - **Testing support** - Mock-friendly design for unit testing
+//! - **Bring your own types** - [`Client::post_json`], [`Client::get_json`], [`Client::send_json`]
+//!   and [`Client::send_json_stream`] send and decode types of your own
 //!
 //! The [basic usage](#basic-usage) and [Langfuse setup](#langfuse-setup)
 //! examples above are compiled directly from the README as `no_run` doctests.

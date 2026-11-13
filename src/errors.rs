@@ -31,13 +31,10 @@ pub enum Error {
     #[error("Rate limit exceeded: {0}")]
     RateLimit(String),
 
-    /// HTTP client errors.
+    /// HTTP client errors: building the request, sending it through the client's tower
+    /// service (including its layers, such as retries and timeouts), or reading the response.
     #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
-
-    /// HTTP middleware errors.
-    #[error("HTTP middleware error: {0}")]
-    HttpMiddleware(#[from] reqwest_middleware::Error),
+    Http(#[from] timvw_rust_runtime::Error),
 
     /// JSON serialization/deserialization errors.
     #[error("JSON error: {0}")]
@@ -397,11 +394,11 @@ mod tests {
     }
 
     #[test]
-    fn test_from_reqwest_error() {
+    fn test_from_http_error() {
         // Test that the conversion trait exists by creating a function that uses it
         #[allow(clippy::items_after_statements)]
-        fn _test_reqwest_error_conversion(reqwest_error: reqwest::Error) -> Error {
-            reqwest_error.into()
+        fn _test_http_error_conversion(http_error: timvw_rust_runtime::Error) -> Error {
+            http_error.into()
         }
 
         // The test passes if this compiles - we verify the trait implementation exists

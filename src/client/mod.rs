@@ -20,10 +20,12 @@ use openai_client_base::apis::chat_api;
 use openai_client_base::apis::configuration::Configuration;
 use openai_client_base::apis::Error as ApiError;
 use openai_client_base::models::CreateChatCompletionRequest;
-use reqwest_middleware::ClientWithMiddleware as HttpClient;
 use std::sync::Arc;
 use std::time::Instant;
+use timvw_rust_runtime::retry::RetryPolicy;
+use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
 use tokio::time::Duration;
+use tower::retry::RetryLayer;
 
 // Helper macro to generate interceptor helper methods for sub-clients
 macro_rules! impl_interceptor_helpers {
@@ -130,6 +132,7 @@ mod headers;
 mod images;
 mod models;
 mod moderations;
+mod raw;
 mod threads;
 mod uploads;
 mod usage;
@@ -234,21 +237,22 @@ impl ClientBuilder {
                 .timeout(Duration::from_secs(120)) // Default timeout: 120 seconds
                 .user_agent(format!("openai-ergonomic/{}", env!("CARGO_PKG_VERSION")))
                 .build()
-                .map_err(Error::Http)?;
+                .map_err(|e| Error::Config(format!("failed to build the HTTP client: {e}")))?;
 
-            let mut client_builder = reqwest_middleware::ClientBuilder::new(reqwest_client);
+            let mut client = HttpClient::from_service(ReqwestService::new(reqwest_client));
 
             // Add Azure authentication middleware if using Azure OpenAI
             if is_azure {
-                let azure_middleware = crate::azure_middleware::AzureAuthMiddleware::new(
+                client = client.layer(crate::azure_middleware::AzureAuthMiddleware::new(
                     config.api_key().to_string(),
                     config.azure_api_version().map(String::from),
                     config.azure_deployment().map(String::from),
-                );
-                client_builder = client_builder.with(azure_middleware);
+                ));
             }
 
-            client_builder.build()
+            // Retry transient failures (429, 408, 5xx, failed connections); 0 disables retries.
+            let max_retries = usize::try_from(config.max_retries()).unwrap_or(usize::MAX);
+            client.layer(RetryLayer::new(RetryPolicy::new(max_retries)))
         };
 
         // Send the organization and project headers with every request, including those of the
@@ -868,10 +872,7 @@ impl<T: Default + Send + Sync> Client<T> {
 
 fn map_api_error<T>(error: ApiError<T>) -> Error {
     match error {
-        ApiError::Reqwest(err) => Error::Http(err),
-        ApiError::ReqwestMiddleware(err) => {
-            Error::Internal(format!("reqwest middleware error: {err}"))
-        }
+        ApiError::Http(err) => Error::Http(err),
         ApiError::Serde(err) => Error::Json(err),
         ApiError::Io(err) => Error::File(err),
         ApiError::ResponseError(response) => Error::Api {
@@ -892,9 +893,9 @@ mod tests {
     #[test]
     fn map_api_error_converts_response() {
         let response = ResponseContent {
-            status: reqwest::StatusCode::BAD_REQUEST,
+            status: http::StatusCode::BAD_REQUEST,
             content: "bad request".to_string(),
-            headers: reqwest::header::HeaderMap::new(),
+            headers: http::HeaderMap::new(),
             entity: Option::<()>::None,
         };
 

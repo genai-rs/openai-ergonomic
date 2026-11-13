@@ -329,7 +329,7 @@ impl ChatCompletionStream {
     /// Create a new stream from a byte stream response.
     ///
     /// Parses Server-Sent Events (SSE) format and yields chat completion chunks.
-    pub fn new(response: reqwest::Response) -> Self {
+    pub fn new(response: timvw_rust_runtime::Response) -> Self {
         Self::from_events(sse::Events::from_response(response))
     }
 
@@ -954,7 +954,7 @@ fn panic_diagnostic(payload: &(dyn Any + Send)) -> String {
 #[cfg(test)]
 fn parse_sse_stream<S>(byte_stream: S) -> impl Stream<Item = Result<ChatCompletionChunk>> + Send
 where
-    S: Stream<Item = reqwest::Result<Bytes>> + Send + 'static,
+    S: Stream<Item = std::result::Result<Bytes, timvw_rust_runtime::Error>> + Send + 'static,
 {
     decode_events(sse::Events::from_bytes(byte_stream))
 }
@@ -1032,7 +1032,7 @@ mod tests {
     }
 
     impl Stream for PendingBody {
-        type Item = reqwest::Result<Bytes>;
+        type Item = std::result::Result<Bytes, timvw_rust_runtime::Error>;
 
         fn poll_next(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
             self.bytes
@@ -1264,7 +1264,7 @@ mod tests {
         let bytes = Bytes::from(
             "data: {\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"cr-only\"},\"finish_reason\":null}]}\r\r",
         );
-        let source = futures::stream::iter(vec![Ok::<Bytes, reqwest::Error>(bytes)])
+        let source = futures::stream::iter(vec![Ok::<Bytes, timvw_rust_runtime::Error>(bytes)])
             .chain(futures::stream::pending());
         let mut stream = Box::pin(parse_sse_stream(source));
 
@@ -1280,7 +1280,7 @@ mod tests {
     async fn test_parse_sse_stream_handles_split_crlf_before_lf_blank_line() {
         let json = r#"{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"split"},"finish_reason":null}]}"#;
         let chunks = vec![
-            Ok::<Bytes, reqwest::Error>(Bytes::from(format!("data: {json}\r"))),
+            Ok::<Bytes, timvw_rust_runtime::Error>(Bytes::from(format!("data: {json}\r"))),
             Ok(Bytes::from("\n")),
             Ok(Bytes::from("\n")),
         ];

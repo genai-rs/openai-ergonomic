@@ -66,20 +66,22 @@ async fn main() -> openai_ergonomic::Result<()> {
 }
 ```
 
-To configure a custom timeout, provide a custom HTTP client:
+To configure a custom timeout, provide a custom HTTP client (a
+[`timvw_rust_runtime::Client`](https://docs.rs/timvw-rust-runtime), which you can wrap in
+[tower](https://docs.rs/tower) layers):
 
 ```rust
 use openai_ergonomic::{Client, Config};
-use reqwest_middleware::ClientBuilder;
 use std::time::Duration;
 
 #[tokio::main]
-async fn main() -> openai_ergonomic::Result<()> {
-    let http_client = ClientBuilder::new(
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // reqwest with a 30 s timeout, and the default retries
+    let http_client = timvw_rust_runtime::Client::from_reqwest(
         reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
             .build()?,
-    ).build();
+    );
 
     let config = Config::builder()
         .api_key("sk-your-key")

@@ -12,8 +12,9 @@ Ergonomic Rust wrapper for the `OpenAI` API, providing type-safe builder pattern
 ## Features
 
 - **Type-safe** - full type safety with fluent builder patterns
-- **Async/await** - built on `tokio` and `reqwest` for modern async Rust
+- **Async/await** - built on `tokio`, with a [tower](https://docs.rs/tower)-based HTTP client (reqwest underneath) whose layers you can customise
 - **Streaming** - first-class support for streaming responses
+- **Bring your own types** - send and decode request/response types of your own, for fewer fields or `OpenAI`-compatible providers
 - **Comprehensive** - covers all `OpenAI` API endpoints
 - **Azure `OpenAI`** - seamless support for Azure `OpenAI` deployments
 - **Well-tested** - extensive test coverage with mock support
@@ -32,6 +33,20 @@ Add `openai-ergonomic` to your `Cargo.toml`:
 openai-ergonomic = "0.18"
 tokio = { version = "1.0", features = ["full"] }
 ```
+
+The next release moves the HTTP stack from `reqwest-middleware` to
+[`timvw-rust-runtime`](https://docs.rs/timvw-rust-runtime), a [tower](https://docs.rs/tower)-based
+client (with `openai-client-base` 0.30; see its
+[0.29.0 to 0.30.0 migration notes](https://github.com/genai-rs/openai-client-base/blob/main/migration/api-diff-0.29.0-to-0.30.0.md)). `Config::builder().http_client(..)` and
+`Client::http_client()` now take and return a `timvw_rust_runtime::Client` instead of a
+`reqwest_middleware::ClientWithMiddleware`: build one with
+`timvw_rust_runtime::Client::from_reqwest(reqwest_client)` (with default retries) or
+`Client::from_service(ReqwestService::new(reqwest_client))` and add tower layers with `.layer(..)`
+(see [Retries, Timeouts and Custom HTTP Clients](#retries-timeouts-and-custom-http-clients)).
+`Error::Http` wraps a `timvw_rust_runtime::Error` (with `is_timeout()`, `is_connect()`, ...), and
+`Error::HttpMiddleware` is gone. `AzureAuthMiddleware` is now a tower layer, and
+`ChatCompletionStream::new` takes a `timvw_rust_runtime::Response`. The default client now honours
+`Config::max_retries` (default 3): set it to `0` to turn retries off.
 
 Version 0.18 uses `openai-client-base` 0.29 and requires Rust 1.88 or newer.
 Re-exported client types such as `Detail`, `UploadPurpose` and `CreateImageRequest`
@@ -202,32 +217,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Custom HTTP Client with Retry Logic
+### Retries, Timeouts and Custom HTTP Clients
 
-You can provide your own `reqwest::Client` with custom retry, timeout, and middleware configuration.
-**Note:** When using a custom HTTP client, you must configure the timeout on the `reqwest::Client` itself:
+Requests go through a [`timvw_rust_runtime::Client`](https://docs.rs/timvw-rust-runtime): a
+[tower](https://docs.rs/tower) service stack around reqwest. The default client has a 120 second
+timeout and retries `429`, `408` and `5xx` responses and failed connections up to
+`Config::max_retries` times (default 3, `0` disables retries), with exponential backoff that
+honours `Retry-After`.
+
+To change the stack (a proxy, other timeouts, a retry policy, logging, rate limits, layers of
+your own), build a client and pass it with `Config::builder().http_client(..)`. A custom client
+is used as is: `max_retries` and the default timeout do not apply, and for Azure you add
+`azure_middleware::AzureAuthMiddleware` yourself. Layers apply from the inside out: the last one
+added sees a request first.
 
 ```rust,no_run
 use openai_ergonomic::{Client, Config};
-use reqwest_middleware::ClientBuilder;
-use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 use std::time::Duration;
+use timvw_rust_runtime::retry::RetryPolicy;
+use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
+use tower::retry::RetryLayer;
+use tower::timeout::TimeoutLayer;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create a retry policy with exponential backoff
-    let retry_policy = ExponentialBackoff::builder()
-        .build_with_max_retries(3);
-
-    // Build a reqwest client with custom timeout
+    // Build a reqwest client with custom connection settings
     let reqwest_client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(60))  // Configure timeout here
+        .connect_timeout(Duration::from_secs(5))
         .build()?;
 
-    // Add retry middleware
-    let http_client = ClientBuilder::new(reqwest_client)
-        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-        .build();
+    // Each attempt times out after 60 s; up to 5 retries with exponential backoff
+    let http_client = HttpClient::from_service(ReqwestService::new(reqwest_client))
+        .layer(TimeoutLayer::new(Duration::from_secs(60)))
+        .layer(RetryLayer::new(RetryPolicy::new(5).max_delay(Duration::from_secs(30))));
 
     // Create OpenAI client with custom HTTP client
     let config = Config::builder()
@@ -240,6 +262,68 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Use the client normally - retries and timeout are handled automatically
     let response = client.send_chat(client.chat_simple("Hello!")).await?;
     println!("{}", response.content().unwrap_or_default());
+    Ok(())
+}
+```
+
+With the `tracing-http` feature, `timvw_rust_runtime::trace::TraceLayer` logs every request
+and retry with `tracing`. See [`examples/http_middleware_retry.rs`](examples/http_middleware_retry.rs).
+
+### Bring Your Own Types
+
+The builders use the `OpenAI` spec's models. To send and decode types of your own (a struct with
+only the fields you need, `serde_json::Value`, or an `OpenAI`-compatible provider whose replies
+differ from the spec), use `post_json`, `get_json`, `send_json` and `send_json_stream`. They send
+to `{api_base}{path}` through the same HTTP client (retries, layers, Azure, organization and
+project headers) with the same authentication, and map an error status to `Error::Api`.
+Interceptors (such as Langfuse) are not called for these requests.
+
+```rust,no_run
+use futures::StreamExt;
+use openai_ergonomic::{Client, Config};
+use serde::Deserialize;
+use serde_json::json;
+
+#[derive(Deserialize)]
+struct Completion {
+    choices: Vec<Choice>,
+}
+
+#[derive(Deserialize)]
+struct Choice {
+    message: Message,
+}
+
+#[derive(Deserialize)]
+struct Message {
+    content: Option<String>,
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Any OpenAI-compatible endpoint
+    let config = Config::builder()
+        .api_key("provider-key")
+        .api_base("https://openai-compatible.example.com/v1")
+        .build();
+    let client = Client::builder(config)?.build();
+
+    let request = json!({
+        "model": "some-model",
+        "messages": [{"role": "user", "content": "Hello!"}]
+    });
+    let completion: Completion = client.post_json("/chat/completions", &request).await?;
+    println!("{:?}", completion.choices[0].message.content);
+
+    // Streaming: each server-sent event decoded into a type of your own
+    let mut request = request;
+    request["stream"] = json!(true);
+    let mut events = client
+        .send_json_stream::<_, serde_json::Value>("/chat/completions", &request)
+        .await?;
+    while let Some(event) = events.next().await {
+        print!("{}", event?["choices"][0]["delta"]["content"].as_str().unwrap_or_default());
+    }
     Ok(())
 }
 ```

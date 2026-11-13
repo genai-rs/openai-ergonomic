@@ -1,11 +1,11 @@
-//! Middleware that adds the `OpenAI-Organization` and `OpenAI-Project` headers to every request.
+//! Tower layer that adds the `OpenAI-Organization` and `OpenAI-Project` headers to every request.
 
 use crate::config::Config;
 use crate::{Error, Result};
 use http::header::{HeaderName, HeaderValue};
-use http::Extensions;
-use reqwest::{Request, Response};
-use reqwest_middleware::{ClientWithMiddleware, Middleware, Next};
+use http::Request;
+use timvw_rust_runtime::{Body, Client as HttpClient};
+use tower::util::MapRequestLayer;
 
 const ORGANIZATION: HeaderName = HeaderName::from_static("openai-organization");
 const PROJECT: HeaderName = HeaderName::from_static("openai-project");
@@ -49,35 +49,26 @@ fn header_value(name: &str, value: &str) -> Result<HeaderValue> {
     Ok(value)
 }
 
-#[async_trait::async_trait]
-impl Middleware for OrganizationHeaders {
-    async fn handle(
-        &self,
-        mut req: Request,
-        extensions: &mut Extensions,
-        next: Next<'_>,
-    ) -> reqwest_middleware::Result<Response> {
-        let headers = req.headers_mut();
+impl OrganizationHeaders {
+    fn apply(&self, mut request: Request<Body>) -> Request<Body> {
+        let headers = request.headers_mut();
         if let Some(organization) = &self.organization {
             headers.insert(ORGANIZATION, organization.clone());
         }
         if let Some(project) = &self.project {
             headers.insert(PROJECT, project.clone());
         }
-        next.run(req, extensions).await
+        request
     }
 }
 
 /// The client with the organization and project headers of `config` added to its requests, or
 /// the client unchanged when neither is configured.
-pub(super) fn with_organization_headers(
-    client: ClientWithMiddleware,
-    config: &Config,
-) -> Result<ClientWithMiddleware> {
+pub(super) fn with_organization_headers(client: HttpClient, config: &Config) -> Result<HttpClient> {
     Ok(match OrganizationHeaders::from_config(config)? {
-        Some(headers) => reqwest_middleware::ClientBuilder::from_client(client)
-            .with(headers)
-            .build(),
+        Some(headers) => client.layer(MapRequestLayer::new(move |request: Request<Body>| {
+            headers.apply(request)
+        })),
         None => client,
     })
 }
