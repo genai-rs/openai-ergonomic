@@ -134,6 +134,8 @@ pub mod responses;
 pub mod semantic_conventions;
 pub mod streaming;
 pub mod tool_framework;
+#[cfg(feature = "webhook")]
+pub mod webhooks;
 
 /// Boxed future used internally to store heterogeneous async trait
 /// implementations (`ErasedTool`, `ErasedInterceptor`). The `Send` bound of
