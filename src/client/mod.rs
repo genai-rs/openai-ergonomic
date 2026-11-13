@@ -30,7 +30,7 @@ use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
 // Helper macro to generate interceptor helper methods for sub-clients
 macro_rules! impl_interceptor_helpers {
     ($client_type:ty) => {
-        impl<T: Default + Send + Sync> $client_type {
+        impl<T: Default + crate::MaybeSend + crate::MaybeSync> $client_type {
             /// Helper to call `before_request` hooks
             async fn call_before_request(
                 &self,
@@ -447,7 +447,7 @@ impl<T> Client<T> {
 }
 
 // Interceptor helper methods
-impl<T: Default + Send + Sync> Client<T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> Client<T> {
     /// Helper to call `before_request` hooks
     async fn call_before_request(
         &self,
@@ -537,7 +537,7 @@ impl<T: Default + Send + Sync> Client<T> {
 }
 
 // Chat API methods
-impl<T: Default + Send + Sync + 'static> Client<T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
     /// Create a chat completion builder.
     pub fn chat(&self) -> ChatCompletionBuilder {
         let model = self.config.default_model().unwrap_or("gpt-4");
@@ -722,7 +722,7 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
 }
 
 // Responses API methods
-impl<T: Default + Send + Sync + 'static> Client<T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
     /// Create a responses builder for structured outputs.
     pub fn responses(&self) -> ResponsesBuilder {
         let model = self.config.default_model().unwrap_or("gpt-4");
@@ -792,7 +792,7 @@ impl<T: Default + Send + Sync + 'static> Client<T> {
 }
 
 // TODO: Add methods for other API endpoints
-impl<T: Default + Send + Sync> Client<T> {
+impl<T: Default + crate::MaybeSend + crate::MaybeSync> Client<T> {
     /// Get assistants client (placeholder).
     #[must_use]
     pub fn assistants(&self) -> AssistantsClient<'_, T> {
@@ -882,7 +882,6 @@ fn map_api_error<T>(error: ApiError<T>) -> Error {
     match error {
         ApiError::Http(err) => Error::Http(err),
         ApiError::Serde(err) => Error::Json(err),
-        ApiError::Io(err) => Error::File(err),
         ApiError::ResponseError(response) => Error::Api {
             status: response.status.as_u16(),
             message: response.content,

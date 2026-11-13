@@ -1,6 +1,6 @@
 [package]
 name = "openai-ergonomic"
-version = "0.20.0"
+version = "0.21.0"
 authors = ["Tim Van Wassenhove <github@timvw.be>"]
 edition = "2021"
 rust-version = "1.88"
@@ -15,7 +15,7 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { version = "^0.32.0", default-features = false, features = [
+openai-client-base = { version = "^0.33.0", default-features = false, features = [
     # Every model (`types`), and the API groups whose operations the client calls.
     "types",
     "administration", # usage
@@ -38,7 +38,7 @@ serde_json = "^1.0.151"
 # `sync` and `macros` (`select!`) work on any target; the runtime, timers and files only natively (below).
 tokio = { version = "^1.53.3", features = ["macros", "sync"] }
 reqwest = { version = "^0.13.5", default-features = false }
-timvw-rust-runtime = { version = "^0.3.0", default-features = false, features = ["reqwest", "retry", "fs"] }
+timvw-rust-runtime = { version = "^0.4.0", default-features = false, features = ["reqwest", "retry", "fs"] }
 tower = { version = "^0.5.2", default-features = false, features = ["util", "retry"] }
 url = "^2.5.8"
 futures = "^0.3.34"

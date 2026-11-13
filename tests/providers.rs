@@ -270,3 +270,118 @@ fn an_invalid_provider_is_a_config_error() {
         Err(openai_ergonomic::Error::Config(_))
     ));
 }
+
+/// The generated operations' configuration for `client`, as an application that calls them
+/// itself (with per-call options) would build it.
+fn generated_configuration(
+    client: &Client,
+    provider: &Provider,
+) -> openai_client_base::apis::configuration::Configuration {
+    let mut configuration = openai_client_base::apis::configuration::Configuration::new();
+    configuration.client = client.http_client().clone();
+    configuration.base_path = provider.api_base().to_string();
+    configuration
+}
+
+fn models_reply(mock: mockito::Mock) -> mockito::Mock {
+    mock.with_header("content-type", "application/json")
+        .with_body(json!({"object": "list", "data": [{"id": "m", "object": "model", "created": 1, "owned_by": "o"}]}).to_string())
+}
+
+/// Per-call `RequestOptions` win over the provider's headers and query parameters (runtime 0.4):
+/// the call's own value is sent, once; the provider still adds its credentials.
+#[tokio::test]
+async fn per_call_options_win_over_the_provider() {
+    let mut server = Server::new_async().await;
+    let models = models_reply(
+        server
+            .mock("GET", "/gateway/v1/models")
+            .match_query(Matcher::Exact("tenant=globex".into()))
+            .match_header("x-api-key", "gw-key")
+            .match_header("x-team", "ads"),
+    )
+    .create_async()
+    .await;
+    let provider = Provider::custom(format!("{}/gateway/v1", server.url()))
+        .api_key_header("x-api-key", "gw-key")
+        .header("x-team", "search")
+        .query("tenant", "acme");
+    let client = client(provider.clone());
+    let options = timvw_rust_runtime::RequestOptions::new()
+        .header("x-team", "ads")
+        .unwrap()
+        .query(&[("tenant", "globex")])
+        .unwrap();
+    openai_client_base::apis::models_api::list_models()
+        .configuration(&generated_configuration(&client, &provider))
+        .options(&options)
+        .call()
+        .await
+        .unwrap();
+    models.assert_async().await;
+}
+
+/// An Azure `api-version` set for one call replaces the provider's, and the deployment path is
+/// still mapped.
+#[tokio::test]
+async fn a_per_call_azure_api_version_wins() {
+    let mut server = Server::new_async().await;
+    let models = models_reply(
+        server
+            .mock("GET", "/openai/deployments/dep/models")
+            .match_query(Matcher::Exact("api-version=2025-04-01-preview".into()))
+            .match_header("api-key", "k"),
+    )
+    .create_async()
+    .await;
+    let provider = Provider::azure(server.url(), "k", "dep").api_version("2024-10-21");
+    let client = client(provider.clone());
+    let options = timvw_rust_runtime::RequestOptions::new()
+        .query(&[("api-version", "2025-04-01-preview")])
+        .unwrap();
+    openai_client_base::apis::models_api::list_models()
+        .configuration(&generated_configuration(&client, &provider))
+        .options(&options)
+        .call()
+        .await
+        .unwrap();
+    models.assert_async().await;
+}
+
+/// A call sent to a base URL outside the provider's gets nothing from the provider: no
+/// credentials, headers or query parameters.
+#[tokio::test]
+async fn a_per_call_base_url_elsewhere_gets_no_provider_credentials() {
+    let mut provider_server = Server::new_async().await;
+    let mut other = Server::new_async().await;
+    let untouched = provider_server
+        .mock("GET", Matcher::Any)
+        .expect(0)
+        .create_async()
+        .await;
+    let models = models_reply(
+        other
+            .mock("GET", "/v2/models")
+            .match_query(Matcher::Missing)
+            .match_header("x-api-key", Matcher::Missing)
+            .match_header("x-team", Matcher::Missing),
+    )
+    .create_async()
+    .await;
+    let provider = Provider::custom(format!("{}/gateway/v1", provider_server.url()))
+        .api_key_header("x-api-key", "gw-key")
+        .header("x-team", "search")
+        .query("tenant", "acme");
+    let client = client(provider.clone());
+    let options = timvw_rust_runtime::RequestOptions::new()
+        .base_url(&format!("{}/v2", other.url()))
+        .unwrap();
+    openai_client_base::apis::models_api::list_models()
+        .configuration(&generated_configuration(&client, &provider))
+        .options(&options)
+        .call()
+        .await
+        .unwrap();
+    models.assert_async().await;
+    untouched.assert_async().await;
+}

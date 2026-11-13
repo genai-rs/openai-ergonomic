@@ -11,6 +11,14 @@
 //! The layer only touches requests under the provider's base URL: a request to another host
 //! (the download of a generated image, say) is sent as is, without the provider's credentials.
 //!
+//! Per-call [`RequestOptions`](timvw_rust_runtime::RequestOptions), which the generated
+//! operations take as `.options(..)`, win over the provider: a header or query parameter they set
+//! (an Azure `api-version`, say) is sent instead of the provider's, once. A per-call
+//! [`base_url`](timvw_rust_runtime::RequestOptions::base_url) under the provider's base URL is
+//! still mapped and authenticated; any other base URL gets nothing from the provider (no
+//! credentials, headers or query parameters), and no [`AuthProvider`](crate::AuthProvider)
+//! credentials either.
+//!
 //! ```rust
 //! use openai_ergonomic::{Client, Config, Provider};
 //!
