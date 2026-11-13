@@ -10,7 +10,7 @@ jobs:
   # Skips udeps for PRs attested by scripts/local-ci.sh (which runs it) and
   # for release-plz PRs (see genai-rs/.github local-ci-gate.yml).
   gate:
-    uses: genai-rs/.github/.github/workflows/local-ci-gate.yml@ci/local-ci-gate
+    uses: genai-rs/.github/.github/workflows/local-ci-gate.yml@ci/local-ci-gate-reltest
 
   udeps:
     name: Check Unused Dependencies
