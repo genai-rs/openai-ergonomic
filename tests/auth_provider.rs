@@ -165,3 +165,34 @@ async fn concurrent_401s_refresh_once() {
     accepted_again.assert_async().await;
     drop(accepted);
 }
+
+/// A call sent elsewhere with a per-call base URL (`RequestOptions::base_url`) is not
+/// authenticated: the `AuthProvider` only sees requests under the provider's base URL.
+#[tokio::test]
+async fn a_per_call_base_url_elsewhere_is_not_authenticated() {
+    let server = Server::new_async().await;
+    let mut other = Server::new_async().await;
+    let models = other
+        .mock("GET", "/v1/models")
+        .match_header("authorization", Matcher::Missing)
+        .with_header("content-type", "application/json")
+        .with_body(json!({"object": "list", "data": []}).to_string())
+        .create_async()
+        .await;
+    let fetches = Arc::new(AtomicUsize::new(0));
+    let client = client(&server, fetches.clone());
+    let mut configuration = openai_client_base::apis::configuration::Configuration::new();
+    configuration.client = client.http_client().clone();
+    configuration.base_path = server.url();
+    let options = timvw_rust_runtime::RequestOptions::new()
+        .base_url(&format!("{}/v1", other.url()))
+        .unwrap();
+    openai_client_base::apis::models_api::list_models()
+        .configuration(&configuration)
+        .options(&options)
+        .call()
+        .await
+        .unwrap();
+    models.assert_async().await;
+    assert_eq!(fetches.load(Ordering::SeqCst), 0);
+}
