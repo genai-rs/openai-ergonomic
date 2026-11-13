@@ -429,7 +429,7 @@ async fn advanced_options_example(client: &Client) -> Result<(), Error> {
 /// Helper function to create configuration from client
 fn create_configuration(client: &Client) -> Configuration {
     let mut configuration = Configuration::new();
-    configuration.bearer_access_token = Some(client.config().api_key().to_string());
+    configuration.bearer_access_token = Some(client.config().api_key().into());
 
     if let Some(base_url) = client.config().base_url() {
         configuration.base_path = base_url.to_string();
