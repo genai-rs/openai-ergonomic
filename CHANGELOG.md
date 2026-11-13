@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.19.0...v0.20.0) - 2026-11-13
+
+### Added
+
+- build for WebAssembly (wasm32-unknown-unknown)
+- [**breaking**] openai-client-base 0.32 on runtime 0.3: Upload file parameters, no bridge
+- large uploads through the Uploads API, and media saved by stream
+- verify OpenAI webhook signatures and decode their events (feature webhook)
+- [**breaking**] provider presets and pluggable AuthProvider on timvw-rust-runtime 0.3
+- [**breaking**] openai-client-base 0.31 / runtime 0.2: SecretString key, insufficient_quota not retried, 0.20.0
+
+### Fixed
+
+- examples set the API key as a SecretString
+
+### Other
+
+- depend on the openai-client-base API groups the client calls, not "full"
+- README sections for providers, authentication, webhooks and large files; 0.20 upgrade notes
+- [**breaking**] replace async-trait with native async traits
+
 ## [0.19.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.18.0...v0.19.0) - 2026-11-13
 
 ### Added
