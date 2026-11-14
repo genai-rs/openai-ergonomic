@@ -31,6 +31,10 @@ and the [WebAssembly](webassembly.md#tests) clippy and Node.js suite.
   `docs/` (`src/lib.rs` includes the pages in a `#[cfg(doctest)]` module), so a moved or renamed
   API breaks the build instead of the documentation. Most are `no_run`: they need no credentials.
 - **WebAssembly**: `tests/wasm.rs`, in Node.js (see [WebAssembly](webassembly.md#tests)).
+- **Smoke tests**: `tests/smoke.rs` calls the real API. Its tests are `#[ignore]`d and compile
+  with the others; run them with the key of a test project:
+  `OPENAI_TEST_API_KEY=... cargo test --test smoke -- --ignored` (or `cargo make test-smoke`),
+  with `OPENAI_TEST_MODEL` and `OPENAI_TEST_BASE_URL` to pick the model and endpoint.
 
 `cargo make test-unit`, `test-integration` and `test-doc` (`Makefile.toml`) run each group.
 `scripts/check-msrv.sh` builds and tests with the MSRV toolchain.

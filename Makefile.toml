@@ -36,7 +36,7 @@ args = ["test", "--doc", "--all-features"]
 [tasks.test-smoke]
 description = "Run smoke tests (requires OPENAI_TEST_API_KEY)"
 command = "cargo"
-args = ["test", "--test", "smoke", "--ignored"]
+args = ["test", "--test", "smoke", "--", "--ignored"]
 condition = { env_set = ["OPENAI_TEST_API_KEY"] }
 
 # Mock-based tests
@@ -80,7 +80,7 @@ args = [
     "--all-features",
     "--workspace",
     "--timeout", "120",
-    "--exclude-files", "tests/smoke/*",
+    "--exclude-files", "tests/smoke.rs",
     "--exclude-files", "examples/*",
     "--out", "Html",
     "--out", "Xml"
@@ -111,7 +111,7 @@ args = [
     "--verbose",
     "--tests",
     "--all-features",
-    "--exclude-files", "tests/smoke/*",
+    "--exclude-files", "tests/smoke.rs",
     "--timeout", "120",
     "--out", "Html"
 ]
