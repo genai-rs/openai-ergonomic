@@ -23,25 +23,65 @@ use crate::streaming::InterceptedStream;
 use crate::time::Instant;
 use crate::Error;
 
-/// What the headers of one response said about the call.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// What one response said about its call.
+///
+/// The status, the headers, the rate limits (`x-ratelimit-*`) and, for a failure, how long to
+/// wait before a retry (`retry-after-ms`, `retry-after`). Empty when no response arrived (a
+/// connection error).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CallMeta {
-    /// The rate limits (`x-ratelimit-*`).
+    pub(crate) status: Option<u16>,
+    pub(crate) headers: HeaderMap,
     pub(crate) rate_limits: Option<RateLimitSnapshot>,
-    /// The delay a failed response asked for (`retry-after-ms`, `retry-after`).
     pub(crate) retry_after: Option<Duration>,
 }
 
 impl CallMeta {
+    /// What these headers say, without a status.
     pub fn from_headers(headers: &HeaderMap) -> Self {
         Self {
+            status: None,
+            headers: headers.clone(),
             rate_limits: RateLimitSnapshot::from_headers(headers),
             retry_after: retry_after(headers),
         }
     }
+
+    /// What a response with this status and these headers says.
+    pub fn from_response(status: u16, headers: &HeaderMap) -> Self {
+        Self {
+            status: Some(status),
+            ..Self::from_headers(headers)
+        }
+    }
+
+    /// The status of the response; `None` when there was none.
+    #[must_use]
+    pub fn status(&self) -> Option<u16> {
+        self.status
+    }
+
+    /// The headers of the response; empty when there was none.
+    #[must_use]
+    pub fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
+
+    /// The rate limits the response reported (`x-ratelimit-*`).
+    #[must_use]
+    pub fn rate_limits(&self) -> Option<RateLimitSnapshot> {
+        self.rate_limits
+    }
+
+    /// The delay the response asked for before a retry (`retry-after-ms`, else `retry-after` in
+    /// seconds).
+    #[must_use]
+    pub fn retry_after(&self) -> Option<Duration> {
+        self.retry_after
+    }
 }
 
-/// A failed call, with what its response headers said.
+/// A failed call, with what its response said ([`CallMeta`]).
 #[derive(Debug)]
 pub struct CallFailure {
     pub(crate) error: Error,
@@ -60,6 +100,58 @@ impl CallFailure {
             before_body: true,
         }
     }
+
+    pub(crate) fn before_body_with(error: Error, meta: CallMeta) -> Self {
+        Self::before_body(error, meta)
+    }
+
+    /// A failure while reading or decoding the body of a success.
+    pub(crate) fn after_body(error: Error, meta: CallMeta) -> Self {
+        Self {
+            error,
+            meta,
+            before_body: false,
+        }
+    }
+
+    /// The error.
+    #[must_use]
+    pub fn error(&self) -> &Error {
+        &self.error
+    }
+
+    /// The error, without what the response said.
+    #[must_use]
+    pub fn into_error(self) -> Error {
+        self.error
+    }
+
+    /// What the response said: its status, headers, rate limits and the delay it asked for.
+    #[must_use]
+    pub fn meta(&self) -> &CallMeta {
+        &self.meta
+    }
+
+    /// Whether the call failed before any of the body arrived: the connection failed, or the
+    /// response had an error status. The client's own HTTP retries (`ConfigBuilder::max_retries`
+    /// with the default HTTP client) already retried such a failure; one after the body started
+    /// (a stream cut off midway) they did not.
+    #[must_use]
+    pub fn is_before_body(&self) -> bool {
+        self.before_body
+    }
+}
+
+impl std::fmt::Display for CallFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.error.fmt(f)
+    }
+}
+
+impl std::error::Error for CallFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
+    }
 }
 
 impl From<Error> for CallFailure {
@@ -72,10 +164,18 @@ impl From<Error> for CallFailure {
     }
 }
 
+impl From<CallFailure> for Error {
+    fn from(failure: CallFailure) -> Self {
+        failure.error
+    }
+}
+
 /// The headers of an error response, if the error is one.
 fn error_meta<E>(error: &ApiError<E>) -> CallMeta {
     match error {
-        ApiError::ResponseError(response) => CallMeta::from_headers(&response.headers),
+        ApiError::ResponseError(response) => {
+            CallMeta::from_response(response.status.as_u16(), &response.headers)
+        }
         _ => CallMeta::default(),
     }
 }
@@ -200,7 +300,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
             .await;
         let failure = match sent {
             Ok(response) if response.status().is_success() => {
-                let meta = CallMeta::from_headers(response.headers());
+                let meta = CallMeta::from_response(response.status().as_u16(), response.headers());
                 let (stream, _completion) = InterceptedStream::new_with_completion(
                     crate::time::idle_timeout(
                         ResponsesStream::new(response),
@@ -216,7 +316,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
                 return Ok((stream, meta));
             }
             Ok(response) => {
-                let meta = CallMeta::from_headers(response.headers());
+                let meta = CallMeta::from_response(response.status().as_u16(), response.headers());
                 let error = match raw::check_status(response).await {
                     Err(error) => error,
                     Ok(_) => Error::Internal("a failed response was a success".into()),

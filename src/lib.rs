@@ -93,7 +93,7 @@ pub use agent_loop::{
     NormalizeReport, PromptCacheKey, RetryConfig, ToolLoop, ToolSearchConfig, TurnRecord,
 };
 pub use auth::{AuthLayer, AuthProvider, AuthToken, BearerTokenAuth};
-pub use client::Client;
+pub use client::{CallFailure, CallMeta, Client, JsonCallResponse, JsonEvent, JsonEventStream};
 pub use config::{Config, ConfigBuilder};
 pub use errors::{Error, Result, RetryClass};
 pub use interceptor::{

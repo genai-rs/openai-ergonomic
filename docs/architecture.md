@@ -34,6 +34,7 @@ src/
 │   ├── responses.rs        Client<T>: the Responses API; ResponsesClient
 │   ├── raw.rs              post_json / get_json / send_json / send_json_stream
 │   ├── per_call.rs         calls that keep their response headers (rate limits, retry-after)
+│   ├── json_call.rs        json_call / json_event_call: JSON bodies through the interceptors
 │   ├── large_upload.rs     upload_large_file (Uploads API, parallel parts)
 │   ├── media.rs            saving images, speech and files to disk (native only)
 │   ├── headers.rs          OpenAI-Organization / OpenAI-Project headers

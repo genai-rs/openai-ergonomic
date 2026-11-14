@@ -11,7 +11,8 @@
 //! [`AuthProvider`](crate::auth::AuthProvider), layers of your own), and they carry the same
 //! user agent.
 //!
-//! Interceptors (such as the Langfuse interceptor) are **not** called for these requests.
+//! Interceptors (such as the Langfuse interceptor) are **not** called for these requests;
+//! [`Client::json_call`] and [`Client::json_event_call`] call them.
 
 use super::Client;
 use crate::{Error, MaybeSend, Result};
