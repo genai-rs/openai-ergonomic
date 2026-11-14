@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.24.0...v0.24.1) - 2026-11-14
+
+### Added
+
+- json_call and json_event_call, with the interceptors and the response headers
+
 ## [0.24.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.23.0...v0.24.0) - 2026-11-14
 
 ### Added
