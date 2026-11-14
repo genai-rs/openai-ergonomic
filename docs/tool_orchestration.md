@@ -67,6 +67,63 @@ that fails or is denied, and how many rounds to allow. See
 [`examples/tool_calling_multiturn.rs`](../examples/tool_calling_multiturn.rs) and, with the
 tool framework, [`examples/tool_framework_typed.rs`](../examples/tool_framework_typed.rs).
 
+With the [tool framework](tool_framework.md#answer-every-call), `ToolRegistry::answer_call`
+answers each call (failures included, as text the model can act on) and
+`ChatCompletionBuilder::call_answer` appends the answer.
+
+## The Responses API
+
+The same round trip on the Responses API: the model's calls are
+`response.tool_invocations()` (function and custom tool calls), the answers are
+`function_call_output` items. Without stored responses, send the model's output back
+(`output_as_input()`) before the answers; with stored responses, continue from
+`previous_response_id(response.id())` and send only the answers.
+
+```rust,no_run
+use openai_ergonomic::{CallAnswer, Client};
+use serde_json::json;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?.build();
+    let mut builder = client
+        .responses()
+        .function_tool(
+            "get_weather",
+            "Fetch the current weather for a city",
+            json!({
+                "type": "object",
+                "properties": {"city": {"type": "string", "description": "The city"}},
+                "required": ["city"],
+                "additionalProperties": false
+            }),
+        )
+        .store(false)
+        .user("Should I carry an umbrella in Brussels today?");
+
+    for _ in 0..5 {
+        let response = client.send_responses(builder.clone()).await?;
+        let calls = response.tool_invocations();
+        if calls.is_empty() {
+            println!("{}", response.output_text());
+            break;
+        }
+        builder = builder.input_items(response.output_as_input()?);
+        for call in &calls {
+            let answer = match call.name.as_str() {
+                "get_weather" => CallAnswer::new(call, r#"{"sky":"light rain"}"#, true),
+                other => CallAnswer::failure(call, format!("unsupported call: {other}")),
+            };
+            builder = builder.call_answer(answer);
+        }
+    }
+    Ok(())
+}
+```
+
+See [Responses workflows](responses_workflows.md#tools) and, with a `ToolRegistry`,
+[the tool framework](tool_framework.md#the-responses-api).
+
 ## Assistants and threads
 
 The Assistants API runs tools server side (code interpreter, file search) and keeps the

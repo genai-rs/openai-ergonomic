@@ -194,6 +194,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 `tracing-http` feature, `timvw_rust_runtime::trace::TraceLayer` logs every request and retry with
 `tracing`. See [`examples/http_middleware_retry.rs`](../examples/http_middleware_retry.rs).
 
+A timeout of the whole request does not suit a stream that may run for minutes:
+`ConfigBuilder::stream_idle_timeout(Duration)` ends a streaming response (chat or Responses API)
+with `Error::StreamConnection` when no event arrives for that long instead (not set by default).
+`Error::retry_class()` says how a failed request may be retried (`Never`, `ServerDirected { after }`
+or `Backoff`), and `client.rate_limits()` returns the `x-ratelimit-*` headers of the latest
+response (`RateLimitSnapshot`), whatever the HTTP client:
+
+```rust,no_run
+use openai_ergonomic::{Client, Config};
+use std::time::Duration;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Config::builder()
+        .api_key("your-api-key")
+        .stream_idle_timeout(Duration::from_secs(300))
+        .build();
+    let client = Client::builder(config)?.build();
+
+    match client.send_chat(client.chat_simple("Hello!")).await {
+        Ok(response) => println!("{}", response.content().unwrap_or_default()),
+        Err(error) => eprintln!("{error}: {:?}", error.retry_class()),
+    }
+    if let Some(tokens) = client.rate_limits().and_then(|limits| limits.tokens) {
+        println!("tokens left: {:?}, reset in {:?}", tokens.remaining, tokens.reset);
+    }
+    Ok(())
+}
+```
+
 ## Per-call options
 
 The builders send with the client's configuration. When you call the generated

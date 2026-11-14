@@ -10,7 +10,7 @@ use crate::semantic_conventions::operation_names;
 use crate::streaming::{InterceptedStream, StreamCompletion};
 use crate::time::Instant;
 use openai_client_base::apis::responses_api;
-use openai_client_base::models::CreateResponse;
+use openai_client_base::models::{CreateResponse, ResponseItemList};
 use std::sync::Arc;
 
 impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
@@ -168,7 +168,10 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
             }
         };
         let (stream, completion) = InterceptedStream::new_with_completion(
-            ResponsesStream::from_events(events),
+            crate::time::idle_timeout(
+                ResponsesStream::from_events(events),
+                self.config.stream_idle_timeout(),
+            ),
             Arc::clone(&self.interceptors),
             operation.to_string(),
             model,
@@ -179,7 +182,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
     }
 }
 
-/// The Responses API: create, retrieve, cancel and delete responses.
+/// The Responses API: create, retrieve, cancel and delete responses, and list their input items.
 ///
 /// Obtained with [`Client::responses_api`]. Creating a response is also available on the
 /// client ([`Client::send_responses`], [`Client::send_responses_stream`]).
@@ -218,6 +221,33 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> ResponsesClient
             .call()
             .await
             .map(ResponsesResponse::new)
+            .map_err(super::map_api_error)
+    }
+
+    /// The input items of a stored response (`GET /responses/{id}/input_items`): the first
+    /// page (the API's default size), oldest first. See
+    /// [`list_input_items_page`](Self::list_input_items_page).
+    pub async fn list_input_items(&self, response_id: &str) -> Result<ResponseItemList> {
+        self.list_input_items_page(response_id, None, None).await
+    }
+
+    /// A page of the input items of a stored response: at most `limit` items (1 to 100), after
+    /// the item `after` (the `last_id` of the previous page), oldest first. `has_more` says
+    /// whether another page follows.
+    pub async fn list_input_items_page(
+        &self,
+        response_id: &str,
+        limit: Option<u32>,
+        after: Option<&str>,
+    ) -> Result<ResponseItemList> {
+        responses_api::list_input_items()
+            .configuration(&self.client.base_configuration)
+            .response_id(response_id)
+            .maybe_limit(limit.map(i64::from))
+            .order("asc")
+            .maybe_after(after)
+            .call()
+            .await
             .map_err(super::map_api_error)
     }
 

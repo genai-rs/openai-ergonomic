@@ -1,6 +1,7 @@
 //! Streaming responses: the server-sent events of `POST /responses` with `stream: true`.
 
 use crate::sse_frames::Frame;
+use crate::tool_framework::ToolInvocation;
 use crate::{Error, Result};
 use futures::stream::{Stream, StreamExt};
 use openai_client_base::models::{self, OutputItem, ResponseStreamEvent};
@@ -101,6 +102,90 @@ impl ResponsesEvent {
         }
     }
 
+    /// The event as a typed view, to `match` on the events a client acts on.
+    ///
+    /// ```
+    /// use openai_ergonomic::responses_api::{ResponsesEvent, ResponsesEventKind};
+    ///
+    /// let event = ResponsesEvent::from_json(
+    ///     r#"{"type":"response.output_text.delta","item_id":"msg_1","output_index":0,"content_index":0,"delta":"Hi","sequence_number":1}"#,
+    /// )?;
+    /// match event.kind() {
+    ///     ResponsesEventKind::TextDelta(text) => assert_eq!(text, "Hi"),
+    ///     other => panic!("unexpected {other:?}"),
+    /// }
+    /// # Ok::<(), openai_ergonomic::Error>(())
+    /// ```
+    #[must_use]
+    pub fn kind(&self) -> ResponsesEventKind<'_> {
+        match &self.inner {
+            ResponseStreamEvent::ResponseCreatedEvent(event) => {
+                ResponsesEventKind::Created(&event.response)
+            }
+            ResponseStreamEvent::ResponseOutputItemAddedEvent(event) => {
+                ResponsesEventKind::OutputItemAdded(&event.item)
+            }
+            ResponseStreamEvent::ResponseOutputItemDoneEvent(event) => {
+                ResponsesEventKind::OutputItemDone(&event.item)
+            }
+            ResponseStreamEvent::ResponseTextDeltaEvent(event) => {
+                ResponsesEventKind::TextDelta(&event.delta)
+            }
+            ResponseStreamEvent::ResponseFunctionCallArgumentsDeltaEvent(event) => {
+                ResponsesEventKind::FunctionCallArgumentsDelta {
+                    item_id: &event.item_id,
+                    delta: &event.delta,
+                }
+            }
+            ResponseStreamEvent::ResponseCustomToolCallInputDeltaEvent(event) => {
+                ResponsesEventKind::CustomToolCallInputDelta {
+                    item_id: &event.item_id,
+                    delta: &event.delta,
+                }
+            }
+            ResponseStreamEvent::ResponseCompletedEvent(event) => {
+                ResponsesEventKind::Completed(&event.response)
+            }
+            ResponseStreamEvent::ResponseIncompleteEvent(event) => ResponsesEventKind::Incomplete {
+                reason: incomplete_reason(&event.response),
+                response: &event.response,
+            },
+            ResponseStreamEvent::ResponseFailedEvent(event) => {
+                ResponsesEventKind::Failed(&event.response)
+            }
+            ResponseStreamEvent::ResponseErrorEvent(event) => ResponsesEventKind::Error {
+                code: event.code.as_deref(),
+                message: &event.message,
+            },
+            other => ResponsesEventKind::Other(other),
+        }
+    }
+
+    /// The call of a `response.output_item.done` event whose item is a function or custom tool
+    /// call: complete, so it can be run before the response ends
+    /// ([`ToolRegistry::answer_call`](crate::ToolRegistry::answer_call)).
+    #[must_use]
+    pub fn tool_invocation(&self) -> Option<ToolInvocation> {
+        self.output_item_done()
+            .and_then(ToolInvocation::from_output_item)
+    }
+
+    /// The error of a `response.failed` or `error` event ([`Error::ResponseFailed`]), whose
+    /// [`retry_class`](Error::retry_class) says whether to try again. `None` for other events.
+    #[must_use]
+    pub fn failure(&self) -> Option<Error> {
+        match &self.inner {
+            ResponseStreamEvent::ResponseFailedEvent(event) => {
+                Some(response_failure(&event.response))
+            }
+            ResponseStreamEvent::ResponseErrorEvent(event) => Some(Error::response_failed(
+                event.code.clone(),
+                event.message.clone(),
+            )),
+            _ => None,
+        }
+    }
+
     /// Whether this event ends the stream: `response.completed`, `response.incomplete`,
     /// `response.failed` or `error`.
     #[must_use]
@@ -119,6 +204,74 @@ impl ResponsesEvent {
     pub fn into_raw(self) -> ResponseStreamEvent {
         self.inner
     }
+}
+
+/// A typed view of a [`ResponsesEvent`] ([`ResponsesEvent::kind`]), borrowing from it.
+///
+/// New variants may be added in minor releases: match with a wildcard arm.
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub enum ResponsesEventKind<'a> {
+    /// `response.created`: the response started.
+    Created(&'a models::Response),
+    /// `response.output_item.added`: an output item started (a message, a call, reasoning).
+    OutputItemAdded(&'a OutputItem),
+    /// `response.output_item.done`: an output item is complete; a function call can be run now
+    /// ([`ResponsesEvent::tool_invocation`]).
+    OutputItemDone(&'a OutputItem),
+    /// `response.output_text.delta`: a piece of text.
+    TextDelta(&'a str),
+    /// `response.function_call_arguments.delta`: a piece of a function call's arguments.
+    FunctionCallArgumentsDelta {
+        /// The output item of the call.
+        item_id: &'a str,
+        /// The piece of the arguments.
+        delta: &'a str,
+    },
+    /// `response.custom_tool_call_input.delta`: a piece of a custom tool call's input.
+    CustomToolCallInputDelta {
+        /// The output item of the call.
+        item_id: &'a str,
+        /// The piece of the input.
+        delta: &'a str,
+    },
+    /// `response.completed`: the final response (terminal).
+    Completed(&'a models::Response),
+    /// `response.incomplete`: the response stopped early, such as at `max_output_tokens`
+    /// (terminal).
+    Incomplete {
+        /// Why it stopped: `max_output_tokens`, `content_filter`, ...
+        reason: Option<String>,
+        /// The response so far.
+        response: &'a models::Response,
+    },
+    /// `response.failed`: the response failed (terminal); see [`ResponsesEvent::failure`].
+    Failed(&'a models::Response),
+    /// `error`: the stream failed (terminal); see [`ResponsesEvent::failure`].
+    Error {
+        /// The error code, such as `rate_limit_exceeded`.
+        code: Option<&'a str>,
+        /// The error message.
+        message: &'a str,
+    },
+    /// Any other event: [`ResponsesEvent::event_type`] says which.
+    Other(&'a ResponseStreamEvent),
+}
+
+fn incomplete_reason(response: &models::Response) -> Option<String> {
+    response
+        .incomplete_details
+        .as_ref()
+        .and_then(|details| details.reason)
+        .map(|reason| reason.to_string())
+}
+
+/// The error of a failed response.
+pub fn response_failure(response: &models::Response) -> Error {
+    response.error.as_ref().map_or_else(
+        || Error::response_failed(None, "the response failed without an error"),
+        |error| Error::response_failed(Some(error.code.to_string()), error.message.clone()),
+    )
 }
 
 fn is_terminal(event_type: &str) -> bool {
@@ -370,6 +523,70 @@ mod tests {
         assert_eq!(events[0].as_ref().unwrap().event_type(), "error");
     }
 
+    #[test]
+    fn typed_kinds_and_failures() {
+        let failed = format!(
+            r#"{{"type":"response.failed","sequence_number":1,"response":{}}}"#,
+            response("failed", "").replace(
+                r#""error":null"#,
+                r#""error":{"code":"server_error","message":"boom"}"#
+            )
+        );
+        let event = ResponsesEvent::from_json(&failed).unwrap();
+        assert!(matches!(event.kind(), ResponsesEventKind::Failed(_)));
+        let error = event.failure().unwrap();
+        assert!(
+            matches!(&error, Error::ResponseFailed { code: Some(code), message } if code == "server_error" && message == "boom")
+        );
+        assert_eq!(error.retry_class(), crate::RetryClass::Backoff);
+
+        let event = ResponsesEvent::from_json(
+            r#"{"type":"error","code":"rate_limit_exceeded","message":"Please try again in 2s","param":null,"sequence_number":1}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            event.kind(),
+            ResponsesEventKind::Error {
+                code: Some("rate_limit_exceeded"),
+                ..
+            }
+        ));
+        assert_eq!(
+            event.failure().unwrap().retry_class(),
+            crate::RetryClass::ServerDirected {
+                after: std::time::Duration::from_secs(2)
+            }
+        );
+
+        let incomplete = format!(
+            r#"{{"type":"response.incomplete","sequence_number":1,"response":{}}}"#,
+            response("incomplete", "").replace(
+                r#""incomplete_details":null"#,
+                r#""incomplete_details":{"reason":"max_output_tokens"}"#
+            )
+        );
+        let event = ResponsesEvent::from_json(&incomplete).unwrap();
+        assert!(matches!(
+            event.kind(),
+            ResponsesEventKind::Incomplete { reason: Some(ref reason), .. } if reason == "max_output_tokens"
+        ));
+        assert!(event.failure().is_none());
+
+        let event = ResponsesEvent::from_json(
+            r#"{"type":"response.function_call_arguments.delta","item_id":"fc_1","output_index":0,"delta":"{\"a","sequence_number":1}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            event.kind(),
+            ResponsesEventKind::FunctionCallArgumentsDelta {
+                item_id: "fc_1",
+                delta: "{\"a"
+            }
+        ));
+        let event = ResponsesEvent::from_json(r#"{"type":"response.future","x":1}"#).unwrap();
+        assert!(matches!(event.kind(), ResponsesEventKind::Other(_)));
+    }
+
     #[tokio::test]
     async fn output_item_done_carries_a_function_call() {
         let completed = completed_event();
@@ -384,5 +601,11 @@ mod tests {
             }
             other => panic!("expected a function call, got {other:?}"),
         }
+        let call = events[0].as_ref().unwrap().tool_invocation().unwrap();
+        assert_eq!(
+            call,
+            ToolInvocation::function("call_1", "get_weather", "{}")
+        );
+        assert!(events[1].as_ref().unwrap().tool_invocation().is_none());
     }
 }

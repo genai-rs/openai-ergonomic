@@ -1,12 +1,36 @@
 # Tool framework, round 5: gap analysis against Codex
 
-Status: slice 1 is implemented (step 1 of the order below, with every breaking change of the
-round): the Responses API client (`src/responses_api/`, `client.responses()`,
+Status: slices 1 and 2 are implemented. Slice 1 (step 1 of the order below, with every breaking
+change of the round): the Responses API client (`src/responses_api/`, `client.responses()`,
 `client.responses_api()`), the chat-backed `ResponsesBuilder` folded into
 `ChatCompletionBuilder`, `#[non_exhaustive]` on `Error`, `ToolError`, `StreamOutcome` and
-`StreamFailureKind`, and the chat stream EOF rule of item 12. The Responses stream already
-skips malformed events and fails a stream cut off before its terminal event. The rest is
-planned: later slices only add API.
+`StreamFailureKind`, and the chat stream EOF rule of item 12. Slice 2, the tool framework (additive
+only): steps 2 and 4, the registry parts of steps 6 to 9, and `list_input_items` — the typed event
+view `ResponsesEvent::kind()` and `failure()`, `Error::ResponseFailed`, `Error::retry_class()`,
+`RateLimitSnapshot` (`client.rate_limits()`), `ConfigBuilder::stream_idle_timeout` (item 12's
+decoder part); `ToolFailure`, `ToolError::classify`, `ToolRegistry::answer_call`, `CallAnswer`,
+`ToolInvocation`, `Error::fatal` (item 1); `supports_parallel` (item 3's flag); `OutputBudget`,
+`TruncationConfig`, `truncate_middle` (item 5); `ToolOutputBody`, `OutputContent`, `RichTool`
+(item 6, without audio: function call outputs take text, images and files); `CustomTool`,
+`ToolRegistry::namespace`, `responses_tools` (item 7); `register_dynamic`, `sanitize_tool_name`,
+`ToolNamer`, `tool_framework::schema` (item 8). Slice 3, the agent loop, is planned: `ToolLoop`,
+`LoopConfig`, `Conversation` and `normalize` (item 4), the stateless defaults (item 9), early
+dispatch while streaming (item 2's loop part), the `RwLock` gate and ordered parallel dispatch
+(item 3), max iterations and cancellation (item 11), the whole-request retry (item 12's retry
+part), and exposure, deferred loading and `tool_search` (item 10), which need the loop's state.
+Slice 2 departs from the proposals below where 0.22's API or the wire format required it:
+- `ResponsesEvent` was already a struct in 0.22, so the typed enum is a borrowing view,
+  `ResponsesEventKind`, from `ResponsesEvent::kind()`.
+- Rate limits are not a stream event: the generated operations do not expose response headers,
+  so a layer records them on the client (`client.rate_limits()`), streams included.
+- A failed response maps to one `Error::ResponseFailed { code, message }` (with
+  `is_context_length_exceeded()`) rather than one variant per code; `retry_class` reads the code.
+  `is_retryable` keeps its 0.22 behaviour instead of delegating to `retry_class`.
+- `ToolFailure::Fatal` holds the `ToolError` (with its call id), and `classify` takes `self`.
+- `ToolInvocation` (both APIs) is the call type of `answer_call`; `CallAnswer` also has the call's
+  `kind`, to answer a custom call with a `custom_tool_call_output`.
+- Custom tools are advertised to the Responses API only; `tool_definitions` (chat) keeps returning
+  the function tools outside namespaces instead of failing.
 Baseline: branch `refactor/no-async-trait` (native async `FunctionTool`/`Interceptor`).
 Reference: OpenAI Codex `codex-rs` at `69231e119b`. Codex paths are relative to `codex-rs/`.
 

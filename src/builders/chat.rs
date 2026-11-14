@@ -231,6 +231,17 @@ impl ChatCompletionBuilder {
         self
     }
 
+    /// Add the answer to a tool call
+    /// ([`ToolRegistry::answer_call`](crate::ToolRegistry::answer_call)) as a tool message.
+    ///
+    /// Chat Completions tool messages are text: an answer with images or files fails with
+    /// [`ToolError::UnsupportedOutput`](crate::ToolError::UnsupportedOutput) (send it to the
+    /// Responses API instead).
+    pub fn call_answer(self, answer: crate::CallAnswer) -> crate::Result<Self> {
+        let content = answer.output.to_chat_text()?;
+        Ok(self.tool(answer.call_id, content))
+    }
+
     /// Set the temperature for the completion.
     #[must_use]
     pub fn temperature(mut self, temperature: f64) -> Self {

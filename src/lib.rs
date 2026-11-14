@@ -37,6 +37,7 @@ pub mod langfuse_exporter;
 #[cfg(feature = "otel")]
 pub mod langfuse_interceptor;
 pub mod provider;
+pub mod rate_limits;
 pub mod responses;
 pub mod responses_api;
 pub mod semantic_conventions;
@@ -87,7 +88,7 @@ pub use timvw_rust_runtime::{MaybeSend, MaybeSync};
 pub use auth::{AuthLayer, AuthProvider, AuthToken, BearerTokenAuth};
 pub use client::Client;
 pub use config::{Config, ConfigBuilder};
-pub use errors::{Error, Result};
+pub use errors::{Error, Result, RetryClass};
 pub use interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, Interceptor, StreamChunkContext,
     StreamEndContext, StreamTerminalContext,
@@ -99,7 +100,12 @@ pub use langfuse_exporter::{langfuse_exporter_from_env, LangfuseExporterError};
 #[cfg(feature = "otel")]
 pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor, LangfuseState};
 pub use provider::{Provider, ProviderKind};
-pub use tool_framework::{FunctionTool, ToolError, ToolOutput, ToolRegistry};
+pub use rate_limits::{RateLimitSnapshot, RateLimitWindow};
+pub use tool_framework::{
+    CallAnswer, CustomFormat, CustomTool, DynamicTool, FunctionTool, OutputBudget, OutputContent,
+    RichTool, ToolError, ToolFailure, ToolInvocation, ToolKind, ToolOutput, ToolOutputBody,
+    ToolRegistry, TruncationConfig,
+};
 
 // Re-export specific builder and response types for convenience
 // NOTE: We avoid wildcard re-exports to prevent naming conflicts between modules
@@ -132,7 +138,7 @@ pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrappe
 pub use responses::{Response, Tool, ToolChoice, Usage};
 pub use responses_api::{
     responses_simple, responses_system_user, BoxedResponsesStream, ResponsesBuilder,
-    ResponsesEvent, ResponsesResponse, ResponsesStream,
+    ResponsesEvent, ResponsesEventKind, ResponsesResponse, ResponsesStream,
 };
 pub use streaming::{
     ChatCompletionChunk, ChatCompletionStream, CompletionUnavailable, InterceptedItem,

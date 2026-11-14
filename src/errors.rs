@@ -99,6 +99,52 @@ pub enum Error {
     /// Generic internal errors.
     #[error("Internal error: {0}")]
     Internal(String),
+
+    /// A failure that must stop the work instead of being reported to the model: a tool
+    /// handler returns it with [`Error::fatal`], and
+    /// [`ToolRegistry::answer_call`](crate::ToolRegistry::answer_call) returns it instead of
+    /// answering the call.
+    #[error("Fatal error: {0}")]
+    Fatal(#[source] Box<dyn std::error::Error + Send + Sync>),
+
+    /// A response that failed on the model's side: a `response.failed` event or response, or an
+    /// `error` event of a Responses stream ([`ResponsesEvent::failure`](crate::ResponsesEvent::failure),
+    /// [`ResponsesResponse::failure`](crate::ResponsesResponse::failure)).
+    #[error("Response failed ({}): {message}", code.as_deref().unwrap_or("no code"))]
+    #[non_exhaustive]
+    ResponseFailed {
+        /// The error code, such as `server_error`, `rate_limit_exceeded` or
+        /// `context_length_exceeded`.
+        code: Option<String>,
+        /// The error message.
+        message: String,
+    },
+}
+
+/// How a failed request may be retried ([`Error::retry_class`]).
+///
+/// New variants may be added in minor releases: match with a wildcard arm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum RetryClass {
+    /// Retrying will not help: a client error, an exhausted quota, a context that is too long.
+    Never,
+    /// Retry after the delay the server asked for.
+    ServerDirected {
+        /// The delay before the next attempt.
+        after: std::time::Duration,
+    },
+    /// Retry with exponential backoff: a transient failure (rate limit without a known delay,
+    /// server error, cut-off stream, connection failure).
+    Backoff,
+}
+
+impl RetryClass {
+    /// Whether a retry may help.
+    #[must_use]
+    pub fn is_retryable(self) -> bool {
+        !matches!(self, Self::Never)
+    }
 }
 
 impl From<crate::tool_framework::ToolError> for Error {
@@ -166,8 +212,102 @@ impl Error {
     }
 
     /// Check if this error might be retryable.
+    ///
+    /// A rate limit or a server error. [`Error::retry_class`] is finer: it knows exhausted
+    /// quotas, delays the server asks for, cut-off streams and failed responses.
     pub fn is_retryable(&self) -> bool {
         self.is_rate_limit() || self.is_server_error()
+    }
+
+    /// A failure that must stop instead of being reported to the model: `handler` errors
+    /// wrapped in it end [`ToolRegistry::answer_call`](crate::ToolRegistry::answer_call) with an
+    /// error ([`ToolFailure::Fatal`](crate::ToolFailure::Fatal)).
+    pub fn fatal(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Fatal(Box::new(error))
+    }
+
+    /// Whether this is an [`Error::Fatal`].
+    pub fn is_fatal(&self) -> bool {
+        matches!(self, Self::Fatal(_))
+    }
+
+    /// A failed response ([`Error::ResponseFailed`]).
+    pub fn response_failed(code: Option<String>, message: impl Into<String>) -> Self {
+        Self::ResponseFailed {
+            code,
+            message: message.into(),
+        }
+    }
+
+    /// Whether the input was too long for the model's context window: an API error or a failed
+    /// response with code `context_length_exceeded`.
+    pub fn is_context_length_exceeded(&self) -> bool {
+        self.code() == Some("context_length_exceeded")
+    }
+
+    /// The error code of an API error or a failed response.
+    fn code(&self) -> Option<&str> {
+        match self {
+            Self::Api { error_code, .. } => error_code.as_deref(),
+            Self::ResponseFailed { code, .. } => code.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// How the request that failed with this error may be retried:
+    ///
+    /// - [`RetryClass::Never`] for client errors, an exhausted quota (`insufficient_quota`), a
+    ///   context that is too long, an invalid prompt or image, and every error that is not about
+    ///   the request (configuration, JSON, files, tools, [`Error::Fatal`]);
+    /// - [`RetryClass::ServerDirected`] for a rate limit (`429`, `rate_limit_exceeded`) whose
+    ///   message says when to try again (`"Please try again in 1.5s"`);
+    /// - [`RetryClass::Backoff`] for other rate limits, `408`, server errors (`5xx`), failed
+    ///   responses with any other code, connection failures and cut-off streams.
+    ///
+    /// It does not retry anything itself: the client retries an HTTP request that fails
+    /// before its body ([`Config::max_retries`](crate::Config::max_retries)); a stream that
+    /// fails midway must be retried as a whole by the caller.
+    pub fn retry_class(&self) -> RetryClass {
+        let directed = |message: &str| {
+            retry_after_in_message(message).map_or(RetryClass::Backoff, |after| {
+                RetryClass::ServerDirected { after }
+            })
+        };
+        match self {
+            Self::Api {
+                status,
+                message,
+                error_type,
+                error_code,
+            } => {
+                let quota = [error_type, error_code]
+                    .iter()
+                    .any(|value| value.as_deref() == Some("insufficient_quota"));
+                match status {
+                    429 if quota => RetryClass::Never,
+                    408 | 429 | 500..=599 => directed(message),
+                    _ => RetryClass::Never,
+                }
+            }
+            Self::RateLimit(message) => directed(message),
+            Self::ResponseFailed { code, message } => match code.as_deref() {
+                Some(
+                    "insufficient_quota"
+                    | "context_length_exceeded"
+                    | "invalid_prompt"
+                    | "data_residency_mismatch"
+                    | "bio_policy"
+                    | "misalignment_policy_violation",
+                ) => RetryClass::Never,
+                Some(code) if code.contains("image") => RetryClass::Never,
+                _ => directed(message),
+            },
+            Self::StreamConnection { .. } => RetryClass::Backoff,
+            Self::Http(error) if error.is_timeout() || error.is_connect() || error.is_body() => {
+                RetryClass::Backoff
+            }
+            _ => RetryClass::Never,
+        }
     }
 
     /// Check if this is a file error: [`Error::File`], or an [`Error::Http`] whose
@@ -199,6 +339,53 @@ impl Error {
             _ => None,
         }
     }
+}
+
+/// The delay of a message such as `"Please try again in 1.5s"` or `"try again in 20ms"`.
+fn retry_after_in_message(message: &str) -> Option<std::time::Duration> {
+    let lower = message.to_ascii_lowercase();
+    let start = lower.find("try again in ")? + "try again in ".len();
+    let rest = &message[start..];
+    let end = rest
+        .find(|c: char| !(c.is_ascii_alphanumeric() || c == '.'))
+        .unwrap_or(rest.len());
+    parse_duration(rest[..end].trim_end_matches('.'))
+}
+
+/// A duration such as `1s`, `20ms`, `6m0s` or `1h2m3.5s` (Go's format, as the rate limit
+/// headers send it). A bare number is seconds.
+pub(crate) fn parse_duration(text: &str) -> Option<std::time::Duration> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    if let Ok(seconds) = text.parse::<f64>() {
+        return std::time::Duration::try_from_secs_f64(seconds).ok();
+    }
+    let mut total = 0.0_f64;
+    let mut rest = text;
+    while !rest.is_empty() {
+        let number_end = rest
+            .find(|c: char| !(c.is_ascii_digit() || c == '.'))
+            .filter(|end| *end > 0)?;
+        let value: f64 = rest[..number_end].parse().ok()?;
+        rest = &rest[number_end..];
+        let unit_end = rest
+            .find(|c: char| c.is_ascii_digit() || c == '.')
+            .unwrap_or(rest.len());
+        let scale = match &rest[..unit_end] {
+            "h" => 3600.0,
+            "m" => 60.0,
+            "s" => 1.0,
+            "ms" => 1e-3,
+            "us" | "µs" => 1e-6,
+            "ns" => 1e-9,
+            _ => return None,
+        };
+        total = value.mul_add(scale, total);
+        rest = &rest[unit_end..];
+    }
+    std::time::Duration::try_from_secs_f64(total).ok()
 }
 
 /// Specialized error types for different API endpoints.
@@ -291,6 +478,77 @@ mod tests {
         let error = Error::InvalidRequest("x".to_string());
         assert!(!error.is_io());
         assert!(error.io_error().is_none());
+    }
+
+    #[test]
+    fn test_retry_class() {
+        use std::time::Duration;
+        let quota = Error::api_detailed(429, "quota", None, Some("insufficient_quota".into()));
+        assert_eq!(quota.retry_class(), RetryClass::Never);
+        assert_eq!(
+            Error::api(429, "Rate limit reached. Please try again in 1.5s.").retry_class(),
+            RetryClass::ServerDirected {
+                after: Duration::from_millis(1500)
+            }
+        );
+        assert_eq!(
+            Error::api(429, "slow down").retry_class(),
+            RetryClass::Backoff
+        );
+        assert_eq!(
+            Error::api(503, "overloaded").retry_class(),
+            RetryClass::Backoff
+        );
+        assert_eq!(Error::api(400, "bad").retry_class(), RetryClass::Never);
+        assert_eq!(
+            Error::response_failed(Some("context_length_exceeded".into()), "too long")
+                .retry_class(),
+            RetryClass::Never
+        );
+        assert!(
+            Error::response_failed(Some("context_length_exceeded".into()), "too long")
+                .is_context_length_exceeded()
+        );
+        assert_eq!(
+            Error::response_failed(Some("rate_limit_exceeded".into()), "try again in 20ms")
+                .retry_class(),
+            RetryClass::ServerDirected {
+                after: Duration::from_millis(20)
+            }
+        );
+        assert_eq!(
+            Error::response_failed(Some("server_error".into()), "boom").retry_class(),
+            RetryClass::Backoff
+        );
+        assert_eq!(
+            Error::response_failed(Some("invalid_image_url".into()), "bad").retry_class(),
+            RetryClass::Never
+        );
+        let cut = Error::StreamConnection {
+            message: "cut".into(),
+        };
+        assert_eq!(cut.retry_class(), RetryClass::Backoff);
+        assert!(cut.retry_class().is_retryable());
+        assert_eq!(
+            Error::fatal(io::Error::other("x")).retry_class(),
+            RetryClass::Never
+        );
+        assert!(Error::fatal(io::Error::other("x")).is_fatal());
+    }
+
+    #[test]
+    fn test_parse_duration() {
+        use std::time::Duration;
+        assert_eq!(parse_duration("1s"), Some(Duration::from_secs(1)));
+        assert_eq!(parse_duration("6m0s"), Some(Duration::from_secs(360)));
+        assert_eq!(parse_duration("20ms"), Some(Duration::from_millis(20)));
+        assert_eq!(
+            parse_duration("1h2m3.5s"),
+            Some(Duration::from_millis(3_723_500))
+        );
+        assert_eq!(parse_duration("2"), Some(Duration::from_secs(2)));
+        assert_eq!(parse_duration("soon"), None);
+        assert_eq!(parse_duration(""), None);
     }
 
     #[test]

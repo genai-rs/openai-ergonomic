@@ -40,6 +40,7 @@ RUST_LOG=openai_ergonomic=debug cargo run --example chat_streaming   # with logs
 | [`tool_calling_multiturn`](../examples/tool_calling_multiturn.rs) | the full loop with `assistant_with_tool_calls` and `tool` |
 | [`tool_framework`](../examples/tool_framework.rs) | a typed `FunctionTool` run locally (*offline*) |
 | [`tool_framework_typed`](../examples/tool_framework_typed.rs) | several tools, async application state, a replayed chat (*offline*) |
+| [`tool_framework_responses`](../examples/tool_framework_responses.rs) | `answer_call` on a replayed Responses API reply: a rich (image) output, a custom tool in a namespace, a dynamic tool, a failed call answered (*offline*) |
 
 See [tool framework](tool_framework.md) and [tool orchestration](tool_orchestration.md).
 

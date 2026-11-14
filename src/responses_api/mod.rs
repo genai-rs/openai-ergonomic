@@ -31,10 +31,12 @@ pub use builder::{
     responses_function_tool, responses_simple, responses_system_user, ResponsesBuilder,
 };
 pub use response::ResponsesResponse;
-pub use stream::{collect_text, BoxedResponsesStream, ResponsesEvent, ResponsesStream};
+pub use stream::{
+    collect_text, BoxedResponsesStream, ResponsesEvent, ResponsesEventKind, ResponsesStream,
+};
 
 /// The generated models of the Responses API that its builder and accessors use.
 pub use openai_client_base::models::{
     CreateResponse, IncludeEnum, InputItem, InputParam, OutputItem, Response as ResponseObject,
-    ResponseStreamEvent, Tool as ResponsesTool, ToolChoiceParam,
+    ResponseItemList, ResponseStreamEvent, Tool as ResponsesTool, ToolChoiceParam,
 };

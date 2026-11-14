@@ -6,6 +6,8 @@ use openai_client_base::models::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::tool_framework::ToolInvocation;
+
 /// A model response (`POST /responses`, `GET /responses/{id}`), wrapping the generated
 /// [`models::Response`]. It serializes and deserializes as the generated response.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -105,6 +107,26 @@ impl ResponsesResponse {
                 _ => None,
             })
             .collect()
+    }
+
+    /// The tool calls the model made (function and custom tool calls), in output order, ready
+    /// for [`ToolRegistry::answer_call`](crate::ToolRegistry::answer_call).
+    #[must_use]
+    pub fn tool_invocations(&self) -> Vec<ToolInvocation> {
+        self.inner
+            .output
+            .iter()
+            .filter_map(ToolInvocation::from_output_item)
+            .collect()
+    }
+
+    /// The error of a failed response ([`Error::ResponseFailed`](crate::Error::ResponseFailed)),
+    /// whose [`retry_class`](crate::Error::retry_class) says whether to try again. `None`
+    /// unless the status is `Failed`.
+    #[must_use]
+    pub fn failure(&self) -> Option<crate::Error> {
+        (self.inner.status == Some(Status::Failed))
+            .then(|| super::stream::response_failure(&self.inner))
     }
 
     /// The output items as input items, to send them back in the next request when the

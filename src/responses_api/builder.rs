@@ -112,6 +112,29 @@ impl ResponsesBuilder {
         self.input_item(InputItem::Item(Item::FunctionCallOutputItemParam(item)))
     }
 
+    /// Append the answer to a tool call
+    /// ([`ToolRegistry::answer_call`](crate::ToolRegistry::answer_call)): a
+    /// `function_call_output`, or a `custom_tool_call_output` for a custom tool call, with text
+    /// or content items (images, files).
+    #[must_use]
+    #[allow(clippy::needless_pass_by_value)] // by value, as the other builder methods
+    pub fn call_answer(self, answer: crate::CallAnswer) -> Self {
+        self.input_item(answer.to_input_item())
+    }
+
+    /// Append the answers to several tool calls, in order.
+    #[must_use]
+    pub fn call_answers(self, answers: impl IntoIterator<Item = crate::CallAnswer>) -> Self {
+        answers.into_iter().fold(self, Self::call_answer)
+    }
+
+    /// Append the output of a function call run with
+    /// [`ToolRegistry::execute_call`](crate::ToolRegistry::execute_call).
+    #[must_use]
+    pub fn tool_output(self, output: crate::ToolOutput) -> Self {
+        self.function_call_output(output.call_id, output.content)
+    }
+
     fn message(self, role: easy_input_message::Role, content: String) -> Self {
         let message = EasyInputMessage {
             role,

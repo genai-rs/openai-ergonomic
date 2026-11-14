@@ -43,11 +43,15 @@ src/
 ├── config.rs               Config, ConfigBuilder, from_env
 ├── provider.rs             Provider presets and their tower layer
 ├── auth.rs                 AuthProvider, BearerTokenAuth, AuthLayer
-├── errors.rs               Error, Result
+├── errors.rs               Error, Result, RetryClass
 ├── streaming.rs            chunks, ChatCompletionStream, InterceptedStream, StreamCompletion
 ├── sse_frames.rs           server-sent event frames, `[DONE]` told apart from the end of the body
 ├── interceptor.rs          Interceptor<T>, its contexts, InterceptorChain
-├── tool_framework.rs       FunctionTool, ToolRegistry
+├── tool_framework/         FunctionTool, RichTool, CustomTool, DynamicTool, ToolRegistry
+│   ├── output.rs           ToolInvocation, CallAnswer, ToolOutputBody, truncation
+│   ├── names.rs            tool name sanitizer, ToolNamer
+│   └── schema.rs           JSON Schema sanitizer and compaction
+├── rate_limits.rs          RateLimitSnapshot, the layer that records x-ratelimit-* headers
 ├── langfuse_*.rs           Langfuse interceptor, exporter and context (feature `otel`)
 ├── semantic_conventions.rs OpenTelemetry GenAI attribute and operation names
 ├── webhooks.rs             WebhookVerifier, WebhookEvent (feature `webhook`)
@@ -68,7 +72,7 @@ interceptors and `build()` makes the client. `T` is the interceptor state passed
   model; `send_chat`, `send_responses` and their `_stream` and `_stream_with_completion`
   variants send them: a `CreateChatCompletionRequest` to `/chat/completions`, a
   `CreateResponse` to `/responses`.
-  `responses_api()` retrieves, cancels and deletes stored responses.
+  `responses_api()` retrieves, cancels and deletes stored responses and lists their input items.
 - `assistants()`, `audio()`, `batch()`, `completions()`, `embeddings()`, `files()`,
   `fine_tuning()`, `images()`, `models()`, `moderations()`, `threads()`, `uploads()`, `usage()`,
   `vector_stores()` return sub-clients that borrow the client.

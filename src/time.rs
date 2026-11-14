@@ -105,6 +105,42 @@ impl Spawner {
     }
 }
 
+/// End `stream` with [`Error::StreamConnection`](crate::Error::StreamConnection) when no item
+/// arrives for `limit` (no limit when `None`). Every item restarts the clock.
+pub fn idle_timeout<S, T>(
+    stream: S,
+    limit: Option<Duration>,
+) -> crate::BoxStream<'static, crate::Result<T>>
+where
+    S: futures::Stream<Item = crate::Result<T>> + crate::MaybeSend + 'static,
+    T: crate::MaybeSend + 'static,
+{
+    use futures::future::Either;
+    use futures::StreamExt;
+
+    let Some(limit) = limit else {
+        return crate::box_stream(stream);
+    };
+    crate::box_stream(futures::stream::unfold(
+        Some(Box::pin(stream)),
+        move |state| async move {
+            let mut stream = state?;
+            let next = stream.next();
+            let timer = Box::pin(sleep(limit));
+            match futures::future::select(next, timer).await {
+                Either::Left((Some(item), _)) => Some((item, Some(stream))),
+                Either::Left((None, _)) => None,
+                Either::Right(_) => Some((
+                    Err(crate::Error::StreamConnection {
+                        message: format!("no event for {limit:?} (stream idle timeout)"),
+                    }),
+                    None,
+                )),
+            }
+        },
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,5 +155,25 @@ mod tests {
             timeout_millis(Duration::from_secs(100 * 86_400)),
             i32::MAX as u32
         );
+    }
+
+    #[tokio::test]
+    async fn an_idle_stream_ends_with_an_error() {
+        use futures::StreamExt;
+
+        let items = futures::stream::iter([Ok(1), Ok(2)]).chain(futures::stream::pending());
+        let items: Vec<_> = idle_timeout(items, Some(Duration::from_millis(20)))
+            .collect()
+            .await;
+        assert_eq!(items.len(), 3);
+        assert!(matches!(
+            &items[2],
+            Err(crate::Error::StreamConnection { message }) if message.contains("idle timeout")
+        ));
+
+        let items: Vec<crate::Result<i32>> = idle_timeout(futures::stream::iter([Ok(1)]), None)
+            .collect()
+            .await;
+        assert_eq!(items.len(), 1);
     }
 }
