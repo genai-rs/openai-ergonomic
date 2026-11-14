@@ -718,6 +718,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> VectorStoresClient<'_, T>
         if let Some(limit) = builder.limit_ref() {
             request.max_num_results = Some(limit);
         }
+        request.filters = search_filters(builder.filter_ref());
 
         let vs_id = builder.vector_store_id().to_string();
 
@@ -725,11 +726,11 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> VectorStoresClient<'_, T>
         let mut state = T::default();
         let operation = operation_names::VECTOR_STORE_SEARCH;
         let model = "vector-store";
-        let request_json = format!(
-            r#"{{"vector_store_id":"{}","query":"{}"}}"#,
-            vs_id,
-            builder.query()
-        );
+        let request_json = serde_json::to_string(&serde_json::json!({
+            "vector_store_id": vs_id,
+            "request": request,
+        }))
+        .unwrap_or_default();
 
         // Call before_request hook
         self.call_before_request(operation, model, &request_json, &mut state)
@@ -770,5 +771,44 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> VectorStoresClient<'_, T>
         .await;
 
         Ok(response)
+    }
+}
+
+/// The `filters` of a search: one `eq` comparison per attribute, combined with `and` when there
+/// are several (in key order, so that the request is deterministic).
+fn search_filters(
+    filter: &std::collections::HashMap<String, String>,
+) -> Option<openai_client_base::models::VectorStoreSearchRequestFilters> {
+    use openai_client_base::models::{
+        comparison_filter, compound_filter, ComparisonFilter, ComparisonFilterValue,
+        CompoundFilter, CompoundFilterFiltersInner, VectorStoreSearchRequestFilters,
+    };
+
+    let mut entries: Vec<_> = filter.iter().collect();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+    let mut comparisons: Vec<ComparisonFilter> = entries
+        .into_iter()
+        .map(|(key, value)| {
+            ComparisonFilter::new(
+                comparison_filter::Type::Eq,
+                key.clone(),
+                ComparisonFilterValue::Text(value.clone()),
+            )
+        })
+        .collect();
+    match comparisons.len() {
+        0 => None,
+        1 => comparisons
+            .pop()
+            .map(VectorStoreSearchRequestFilters::ComparisonFilter),
+        _ => Some(VectorStoreSearchRequestFilters::CompoundFilter(
+            CompoundFilter::new(
+                compound_filter::Type::And,
+                comparisons
+                    .into_iter()
+                    .map(CompoundFilterFiltersInner::ComparisonFilter)
+                    .collect(),
+            ),
+        )),
     }
 }

@@ -3,7 +3,8 @@
 
 use mockito::{Matcher, Server};
 use openai_ergonomic::{
-    builders::fine_tuning::FineTuningJobBuilder, builders::vector_stores::VectorStoreBuilder,
+    builders::fine_tuning::FineTuningJobBuilder,
+    builders::vector_stores::{VectorStoreBuilder, VectorStoreSearchBuilder},
     Client, Config,
 };
 use serde_json::json;
@@ -135,4 +136,79 @@ fn fine_tuning_job_response() -> &'static str {
         "validation_file": null,
         "seed": null
     }"#
+}
+
+fn search_results_page() -> &'static str {
+    r#"{"object":"vector_store.search_results.page","search_query":["docs"],"data":[],"has_more":false,"next_page":null}"#
+}
+
+#[tokio::test]
+async fn vector_store_search_sends_filters() {
+    let mut server = Server::new_async().await;
+    let unfiltered = server
+        .mock("POST", "/vector_stores/vs-123/search")
+        .match_body(Matcher::Json(json!({ "query": "docs" })))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(search_results_page())
+        .create_async()
+        .await;
+    client_for(&server)
+        .vector_stores()
+        .search(VectorStoreSearchBuilder::new("vs-123", "docs"))
+        .await
+        .expect("unfiltered search succeeds");
+    unfiltered.assert_async().await;
+
+    let single = server
+        .mock("POST", "/vector_stores/vs-123/search")
+        .match_body(Matcher::Json(json!({
+            "query": "docs",
+            "max_num_results": 5,
+            "filters": {"type": "eq", "key": "category", "value": "guide"}
+        })))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(search_results_page())
+        .create_async()
+        .await;
+    client_for(&server)
+        .vector_stores()
+        .search(
+            VectorStoreSearchBuilder::new("vs-123", "docs")
+                .limit(5)
+                .filter("category", "guide"),
+        )
+        .await
+        .expect("filtered search succeeds");
+    single.assert_async().await;
+
+    let compound = server
+        .mock("POST", "/vector_stores/vs-123/search")
+        .match_body(Matcher::Json(json!({
+            "query": "docs",
+            "filters": {
+                "type": "and",
+                "filters": [
+                    {"type": "eq", "key": "category", "value": "guide"},
+                    {"type": "eq", "key": "lang", "value": "en"}
+                ]
+            }
+        })))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(search_results_page())
+        .create_async()
+        .await;
+    client_for(&server)
+        .vector_stores()
+        .search(
+            VectorStoreSearchBuilder::new("vs-123", "docs")
+                .filter("lang", "en")
+                .filter("category", "guide"),
+        )
+        .await
+        .expect("search with two filters succeeds");
+    compound.assert_async().await;
+    drop(server);
 }

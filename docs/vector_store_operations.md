@@ -42,10 +42,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`VectorStoreSearchBuilder::filter(key, value)` records attribute filters on the builder, but
-`search` sends only the query and `limit` (as `max_num_results`). For attribute filters, ranking
-options or query rewriting, send a `VectorStoreSearchRequest` with the generated
-`openai-client-base` operation (see [the generated operations](chat-and-responses.md#the-generated-operations)).
+`search` sends the query, `limit` (as `max_num_results`) and the attribute filters of
+`VectorStoreSearchBuilder::filter(key, value)`: each is an `eq` comparison, several are combined
+with `and`. For other comparisons (`gt`, `in`, ...), `or`, ranking options or query rewriting,
+send a `VectorStoreSearchRequest` with the generated `openai-client-base` operation (see
+[the generated operations](chat-and-responses.md#the-generated-operations)).
 
 ## With assistants
 
