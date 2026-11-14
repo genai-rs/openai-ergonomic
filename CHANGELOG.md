@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.20.0...v0.21.0) - 2026-11-14
+
+### Added
+
+- interceptor state need not be Send or Sync on WebAssembly
+- [**breaking**] openai-client-base 0.33 and timvw-rust-runtime 0.4
+
+### Other
+
+- short README landing page, guides under docs/
+
 ## [0.20.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.19.0...v0.20.0) - 2026-11-13
 
 ### Added
