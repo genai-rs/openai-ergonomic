@@ -1,13 +1,19 @@
 # Chat and responses
 
-`client.chat()` starts a `ChatCompletionBuilder` and `client.responses()` a `ResponsesBuilder`,
-both with the configured default model (`Config::builder().default_model(..)`);
-`ChatCompletionBuilder::new(model)` and `ResponsesBuilder::new(model)` start one for another model.
-`send_chat` and `send_responses` send them and return a `ChatCompletionResponseWrapper`:
-`content()`, `tool_calls()`, `finish_reason()`, `refusal()`, and `inner()` for the generated
-response. For multi-step Responses workflows (tools, web search, structured output) see
-[Responses workflows](responses_workflows.md); for streams, [streaming](streaming.md); for tools,
-the [tool framework](tool_framework.md).
+Two APIs generate text, each with its own builder:
+
+- **Chat Completions** (`POST /chat/completions`): `client.chat()` starts a
+  `ChatCompletionBuilder`; `send_chat` returns a `ChatCompletionResponseWrapper` (`content()`,
+  `tool_calls()`, `finish_reason()`, `refusal()`, and `inner()` for the generated response).
+- **Responses** (`POST /responses`): `client.responses()` starts a `ResponsesBuilder`;
+  `send_responses` returns a `ResponsesResponse` (`output_text()`, `function_calls()`,
+  `status()`, `usage()`, and `inner()` for the generated `Response`). See
+  [Responses workflows](responses_workflows.md).
+
+Both start with the configured default model (`Config::builder().default_model(..)`);
+`ChatCompletionBuilder::new(model)` and `ResponsesBuilder::new(model)` start one for another
+model. For streams see [streaming](streaming.md); for tools, the
+[tool framework](tool_framework.md).
 
 ## Messages, parameters and images
 
@@ -41,27 +47,35 @@ use serde_json::json;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?.build();
+    let schema = json!({
+        "type": "object",
+        "properties": {"city": {"type": "string"}, "country": {"type": "string"}},
+        "required": ["city", "country"],
+        "additionalProperties": false
+    });
 
+    // Responses API (strict)
     let builder = client
         .responses()
         .user("Name a city and its country.")
-        .json_schema(
-            "city",
-            json!({
-                "type": "object",
-                "properties": {"city": {"type": "string"}, "country": {"type": "string"}},
-                "required": ["city", "country"],
-                "additionalProperties": false
-            }),
-        );
+        .json_schema("city", schema.clone());
     let response = client.send_responses(builder).await?;
+    let city: serde_json::Value = serde_json::from_str(&response.output_text())?;
+    println!("{} ({})", city["city"], city["country"]);
+
+    // Chat Completions
+    let builder = client
+        .chat()
+        .user("Name a city and its country.")
+        .json_schema("city", schema);
+    let response = client.send_chat(builder).await?;
     let city: serde_json::Value = serde_json::from_str(response.content().unwrap_or("{}"))?;
     println!("{} ({})", city["city"], city["country"]);
     Ok(())
 }
 ```
 
-`json_mode()` asks for any JSON object instead. See
+`json_mode()` asks for any JSON object instead, on either builder. See
 [`examples/structured_outputs.rs`](../examples/structured_outputs.rs).
 
 ## Bring your own types

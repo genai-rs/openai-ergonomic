@@ -7,7 +7,7 @@
 // that require many parameters for comprehensive context passing
 #![allow(clippy::too_many_arguments)]
 
-use crate::builders::{Builder, ChatCompletionBuilder, ResponsesBuilder};
+use crate::builders::{Builder, ChatCompletionBuilder};
 use crate::config::Config;
 use crate::errors::Result;
 use crate::interceptor::{
@@ -135,6 +135,7 @@ mod media;
 mod models;
 mod moderations;
 mod raw;
+mod responses;
 mod threads;
 mod uploads;
 mod usage;
@@ -151,6 +152,7 @@ pub use images::ImagesClient;
 pub use large_upload::{LargeUpload, DEFAULT_UPLOAD_CONCURRENCY, MAX_UPLOAD_PART_SIZE};
 pub use models::ModelsClient;
 pub use moderations::ModerationsClient;
+pub use responses::ResponsesClient;
 pub use threads::ThreadsClient;
 pub use uploads::UploadsClient;
 pub use usage::UsageClient;
@@ -540,7 +542,10 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> Client<T> {
 impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
     /// Create a chat completion builder.
     pub fn chat(&self) -> ChatCompletionBuilder {
-        let model = self.config.default_model().unwrap_or("gpt-4");
+        let model = self
+            .config
+            .default_model()
+            .unwrap_or(crate::config::DEFAULT_MODEL);
         ChatCompletionBuilder::new(model)
     }
 
@@ -721,76 +726,6 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
     }
 }
 
-// Responses API methods
-impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
-    /// Create a responses builder for structured outputs.
-    pub fn responses(&self) -> ResponsesBuilder {
-        let model = self.config.default_model().unwrap_or("gpt-4");
-        ResponsesBuilder::new(model)
-    }
-
-    /// Create a simple responses request with a user message.
-    pub fn responses_simple(&self, message: impl Into<String>) -> ResponsesBuilder {
-        self.responses().user(message)
-    }
-
-    /// Execute a responses request.
-    pub async fn execute_responses(
-        &self,
-        request: CreateChatCompletionRequest,
-    ) -> Result<ChatCompletionResponseWrapper> {
-        // The Responses API uses the same underlying endpoint as chat
-        self.execute_chat(request).await
-    }
-
-    /// Execute a responses builder.
-    pub async fn send_responses(
-        &self,
-        builder: ResponsesBuilder,
-    ) -> Result<ChatCompletionResponseWrapper> {
-        let request = builder.build()?;
-        self.execute_responses(request).await
-    }
-
-    /// Send a responses request with streaming enabled.
-    ///
-    /// This enables real-time streaming of responses using Server-Sent Events (SSE).
-    /// The stream yields chunks as they arrive from the API.
-    pub async fn send_responses_stream(
-        &self,
-        builder: ResponsesBuilder,
-    ) -> Result<crate::streaming::BoxedChatStream> {
-        self.send_responses_stream_with_completion(builder)
-            .await
-            .map(|(stream, _completion)| stream)
-    }
-
-    /// Send a streaming Responses request and return a handle for waiting on interceptor callbacks.
-    ///
-    /// `StreamCompletion::wait` resolves after the stream reaches EOF, yields an error, or is
-    /// dropped, and every accepted callback has returned or failed. If the consumer stops early,
-    /// drop the stream before waiting so the terminal outcome is cancellation.
-    pub async fn send_responses_stream_with_completion(
-        &self,
-        mut builder: ResponsesBuilder,
-    ) -> Result<(
-        crate::streaming::BoxedChatStream,
-        crate::streaming::StreamCompletion,
-    )> {
-        // Force streaming mode
-        builder = builder.stream(true);
-        let mut request = builder.build()?;
-        request.stream = Some(Some(true));
-
-        // The Responses API uses the same streaming endpoint as chat
-        self.execute_chat_stream(
-            request,
-            crate::semantic_conventions::operation_names::RESPONSES,
-        )
-        .await
-    }
-}
-
 // TODO: Add methods for other API endpoints
 impl<T: Default + crate::MaybeSend + crate::MaybeSync> Client<T> {
     /// Get assistants client (placeholder).
@@ -882,12 +817,16 @@ fn map_api_error<T>(error: ApiError<T>) -> Error {
     match error {
         ApiError::Http(err) => Error::Http(err),
         ApiError::Serde(err) => Error::Json(err),
-        ApiError::ResponseError(response) => Error::Api {
-            status: response.status.as_u16(),
-            message: response.content,
-            error_type: None,
-            error_code: None,
-        },
+        ApiError::ResponseError(response) => {
+            // The `type` and `code` of an `OpenAI` error body, as for raw requests.
+            let (error_type, error_code) = raw::openai_error_details(&response.content);
+            Error::Api {
+                status: response.status.as_u16(),
+                message: response.content,
+                error_type,
+                error_code,
+            }
+        }
     }
 }
 
@@ -896,6 +835,24 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
     use openai_client_base::apis::{Error as BaseError, ResponseContent};
+
+    #[test]
+    fn map_api_error_keeps_the_openai_error_type_and_code() {
+        let response = ResponseContent {
+            status: http::StatusCode::TOO_MANY_REQUESTS,
+            content: r#"{"error":{"message":"slow down","type":"requests","code":"rate_limit_exceeded"}}"#
+                .to_string(),
+            headers: http::HeaderMap::new(),
+            entity: Option::<()>::None,
+        };
+        let error = map_api_error(BaseError::ResponseError(Box::new(response)));
+        assert!(error.is_rate_limit());
+        assert!(matches!(
+            error,
+            Error::Api { error_type: Some(t), error_code: Some(c), .. }
+                if t == "requests" && c == "rate_limit_exceeded"
+        ));
+    }
 
     #[test]
     fn map_api_error_converts_response() {
@@ -925,7 +882,7 @@ mod tests {
         let builder = ModerationBuilder::new("Test content");
         let request = builder.build().unwrap();
 
-        assert_eq!(request.input, "Test content");
+        assert_eq!(request.input, "Test content".into());
         assert!(request.model.is_none());
     }
 
@@ -936,7 +893,7 @@ mod tests {
         let builder = ModerationBuilder::new("Test content").model("text-moderation-stable");
         let request = builder.build().unwrap();
 
-        assert_eq!(request.input, "Test content");
+        assert_eq!(request.input, "Test content".into());
         assert_eq!(request.model, Some("text-moderation-stable".to_string()));
     }
 
@@ -948,8 +905,11 @@ mod tests {
         let builder = ModerationBuilder::new_array(inputs);
         let request = builder.build().unwrap();
 
-        // Array inputs are joined with newlines
-        assert_eq!(request.input, "First text\nSecond text");
+        // Each text is its own input
+        assert_eq!(
+            serde_json::to_value(&request.input).unwrap(),
+            serde_json::json!(["First text", "Second text"])
+        );
     }
 
     #[test]

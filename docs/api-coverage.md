@@ -7,7 +7,7 @@ Which `OpenAI` APIs have ergonomic builders and a sub-client, and how to reach t
 | API | Client | Builders | Examples |
 |-----|--------|----------|----------|
 | Chat completions | `client.chat()`, `send_chat` | [`chat.rs`](../src/builders/chat.rs) | [`chat_comprehensive.rs`](../examples/chat_comprehensive.rs), [`vision_chat.rs`](../examples/vision_chat.rs), [`quickstart.rs`](../examples/quickstart.rs) |
-| Responses builder (sent to `/chat/completions`) | `client.responses()`, `send_responses` | [`responses.rs`](../src/builders/responses.rs) | [`responses_comprehensive.rs`](../examples/responses_comprehensive.rs), [`responses_streaming.rs`](../examples/responses_streaming.rs), [`structured_outputs.rs`](../examples/structured_outputs.rs) |
+| Responses | `client.responses()`, `send_responses`, `send_responses_stream`, `client.responses_api()` | [`responses_api/`](../src/responses_api) | [`responses_comprehensive.rs`](../examples/responses_comprehensive.rs), [`responses_streaming.rs`](../examples/responses_streaming.rs), [`structured_outputs.rs`](../examples/structured_outputs.rs) |
 | Audio | `client.audio()` | [`audio.rs`](../src/builders/audio.rs) | [`audio_speech.rs`](../examples/audio_speech.rs), [`audio_transcription.rs`](../examples/audio_transcription.rs) |
 | Embeddings | `client.embeddings()` | [`embeddings.rs`](../src/builders/embeddings.rs) | [`embeddings.rs`](../examples/embeddings.rs) |
 | Images | `client.images()` | [`images.rs`](../src/builders/images.rs) | [`images_comprehensive.rs`](../examples/images_comprehensive.rs) |
@@ -31,7 +31,7 @@ Each has integration tests against mock servers under [`tests/`](../tests). Webh
 - **The other operations of the enabled API groups** (`Cargo.toml` lists them) are available as
   the generated `openai-client-base` functions; send them through the client's HTTP stack (see
   [the generated operations](chat-and-responses.md#the-generated-operations)).
-- **Any other endpoint** (the `/responses` endpoint itself, Realtime client secrets, Evals,
+- **Any other endpoint** (the Responses API's input items and token counts, Realtime client secrets, Evals,
   Conversations, the administration APIs, ...): `post_json`, `get_json`, `send_json` and
   `send_json_stream` send a request and decode the reply with types of your own, with the
   client's provider, authentication and retries (see

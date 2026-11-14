@@ -7,7 +7,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use openai_ergonomic::{
-    builders::{responses::responses_simple, Builder},
+    builders::{chat::user_message, Builder},
     test_utils::{
         assertions::{assert_has_field, assert_success_response},
         fixtures, MockOpenAIServer,
@@ -241,7 +241,7 @@ fn test_builder_with_fixtures() {
     let _fixture = fixtures::chat_completion_request();
 
     // Verify we can create a similar request with our builder
-    let builder = responses_simple("gpt-4", "Hello!")
+    let builder = user_message("gpt-4", "Hello!")
         .temperature(0.7)
         .max_tokens(150);
 

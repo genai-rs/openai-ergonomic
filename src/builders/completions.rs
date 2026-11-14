@@ -4,7 +4,8 @@
 //! the legacy Completions API. For chat-based completions, use the Chat API instead.
 
 use openai_client_base::models::{
-    ChatCompletionStreamOptions, CreateCompletionRequest, StopConfiguration,
+    ChatCompletionStreamOptions, CreateCompletionRequest, CreateCompletionRequestPrompt,
+    StopConfiguration,
 };
 
 use crate::{Builder, Error, Result};
@@ -30,7 +31,7 @@ use crate::{Builder, Error, Result};
 #[derive(Debug, Clone)]
 pub struct CompletionsBuilder {
     model: String,
-    prompt: Option<String>,
+    prompt: Option<CreateCompletionRequestPrompt>,
     best_of: Option<i64>,
     echo: Option<bool>,
     frequency_penalty: Option<f64>,
@@ -75,10 +76,20 @@ impl CompletionsBuilder {
         }
     }
 
-    /// Set the prompt for the completion.
+    /// Set the prompt for the completion: a text (`&str`, `String`) or any
+    /// `CreateCompletionRequestPrompt` (several texts, token arrays).
     #[must_use]
-    pub fn prompt(mut self, prompt: impl Into<String>) -> Self {
+    pub fn prompt(mut self, prompt: impl Into<CreateCompletionRequestPrompt>) -> Self {
         self.prompt = Some(prompt.into());
+        self
+    }
+
+    /// Set several prompts: one completion (or `n`) for each.
+    #[must_use]
+    pub fn prompts<S: Into<String>>(mut self, prompts: impl IntoIterator<Item = S>) -> Self {
+        self.prompt = Some(CreateCompletionRequestPrompt::ArrayOfStrings(
+            prompts.into_iter().map(Into::into).collect(),
+        ));
         self
     }
 
@@ -216,7 +227,7 @@ impl Builder<CreateCompletionRequest> for CompletionsBuilder {
             .prompt
             .ok_or_else(|| Error::Builder("prompt is required".to_string()))?;
 
-        let mut request = CreateCompletionRequest::new(self.model, prompt);
+        let mut request = CreateCompletionRequest::new(self.model, Some(prompt));
 
         request.best_of = self.best_of.map(Some);
         request.echo = self.echo.map(Some);
@@ -315,6 +326,18 @@ mod tests {
 
         let request = builder.build().unwrap();
         assert_eq!(request.model, "gpt-3.5-turbo-instruct");
-        assert_eq!(request.prompt, "Hello");
+        assert_eq!(request.prompt, Some("Hello".into()));
+    }
+
+    #[test]
+    fn test_completions_builder_with_several_prompts() {
+        let request = CompletionsBuilder::new("gpt-3.5-turbo-instruct")
+            .prompts(["one", "two"])
+            .build()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&request).unwrap()["prompt"],
+            serde_json::json!(["one", "two"])
+        );
     }
 }

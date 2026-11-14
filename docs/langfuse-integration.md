@@ -97,12 +97,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## What a span holds
 
-One span per request, named after the operation (`chat`, `embeddings`, ...), of kind `Client`:
+One span per request, named after the operation (`chat`, `responses`, `embeddings`, ...), of
+kind `Client`:
 
 - `gen_ai.system` (`openai`), `gen_ai.operation.name`, `gen_ai.request.model`,
   `gen_ai.request.temperature` and `gen_ai.request.max_tokens` when set;
-- the prompt (`gen_ai.prompt.{i}.role` / `.content`) and the completion
-  (`gen_ai.completion.{i}.role` / `.content`);
+- the prompt (`gen_ai.prompt.{i}.role` / `.content`: chat messages, or a Responses request's
+  instructions and input messages) and the completion (`gen_ai.completion.{i}.role` /
+  `.content`: the choices, or a response's output messages);
 - `gen_ai.usage.input_tokens` / `output_tokens`, `gen_ai.response.id`, `duration_ms`;
 - for streams, `stream.total_chunks`, `stream.duration_ms` and `stream.outcome` (`completed`,
   `failed` or `cancelled`);

@@ -21,9 +21,9 @@ use harness::{assert_valid_chat_request, fixtures, model_test_cases, parameter_v
 use openai_client_base::models::ChatCompletionRequestUserMessageContentPart;
 use openai_ergonomic::{
     builders::{
-        chat::{image_url_part, system_user, text_part, tool_function, ChatCompletionBuilder},
-        responses::{
-            responses_simple, responses_system_user, responses_tool_function, ResponsesBuilder,
+        chat::{
+            image_url_part, system_user, text_part, tool_function, user_message,
+            ChatCompletionBuilder,
         },
         Builder,
     },
@@ -95,7 +95,7 @@ fn test_chat_builder_all_parameters() {
 /// Test responses builder comprehensive functionality
 #[test]
 fn test_responses_builder_comprehensive() {
-    let tool = responses_tool_function(
+    let tool = tool_function(
         "search",
         "Search for information",
         json!({
@@ -106,14 +106,14 @@ fn test_responses_builder_comprehensive() {
         }),
     );
 
-    let builder = responses_system_user(
+    let builder = system_user(
         "gpt-4",
         "You are a search assistant",
         "Find information about Rust",
     )
     .temperature(0.8)
     .max_completion_tokens(500)
-    .tool(tool)
+    .add_tool(tool)
     .json_mode()
     .stream(true);
 
@@ -221,7 +221,7 @@ fn test_json_schema_builder() {
     });
 
     let builder =
-        responses_simple("gpt-4", "Generate a person object").json_schema("person", schema.clone());
+        user_message("gpt-4", "Generate a person object").json_schema("person", schema.clone());
 
     let request = assert_builder_success!(builder);
     assert_valid_chat_request(&request);
@@ -239,7 +239,7 @@ fn test_json_schema_builder() {
 /// Test reasoning effort parameter for o3 models
 #[test]
 fn test_reasoning_effort_parameter() {
-    let builder = ResponsesBuilder::new("o3-mini")
+    let builder = ChatCompletionBuilder::new("o3-mini")
         .user("Solve this complex problem")
         .reasoning_effort("high");
 
@@ -364,7 +364,7 @@ fn test_helper_function_consistency() {
 
     // Create tools using both modules
     let chat_tool = tool_function(function_name, description, parameters.clone());
-    let responses_tool = responses_tool_function(function_name, description, parameters);
+    let responses_tool = tool_function(function_name, description, parameters);
 
     // Both should create equivalent tools
     assert_eq!(chat_tool.function.name, responses_tool.function.name);
@@ -452,7 +452,7 @@ fn test_complex_function_calling() {
 /// Test streaming configuration
 #[test]
 fn test_streaming_configuration() {
-    let builder = responses_simple("gpt-4", "Tell me a story")
+    let builder = user_message("gpt-4", "Tell me a story")
         .stream(true)
         .max_tokens(200);
 
@@ -466,7 +466,7 @@ fn test_streaming_configuration() {
 /// Test JSON mode configuration
 #[test]
 fn test_json_mode_configuration() {
-    let builder = responses_simple("gpt-4", "Generate a JSON object").json_mode();
+    let builder = user_message("gpt-4", "Generate a JSON object").json_mode();
 
     let request = assert_builder_success!(builder);
     assert_valid_chat_request(&request);
@@ -493,7 +493,7 @@ fn test_stop_sequences() {
 /// Test that requests are serializable
 #[test]
 fn test_request_serialization() {
-    let tool = responses_tool_function(
+    let tool = tool_function(
         "calculate",
         "Perform calculations",
         json!({
@@ -504,10 +504,10 @@ fn test_request_serialization() {
         }),
     );
 
-    let builder = responses_system_user("gpt-4", "You are a math assistant", "Calculate 2+2")
+    let builder = system_user("gpt-4", "You are a math assistant", "Calculate 2+2")
         .temperature(0.7)
         .max_completion_tokens(100)
-        .tool(tool)
+        .add_tool(tool)
         .json_mode();
 
     let request = assert_builder_success!(builder);
@@ -588,13 +588,13 @@ fn test_with_fixtures() {
 #[test]
 fn test_builder_error_handling() {
     // Test with invalid model (empty string)
-    let invalid_model_builder = ResponsesBuilder::new("").user("Test");
+    let invalid_model_builder = ChatCompletionBuilder::new("").user("Test");
 
     let result = invalid_model_builder.build();
     assert!(result.is_err());
 
     // Test with no messages
-    let no_messages_builder = ResponsesBuilder::new("gpt-4");
+    let no_messages_builder = ChatCompletionBuilder::new("gpt-4");
     let result = no_messages_builder.build();
     assert!(result.is_err());
 }

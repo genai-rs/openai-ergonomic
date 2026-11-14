@@ -14,6 +14,7 @@
 //!
 //! - [`builders`] - Builder pattern implementations for API requests
 //! - [`responses`] - Response type wrappers with ergonomic helpers
+//! - [`responses_api`] - The Responses API (`/responses`): builder, response, streaming events
 //! - [`client`] - Main client for API interactions
 //! - [`config`] - Configuration management
 //! - [`provider`] - Providers: `OpenAI`, Azure `OpenAI`, `OpenRouter`, Groq, Ollama, custom
@@ -37,12 +38,14 @@ pub mod langfuse_exporter;
 pub mod langfuse_interceptor;
 pub mod provider;
 pub mod responses;
+pub mod responses_api;
 pub mod semantic_conventions;
 pub mod streaming;
 pub mod tool_framework;
 #[cfg(feature = "webhook")]
 pub mod webhooks;
 
+mod sse_frames;
 mod time;
 
 /// Boxed future used internally to store heterogeneous async trait
@@ -118,8 +121,6 @@ pub use builders::threads::{
     AttachmentTool, MessageAttachment, ThreadMessageBuilder, ThreadRequestBuilder,
 };
 pub use builders::uploads::UploadBuilder;
-// Re-export vision types for convenience
-pub use builders::responses::{responses_simple, responses_system_user, ResponsesBuilder};
 pub use builders::{Builder, ChatCompletionBuilder, Sendable};
 pub use openai_client_base::models::chat_completion_request_message_content_part_image_image_url::Detail;
 pub use openai_client_base::models::create_upload_request::Purpose as UploadPurpose;
@@ -129,10 +130,14 @@ pub use responses::chat::{
 };
 pub use responses::{tool_function, tool_web_search, ChatCompletionResponseWrapper};
 pub use responses::{Response, Tool, ToolChoice, Usage};
+pub use responses_api::{
+    responses_simple, responses_system_user, BoxedResponsesStream, ResponsesBuilder,
+    ResponsesEvent, ResponsesResponse, ResponsesStream,
+};
 pub use streaming::{
-    ChatCompletionChunk, ChatCompletionStream, CompletionUnavailable, InterceptedStream,
-    StreamCallbackFailure, StreamCallbackFailureKind, StreamCallbackHook, StreamCompletion,
-    StreamCompletionReport, StreamFailure, StreamFailureKind, StreamOutcome,
+    ChatCompletionChunk, ChatCompletionStream, CompletionUnavailable, InterceptedItem,
+    InterceptedStream, StreamCallbackFailure, StreamCallbackFailureKind, StreamCallbackHook,
+    StreamCompletion, StreamCompletionReport, StreamFailure, StreamFailureKind, StreamOutcome,
 };
 
 // Test utilities (feature-gated; native only: mockito)

@@ -139,15 +139,16 @@ async fn simple_json_mode_example(client: &Client) -> Result<(), Error> {
         .user("Analyze this product review: 'This laptop is amazing! Great performance, excellent battery life, and the display is crystal clear. Highly recommended!'")
         .json_mode()
         .temperature(0.3)
-        .max_completion_tokens(200);
+        .max_output_tokens(200);
 
     let response = client.send_responses(builder).await?;
 
-    if let Some(content) = response.content() {
+    let content = response.output_text();
+    if !content.is_empty() {
         println!(" JSON Analysis Result:");
 
         // Try to parse and pretty-print the JSON
-        match serde_json::from_str::<serde_json::Value>(content) {
+        match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(json) => {
                 println!("{}", serde_json::to_string_pretty(&json)?);
 
@@ -234,10 +235,11 @@ async fn data_extraction_example(client: &Client) -> Result<(), Error> {
 
     let response = client.send_responses(builder).await?;
 
-    if let Some(content) = response.content() {
+    let content = response.output_text();
+    if !content.is_empty() {
         println!(" Extracted Contact Information:");
 
-        match serde_json::from_str::<serde_json::Value>(content) {
+        match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(json) => {
                 println!("{}", serde_json::to_string_pretty(&json)?);
 
@@ -401,10 +403,11 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
 
     let response = client.send_responses(builder).await?;
 
-    if let Some(content) = response.content() {
+    let content = response.output_text();
+    if !content.is_empty() {
         println!(" Event Plan:");
 
-        match serde_json::from_str::<serde_json::Value>(content) {
+        match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(json) => {
                 println!("{}", serde_json::to_string_pretty(&json)?);
 
@@ -516,10 +519,11 @@ async fn classification_example(client: &Client) -> Result<(), Error> {
 
     let response = client.send_responses(builder).await?;
 
-    if let Some(content) = response.content() {
+    let content = response.output_text();
+    if !content.is_empty() {
         println!(" Content Classification:");
 
-        match serde_json::from_str::<serde_json::Value>(content) {
+        match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(json) => {
                 println!("{}", serde_json::to_string_pretty(&json)?);
 
@@ -664,10 +668,11 @@ async fn math_analysis_example(client: &Client) -> Result<(), Error> {
 
     let response = client.send_responses(builder).await?;
 
-    if let Some(content) = response.content() {
+    let content = response.output_text();
+    if !content.is_empty() {
         println!(" Mathematical Analysis:");
 
-        match serde_json::from_str::<serde_json::Value>(content) {
+        match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(json) => {
                 println!("{}", serde_json::to_string_pretty(&json)?);
 
@@ -787,14 +792,15 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
         .user("Generate sample data that conforms to the schema. Make sure all values meet the exact requirements.")
         .json_schema("strict_validation", strict_schema)
         .temperature(0.1)
-        .max_completion_tokens(300);
+        .max_output_tokens(300);
 
     let response = client.send_responses(builder).await?;
 
-    if let Some(content) = response.content() {
+    let content = response.output_text();
+    if !content.is_empty() {
         println!(" Schema Validation Test:");
 
-        match serde_json::from_str::<serde_json::Value>(content) {
+        match serde_json::from_str::<serde_json::Value>(&content) {
             Ok(json) => {
                 println!("{}", serde_json::to_string_pretty(&json)?);
 
@@ -891,7 +897,8 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
 
     match client.send_responses(problematic_builder).await {
         Ok(problematic_response) => {
-            if let Some(content) = problematic_response.content() {
+            let content = problematic_response.output_text();
+            if !content.is_empty() {
                 println!(" Problematic request result:");
                 println!("{content}");
                 println!(" The model likely still attempted to follow the schema despite conflicting instructions");
@@ -992,5 +999,7 @@ fn handle_api_error(error: &Error) {
             eprintln!(" Stream Buffer Error: {message}");
             eprintln!(" The stream buffer encountered an issue");
         }
+        // `Error` is non-exhaustive: later releases may add variants.
+        _ => eprintln!(" Error: {error}"),
     }
 }

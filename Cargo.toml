@@ -1,6 +1,6 @@
 [package]
 name = "openai-ergonomic"
-version = "0.21.0"
+version = "0.22.0"
 authors = ["Tim Van Wassenhove <github@timvw.be>"]
 edition = "2021"
 rust-version = "1.88"
@@ -15,7 +15,7 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { version = "^0.33.0", default-features = false, features = [
+openai-client-base = { version = "^0.34.0", default-features = false, features = [
     # Every model (`types`), and the API groups whose operations the client calls.
     "types",
     "administration", # usage
@@ -30,6 +30,7 @@ openai-client-base = { version = "^0.33.0", default-features = false, features =
     "image",
     "model",
     "moderation",
+    "responses",
     "upload",
     "vectorstore",
 ] }

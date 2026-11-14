@@ -45,6 +45,7 @@ pub struct ChatCompletionBuilder {
     top_p: Option<f64>,
     user: Option<String>,
     seed: Option<i64>,
+    reasoning_effort: Option<String>,
 }
 
 impl ChatCompletionBuilder {
@@ -68,6 +69,7 @@ impl ChatCompletionBuilder {
             top_p: None,
             user: None,
             seed: None,
+            reasoning_effort: None,
         }
     }
 
@@ -264,6 +266,15 @@ impl ChatCompletionBuilder {
         self
     }
 
+    /// Add a single tool that the model can use.
+    ///
+    /// ([`tool`](Self::tool) appends a tool *message*, the answer to a tool call.)
+    #[must_use]
+    pub fn add_tool(mut self, tool: ChatCompletionTool) -> Self {
+        self.tools.get_or_insert_with(Vec::new).push(tool);
+        self
+    }
+
     /// Set the tool choice option.
     #[must_use]
     pub fn tool_choice(mut self, tool_choice: ChatCompletionToolChoiceOption) -> Self {
@@ -278,6 +289,52 @@ impl ChatCompletionBuilder {
         format: openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat,
     ) -> Self {
         self.response_format = Some(format);
+        self
+    }
+
+    /// Enable JSON mode: the model answers with a JSON object.
+    #[must_use]
+    pub fn json_mode(mut self) -> Self {
+        use openai_client_base::models::{
+            response_format_json_object, CreateChatCompletionRequestAllOfResponseFormat,
+            ResponseFormatJsonObject,
+        };
+
+        let json_object =
+            ResponseFormatJsonObject::new(response_format_json_object::Type::JsonObject);
+        self.response_format = Some(
+            CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonObject(json_object),
+        );
+        self
+    }
+
+    /// Ask for JSON output that matches `schema` (structured outputs).
+    #[must_use]
+    pub fn json_schema(mut self, name: impl Into<String>, schema: Value) -> Self {
+        use openai_client_base::models::{
+            response_format_json_schema, CreateChatCompletionRequestAllOfResponseFormat,
+            JsonSchema, ResponseFormatJsonSchema,
+        };
+
+        let mut json_schema = JsonSchema::new(name.into());
+        json_schema.schema = match schema {
+            Value::Object(map) => Some(map.into_iter().collect()),
+            _ => Some(std::collections::HashMap::new()),
+        };
+        let format = ResponseFormatJsonSchema::new(
+            response_format_json_schema::Type::JsonSchema,
+            json_schema,
+        );
+        self.response_format =
+            Some(CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format));
+        self
+    }
+
+    /// Set the reasoning effort of a reasoning model: `none`, `minimal`, `low`, `medium`,
+    /// `high`, `xhigh` or `max`. An unknown value fails at [`build`](super::Builder::build).
+    #[must_use]
+    pub fn reasoning_effort(mut self, effort: impl Into<String>) -> Self {
+        self.reasoning_effort = Some(effort.into());
         self
     }
 
@@ -509,6 +566,24 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             }
         }
 
+        // Validate the JSON schema of structured outputs
+        if let Some(openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat::ResponseFormatJsonSchema(format)) =
+            &self.response_format
+        {
+            if format.json_schema.name.trim().is_empty() {
+                return Err(crate::Error::InvalidRequest(
+                    "JSON schema name cannot be empty".to_string(),
+                ));
+            }
+            if let Some(schema) = &format.json_schema.schema {
+                if !schema.contains_key("type") {
+                    return Err(crate::Error::InvalidRequest(
+                        "JSON schema must have a 'type' field".to_string(),
+                    ));
+                }
+            }
+        }
+
         let response_format = self.response_format;
 
         Ok(CreateChatCompletionRequest {
@@ -549,7 +624,15 @@ impl super::Builder<CreateChatCompletionRequest> for ChatCompletionBuilder {
             functions: None,
             store: None,
             metadata: None,
-            reasoning_effort: None,
+            reasoning_effort: self
+                .reasoning_effort
+                .map(|effort| {
+                    effort
+                        .parse::<openai_client_base::models::ReasoningEffort>()
+                        .map(Some)
+                        .map_err(|error| crate::Error::InvalidRequest(error.to_string()))
+                })
+                .transpose()?,
             prompt_cache_key: None,
             prompt_cache_retention: None,
             prompt_cache_options: None,
@@ -1105,5 +1188,83 @@ mod tests {
         assert!(tool.function.parameters.is_some());
         // Should result in empty map when parameters is not an object
         assert!(tool.function.parameters.as_ref().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_add_tool_appends() {
+        let tool = tool_function(
+            "lookup",
+            "Look up a term",
+            serde_json::json!({"type": "object"}),
+        );
+        let request = ChatCompletionBuilder::new("gpt-4")
+            .user("Hi")
+            .add_tool(tool.clone())
+            .add_tool(tool)
+            .build()
+            .unwrap();
+        assert_eq!(request.tools.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_json_mode_and_json_schema() {
+        use openai_client_base::models::CreateChatCompletionRequestAllOfResponseFormat as Format;
+
+        let request = ChatCompletionBuilder::new("gpt-4")
+            .user("Hi")
+            .json_mode()
+            .build()
+            .unwrap();
+        assert!(matches!(
+            request.response_format,
+            Some(Format::ResponseFormatJsonObject(_))
+        ));
+
+        let request = ChatCompletionBuilder::new("gpt-4")
+            .user("Hi")
+            .json_schema("person", serde_json::json!({"type": "object"}))
+            .build()
+            .unwrap();
+        match request.response_format {
+            Some(Format::ResponseFormatJsonSchema(format)) => {
+                assert_eq!(format.json_schema.name, "person");
+            }
+            other => panic!("unexpected response format: {other:?}"),
+        }
+
+        assert!(ChatCompletionBuilder::new("gpt-4")
+            .user("Hi")
+            .json_schema("person", serde_json::json!({"properties": {}}))
+            .build()
+            .is_err());
+    }
+
+    #[test]
+    fn test_reasoning_effort() {
+        use openai_client_base::models::ReasoningEffort;
+
+        for (input, expected) in [
+            ("none", ReasoningEffort::None),
+            ("minimal", ReasoningEffort::Minimal),
+            ("low", ReasoningEffort::Low),
+            ("medium", ReasoningEffort::Medium),
+            ("high", ReasoningEffort::High),
+            ("xhigh", ReasoningEffort::Xhigh),
+            ("max", ReasoningEffort::Max),
+        ] {
+            let request = ChatCompletionBuilder::new("o3-mini")
+                .user("Test")
+                .reasoning_effort(input)
+                .build()
+                .unwrap();
+            assert_eq!(request.reasoning_effort, Some(Some(expected)));
+        }
+        assert!(matches!(
+            ChatCompletionBuilder::new("o3-mini")
+                .user("Test")
+                .reasoning_effort("invalid")
+                .build(),
+            Err(crate::Error::InvalidRequest(_))
+        ));
     }
 }

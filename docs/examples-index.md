@@ -19,15 +19,15 @@ RUST_LOG=openai_ergonomic=debug cargo run --example chat_streaming   # with logs
 | --- | --- |
 | [`quickstart`](../examples/quickstart.rs) | a client from the environment, chat, streaming, errors |
 
-## Chat and the Responses builder
+## Chat and the Responses API
 
 | Example | Shows |
 | --- | --- |
 | [`chat_comprehensive`](../examples/chat_comprehensive.rs) | multi-turn conversations, message history, parameters, token usage |
 | [`chat_streaming`](../examples/chat_streaming.rs) | `send_chat_stream`, collecting a stream, parameters, multi-turn streaming |
 | [`vision_chat`](../examples/vision_chat.rs) | images by URL and base64, several images, detail levels |
-| [`responses_comprehensive`](../examples/responses_comprehensive.rs) | the `ResponsesBuilder`: messages, function tools, JSON schemas |
-| [`responses_streaming`](../examples/responses_streaming.rs) | streaming with `send_responses_stream` |
+| [`responses_comprehensive`](../examples/responses_comprehensive.rs) | the Responses API: instructions, function calling with `previous_response_id`, stateless conversations, JSON schemas, built-in tools |
+| [`responses_streaming`](../examples/responses_streaming.rs) | `send_responses_stream`: text deltas, function calls at `response.output_item.done`, the completion handle |
 | [`structured_outputs`](../examples/structured_outputs.rs) | JSON mode and JSON schemas, nested structures |
 | [`completions`](../examples/completions.rs) | the legacy Completions API |
 

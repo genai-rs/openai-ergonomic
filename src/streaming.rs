@@ -1,8 +1,14 @@
-//! Streaming support for chat completions.
+//! Streaming support for chat completions and the Responses API.
 //!
 //! This module provides streaming functionality for `OpenAI` chat completions using
 //! Server-Sent Events (SSE). The streaming API allows receiving responses incrementally
-//! as they are generated, enabling real-time user experiences.
+//! as they are generated, enabling real-time user experiences. The Responses API's events
+//! ([`ResponsesEvent`](crate::responses_api::ResponsesEvent)) go through the same
+//! [`InterceptedStream`].
+//!
+//! A chat completion stream completes with `data: [DONE]` or after a chunk with a
+//! `finish_reason`; a body that ends before either yields [`Error::StreamConnection`] as its
+//! last item, so a cut-off stream is never reported as [`StreamOutcome::Completed`].
 //!
 //! # Example
 //!
@@ -70,6 +76,7 @@ const MAX_CALLBACK_DIAGNOSTIC_CHARS: usize = 512;
 
 /// Classification of the terminal stream failure.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum StreamFailureKind {
     /// The underlying response stream failed while receiving data.
     Connection,
@@ -102,8 +109,11 @@ impl StreamFailure {
 
 /// The first terminal event observed for an intercepted stream.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum StreamOutcome {
-    /// The underlying parser reached normal EOF.
+    /// The stream ended normally: for chat, `data: [DONE]` or the end of the body after a
+    /// `finish_reason`; for the Responses API, a terminal event (`response.completed`,
+    /// `response.incomplete`, `response.failed` or `error`).
     Completed,
     /// The stream yielded an error item.
     StreamFailed(StreamFailure),
@@ -199,6 +209,37 @@ impl StreamCompletion {
             if report.changed().await.is_err() {
                 return Err(CompletionUnavailable);
             }
+        }
+    }
+}
+
+pub(crate) mod sealed {
+    /// Seals [`InterceptedItem`](super::InterceptedItem).
+    pub trait Sealed {}
+}
+
+/// An item of a stream whose interceptor callbacks [`InterceptedStream`] dispatches: a
+/// [`ChatCompletionChunk`] or a [`ResponsesEvent`](crate::responses_api::ResponsesEvent).
+///
+/// This trait is sealed: it cannot be implemented outside this crate.
+pub trait InterceptedItem: sealed::Sealed + MaybeSend + 'static {
+    /// The item as the JSON passed to [`Interceptor::on_stream_chunk`](crate::Interceptor::on_stream_chunk).
+    fn chunk_json(&self) -> String;
+    /// The input and output token counts the item reports, if any.
+    fn token_usage(&self) -> Option<(i64, i64)>;
+}
+
+impl sealed::Sealed for ChatCompletionChunk {}
+
+impl InterceptedItem for ChatCompletionChunk {
+    fn chunk_json(&self) -> String {
+        serde_json::to_string(self.raw_response()).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    fn token_usage(&self) -> Option<(i64, i64)> {
+        match &self.raw_response().usage {
+            Some(Some(usage)) => Some((usage.prompt_tokens, usage.completion_tokens)),
+            _ => None,
         }
     }
 }
@@ -341,16 +382,26 @@ pub struct ChatCompletionStream {
 impl ChatCompletionStream {
     /// Create a new stream from a byte stream response.
     ///
-    /// Parses Server-Sent Events (SSE) format and yields chat completion chunks.
+    /// Parses Server-Sent Events (SSE) format and yields chat completion chunks. The stream
+    /// completes at `data: [DONE]`, or at the end of the body after a chunk with a
+    /// `finish_reason`; a body that ends before either yields [`Error::StreamConnection`].
     pub fn new(response: timvw_rust_runtime::Response) -> Self {
-        Self::from_events(sse::Events::from_response(response))
+        Self {
+            inner: Box::pin(decode_frames(crate::sse_frames::frames(
+                response.bytes_stream(),
+            ))),
+        }
     }
 
     /// Create a stream from the events of a response, such as those of a generated `_stream` method
     /// (`EventStream::into_events`).
+    ///
+    /// [`sse::Events`] ends at `data: [DONE]` without yielding it, so here the stream completes
+    /// only after a chunk with a `finish_reason`; it yields [`Error::StreamConnection`] when the
+    /// events end before one.
     pub fn from_events(events: sse::Events) -> Self {
         Self {
-            inner: Box::pin(decode_events(events)),
+            inner: Box::pin(decode_frames(crate::sse_frames::from_events(events))),
         }
     }
 
@@ -395,8 +446,11 @@ type ReserveFuture = crate::BoxFuture<
 /// inside one (natively; on WebAssembly the callbacks run on the JavaScript host's event loop,
 /// `wasm_bindgen_futures::spawn_local`, and no Tokio runtime is involved). Use
 /// [`Self::new_with_completion`] to validate the runtime and obtain a drain handle.
-pub struct InterceptedStream<T: MaybeSend + MaybeSync + 'static = ()> {
-    inner: Option<BoxedChatStream>,
+pub struct InterceptedStream<
+    T: MaybeSend + MaybeSync + 'static = (),
+    C: InterceptedItem = ChatCompletionChunk,
+> {
+    inner: Option<crate::BoxStream<'static, Result<C>>>,
     interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
     operation: String,
     model: String,
@@ -415,13 +469,13 @@ pub struct InterceptedStream<T: MaybeSend + MaybeSync + 'static = ()> {
     terminated: bool,
 }
 
-impl<T: MaybeSend + MaybeSync + 'static> InterceptedStream<T> {
+impl<T: MaybeSend + MaybeSync + 'static, C: InterceptedItem> InterceptedStream<T, C> {
     /// Create an intercepted stream.
     ///
     /// Construction does not require a runtime. The first poll must occur inside an active
     /// Tokio runtime. Dropping the stream before its first poll starts no dispatcher.
     pub fn new(
-        inner: ChatCompletionStream,
+        inner: impl Stream<Item = Result<C>> + MaybeSend + 'static,
         interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
         operation: String,
         model: String,
@@ -429,7 +483,7 @@ impl<T: MaybeSend + MaybeSync + 'static> InterceptedStream<T> {
         state: T,
     ) -> Self {
         Self {
-            inner: Some(Box::pin(inner)),
+            inner: Some(crate::box_stream(inner)),
             interceptors,
             operation,
             model,
@@ -454,7 +508,7 @@ impl<T: MaybeSend + MaybeSync + 'static> InterceptedStream<T> {
     /// An active Tokio runtime is required natively (not on WebAssembly). This method returns an
     /// error instead of panicking when called outside one.
     pub fn new_with_completion(
-        inner: ChatCompletionStream,
+        inner: impl Stream<Item = Result<C>> + MaybeSend + 'static,
         interceptors: Arc<crate::interceptor::InterceptorChain<T>>,
         operation: String,
         model: String,
@@ -546,14 +600,16 @@ impl<T: MaybeSend + MaybeSync + 'static> InterceptedStream<T> {
     }
 
     #[allow(clippy::expect_used)] // `inner` is only taken once the stream is finished
-    fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<ChatCompletionChunk>>> {
+    fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<Option<Result<C>>> {
         self.inner
             .as_mut()
             .expect("live intercepted stream has an inner stream")
             .as_mut()
             .poll_next(cx)
     }
+}
 
+impl<T: MaybeSend + MaybeSync + 'static> InterceptedStream<T, ChatCompletionChunk> {
     /// Collect all remaining content from the stream into a single string.
     ///
     /// The stream's callbacks remain ordered and the dispatcher is allowed to finish after this
@@ -570,7 +626,7 @@ impl<T: MaybeSend + MaybeSync + 'static> InterceptedStream<T> {
     }
 }
 
-impl<T: MaybeSend + MaybeSync + 'static> Drop for InterceptedStream<T> {
+impl<T: MaybeSend + MaybeSync + 'static, C: InterceptedItem> Drop for InterceptedStream<T, C> {
     fn drop(&mut self) {
         if !self.terminated {
             self.finish(StreamOutcome::Cancelled);
@@ -578,8 +634,8 @@ impl<T: MaybeSend + MaybeSync + 'static> Drop for InterceptedStream<T> {
     }
 }
 
-impl<T: MaybeSend + MaybeSync + 'static> Stream for InterceptedStream<T> {
-    type Item = Result<ChatCompletionChunk>;
+impl<T: MaybeSend + MaybeSync + 'static, C: InterceptedItem> Stream for InterceptedStream<T, C> {
+    type Item = Result<C>;
 
     #[allow(clippy::expect_used)] // the queue sender and reserved slot are set before use
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -655,8 +711,7 @@ impl<T: MaybeSend + MaybeSync + 'static> Stream for InterceptedStream<T> {
             Poll::Ready(Some(Ok(chunk))) => {
                 update_usage(this, &chunk);
                 let event = ChunkEvent {
-                    chunk_json: serde_json::to_string(chunk.raw_response())
-                        .unwrap_or_else(|_| "{}".to_string()),
+                    chunk_json: chunk.chunk_json(),
                     chunk_index: this.chunk_index,
                     input_tokens: this.input_tokens,
                     output_tokens: this.output_tokens,
@@ -682,13 +737,13 @@ impl<T: MaybeSend + MaybeSync + 'static> Stream for InterceptedStream<T> {
     }
 }
 
-fn update_usage<T: MaybeSend + MaybeSync + 'static>(
-    stream: &mut InterceptedStream<T>,
-    chunk: &ChatCompletionChunk,
+fn update_usage<T: MaybeSend + MaybeSync + 'static, C: InterceptedItem>(
+    stream: &mut InterceptedStream<T, C>,
+    chunk: &C,
 ) {
-    if let Some(Some(usage)) = &chunk.raw_response().usage {
-        stream.input_tokens = Some(usage.prompt_tokens);
-        stream.output_tokens = Some(usage.completion_tokens);
+    if let Some((input_tokens, output_tokens)) = chunk.token_usage() {
+        stream.input_tokens = Some(input_tokens);
+        stream.output_tokens = Some(output_tokens);
     }
 }
 
@@ -959,7 +1014,7 @@ fn panic_diagnostic(payload: &(dyn Any + Send)) -> String {
 
 /// Parse an SSE stream into chat completion chunks.
 ///
-/// The `text/event-stream` framing is the runtime's parser ([`sse::Events`]): events are dispatched when a
+/// The `text/event-stream` framing is the runtime's parser ([`sse::Decoder`]): events are dispatched when a
 /// blank line completes them, an incomplete trailing event is discarded, and `data: [DONE]` ends the stream. Each
 /// payload is decoded here, so a parse error keeps the offending chunk. A parse or connection error ends the stream and
 /// releases the HTTP body at once.
@@ -968,29 +1023,57 @@ fn parse_sse_stream<S>(byte_stream: S) -> impl Stream<Item = Result<ChatCompleti
 where
     S: Stream<Item = std::result::Result<Bytes, timvw_rust_runtime::Error>> + Send + 'static,
 {
-    decode_events(sse::Events::from_bytes(byte_stream))
+    decode_frames(crate::sse_frames::frames(byte_stream))
 }
 
-/// Decode the events of a chat completion stream; the first error is the last item.
-fn decode_events(
-    events: sse::Events,
+/// Message of the error that ends a chat stream cut off before it completed.
+const CHAT_STREAM_CUT_OFF: &str = "the stream ended before `data: [DONE]` or a finish_reason";
+
+/// Decode the frames of a chat completion stream; the first error is the last item.
+///
+/// The stream completes at `data: [DONE]`, or at the end of the body once a chunk carried a
+/// `finish_reason`; otherwise the end of the body yields [`Error::StreamConnection`].
+fn decode_frames(
+    frames: crate::BoxStream<
+        'static,
+        std::result::Result<crate::sse_frames::Frame, timvw_rust_runtime::Error>,
+    >,
 ) -> impl Stream<Item = Result<ChatCompletionChunk>> + MaybeSend {
-    futures::stream::unfold(Some(events), |state| async move {
-        let mut events = state?;
+    use crate::sse_frames::Frame;
+
+    futures::stream::unfold(Some((frames, false)), |state| async move {
+        let (mut frames, mut finished) = state?;
         loop {
-            match events.next().await? {
-                Ok(event) if event.data.is_empty() => {}
-                Ok(event) => {
+            match frames.next().await {
+                Some(Ok(Frame::Event(event))) if event.data.is_empty() => {}
+                Some(Ok(Frame::Event(event))) => {
                     return Some(match decode_chunk(&event.data) {
-                        Ok(chunk) => (Ok(chunk), Some(events)),
-                        // Dropping the events drops the HTTP body.
+                        Ok(chunk) => {
+                            finished |= chunk
+                                .raw_response()
+                                .choices
+                                .iter()
+                                .any(|choice| matches!(choice.finish_reason, Some(Some(_))));
+                            (Ok(chunk), Some((frames, finished)))
+                        }
+                        // Dropping the frames drops the HTTP body.
                         Err(error) => (Err(error), None),
                     });
                 }
-                Err(error) => {
+                Some(Ok(Frame::Done)) => return None,
+                Some(Err(error)) => {
                     return Some((
                         Err(Error::StreamConnection {
                             message: format!("Stream connection error: {error}"),
+                        }),
+                        None,
+                    ));
+                }
+                None if finished => return None,
+                None => {
+                    return Some((
+                        Err(Error::StreamConnection {
+                            message: CHAT_STREAM_CUT_OFF.to_string(),
                         }),
                         None,
                     ));
@@ -1320,6 +1403,11 @@ mod tests {
 
         let chunk = stream.next().await.unwrap().unwrap();
         assert_eq!(chunk.content(), Some("multiline"));
+        // Neither `[DONE]` nor a finish_reason: the stream was cut off.
+        assert!(matches!(
+            stream.next().await.unwrap(),
+            Err(Error::StreamConnection { .. })
+        ));
         assert!(stream.next().await.is_none());
     }
 
@@ -1430,6 +1518,10 @@ mod tests {
             stream.next().await.unwrap().unwrap().content(),
             Some("complete")
         );
+        assert!(matches!(
+            stream.next().await.unwrap(),
+            Err(Error::StreamConnection { .. })
+        ));
         assert!(stream.next().await.is_none());
         assert!(stream.next().await.is_none());
     }
@@ -1440,5 +1532,57 @@ mod tests {
         let completion = StreamCompletion { report };
         drop(sender);
         assert_eq!(completion.wait().await, Err(CompletionUnavailable));
+    }
+
+    fn chunk_event(content: &str, finish_reason: Option<&str>) -> String {
+        let finish_reason =
+            finish_reason.map_or_else(|| "null".to_string(), |reason| format!("\"{reason}\""));
+        format!(
+            "data: {{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"gpt-4\",\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"{content}\"}},\"finish_reason\":{finish_reason}}}]}}\n\n"
+        )
+    }
+
+    async fn collect_outcome(body: String) -> (Vec<String>, Option<Error>) {
+        let mut stream = Box::pin(parse_sse_stream(futures::stream::iter(vec![Ok(
+            Bytes::from(body),
+        )])));
+        let mut contents = Vec::new();
+        while let Some(item) = stream.next().await {
+            match item {
+                Ok(chunk) => contents.push(chunk.content().unwrap_or_default().to_string()),
+                Err(error) => return (contents, Some(error)),
+            }
+        }
+        (contents, None)
+    }
+
+    #[tokio::test]
+    async fn chat_stream_completes_at_done_without_finish_reason() {
+        let (contents, error) =
+            collect_outcome(format!("{}data: [DONE]\n\n", chunk_event("a", None))).await;
+        assert_eq!(contents, ["a"]);
+        assert!(error.is_none());
+    }
+
+    #[tokio::test]
+    async fn chat_stream_completes_at_eof_after_finish_reason() {
+        let (contents, error) = collect_outcome(format!(
+            "{}{}",
+            chunk_event("a", None),
+            chunk_event("b", Some("stop"))
+        ))
+        .await;
+        assert_eq!(contents, ["a", "b"]);
+        assert!(error.is_none());
+    }
+
+    #[tokio::test]
+    async fn chat_stream_cut_off_before_done_or_finish_reason_is_an_error() {
+        let (contents, error) = collect_outcome(chunk_event("a", None)).await;
+        assert_eq!(contents, ["a"]);
+        assert!(matches!(
+            error,
+            Some(Error::StreamConnection { message }) if message == CHAT_STREAM_CUT_OFF
+        ));
     }
 }

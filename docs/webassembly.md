@@ -44,9 +44,9 @@ Behind `#[cfg(target_family = "wasm")]`, following
 
 ## Tests
 
-`tests/wasm.rs` runs a chat completion, a streamed one with an interceptor, an interceptor whose
-state holds an `Rc`, a tool call through the tool framework, a webhook verification, and retries
-with backoff in Node.js against a scripted, non-`Send` tower service, with
+`tests/wasm.rs` runs a chat completion, a streamed one with an interceptor, a streamed Responses
+API response, an interceptor whose state holds an `Rc`, a tool call through the tool framework, a
+webhook verification, and retries with backoff in Node.js against a scripted, non-`Send` tower service, with
 [`wasm-bindgen-test-runner`](https://wasm-bindgen.github.io/wasm-bindgen/wasm-bindgen-test/index.html)
 (install `wasm-bindgen-cli` of the `wasm-bindgen` version in `Cargo.lock`):
 

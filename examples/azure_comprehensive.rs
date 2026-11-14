@@ -92,9 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let builder = client.responses().user("What is the capital of France?");
     match client.send_responses(builder).await {
         Ok(response) => {
-            if let Some(content) = response.content() {
-                println!("   ✓ Responses API: {content}");
-            }
+            println!("   ✓ Responses API: {}", response.output_text());
         }
         Err(e) => println!("   ✗ Responses API failed: {e}"),
     }

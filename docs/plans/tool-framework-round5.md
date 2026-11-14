@@ -1,6 +1,12 @@
 # Tool framework, round 5: gap analysis against Codex
 
-Status: planning only, nothing here is implemented.
+Status: slice 1 is implemented (step 1 of the order below, with every breaking change of the
+round): the Responses API client (`src/responses_api/`, `client.responses()`,
+`client.responses_api()`), the chat-backed `ResponsesBuilder` folded into
+`ChatCompletionBuilder`, `#[non_exhaustive]` on `Error`, `ToolError`, `StreamOutcome` and
+`StreamFailureKind`, and the chat stream EOF rule of item 12. The Responses stream already
+skips malformed events and fails a stream cut off before its terminal event. The rest is
+planned: later slices only add API.
 Baseline: branch `refactor/no-async-trait` (native async `FunctionTool`/`Interceptor`).
 Reference: OpenAI Codex `codex-rs` at `69231e119b`. Codex paths are relative to `codex-rs/`.
 

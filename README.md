@@ -41,7 +41,8 @@ goes on from here: the Responses API, streaming, errors and the examples.
 
 ## Key features
 
-- **Builders** for chat completions, the Responses API, embeddings, images, audio, files,
+- **Builders** for chat completions, the Responses API (`/responses`, with typed streaming
+  events and stored-response operations), embeddings, images, audio, files,
   uploads, vector stores, assistants and threads, batches, fine-tuning, moderations and usage
   ([getting started](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/getting-started.md),
   [API coverage](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/api-coverage.md)).
@@ -50,7 +51,7 @@ goes on from here: the Responses API, streaming, errors and the examples.
   ([configuration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/configuration.md)).
 - **A tower HTTP stack** with retries (honouring `Retry-After`), timeouts and layers of your own
   ([configuration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/configuration.md#retries-timeouts-and-custom-http-clients)).
-- **Streaming** of chat completions and responses, with completion reports
+- **Streaming** of chat completions and of Responses API events, with completion reports
   ([streaming](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/streaming.md)).
 - **Tools**: a typed function-tool framework and registry
   ([tools](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_framework.md)).

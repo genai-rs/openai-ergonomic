@@ -15,7 +15,7 @@
 //! Run with: `cargo run --example http_middleware_retry --features tracing-http`
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use openai_ergonomic::{Client, Config, Response, Result};
+use openai_ergonomic::{Client, Config, Result};
 use std::time::Duration;
 use timvw_rust_runtime::retry::RetryPolicy;
 use timvw_rust_runtime::{Client as HttpClient, ReqwestService};
@@ -104,23 +104,21 @@ async fn main() -> Result<()> {
     let builder = custom_client
         .responses()
         .user("What are the three laws of robotics?")
-        .max_completion_tokens(200)
+        .max_output_tokens(200)
         .temperature(0.7);
 
     let response = custom_client.send_responses(builder).await?;
 
     println!("\nResponse received:");
-    if let Some(content) = response.content() {
-        println!("{content}");
-    }
+    println!("{}", response.output_text());
 
     println!("\nToken usage:");
     if let Some(usage) = response.usage() {
-        let prompt = usage.prompt_tokens;
-        let completion = usage.completion_tokens;
+        let input = usage.input_tokens;
+        let output = usage.output_tokens;
         let total = usage.total_tokens;
-        println!("  Prompt tokens: {prompt}");
-        println!("  Completion tokens: {completion}");
+        println!("  Input tokens: {input}");
+        println!("  Output tokens: {output}");
         println!("  Total tokens: {total}");
     }
 

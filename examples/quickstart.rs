@@ -29,8 +29,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use futures::StreamExt;
-use openai_ergonomic::responses::tool_function;
-use openai_ergonomic::{Client, Error, Response, Result, ToolCallExt};
+use openai_ergonomic::{Client, Error, Result};
 use serde_json::json;
 use std::io::{self, Write};
 
@@ -137,17 +136,17 @@ async fn main() -> Result<()> {
         .user("Write a short haiku about programming")
         .temperature(0.7);
 
-    // Use send_responses_stream for real streaming
+    // send_responses_stream streams the events of the Responses API
     let stream_result = client.send_responses_stream(builder).await;
 
     match stream_result {
         Ok(mut stream) => {
-            // Process each chunk as it arrives
-            while let Some(chunk_result) = stream.next().await {
-                match chunk_result {
-                    Ok(chunk) => {
-                        if let Some(content) = chunk.content() {
-                            print!("{content}");
+            // Process each event as it arrives; text arrives as deltas
+            while let Some(event_result) = stream.next().await {
+                match event_result {
+                    Ok(event) => {
+                        if let Some(text) = event.text_delta() {
+                            print!("{text}");
                             io::stdout().flush().unwrap();
                         }
                     }
@@ -172,7 +171,7 @@ async fn main() -> Result<()> {
 
     // Tools let the AI call external functions to get real data
     // Here we define a weather function as an example
-    let weather_tool = tool_function(
+    let builder = client.responses().function_tool(
         "get_current_weather",
         "Get the current weather for a given location",
         json!({
@@ -192,32 +191,27 @@ async fn main() -> Result<()> {
         }),
     );
 
-    let builder = client
-        .responses()
-        .user("What's the weather like in Tokyo?")
-        .tool(weather_tool);
+    let builder = builder.user("What's the weather like in Tokyo?");
     let response = client.send_responses(builder).await;
 
     match response {
-        Ok(chat_response) => {
+        Ok(response) => {
             println!(" Got response with potential tool calls!");
 
             // Check if the AI wants to call our weather function
-            let tool_calls = chat_response.tool_calls();
-            if !tool_calls.is_empty() {
-                println!(" AI requested tool calls:");
-                for tool_call in tool_calls {
-                    let function_name = tool_call.function_name();
-                    println!("   Function: {function_name}");
-                    let function_args = tool_call.function_arguments();
-                    println!("   Arguments: {function_args}");
+            let function_calls = response.function_calls();
+            if function_calls.is_empty() {
+                println!(" AI: {}", response.output_text());
+            } else {
+                println!(" AI requested function calls:");
+                for call in function_calls {
+                    println!("   Function: {}", call.name);
+                    println!("   Arguments: {}", call.arguments);
 
-                    // In a real app, you'd execute the function here
-                    // and send the result back to the AI
+                    // In a real app, you'd execute the function here and send the
+                    // result back with `.function_call_output(&call.call_id, output)`
                     println!("    In a real app, you'd call your weather API here");
                 }
-            } else if let Some(content) = chat_response.content() {
-                println!(" AI: {content}");
             }
         }
         Err(e) => {
@@ -281,26 +275,30 @@ async fn main() -> Result<()> {
         "How many people live there?",
     ];
 
+    // Each response continues the previous one, which the API stores
+    let mut previous_response_id: Option<String> = None;
     for (i, question) in questions.iter().enumerate() {
         println!("\n User: {question}");
 
-        let builder = client
+        let mut builder = client
             .responses()
-            .system(
+            .instructions(
                 "You are a knowledgeable geography expert. Keep answers concise but informative.",
             )
             .user(*question)
             .temperature(0.1); // Lower temperature for more factual responses
+        if let Some(id) = &previous_response_id {
+            builder = builder.previous_response_id(id);
+        }
         let response = client.send_responses(builder).await;
 
         match response {
-            Ok(chat_response) => {
-                if let Some(content) = chat_response.content() {
-                    println!(" Assistant: {content}");
-                }
+            Ok(response) => {
+                println!(" Assistant: {}", response.output_text());
+                previous_response_id = Some(response.id().to_string());
 
                 // Track token usage for cost monitoring
-                if let Some(usage) = chat_response.usage() {
+                if let Some(usage) = response.usage() {
                     total_tokens += usage.total_tokens;
                     println!(
                         " This exchange: {} tokens (Running total: {})",

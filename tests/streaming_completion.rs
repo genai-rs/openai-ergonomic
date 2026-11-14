@@ -161,7 +161,19 @@ type TestStream = (
     mpsc::UnboundedReceiver<Call>,
 );
 
+/// The terminator of a chat stream that completed.
+const DONE: &str = "data: [DONE]\n\n";
+
+/// An intercepted chat stream of `body` followed by `data: [DONE]`.
 async fn intercepted(
+    body: String,
+    build_probes: impl FnOnce(mpsc::UnboundedSender<Call>) -> InterceptorChain,
+) -> TestStream {
+    intercepted_raw(format!("{body}{DONE}"), build_probes).await
+}
+
+/// An intercepted chat stream of exactly `body`.
+async fn intercepted_raw(
     body: String,
     build_probes: impl FnOnce(mpsc::UnboundedSender<Call>) -> InterceptorChain,
 ) -> TestStream {
@@ -533,8 +545,8 @@ async fn shared_interceptors_can_process_different_streams_concurrently() {
         )
         .unwrap()
     };
-    let (mut first, first_completion) = make_stream(chunk("first"));
-    let (mut second, second_completion) = make_stream(chunk("second"));
+    let (mut first, first_completion) = make_stream(format!("{}{DONE}", chunk("first")));
+    let (mut second, second_completion) = make_stream(format!("{}{DONE}", chunk("second")));
 
     let (first_item, second_item) = tokio::join!(first.next(), second.next());
     assert!(first_item.unwrap().is_ok());
@@ -587,14 +599,26 @@ async fn client_chat_and_responses_methods_return_completion_handles() {
         .mock("POST", "/chat/completions")
         .with_status(200)
         .with_header("content-type", "text/event-stream")
-        .with_body(chunk("chat"))
+        .with_body(format!("{}{DONE}", chunk("chat")))
         .create_async()
         .await;
     let responses_mock = server
-        .mock("POST", "/chat/completions")
+        .mock("POST", "/responses")
+        .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+            "model": "gpt-4",
+            "stream": true
+        })))
         .with_status(200)
         .with_header("content-type", "text/event-stream")
-        .with_body(chunk("responses"))
+        .with_body(
+            "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":1,\
+             \"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1,\
+             \"status\":\"completed\",\"model\":\"gpt-4\",\"output\":[],\
+             \"instructions\":null,\"error\":null,\"incomplete_details\":null,\
+             \"parallel_tool_calls\":true,\"usage\":{\"input_tokens\":2,\
+             \"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":3,\
+             \"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":5}}}\n\n",
+        )
         .create_async()
         .await;
     let config = Config::builder()
@@ -619,12 +643,17 @@ async fn client_chat_and_responses_methods_return_completion_handles() {
         .send_responses_stream_with_completion(client.responses().user("hello"))
         .await
         .unwrap();
-    assert!(responses_stream.next().await.unwrap().is_ok());
+    assert!(responses_stream
+        .next()
+        .await
+        .unwrap()
+        .unwrap()
+        .is_terminal());
     assert!(responses_stream.next().await.is_none());
-    assert_eq!(
-        responses_completion.wait().await.unwrap().outcome,
-        StreamOutcome::Completed
-    );
+    let report = responses_completion.wait().await.unwrap();
+    assert_eq!(report.outcome, StreamOutcome::Completed);
+    assert_eq!(report.input_tokens, Some(2));
+    assert_eq!(report.output_tokens, Some(3));
     chat_mock.assert_async().await;
     responses_mock.assert_async().await;
     drop(chat_stream);
@@ -662,4 +691,28 @@ fn direct_completion_constructor_reports_missing_runtime_without_panicking() {
         (),
     );
     drop(stream); // Construction and drop before first poll need no runtime.
+}
+
+#[tokio::test]
+async fn chat_stream_cut_off_before_done_reports_a_connection_failure() {
+    use openai_ergonomic::{StreamFailure, StreamFailureKind};
+
+    let (mut stream, completion, mut calls) =
+        intercepted_raw(chunk("partial"), |events| chain([probe(0, &events)])).await;
+
+    assert!(stream.next().await.unwrap().is_ok());
+    assert!(matches!(
+        stream.next().await.unwrap(),
+        Err(Error::StreamConnection { .. })
+    ));
+    assert!(stream.next().await.is_none());
+    let report = completion.wait().await.unwrap();
+    assert_eq!(
+        report.outcome,
+        StreamOutcome::StreamFailed(StreamFailure {
+            kind: StreamFailureKind::Connection
+        })
+    );
+    assert_eq!(calls.recv().await.unwrap().hook, StreamCallbackHook::Chunk);
+    assert_eq!(calls.recv().await.unwrap().outcome, Some(report.outcome));
 }

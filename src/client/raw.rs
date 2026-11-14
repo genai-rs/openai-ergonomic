@@ -344,7 +344,7 @@ pub(super) async fn check_status(response: Response) -> Result<Response> {
 }
 
 /// The `type` and `code` of an `OpenAI` error body: `{"error": {"message", "type", "code"}}`.
-fn openai_error_details(body: &str) -> (Option<String>, Option<String>) {
+pub(super) fn openai_error_details(body: &str) -> (Option<String>, Option<String>) {
     let Ok(value) = serde_json::from_str::<serde_json::Value>(body) else {
         return (None, None);
     };
