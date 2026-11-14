@@ -9,11 +9,12 @@ What CI runs (`.github/workflows/ci.yml`, the shared genai-rs `rust-ci.yml`), wi
 `Cargo.toml`:
 
 ```bash
+MSRV=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
 cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features
-cargo +1.88 clippy --all-targets --all-features -- -D warnings   # the MSRV
-cargo +1.88 test --all-features
+cargo +"$MSRV" clippy --all-targets --all-features -- -D warnings
+cargo +"$MSRV" test --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 cargo semver-checks
 ```
@@ -30,11 +31,9 @@ and the [WebAssembly](webassembly.md#tests) clippy and Node.js suite.
   `docs/` (`src/lib.rs` includes the pages in a `#[cfg(doctest)]` module), so a moved or renamed
   API breaks the build instead of the documentation. Most are `no_run`: they need no credentials.
 - **WebAssembly**: `tests/wasm.rs`, in Node.js (see [WebAssembly](webassembly.md#tests)).
-- **Smoke tests** against the real API are ignored unless `OPENAI_TEST_API_KEY` is set:
-  `cargo test --test smoke -- --ignored`.
 
-`cargo make test-unit`, `test-integration`, `test-doc` and `test-smoke` (`Makefile.toml`) run each
-group.
+`cargo make test-unit`, `test-integration` and `test-doc` (`Makefile.toml`) run each group.
+`scripts/check-msrv.sh` builds and tests with the MSRV toolchain.
 
 ## Local CI
 

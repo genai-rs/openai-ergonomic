@@ -1,88 +1,53 @@
 # Contributing to openai-ergonomic
 
-Thank you for your interest in contributing to `openai-ergonomic`! This document provides comprehensive guidelines for contributing to the project, including our unique agent-driven development workflow.
+Thank you for your interest in contributing to `openai-ergonomic`! This page has the workflow,
+the commit format and the pull request process; [development](docs/development.md) has the
+commands (checks, tests, local CI) and [architecture](docs/architecture.md) how the crate is put
+together.
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Rust 1.83 or higher
-- Git
-- A GitHub account
-- Familiarity with OpenAI API concepts (recommended)
-- Understanding of our agent workflow (see [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) and [docs/workflow.md](docs/workflow.md))
+- Rust at or above the minimum supported version, `rust-version` in [`Cargo.toml`](Cargo.toml)
+  ([![MSRV](https://img.shields.io/crates/msrv/openai-ergonomic)](https://crates.io/crates/openai-ergonomic)),
+  and stable for the everyday checks
+- Git and a GitHub account
+- Familiarity with the `OpenAI` API (recommended)
 
-### Setting up the Development Environment
-
-1. Fork and clone the repository:
-   ```bash
-   git clone https://github.com/your-username/openai-ergonomic.git
-   cd openai-ergonomic
-   ```
-
-2. Install dependencies:
-   ```bash
-   cargo build
-   ```
-
-3. Run tests to ensure everything works:
-   ```bash
-   cargo test
-   ```
-
-## Development Workflow
-
-We follow a **plan-first** development approach using specialized AI agents. Please read [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) for complete details on our agent-driven workflow.
-
-### Quick Workflow Overview
-
-1. **Plan First**: For any significant changes, create or update entries in `PLAN.md` and `TODO.md` before coding
-2. **Use Appropriate Agent Role**: Follow the agent guidelines in [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) based on your contribution type
-3. **Small, Focused Changes**: Make incremental commits with clear purposes
-4. **Maintain Documentation**: Keep planning artifacts and documentation in sync with code changes
-
-### Detailed Workflow Steps
-
-1. **Review Context**: Read `PLAN.md`, `TODO.md`, and relevant reference files before making changes
-2. **Draft Plan**: Outline your approach, identify risks, and capture the plan in appropriate TODO entries
-3. **Execute Incrementally**: Apply changes in small chunks with frequent validation
-4. **Update Artifacts**: Mark TODOs complete, adjust docs/tests, summarize changes
-5. **Document Decisions**: Record notable choices in `docs/` for persistent context
-
-### Code Style
-
-We use standard Rust formatting and linting tools:
+### Setting up
 
 ```bash
-# Format code
-cargo fmt --all
-
-# Run clippy
-cargo clippy --all-targets --all-features -- -D warnings
-
-# Run tests
-cargo test --all
+git clone https://github.com/your-username/openai-ergonomic.git
+cd openai-ergonomic
+cargo build
+cargo test --all-features
+./scripts/install-hooks.sh   # optional: the pre-commit hook in .githooks/
 ```
 
-### Project Structure
+No API key is needed for the tests: the integration tests run against mock servers.
 
-- `src/` - Core library code
-- `examples/` - Example usage patterns
-- `docs/` - Documentation files
-- `tests/` - Integration tests
+## Workflow
 
-### Making Changes
+1. **Discuss larger changes first** in an issue, so that the approach is agreed before the code.
+2. **Branch** from `main` (`feat/...`, `fix/...`, `docs/...`).
+3. **Keep changes small and focused**: one concern per pull request, incremental commits.
+4. **Test** new behaviour (unit tests next to the code, integration tests in `tests/`).
+5. **Document** API changes: the rustdoc, the pages under `docs/`, the examples, and a
+   [migration](docs/migration.md) note for a breaking change.
 
-1. **Plan First**: For significant changes, create or update entries in `PLAN.md` and `TODO.md` before coding
-2. **Follow Agent Guidelines**: Reference [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) for role-specific responsibilities and workflows
-3. **Small Commits**: Make focused commits with clear messages following [Conventional Commits](https://www.conventionalcommits.org/)
-4. **Test Coverage**: Add tests for new functionality
-5. **Documentation**: Update documentation for API changes
-6. **Maintain Planning Artifacts**: Keep `TODO.md` and `PLAN.md` current with your progress
+### Project structure
 
-### Commit Message Format
+- `src/` - the library ([architecture](docs/architecture.md))
+- `tests/` - integration tests (mockito servers) and the WebAssembly suite
+- `examples/` - runnable examples ([index](docs/examples-index.md))
+- `docs/` - the guides, compiled as doc tests
+- `scripts/` - development scripts ([scripts](scripts/README.md))
 
-We follow the Conventional Commits specification:
+### Commit messages
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/); release-plz derives the
+version bump and the changelog from them:
 
 ```
 type(scope): description
@@ -92,255 +57,100 @@ type(scope): description
 [optional footer]
 ```
 
-Types:
-- `feat`: New features
-- `fix`: Bug fixes
-- `docs`: Documentation changes
-- `style`: Formatting changes
-- `refactor`: Code refactoring
-- `test`: Test additions or changes
-- `chore`: Maintenance tasks
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`. Mark a breaking
+change with `!` (`feat!: ...`) or a `BREAKING CHANGE:` footer: the crate is on 0.x, so it bumps
+the minor version.
 
-Examples:
 ```
 feat(client): add streaming support for chat completions
 fix(auth): handle expired API keys gracefully
-docs(readme): add quickstart example
+docs: describe per-call options
 ```
 
-## Pull Request Process
+## Pull requests
 
-### Before Creating a PR
+### Before opening one
 
-**CRITICAL**: Run all pre-commit checks before submitting:
+Run the checks CI runs (see [development](docs/development.md#checks)); at least:
 
 ```bash
-# Format check - must pass
 cargo fmt --all
-
-# Lint check - must pass with no warnings
 cargo clippy --all-targets --all-features -- -D warnings
-
-# Test check - all tests must pass
-cargo test --all
-
-# Build check - project must compile
-cargo build
+cargo test --all-features
 ```
 
-**Never submit a PR without running these checks first - CI will fail if they don't pass.**
+Maintainers can attest a commit with the genai-rs local CI script instead of waiting for the
+heavy CI jobs (see [local CI](docs/development.md#local-ci)).
 
-1. **Create a Feature Branch**:
-   ```bash
-   git checkout -b feat/your-feature-name
-   ```
+### Guidelines
 
-2. **Make Your Changes**: Follow the development workflow above
-
-3. **Update Documentation**: Ensure README, docs, and code comments are updated
-
-4. **Update Planning Artifacts**:
-   - Mark relevant TODO items as completed
-   - Update `PLAN.md` if your changes affect the roadmap
-   - Document any decisions made during implementation
-
-5. **Run Pre-commit Checks** (see above - this is mandatory)
-
-6. **Submit Pull Request**:
-   - Provide a clear description of changes
-   - Link to any related issues or TODO items
-   - Include examples if adding new features
-   - Reference which agent role guidelines were followed
-   - Explain how the change fits into the overall project plan
-
-### Pull Request Guidelines
-
-- Keep PRs focused and reasonably sized (follow the small diffs principle from [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md))
-- Include tests for new functionality
-- Update documentation for API changes
-- **Mandatory**: Ensure all pre-commit checks pass before requesting review
-- Update planning artifacts (`TODO.md`, `PLAN.md`) as needed
-- Be responsive to feedback
-- Follow agent-specific guidelines from [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md)
-- Never include AI attribution in commits or code (see policy below)
+- Keep pull requests focused and reasonably sized.
+- Describe what changed and why; link related issues; include examples for new features.
+- Include tests for new functionality and update the documentation for API changes.
+- Make sure the checks pass before requesting review, and be responsive to feedback.
+- Never include AI attribution in commits or code (see the policy below).
 
 ## Critical Policy: No AI Attribution
 
 **ABSOLUTELY NO AI ATTRIBUTION**: Never include any of the following in commits, PRs, or code:
 - "Generated with an AI assistant" or similar
-- "Co-authored-by: <***REMOVED*** assistant>" or any AI co-authorship
+- "Co-authored-by: <AI assistant>" or any AI co-authorship
 - References to AI/LLM assistance in comments or documentation
 - Any indication that code was AI-generated
 
-All code must appear as human-authored work. This is a hard requirement - violations will result in PR rejection.
-
-## Testing
-
-### Running Tests
-
-```bash
-# Unit tests
-cargo test
-
-# Integration tests
-cargo test --test integration
-
-# Documentation tests
-cargo test --doc
-
-# All tests with coverage
-cargo test --all
-```
-
-### Writing Tests
-
-- Add unit tests for individual functions
-- Add integration tests for complete workflows
-- Include doctests in public API documentation
-- Use mock servers for testing HTTP interactions
+All code must appear as human-authored work. This is a hard requirement - violations will result
+in PR rejection. `scripts/check-attribution.sh` (run by the pre-commit hook) checks for it.
 
 ## Documentation
 
-### Types of Documentation
-
-1. **API Documentation**: Rustdoc comments in code
-2. **User Guides**: Files in `docs/` directory
-3. **Examples**: Runnable examples in `examples/` directory
-4. **README**: Project overview and quick start
-
-### Documentation Guidelines
-
-- Write clear, concise explanations
-- Include code examples for complex concepts
-- Keep examples up-to-date with API changes
-- Use consistent terminology throughout
-
-### Building Documentation
+- **API documentation**: rustdoc comments in the code, with examples.
+- **Guides**: the pages under `docs/`, linked from the [README](README.md). `src/lib.rs` includes
+  them in a `#[cfg(doctest)]` module, so their Rust snippets compile with the code: use
+  `no_run` for snippets that call the API, and `ignore` only when a snippet cannot compile here
+  (for example because it needs a crate that is not a dependency), saying why.
+- **Examples**: runnable programs in `examples/`.
+- **No hard-coded versions**: install with `cargo add openai-ergonomic`, show versions with the
+  crates.io badges or a placeholder such as `x.y`. Migration notes name the release they describe.
 
 ```bash
-# Build API documentation (headless - no GUI)
-cargo doc --no-deps
-
-# View docs manually at: target/doc/openai_ergonomic/index.html
-
-# Check documentation links
-cargo doc --document-private-items
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features   # what CI checks
+cargo test --doc --all-features                                  # the doc tests, guides included
 ```
 
-## Issue Guidelines
+## Issues
 
-### Reporting Bugs
+### Reporting bugs
 
-When reporting bugs, please include:
+Include the crate version, the Rust version, the operating system (or WebAssembly host), a
+minimal reproducible example, the expected and actual behaviour, and error messages or logs
+(without API keys).
 
-- Rust version
-- Operating system
-- Minimal reproducible example
-- Expected vs actual behavior
-- Error messages or logs
+### Feature requests
 
-### Feature Requests
+Explain the use case, show how the API would be used, and mention the alternatives you
+considered.
 
-For feature requests, please:
+## Code review
 
-- Explain the use case
-- Provide examples of how it would be used
-- Consider existing alternatives
-- Be open to discussion about implementation
+As a reviewer, be constructive and respectful, ask about the reasoning, explain suggestions, and
+check that tests and documentation came along with the change. As an author, explain your
+reasoning when asked and keep the checks green after each change.
 
-## Agent-Driven Development
+## Releases
 
-This project uses specialized AI agents for different aspects of development. Contributors should:
-
-1. **Understand Agent Roles**: Read [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md) to understand which agent guidelines apply to your contribution
-2. **Follow Workflow Patterns**: Use the plan-first approach and maintain planning artifacts
-3. **Collaborate Effectively**: When working in parallel with others, use separate branches/worktrees as described in [docs/workflow.md](docs/workflow.md)
-4. **Maintain Context**: Keep documentation and planning files updated for future contributors
-
-See [docs/workflow.md](docs/workflow.md) for detailed guidance on development patterns.
-
-## Code Review
-
-### As a Reviewer
-
-- Be constructive and respectful
-- Focus on code quality, not personal preferences
-- Ask questions to understand the reasoning
-- Suggest improvements with explanations
-- **Check planning hygiene**: Ensure TODO/PLAN updates are included when needed
-- Verify pre-commit checks have been run
-- Confirm no AI attribution is present in the changes
-
-### As an Author
-
-- Be receptive to feedback
-- Explain your reasoning when requested
-- Make requested changes promptly
-- Ask for clarification if feedback is unclear
-- Update planning artifacts when requested
-- Ensure all pre-commit checks pass after making changes
-
-## Release Process
-
-The project uses automated releases through `release-plz`. Maintainers must
-follow the detailed steps in
-[`docs/workflow/publish_checklist.md`](docs/workflow/publish_checklist.md)
-before merging a release PR:
-
-1. Merge feature work into `main` (CI must be green)
-2. Run `release-plz release-pr` locally (optionally with `--dry-run`)
-3. Complete the publish checklist (dry runs, docs.rs verification, changelog review)
-4. Merge the generated release PR and push the tag/publish artifacts as needed
+Releases are automated with [release-plz](https://release-plz.ieni.dev/): every push to `main`
+opens or updates a release pull request (`chore: release version ...`) with the version bump and
+the changelog. A maintainer reviews and merges it, then publishes it to crates.io with the
+`Release-plz` workflow (`workflow_dispatch`, `publish`), which also tags the release and creates
+the GitHub release.
 
 ## Community
 
-### Code of Conduct
-
-This project follows the [Rust Code of Conduct](https://www.rust-lang.org/policies/code-of-conduct). Please be respectful and inclusive in all interactions.
-
-### Getting Help
-
-- Open an issue for bugs or feature requests
-- Start a discussion for questions or ideas
-- Check existing issues before creating new ones
+This project follows the [Rust Code of Conduct](https://www.rust-lang.org/policies/code-of-conduct).
+Please be respectful and inclusive. Open an issue for bugs, feature requests and questions, and
+check the existing issues first.
 
 ## License
 
-By contributing to this project, you agree that your contributions will be licensed under the project's MIT OR Apache-2.0 license.
-
-## Quick Commands Reference
-
-```bash
-# Format & lint (run before every commit)
-cargo fmt --all
-cargo clippy --all-targets --all-features -- -D warnings
-
-# Run all tests
-cargo test --all
-
-# Generate documentation (headless, no GUI)
-cargo doc --no-deps
-
-# Run a specific example
-cargo run --example quickstart
-```
-
-## Getting Help
-
-- **New Contributors**: Start with [docs/getting-started.md](docs/getting-started.md)
-- **Development Workflow**: Read [docs/workflow.md](docs/workflow.md) and [AUTOMATION_AGENTS.md](AUTOMATION_AGENTS.md)
-- **Architecture Questions**: Check [docs/architecture.md](docs/architecture.md)
-- **Bug Reports**: Open an issue with reproduction steps
-- **Feature Requests**: Check the roadmap in [docs/roadmap.md](docs/roadmap.md) first
-
-## Additional Resources
-
-- [Rust Book](https://doc.rust-lang.org/book/)
-- [OpenAI API Documentation](https://platform.openai.com/docs/api-reference)
-- [Project Architecture Guide](docs/architecture.md)
-- [Getting Started Guide](docs/getting-started.md)
-- [Development Workflow Guide](docs/workflow.md)
-- [Project Roadmap](docs/roadmap.md)
-- [Agent Guidelines](AUTOMATION_AGENTS.md)
-
-Thank you for contributing to `openai-ergonomic`!
+By contributing to this project, you agree that your contributions will be licensed under the
+project's MIT OR Apache-2.0 license.

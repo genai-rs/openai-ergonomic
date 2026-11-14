@@ -1,261 +1,130 @@
-# Streaming interceptor completion (OE05)
+# Streaming completion contract
 
-Status: **accepted contract; OE06 implementation in progress**.
-Accepted by the independent supervisor decision recorded against
-`genai-rs-openai-ergonomic#dcbr`, reviewing head
-`5a1169f09650d43ade25ad8ce7034d909dfe6450` and report
-`work/reviews/oe05.json` in the supervisor workspace.
-The accepted implementation belongs to OE06 (`genai-rs-openai-ergonomic#v5hz`).
-OE04 (`genai-rs-openai-ergonomic#cqg2`) has since landed; preserve its parser
-behavior and do not edit parser code in OE06.
+What the client guarantees about [interceptor](interceptors.md) callbacks of a streamed chat
+completion or Responses request, and how to wait for them before shutting down (for example an
+OpenTelemetry exporter). [Streaming](streaming.md) has the everyday usage.
 
-## Evidence and scope
+## Entry points
 
-Reviewed baseline: `8717a622373d565d3d9511ba7150dca245b4fcfa` (17 October 2026).
+`send_chat_stream_with_completion` and `send_responses_stream_with_completion` return a
+`(BoxedChatStream, StreamCompletion)`; `InterceptedStream::new_with_completion` does the same for
+a stream you build yourself. `send_chat_stream` and `send_responses_stream` run the same
+lifecycle and drop the handle.
 
-- [`src/streaming.rs`](../src/streaming.rs): `InterceptedStream::poll_next`
-  spawns an independent task per chunk and EOF, discards callback results, has
-  no terminal latch, and has no drop notification. An error item is forwarded
-  without invoking an error hook.
-- [`src/interceptor.rs`](../src/interceptor.rs): each chain call visits
-  interceptors in registration order, but separate spawned calls can overlap.
-  The existing result-returning chain methods stop at their first error.
-  `on_stream_end` is documented as successful completion only.
-- [`docs/langfuse-integration.md`](langfuse-integration.md): the shutdown advice
-  relies on a small delay for detached callback tasks. No finite delay guarantees
-  completion of an arbitrarily slow callback.
-- [`src/client.rs`](../src/client.rs): streaming methods erase the concrete
-  stream into `BoxedChatStream`. Adding a method only to `InterceptedStream`
-  would leave normal client callers unable to use it.
+`StreamCompletion` is a cloneable handle per stream. `wait()` resolves to an
+`Arc<StreamCompletionReport>` once the stream has reached its terminal state **and** every
+accepted callback has returned or failed. It does not poll, consume or cancel the stream.
+Repeated and concurrent waits return the same report without calling any hook again; dropping a
+waiter, or a timeout around it, cancels nothing. `wait()` returns `CompletionUnavailable` when
+the dispatcher ended without a report (an unexpected task failure): that is never a successful
+drain.
 
-This contract concerns the chat streaming wrapper, including client entry points
-that delegate to it. It does not redefine SSE parsing, repair Responses wire
-compatibility, add telemetry providers, or promise remote delivery of traces.
+## The report
 
-## Additive API
+`StreamCompletionReport` has:
 
-Keep existing `BoxedChatStream`, `send_chat_stream`, `send_responses_stream`, and
-the public `InterceptedStream::new` signature source-compatible. Add opt-in
-entry points returning `(BoxedChatStream, StreamCompletion)`, named
-`send_chat_stream_with_completion` and `send_responses_stream_with_completion`,
-plus `InterceptedStream::new_with_completion` for direct construction.
-These names and types are additive to the existing streaming API.
+- `outcome`: `StreamOutcome::Completed`, `StreamFailed(StreamFailure)` or `Cancelled`;
+- `total_chunks` (accepted chunks, usage-only ones included), `duration`, and the last
+  `input_tokens` / `output_tokens` seen (`None` when the stream reported no usage);
+- `callback_attempts`, `callback_successes`, `callback_failure_count` (exact), and
+  `callback_failures`: each a `StreamCallbackFailure` with its `hook` (`Chunk` or `Terminal`),
+  `interceptor_index`, `chunk_index`, `kind` (`ReturnedError` or `Panicked`) and a bounded
+  `diagnostic`. At most 64 failures are kept, with diagnostics of at most 512 characters;
+  `truncated_failure_details` counts the failures that were not kept.
 
-`StreamCompletion` is a cloneable per-stream handle. Its async
-`wait(&self) -> Result<Arc<StreamCompletionReport>, CompletionUnavailable>` waits
-for the terminal condition **and** callback drain; it does not consume or poll
-the stream. The immutable report is cached, so concurrent/repeated waits return
-the same report without invoking hooks again. Dropping a waiter or timing out
-a wait does not cancel the worker or lose its result. This is per-stream
-completion, not a client-global barrier that can race with new requests.
+`StreamFailure` is an owned summary (`kind`: connection, parsing, buffer or other); the original
+error is yielded to the stream's consumer. Diagnostics hold no prompts or chunks. A callback
+failure is separate from the outcome: a completed stream can have failed telemetry.
 
-The report contains:
+## Ordering
 
-- `outcome`: `Completed`, `StreamFailed(StreamFailure)`, or `Cancelled`;
-- number of accepted chunks (including usage-only chunks), stream duration and
-  last observed usage, with missing usage remaining unknown;
-- callback attempts, successes, and failures, with each failure identifying the
-  hook, registration index, optional chunk index, and failure kind (returned
-  error or caught panic). Bound diagnostic text and retained failure details;
-  keep an exact total failure count and an explicit truncated-details count.
+For each stream:
 
-`StreamFailure` is an owned classification/summary, not a borrowed `Error` or a
-second ownership claim on the original error. The original error is yielded to
-the stream caller. Do not copy raw prompts/chunks into diagnostics. A callback
-failure is separate from stream outcome: a completed response can have failed
-telemetry. `CompletionUnavailable` means the dispatcher ended without a sealed
-report (for example an unexpected task failure); it must never masquerade as
-successful drain.
+- `before_request` finishes before any chunk callback. If it fails, creating the stream fails
+  and there is no completion handle.
+- Callbacks run one at a time: chunk 0 through every interceptor in registration order, then
+  chunk 1, and so on, then one terminal event through every interceptor. Different streams may
+  call a shared interceptor concurrently.
+- A chunk may reach the consumer before its callbacks have finished; `wait()` is the barrier.
+  The callback queue is bounded (one chunk), so slow callbacks slow the stream down instead of
+  piling up detached tasks.
+- An accepted chunk is a decoded chunk admitted to the callback queue before it is yielded. An
+  error item or a chunk never read is not counted.
 
-## Ordering and terminal states
+## Terminal states
 
-For each stream, `before_request` finishes before any chunk callback. Preserve
-its existing fail-fast behavior: setup errors return from stream creation, so
-there is no completion handle for a stream that was never created.
-
-After successful creation, callbacks execute serially: chunk 0 across registered
-interceptors in registration order, then chunk 1, and so on, then one terminal
-event across the same interceptors. No chunk callback overlaps another callback
-for that stream. Different streams may still call a shared interceptor
-concurrently. Chunks may reach the caller before their callbacks finish;
-`wait` supplies the barrier. Slow callbacks exert bounded backpressure rather
-than creating an unbounded number of detached tasks.
-
-An accepted chunk is a successfully decoded item admitted to the callback queue
-before it is yielded to the caller. Do not count an unread chunk or an error
-item. Retain queue order and finish every admitted callback on early drop.
-
-| Trigger | Latched outcome | Stream behavior | Terminal callback |
+| Trigger | Outcome | Stream | Terminal callback |
 | --- | --- | --- | --- |
-| Underlying parser returns EOF | `Completed` | Return `None`; further polls return `None` | After all accepted chunks |
-| First stream error item | `StreamFailed` | Yield original error once; release transport; later polls return `None` | After all accepted chunks |
-| Drop before either terminal trigger | `Cancelled` | Release transport; read no more items | After all accepted chunks |
-| Drop after a terminal trigger | Unchanged | No further work admitted | No duplicate event |
+| End of the stream | `Completed` | `None`, and `None` after that | after all accepted chunks |
+| First error item | `StreamFailed` | the original error once, then `None`; the connection is released | after all accepted chunks |
+| Dropped before either | `Cancelled` | the connection is released, nothing more is read | after all accepted chunks |
+| Dropped after either | unchanged | nothing more is admitted | no second event |
 
-Use one atomic/locked terminal transition. The first observed trigger wins; a
-drop cannot overwrite a recorded stream failure. A finish-reason chunk alone
-does not terminate the stream, since later usage chunks may follow. `Completed`
-means the parser's normal EOF, not independent validation that an upstream
-protocol completion marker was present. Parser-level termination belongs to
-OE04 (`genai-rs-openai-ergonomic#cqg2`); do not silently expand that definition
-here.
+The first trigger wins; a drop never overwrites a failure. A chunk with a finish reason does not
+end the stream (usage chunks may follow). `Completed` means the parser reached the end of the
+event stream, not that the server sent a completion marker.
 
-## Terminal notifications and callback failures
+## Hooks
 
-Add a default `Interceptor::on_stream_terminal` hook taking a new context with
-the existing end summary and the owned terminal outcome. Its default forwards
-`Completed` to the existing `on_stream_end`; failure/cancellation default to
-no-op. This avoids adding mandatory fields to externally constructed
-`StreamEndContext` values and keeps existing interceptor implementations
-compiling. Overrides must explicitly forward success if they also need their
-old `on_stream_end` implementation. Document that rule in OE06.
+`Interceptor::on_stream_terminal` is called once per established stream, with the end summary
+and the outcome. Its default forwards `Completed` to `on_stream_end` and does nothing for a
+failure or a cancellation; an override that still wants `on_stream_end` on success must call it.
+After the stream is created, stream failures go to `on_stream_terminal`, not to `on_error`. The
+built-in `LangfuseInterceptor` implements `on_stream_terminal`, so failed and cancelled streams
+end their spans too.
 
-Do not call `on_stream_end` on failure or cancellation. The new terminal hook is
-the streaming failure/cancellation notification; do not also synthesize
-`on_error` from a lossy reconstructed error. Existing pre-stream and
-non-streaming error-hook behavior remains outside this change. Built-in
-telemetry integration must implement the terminal hook so cancellation and
-failure finish its spans rather than leaving them open.
+Every interceptor is called for every event even when an earlier one returns an error or panics:
+the failure is recorded in the report (panics that unwind are caught at each callback; an abort
+is not), and `on_error` is not called for it. The non-streaming interceptor chain keeps stopping
+at the first error.
 
-Update the `Interceptor::on_error` documentation: after a stream is
-successfully created, streaming errors are reported through
-`on_stream_terminal(StreamFailed)` and are not automatically sent to
-`on_error`. Keep its documented behavior for other error paths. This avoids
-claiming that `on_error` receives errors from every streaming stage.
+The report is sealed only after every accepted chunk callback and every terminal callback has
+finished, so a resolved report (even with failures) means no managed callback of that stream is
+still running. Tasks an interceptor spawns on its own are not covered: await that work inside the
+hook if the barrier should include it.
 
-For this managed streaming dispatcher, attempt each registered interceptor even
-if an earlier one returns an error. Record the failure and continue with later
-interceptors and later events, including the terminal event. Catch unwinding
-panics at each callback boundary and record them as failures; process aborts
-are outside the guarantee. Do not recursively invoke `on_error` for a callback
-failure. Do not change existing public chain methods' fail-fast behavior;
-provide internal streaming dispatch support instead.
+## Tasks, cancellation and shutdown
 
-The report is sealed only after every accepted chunk callback and every
-terminal callback has returned or failed with a recorded result. Therefore a
-resolved report, even one containing failures, means no managed callback for
-that stream remains running. Child tasks spawned privately by an interceptor
-are excluded: an interceptor must await its own work if it wants that work
-covered by the barrier.
+Each stream has one dispatcher, a bounded chunk queue, a terminal signal and shared completion
+state. Natively the dispatcher is a tokio task: `InterceptedStream::new` needs no runtime to be
+constructed, but its first poll must be inside a tokio runtime, and dropping it before the first
+poll starts nothing; `InterceptedStream::new_with_completion` returns an error instead of
+panicking outside a runtime. On WebAssembly the dispatcher runs with
+`wasm_bindgen_futures::spawn_local` and needs no runtime (see [WebAssembly](webassembly.md)).
 
-## Ownership, cancellation, and shutdown
+Dropping the stream only signals cancellation and releases the connection: it does not block or
+spawn. The dispatcher drains the admitted chunks, runs the terminal callbacks and seals the
+report. Dropping every `StreamCompletion` handle does not abort pending callbacks. With no
+interceptors, the report is still correct, with zero callbacks.
 
-Use one owned dispatcher per intercepted stream, a bounded chunk queue, a
-separate terminal signal, and shared completion state. Reserve queue capacity
-before polling another inner item, so there is no unbounded pending-payload
-buffer. A one-slot queue is a reasonable initial policy; capacity is an
-internal tuning choice.
-
-Dispatcher startup needs an active Tokio runtime. Document this requirement on
-the new direct `InterceptedStream::new_with_completion` constructor and validate
-it without introducing an undocumented panic during public construction. The
-additive direct constructor should report the missing runtime explicitly; the
-async client entry points already run inside their caller's runtime. Preserve
-and document the existing constructor's runtime/polling requirements. OE06
-must test construction outside a runtime and drop before the first poll, so
-cancellation of an unstarted producer remains well-defined.
-
-`Drop` only signals cancellation and releases the transport; it must not block,
-spawn a new task, or depend on queue capacity to record the terminal event.
-The existing worker drains admitted chunks, then terminal hooks, then seals
-the report. The completion handle keeps the report available but must not keep
-the chunk producer alive. Dropping all handles does not abort pending
-callbacks. An empty interceptor chain still produces a correct terminal report
-with zero callbacks, without requiring a callback worker.
-
-The existing client methods may use the same lifecycle internally and discard
-the handle. This strengthens ordering and fixes duplicate EOF notifications,
-but adds observable backpressure and failure/cancellation semantics. Review
-these behavioral changes explicitly even though the return types are stable.
-
-Accepted caller flow (pseudocode; exact names follow the accepted API):
+A shutdown then looks like this:
 
 ```text
-(stream, completion) = await client.send_chat_stream_with_completion(request)
-consume stream, recording any error or deciding to stop early
-drop stream                         // also required after break/early return
-report = await timeout(deadline, completion.wait())
+(stream, completion) = client.send_chat_stream_with_completion(builder)
+consume the stream, keeping any error, or stop early
+drop(stream)                                 // required after stopping early
+report = timeout(deadline, completion.wait())
 inspect report.outcome and report.callback_failures
-await exporter flush/shutdown       // use the exporter's supported API
-exit runtime
+flush / shut down the exporter
 ```
 
-Awaiting `wait` while holding an unconsumed stream waits for a terminal trigger;
-it must not implicitly cancel or consume that stream. A caller that stops early
-must drop it first. Once EOF/error is observed, dropping is harmless and cannot
-change the terminal outcome. A wait timeout means **incomplete/unknown drain**,
-not success: retain the handle and retry or report an incomplete shutdown.
-There is no internal timing sleep. Callbacks that never resolve can prevent
-completion forever; callers choose their shutdown deadline. Runtime shutdown
-or process exit before drain provides no delivery guarantee. Exporter flush
-is a separate operation after callback drain, because callbacks can enqueue
-new spans until they finish.
+`wait()` on a stream that is still held and not consumed waits for it to end; it does not
+cancel it. A timeout means the drain is incomplete or unknown, not that it succeeded: keep the
+handle and wait again, or report the incomplete shutdown. Callbacks that never return keep the
+report from resolving, so choose your deadline. Flushing the exporter is a separate step after
+the drain, because callbacks can add spans until they finish; a runtime shutdown or process exit
+before the drain gives no delivery guarantee. [Langfuse integration](langfuse-integration.md#streaming)
+has a complete example.
 
-## Deterministic regression tests
+## Tests
 
-[`tests/streaming_completion.rs`](../tests/streaming_completion.rs)
-uses the actual public `ChatCompletionStream` and `InterceptedStream`, a local
-mock HTTP response, and a mock interceptor delayed by semaphore gates. The
-response is buffered to remove transport scheduling from the callback proof.
-Additional tests keep a malformed SSE body's transport pending to prove
-terminal parser results release it immediately, and use an application error
-whose `Display` panics to verify the callback dispatcher still drains.
-Every case has a five-second watchdog; no sleep or elapsed-time threshold is
-used to infer completion. Channel closure proves that no hook remains alive
-in the drop/error cases.
+[`tests/streaming_completion.rs`](../tests/streaming_completion.rs) checks this contract against
+mock HTTP responses and interceptors held by semaphore gates, with a watchdog on every case and
+no sleeps: callback order (usage-only chunks included), a slow terminal callback and repeated
+waits, a drop with a full queue, a drop before the first poll, a stream error, callback errors
+and panics, bounded failure details, zero interceptors, concurrent streams sharing interceptors,
+the client's entry points, and the constructor outside a runtime.
 
-Run from the repository root:
-
-```sh
-rtk proxy env CARGO_BUILD_JOBS=2 cargo test --test streaming_completion
+```bash
+cargo test --test streaming_completion
 ```
-
-The accepted OE05 prototype characterized the baseline defects before
-implementation. Its immutable source is available at
-[`tests/streaming_completion_prototype.rs` in merged PR #120](https://github.com/genai-rs/openai-ergonomic/blob/15ff29decba354b9f2a44c00577adf28a748770f/tests/streaming_completion_prototype.rs).
-OE06 replaces those assertions with the desired contract while keeping these
-observations here as diagnostic history:
-
-| Test case | Historical baseline evidence | OE06 assertion |
-| --- | --- | --- |
-| EOF with two closed gates | End(2), then deliberately released Chunk(1), Chunk(0) | Wait stays pending; Chunk(0), Chunk(1), Terminal; count 2 |
-| Repeated EOF | Two End(0) callbacks | One terminal hook; cached repeat/concurrent waits |
-| Drop after one of two chunks | Chunk(0), then channel closes without terminal hook | One accepted chunk, then `Cancelled`; drain completes |
-| Malformed stream item then EOF | Parsing error, then success End(0); no error hook | `StreamFailed`, no success end; original error yielded once |
-| Callback returns an error | Caller sees successful chunk and EOF only | Report records hook failure; later callbacks still attempted |
-
-## OE06 boundary and acceptance checklist
-
-The focused OE06 change adds the shared lifecycle/dispatcher, additive client
-and terminal-hook APIs, built-in terminal handling, deterministic tests, and
-replaces the shutdown sleep in the affected streaming example/docs.
-
-OE06 must additionally test: a delayed terminal hook; two interceptors with
-the first returning an error or panicking; zero interceptors; empty streams;
-drop before first poll; drop while a chunk callback is blocked; timeout and
-retry of `wait`; concurrent/repeated waits; concurrent streams; a full queue
-at drop; and unexpected worker termination producing `CompletionUnavailable`.
-Assert exact attempts/order/outcomes and that no callback runs after report
-resolution. Tests must use mocks and bounded watchdogs, never an external
-telemetry service or a sleep as proof of completion.
-
-The supervisor accepted the additive `(BoxedChatStream, StreamCompletion)`
-entry points, serial bounded ordering/backpressure including existing entry
-points, the default success adapter from `on_stream_terminal` to
-`on_stream_end`, continued dispatch after returned callback errors or panics,
-and nonblocking first-terminal-wins cancellation followed by admitted-callback
-drain. `wait` does not poll or cancel the producer, and exporter flush follows
-the completion barrier. Preserve public context construction and existing
-public chain fail-fast behavior.
-
-OE06 must also cover the runtime/constructor and `on_error` documentation
-requirements above, replace baseline defect assertions with desired contract
-assertions while preserving their diagnostic evidence, and implement no parser
-change (OE04 owns that work). Run callback failure/panic order, full-queue drop,
-zero-interceptor, repeated/concurrent waits, timeout/retry, delayed terminal,
-and unavailable-worker tests before implementation acceptance. If preserving
-the existing constructor behavior needs broader API changes, stop for review;
-do not silently add a panic path. If implementation needs a breaking public
-context change, a second telemetry stack, or an MSRV increase, split it for
-review instead of expanding OE06. No additional implementation split is
-currently justified.

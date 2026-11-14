@@ -8,7 +8,7 @@ This directory contains utility scripts to help with development, testing, and r
 **Purpose**: Verify Minimum Supported Rust Version (MSRV) compatibility
 
 This script:
-- Installs the specified MSRV (currently Rust 1.83) if not already available
+- Reads the MSRV from `rust-version` in `Cargo.toml` and installs that toolchain if needed
 - Switches to the MSRV toolchain temporarily
 - Builds the project with all features
 - Runs the full test suite
@@ -28,7 +28,7 @@ This script:
 
 This script:
 - Configures Git to use the project's custom hooks from `.githooks/`
-- Enables pre-commit hooks that run formatting, linting, build, and tests
+- Enables the pre-commit hook, which runs `check-attribution.sh`, then formatting, Clippy, the build and the tests
 
 **Usage**:
 ```bash
@@ -38,6 +38,17 @@ This script:
 **When to use**: When setting up a new development environment or after cloning the repository.
 
 **Note**: You can bypass hooks temporarily with `git commit --no-verify` if needed.
+
+### `check-attribution.sh`
+**Purpose**: Check the last 20 commit messages, the staged commit message and the source files for AI attribution (see the policy in [CONTRIBUTING.md](../CONTRIBUTING.md#critical-policy-no-ai-attribution))
+
+**Usage**:
+```bash
+./scripts/check-attribution.sh
+```
+
+### `clean-attribution-history.sh`
+**Purpose**: Rewrite git history to remove AI attribution from commit messages, after a confirmation and with a backup branch. It rewrites history and needs a force push: use it only in coordination with the maintainers.
 
 ### `pre-release.sh`
 **Purpose**: Comprehensive pre-release validation
