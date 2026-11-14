@@ -28,7 +28,7 @@ This script:
 
 This script:
 - Configures Git to use the project's custom hooks from `.githooks/`
-- Enables the pre-commit hook, which runs `check-attribution.sh`, then formatting, Clippy, the build and the tests
+- Enables the pre-commit hook, which runs formatting, Clippy, the build and the tests
 
 **Usage**:
 ```bash
@@ -38,17 +38,6 @@ This script:
 **When to use**: When setting up a new development environment or after cloning the repository.
 
 **Note**: You can bypass hooks temporarily with `git commit --no-verify` if needed.
-
-### `check-attribution.sh`
-**Purpose**: Check the last 20 commit messages, the staged commit message and the source files for AI attribution (see the policy in [CONTRIBUTING.md](../CONTRIBUTING.md#critical-policy-no-ai-attribution))
-
-**Usage**:
-```bash
-./scripts/check-attribution.sh
-```
-
-### `clean-attribution-history.sh`
-**Purpose**: Rewrite git history to remove AI attribution from commit messages, after a confirmation and with a backup branch. It rewrites history and needs a force push: use it only in coordination with the maintainers.
 
 ### `pre-release.sh`
 **Purpose**: Comprehensive pre-release validation

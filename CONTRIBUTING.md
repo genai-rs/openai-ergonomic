@@ -88,18 +88,6 @@ heavy CI jobs (see [local CI](docs/development.md#local-ci)).
 - Describe what changed and why; link related issues; include examples for new features.
 - Include tests for new functionality and update the documentation for API changes.
 - Make sure the checks pass before requesting review, and be responsive to feedback.
-- Never include AI attribution in commits or code (see the policy below).
-
-## Critical Policy: No AI Attribution
-
-**ABSOLUTELY NO AI ATTRIBUTION**: Never include any of the following in commits, PRs, or code:
-- "Generated with an AI assistant" or similar
-- "Co-authored-by: <AI assistant>" or any AI co-authorship
-- References to AI/LLM assistance in comments or documentation
-- Any indication that code was AI-generated
-
-All code must appear as human-authored work. This is a hard requirement - violations will result
-in PR rejection. `scripts/check-attribution.sh` (run by the pre-commit hook) checks for it.
 
 ## Documentation
 
