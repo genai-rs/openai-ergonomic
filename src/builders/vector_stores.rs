@@ -204,7 +204,9 @@ impl VectorStoreSearchBuilder {
         self
     }
 
-    /// Add a filter to the search.
+    /// Add a filter to the search: only files whose attribute `key` equals `value` match.
+    ///
+    /// It is sent as an `eq` comparison filter; several filters are combined with `and`.
     #[must_use]
     pub fn filter(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.filter.insert(key.into(), value.into());
