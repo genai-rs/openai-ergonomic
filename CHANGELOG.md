@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.22.0...v0.23.0) - 2026-11-14
+
+### Added
+
+- tool framework on both APIs (Round 5, slice 2)
+
 ## [0.22.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.21.0...v0.22.0) - 2026-11-14
 
 ### Added
