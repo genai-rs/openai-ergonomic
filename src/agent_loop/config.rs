@@ -88,8 +88,13 @@ pub enum PromptCacheKey {
 ///
 /// The delay is the one the server asked for (a `retry-after-ms` or `retry-after` header, or a
 /// "try again in" message), else `base_delay · 2^(attempt − 1)` with ±10 % jitter, at most
-/// `max_delay`. The client's own HTTP retries ([`Config::max_retries`](crate::Config::max_retries))
-/// come first, for failures before the body.
+/// `max_delay`.
+///
+/// A failure before any of the body (a connection, a rate limit or server error status) is
+/// retried here only when the client does not retry it itself: with its own HTTP client
+/// ([`ConfigBuilder::http_client`](crate::ConfigBuilder::http_client)) or with
+/// [`Config::max_retries`](crate::Config::max_retries) 0. The default client's HTTP retries
+/// cover it otherwise, so a request is not retried by both.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct RetryConfig {

@@ -39,7 +39,7 @@ pub use config::{LoopConfig, ModelCaps, PromptCacheKey, RetryConfig, ToolSearchC
 pub use conversation::{Conversation, NormalizeReport, IMAGE_OMITTED};
 
 use crate::builders::Builder;
-use crate::client::per_call::{CallFailure, CallMeta};
+use crate::client::per_call::CallFailure;
 use crate::responses_api::{ResponsesEvent, ResponsesEventKind, ResponsesResponse, ResponsesTool};
 use crate::tool_framework::{Advertise, Exposure, ToolKey};
 use crate::{
@@ -472,7 +472,13 @@ impl<'c, T: Default + MaybeSend + MaybeSync + 'static> ToolLoop<'c, T> {
                 return Ok(end);
             };
             let class = failure.error.retry_class();
-            if !class.is_retryable() || attempt >= self.config.retry.max_retries {
+            // A failure before the body was already retried by the client's own HTTP retries,
+            // when it has them: retrying it here as well would multiply the requests.
+            let retried_by_client = failure.before_body && self.client.retries_requests();
+            if !class.is_retryable()
+                || retried_by_client
+                || attempt >= self.config.retry.max_retries
+            {
                 return Ok(AttemptEnd::Failed(failure));
             }
             attempt += 1;
@@ -693,27 +699,20 @@ impl<'c, T: Default + MaybeSend + MaybeSync + 'static> ToolLoop<'c, T> {
                     continue;
                 }
                 Step::Event(None) => {
-                    return Ok(AttemptEnd::Failed(CallFailure {
-                        error: Error::StreamConnection {
+                    return Ok(AttemptEnd::Failed(CallFailure::from(
+                        Error::StreamConnection {
                             message: "the stream ended before its response did".into(),
                         },
-                        meta: CallMeta::default(),
-                    }));
+                    )));
                 }
                 Step::Event(Some(Err(error))) => {
-                    return Ok(AttemptEnd::Failed(CallFailure {
-                        error,
-                        meta: CallMeta::default(),
-                    }));
+                    return Ok(AttemptEnd::Failed(CallFailure::from(error)));
                 }
                 Step::Event(Some(Ok(event))) => event,
             };
             on_event(LoopEvent::Model(&event));
             if let Some(error) = event.failure() {
-                return Ok(AttemptEnd::Failed(CallFailure {
-                    error,
-                    meta: CallMeta::default(),
-                }));
+                return Ok(AttemptEnd::Failed(CallFailure::from(error)));
             }
             if let ResponseStreamEvent::ResponseOutputItemDoneEvent(done) = event.raw() {
                 if seen.insert(done.output_index) {
@@ -767,10 +766,7 @@ impl<'c, T: Default + MaybeSend + MaybeSync + 'static> ToolLoop<'c, T> {
         };
         turn.rate_limits = response.rate_limits().or(turn.rate_limits);
         if let Some(error) = response.failure() {
-            return Ok(AttemptEnd::Failed(CallFailure {
-                error,
-                meta: CallMeta::default(),
-            }));
+            return Ok(AttemptEnd::Failed(CallFailure::from(error)));
         }
         let mut calls = 0;
         for item in response.output() {

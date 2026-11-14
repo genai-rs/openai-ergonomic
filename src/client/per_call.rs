@@ -46,6 +46,20 @@ impl CallMeta {
 pub struct CallFailure {
     pub(crate) error: Error,
     pub(crate) meta: CallMeta,
+    /// The request failed before any of the body arrived: the connection, or an error status.
+    /// The client's HTTP retries (when it has its own) already retried such a failure.
+    pub(crate) before_body: bool,
+}
+
+impl CallFailure {
+    /// A failure of the request itself, before any of the body: what the HTTP retries cover.
+    fn before_body(error: Error, meta: CallMeta) -> Self {
+        Self {
+            error,
+            meta,
+            before_body: true,
+        }
+    }
 }
 
 impl From<Error> for CallFailure {
@@ -53,6 +67,7 @@ impl From<Error> for CallFailure {
         Self {
             error,
             meta: CallMeta::default(),
+            before_body: false,
         }
     }
 }
@@ -96,7 +111,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
                 let error = self
                     .handle_api_error(error, operation, &model, &request_json, &state)
                     .await;
-                return Err(CallFailure { error, meta });
+                return Err(CallFailure::before_body(error, meta));
             }
         };
         self.call_after_response(
@@ -144,7 +159,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
                 let error = self
                     .handle_api_error(error, operation, &model, &request_json, &state)
                     .await;
-                return Err(CallFailure { error, meta });
+                return Err(CallFailure::before_body(error, meta));
             }
         };
         let usage = response.usage();
@@ -206,9 +221,9 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
                     Err(error) => error,
                     Ok(_) => Error::Internal("a failed response was a success".into()),
                 };
-                CallFailure { error, meta }
+                CallFailure::before_body(error, meta)
             }
-            Err(error) => CallFailure::from(Error::Http(error)),
+            Err(error) => CallFailure::before_body(Error::Http(error), CallMeta::default()),
         };
         self.report_error(&failure.error, operation, &model, &request_json, &state)
             .await;
