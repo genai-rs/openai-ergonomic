@@ -13,6 +13,7 @@ use crate::errors::Result;
 use crate::interceptor::{
     AfterResponseContext, BeforeRequestContext, ErrorContext, InterceptorChain,
 };
+use crate::rate_limits::LatestRateLimits;
 use crate::responses::ChatCompletionResponseWrapper;
 use crate::semantic_conventions::operation_names;
 use crate::time::Instant;
@@ -185,6 +186,7 @@ pub struct ClientBuilder<T = ()> {
     http: HttpClient,
     base_configuration: Configuration,
     interceptors: InterceptorChain<T>,
+    rate_limits: LatestRateLimits,
 }
 
 /// Main client for interacting with the `OpenAI` API.
@@ -212,6 +214,7 @@ pub struct Client<T = ()> {
     http: HttpClient,
     base_configuration: Configuration,
     interceptors: Arc<InterceptorChain<T>>,
+    rate_limits: LatestRateLimits,
 }
 
 // Custom Debug implementation since InterceptorChain doesn't implement Debug
@@ -222,6 +225,7 @@ impl<T> std::fmt::Debug for Client<T> {
             .field("http", &"<HttpClient>")
             .field("base_configuration", &"<Configuration>")
             .field("interceptors", &"<InterceptorChain>")
+            .field("rate_limits", &self.rate_limits)
             .finish()
     }
 }
@@ -277,6 +281,10 @@ impl ClientBuilder {
         http_client =
             http_client.layer(provider.layer_with(headers::organization_headers(&config)?)?);
 
+        // Record the rate limits of every response (`Client::rate_limits`).
+        let rate_limits = LatestRateLimits::default();
+        http_client = http_client.layer(rate_limits.layer());
+
         // Create openai-client-base configuration
         let mut base_configuration = Configuration::new();
         base_configuration.client = http_client.clone();
@@ -291,6 +299,7 @@ impl ClientBuilder {
             http: http_client,
             base_configuration,
             interceptors: InterceptorChain::new(),
+            rate_limits,
         })
     }
 
@@ -370,6 +379,7 @@ impl<T> ClientBuilder<T> {
             http: self.http,
             base_configuration: self.base_configuration,
             interceptors: new_chain,
+            rate_limits: self.rate_limits,
         }
     }
 
@@ -416,6 +426,7 @@ impl<T> ClientBuilder<T> {
             http: self.http,
             base_configuration: self.base_configuration,
             interceptors: Arc::new(self.interceptors),
+            rate_limits: self.rate_limits,
         }
     }
 }
@@ -445,6 +456,15 @@ impl<T> Client<T> {
     /// Get a reference to the HTTP client.
     pub fn http_client(&self) -> &HttpClient {
         &self.http
+    }
+
+    /// The rate limits of the latest response that reported them
+    /// (`x-ratelimit-{limit,remaining,reset}-{requests,tokens}`), for any request of this
+    /// client or its clones, streaming ones included. `None` before the first such response
+    /// (some providers, such as Azure, send other headers).
+    #[must_use]
+    pub fn rate_limits(&self) -> Option<crate::RateLimitSnapshot> {
+        self.rate_limits.get()
     }
 }
 
@@ -712,7 +732,10 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
         let response = self
             .send_event_stream_request(http::Method::POST, "/chat/completions", &request)
             .await?;
-        let stream = crate::streaming::ChatCompletionStream::new(response);
+        let stream = crate::time::idle_timeout(
+            crate::streaming::ChatCompletionStream::new(response),
+            self.config.stream_idle_timeout(),
+        );
 
         let (intercepted, completion) = crate::streaming::InterceptedStream::new_with_completion(
             stream,

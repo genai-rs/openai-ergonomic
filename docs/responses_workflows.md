@@ -115,6 +115,12 @@ then `input_items(first.output_as_input()?)`, then the function call outputs. Wi
 `include(vec![IncludeEnum::ReasoningEncryptedContent])` the reasoning items of reasoning models
 come back encrypted and can be sent back the same way.
 
+With a [`ToolRegistry`](tool_framework.md#the-responses-api), `tools(registry.responses_tools())`
+advertises its function, custom and namespaced tools, `response.tool_invocations()` gives the
+function and custom tool calls, `registry.answer_call(&call)` runs one and
+`call_answer(answer)` appends the answer (a `function_call_output`, or a
+`custom_tool_call_output`, with text or images and files).
+
 Built-in tools are generated `Tool`s; their JSON definition decodes into one:
 
 ```rust,no_run
@@ -177,11 +183,65 @@ JSON is skipped; an event of a type this crate does not know is yielded with
 `ResponseStreamEvent::Unknown`. `send_responses_stream_with_completion` also returns the
 interceptors' completion handle, as for chat: see [streaming](streaming.md).
 
+`event.kind()` is a typed view to `match` on: `Created`, `OutputItemAdded`, `OutputItemDone`
+(a complete item: `event.tool_invocation()` gives a function or custom tool call that can run
+before the response ends), `TextDelta`, `FunctionCallArgumentsDelta`,
+`CustomToolCallInputDelta`, `Completed`, `Incomplete { reason, .. }`, `Failed`, `Error` and
+`Other`:
+
+```rust,no_run
+use futures::StreamExt;
+use openai_ergonomic::{Client, ResponsesEventKind, ToolRegistry};
+
+async fn stream(client: &Client, tools: &ToolRegistry) -> openai_ergonomic::Result<()> {
+    let mut events = client
+        .send_responses_stream(client.responses().tools(tools.responses_tools()).user("Hi"))
+        .await?;
+    let mut answers = Vec::new();
+    while let Some(event) = events.next().await {
+        let event = event?;
+        if let Some(call) = event.tool_invocation() {
+            answers.push(tools.answer_call(&call).await?);
+        }
+        match event.kind() {
+            ResponsesEventKind::TextDelta(text) => print!("{text}"),
+            ResponsesEventKind::Incomplete { reason, .. } => println!("\n[stopped: {reason:?}]"),
+            ResponsesEventKind::Failed(_) | ResponsesEventKind::Error { .. } => {
+                // The failure as an error: retry_class() says whether to try again.
+                let error = event.failure().expect("a failed event has a failure");
+                eprintln!("{error} ({:?})", error.retry_class());
+            }
+            _ => {}
+        }
+    }
+    println!("{} tool calls answered", answers.len());
+    Ok(())
+}
+```
+
+## Failures, retries and rate limits
+
+A response that failed on the model's side is not an `Error` of the call, but
+`response.failure()` (or `event.failure()` for a `response.failed` or `error` event) turns it into
+`Error::ResponseFailed { code, message }`. `Error::retry_class()` says how any error may be
+retried: `RetryClass::Never` (client errors, `insufficient_quota`, `context_length_exceeded`,
+invalid prompts and images), `ServerDirected { after }` (a rate limit whose message says when to
+try again) or `Backoff` (other rate limits, server errors, failed responses with other codes,
+connection failures, cut-off streams). The client retries an HTTP request that fails before its
+body (`ConfigBuilder::max_retries`); a stream that fails midway has to be sent again as a whole.
+
+`ConfigBuilder::stream_idle_timeout(Duration)` ends a stream with `Error::StreamConnection` when
+no event arrives for that long (not set by default). `client.rate_limits()` returns the
+`x-ratelimit-*` headers of the latest response (`RateLimitSnapshot`: limit, remaining and reset of
+requests and tokens), streaming responses included.
+
 ## Stored responses
 
 `client.responses_api()` retrieves (`retrieve(id)`), cancels (`cancel(id)`, for background
-responses) and deletes (`delete(id)`) stored responses; `create` and `create_stream` are the
-same as `send_responses` and `send_responses_stream`.
+responses) and deletes (`delete(id)`) stored responses, and lists their input items
+(`list_input_items(id)`, or a page with `list_input_items_page(id, limit, after)`, oldest
+first); `create` and `create_stream` are the same as `send_responses` and
+`send_responses_stream`.
 
 Examples: [`responses_comprehensive.rs`](../examples/responses_comprehensive.rs),
 [`responses_streaming.rs`](../examples/responses_streaming.rs),

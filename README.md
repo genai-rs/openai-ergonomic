@@ -49,11 +49,14 @@ goes on from here: the Responses API, streaming, errors and the examples.
 - **Providers**: `OpenAI`, Azure `OpenAI`, `OpenRouter`, Groq, Ollama or any `OpenAI`-compatible
   API, with refreshable credentials (Entra ID tokens, gateways) through an `AuthProvider`
   ([configuration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/configuration.md)).
-- **A tower HTTP stack** with retries (honouring `Retry-After`), timeouts and layers of your own
+- **A tower HTTP stack** with retries (honouring `Retry-After`), timeouts, stream idle timeouts,
+  rate-limit headers, a retry classification of errors and layers of your own
   ([configuration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/configuration.md#retries-timeouts-and-custom-http-clients)).
 - **Streaming** of chat completions and of Responses API events, with completion reports
   ([streaming](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/streaming.md)).
-- **Tools**: a typed function-tool framework and registry
+- **Tools** for chat completions and the Responses API: typed function tools, tools that return
+  images or files, custom (grammar) tools, namespaces and tools only known at runtime (MCP), in a
+  registry that answers every call
   ([tools](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_framework.md)).
 - **Interceptors** around every request and stream, with a Langfuse / OpenTelemetry integration
   ([interceptors](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/interceptors.md)).
@@ -74,7 +77,7 @@ goes on from here: the Responses API, streaming, errors and the examples.
 | [Configuration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/configuration.md) | providers (Azure, `OpenRouter`, Groq, Ollama, custom), authentication, retries, timeouts, custom HTTP clients, per-call options |
 | [Chat and responses](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/chat-and-responses.md), [Responses workflows](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/responses_workflows.md) | the builders, structured output, vision, bring your own types |
 | [Streaming](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/streaming.md), [completion contract](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/streaming-completion-contract.md) | streamed chat completions and responses, completion reports |
-| [Tool framework](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_framework.md), [tool orchestration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_orchestration.md) | typed function tools, the registry, multi-turn tool calling |
+| [Tool framework](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_framework.md), [tool orchestration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_orchestration.md) | typed tools, the registry, answering calls on both APIs, multi-turn tool calling |
 | [Interceptors](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/interceptors.md), [Langfuse integration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/langfuse-integration.md) | hooks around requests and streams, typed state, Langfuse / OpenTelemetry |
 | [Files and media](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/files-and-media.md), [vector stores](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/vector_store_operations.md) | uploads (`Upload`), large files, images, speech, downloads |
 | [Webhooks](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/webhooks.md) | signature verification and events (feature `webhook`) |

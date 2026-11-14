@@ -1,6 +1,6 @@
 //! WebAssembly: the client in a JavaScript host against a scripted HTTP service (a tower service
 //! that is not `Send`, in place of a server): a chat completion, a streamed one with an
-//! interceptor, a streamed Responses API response, an interceptor whose state holds an `Rc`, a tool call through the tool framework, a webhook verification, and retries with
+//! interceptor, a streamed Responses API response, an interceptor whose state holds an `Rc`, a tool call through the tool framework (chat, and the Responses API with a dynamic tool), a webhook verification, and retries with
 //! backoff (the runtime's retry layer, and the parts of a large upload).
 //!
 //! `cargo test --target wasm32-unknown-unknown --no-default-features --features webhook --test wasm`, with
@@ -18,8 +18,9 @@ use std::time::Duration;
 
 use futures::StreamExt;
 use openai_ergonomic::{
-    AfterResponseContext, BeforeRequestContext, Client, Config, FunctionTool, Interceptor,
-    StreamChunkContext, StreamTerminalContext, ToolRegistry, UploadPurpose,
+    AfterResponseContext, BeforeRequestContext, Client, Config, DynamicTool, FunctionTool,
+    Interceptor, StreamChunkContext, StreamTerminalContext, ToolOutputBody, ToolRegistry,
+    UploadPurpose,
 };
 use serde_json::{json, Value};
 use timvw_rust_runtime::retry::{RetryLayer, RetryPolicy};
@@ -409,6 +410,80 @@ async fn tool_call_through_the_tool_framework() {
     let second: Value = serde_json::from_slice(&seen[1].body).unwrap();
     assert_eq!(second["tools"][0]["function"]["name"], "add");
     assert_eq!(second["messages"][2]["tool_call_id"], "call_1");
+}
+
+#[wasm_bindgen_test]
+async fn responses_tool_calls_answered_by_a_dynamic_tool() {
+    let response = |output: &Value| {
+        json!({
+            "id": "resp_1", "object": "response", "created_at": 1, "status": "completed",
+            "error": null, "incomplete_details": null, "instructions": null,
+            "model": "gpt-4.1-mini", "output": output, "parallel_tool_calls": true,
+            "tools": [], "metadata": {}
+        })
+    };
+    let (http, seen) = scripted(move |index, _| {
+        if index == 0 {
+            json_reply(&response(&json!([{
+                "type": "function_call", "id": "fc_1", "call_id": "call_1",
+                "name": "math__add", "arguments": "{\"a\": 2, \"b\": 40}", "status": "completed"
+            }])))
+        } else {
+            json_reply(&response(&json!([{
+                "type": "message", "id": "msg_1", "status": "completed", "role": "assistant",
+                "content": [{"type": "output_text", "text": "42", "annotations": []}]
+            }])))
+        }
+    });
+    let client = client(http);
+
+    // A dynamic tool whose handler holds an `Rc`: not `Send`, as WebAssembly allows.
+    let calls = Rc::new(Cell::new(0));
+    let counter = calls.clone();
+    let mut tools = ToolRegistry::new();
+    let name = tools
+        .register_dynamic(
+            DynamicTool::new(
+                "add",
+                "Adds two integers",
+                json!({"properties": {"a": {"type": "integer"}, "b": {"type": "integer"}}}),
+                move |arguments: Value| {
+                    let counter = counter.clone();
+                    async move {
+                        gloo_timers::future::sleep(Duration::from_millis(1)).await;
+                        counter.set(counter.get() + 1);
+                        let sum =
+                            arguments["a"].as_i64().unwrap() + arguments["b"].as_i64().unwrap();
+                        Ok(ToolOutputBody::text(sum.to_string()))
+                    }
+                },
+            )
+            .prefix("math"),
+        )
+        .unwrap();
+    assert_eq!(name, "math__add");
+
+    let builder = client
+        .responses()
+        .tools(tools.responses_tools())
+        .store(false)
+        .user("What is 2 + 40?");
+    let first = client.send_responses(builder.clone()).await.unwrap();
+    let mut next = builder.input_items(first.output_as_input().unwrap());
+    for call in first.tool_invocations() {
+        next = next.call_answer(tools.answer_call(&call).await.unwrap());
+    }
+    let answer = client.send_responses(next).await.unwrap();
+    assert_eq!(answer.output_text(), "42");
+    assert_eq!(calls.get(), 1);
+
+    let seen = seen.borrow();
+    let second: Value = serde_json::from_slice(&seen[1].body).unwrap();
+    assert_eq!(second["tools"][0]["name"], "math__add");
+    assert_eq!(
+        second["input"][2],
+        json!({"type": "function_call_output", "call_id": "call_1", "output": "42"})
+    );
 }
 
 #[wasm_bindgen_test]

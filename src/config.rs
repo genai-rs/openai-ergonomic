@@ -9,6 +9,7 @@ use crate::provider::{Provider, ProviderKind, OPENAI_BASE_URL};
 use crate::{errors::Result, Error};
 #[cfg(not(target_family = "wasm"))]
 use std::env;
+use std::time::Duration;
 use timvw_rust_runtime::Client as HttpClient;
 
 /// The model of `client.chat()` and `client.responses()` when neither
@@ -75,6 +76,7 @@ pub struct Config {
     azure_api_version: Option<String>,
     provider: Option<Provider>,
     auth_provider: Option<SharedAuthProvider>,
+    stream_idle_timeout: Option<Duration>,
 }
 
 impl std::fmt::Debug for Config {
@@ -97,6 +99,7 @@ impl std::fmt::Debug for Config {
             .field("azure_api_version", &self.azure_api_version)
             .field("provider", &self.provider)
             .field("auth_provider", &self.auth_provider)
+            .field("stream_idle_timeout", &self.stream_idle_timeout)
             .finish()
     }
 }
@@ -167,6 +170,7 @@ impl Config {
             azure_api_version,
             provider: None,
             auth_provider: None,
+            stream_idle_timeout: None,
         })
     }
 
@@ -296,6 +300,11 @@ impl Config {
         }
     }
 
+    /// The idle timeout of streaming responses ([`ConfigBuilder::stream_idle_timeout`]).
+    pub fn stream_idle_timeout(&self) -> Option<Duration> {
+        self.stream_idle_timeout
+    }
+
     /// Check if this configuration is for Azure `OpenAI`.
     pub fn is_azure(&self) -> bool {
         if let Some(provider) = &self.provider {
@@ -319,6 +328,7 @@ impl Default for Config {
             azure_api_version: None,
             provider: None,
             auth_provider: None,
+            stream_idle_timeout: None,
         }
     }
 }
@@ -337,6 +347,7 @@ pub struct ConfigBuilder {
     azure_api_version: Option<String>,
     provider: Option<Provider>,
     auth_provider: Option<SharedAuthProvider>,
+    stream_idle_timeout: Option<Duration>,
 }
 
 impl std::fmt::Debug for ConfigBuilder {
@@ -484,6 +495,18 @@ impl ConfigBuilder {
         self
     }
 
+    /// End a streaming response (chat or Responses API) with [`Error::StreamConnection`] when
+    /// no event arrives for `limit`: a server or a proxy that keeps the connection open but
+    /// stopped sending. Every event restarts the clock; there is no limit on the whole stream.
+    /// Not set by default.
+    ///
+    /// [`Error::StreamConnection`]: crate::Error::StreamConnection
+    #[must_use]
+    pub fn stream_idle_timeout(mut self, limit: Duration) -> Self {
+        self.stream_idle_timeout = Some(limit);
+        self
+    }
+
     /// Build the configuration.
     #[must_use]
     pub fn build(self) -> Config {
@@ -503,6 +526,7 @@ impl ConfigBuilder {
             azure_api_version: self.azure_api_version,
             provider: self.provider,
             auth_provider: self.auth_provider,
+            stream_idle_timeout: self.stream_idle_timeout,
         }
     }
 }

@@ -11,7 +11,9 @@ A chat stream completes at `data: [DONE]`, or when the body ends after a chunk w
 `finish_reason`; a body that ends before either was cut off, and the stream yields
 `Error::StreamConnection` as its last item. A Responses stream completes with its terminal event
 (`response.completed`, `response.incomplete`, `response.failed` or `error`); a body that ends
-before one yields `Error::StreamConnection` too.
+before one yields `Error::StreamConnection` too. With
+[`stream_idle_timeout`](configuration.md#retries-timeouts-and-custom-http-clients) set, a stream
+that receives no event for that long ends with `Error::StreamConnection` as well.
 
 ```rust,no_run
 use futures::StreamExt;
