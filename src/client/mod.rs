@@ -451,6 +451,14 @@ impl<T> Client<T> {
         &self.config
     }
 
+    /// Whether this client retries a failed request itself: the default HTTP client does, with
+    /// [`Config::max_retries`] retries. A client given with
+    /// [`ConfigBuilder::http_client`](crate::ConfigBuilder::http_client) brings its own layers, so
+    /// this is `false` for it.
+    pub(crate) fn retries_requests(&self) -> bool {
+        self.config.http_client().is_none() && self.config.max_retries() > 0
+    }
+
     /// Get a reference to the HTTP client.
     pub fn http_client(&self) -> &HttpClient {
         &self.http

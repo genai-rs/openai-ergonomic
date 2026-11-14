@@ -232,8 +232,14 @@ A request that fails as a whole (a connection error, a stream cut off or failed 
 `base_delay · 2^(n − 1)` with ±10 % jitter (default from 200 ms), at most `max_delay` (60 s).
 
 The calls the failed attempt started are not run again: the loop waits for them and records
-their answers, and the retry carries them. The client's own HTTP retries
-(`ConfigBuilder::max_retries`) come first, for failures before the body.
+their answers, and the retry carries them.
+
+A failure before any of the body (a refused connection, a rate limit or server error status) is
+what the client's own HTTP retries (`ConfigBuilder::max_retries`, default 3) cover. With the
+default HTTP client the loop leaves those to it and retries only what it cannot: a stream cut off
+or failed midway, and `response.failed` or `error` events. So one request is never retried by
+both. With your own client (`ConfigBuilder::http_client`), or `max_retries(0)`, the loop also
+retries failures before the body.
 
 ```rust
 use std::time::Duration;

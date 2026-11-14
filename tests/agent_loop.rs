@@ -749,6 +749,51 @@ async fn the_history_is_repaired_before_the_request() {
     assert_eq!(outputs[0]["output"], "aborted");
 }
 
+/// With the default HTTP client, which retries a rate limit itself, the loop does not retry it
+/// again: `max_retries(1)` gives two requests in all, not two for each of the loop's attempts.
+#[tokio::test]
+async fn the_loop_leaves_failures_before_the_body_to_the_clients_retries() {
+    let mut server = mockito::Server::new_async().await;
+    let mock = server
+        .mock("POST", "/responses")
+        .with_status(429)
+        .with_header("content-type", "application/json")
+        .with_header("retry-after-ms", "1")
+        .with_body(
+            json!({"error": {"message": "slow down", "type": "requests", "code": "rate_limit_exceeded"}})
+                .to_string(),
+        )
+        .expect(2)
+        .create_async()
+        .await;
+    let config = Config::builder()
+        .api_key("test-key")
+        .api_base(server.url())
+        .default_model("gpt-4.1-mini")
+        .max_retries(1)
+        .build();
+    let client = Client::builder(config).unwrap().build();
+    let mut agent = ToolLoop::responses(&client, weather_tools(), template())
+        .with_config(LoopConfig::new().with_retry(RetryConfig::new(5)));
+    let mut retries = 0;
+    let error = agent
+        .run_with(
+            &mut Conversation::user("hi"),
+            &CancellationSignal::new(),
+            |event| {
+                if matches!(event, LoopEvent::Retrying { .. }) {
+                    retries += 1;
+                }
+            },
+        )
+        .await
+        .unwrap_err();
+    assert!(error.is_rate_limit(), "{error}");
+    assert_eq!(retries, 0);
+    mock.assert_async().await;
+    drop(server);
+}
+
 #[tokio::test]
 async fn a_rate_limited_request_is_retried_after_retry_after() {
     let (client, seen) = scripted(|index, _| match index {
