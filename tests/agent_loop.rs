@@ -652,7 +652,10 @@ async fn max_iterations_stops_with_every_call_answered() {
     assert_eq!(outcome.stop, LoopStop::MaxIterations);
     assert_eq!(outcome.turns.len(), 2);
     assert_eq!(seen.lock().unwrap().len(), 2);
-    assert!(conversation.unanswered_calls().is_empty());
+    assert_eq!(
+        conversation.unanswered_calls(),
+        Vec::<openai_ergonomic::ToolInvocation>::new()
+    );
     assert_eq!(conversation.calls().len(), 2);
     // A new run continues where it stopped.
     let outcome = agent.run(&mut conversation).await.unwrap();
@@ -697,7 +700,10 @@ async fn cancellation_aborts_running_calls_and_leaves_a_valid_history() {
     assert!(started.elapsed() < Duration::from_secs(5));
     assert_eq!(outcome.stop, LoopStop::Cancelled);
     assert_eq!(seen.lock().unwrap().len(), 1);
-    assert!(conversation.unanswered_calls().is_empty());
+    assert_eq!(
+        conversation.unanswered_calls(),
+        Vec::<openai_ergonomic::ToolInvocation>::new()
+    );
     let outputs: Vec<Value> = conversation
         .items()
         .iter()
@@ -717,7 +723,7 @@ async fn cancellation_aborts_running_calls_and_leaves_a_valid_history() {
         .await
         .unwrap();
     assert_eq!(outcome.stop, LoopStop::Cancelled);
-    assert!(outcome.turns.is_empty());
+    assert_eq!(outcome.turns, Vec::<openai_ergonomic::TurnRecord>::new());
 }
 
 #[tokio::test]

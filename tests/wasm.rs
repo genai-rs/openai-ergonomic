@@ -818,6 +818,9 @@ async fn tool_loop_cancellation() {
         .await
         .unwrap();
     assert_eq!(outcome.stop, LoopStop::Cancelled);
-    assert!(conversation.unanswered_calls().is_empty());
+    assert_eq!(
+        conversation.unanswered_calls(),
+        Vec::<openai_ergonomic::ToolInvocation>::new()
+    );
     assert_eq!(*log.borrow(), ["stuck start"]);
 }
