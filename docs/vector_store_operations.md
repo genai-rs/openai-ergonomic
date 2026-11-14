@@ -1,93 +1,58 @@
-# Vector Store Operations
+# Vector stores
 
-Vector stores let assistants perform Retrieval-Augmented Generation (RAG) over large document corpora. The builder module in `openai-ergonomic` wraps the verbose OpenAI payloads with fluent, type-safe helpers.
+Vector stores hold uploaded files, chunked and embedded, for semantic search and for the
+assistants' `file_search` tool. `client.vector_stores()` creates, lists, gets, updates and
+deletes stores, adds and removes their files, and searches them.
 
-## Creating a Vector Store
+```rust,no_run
+use openai_ergonomic::builders::vector_stores::{VectorStoreBuilder, VectorStoreSearchBuilder};
+use openai_ergonomic::Client;
 
-```rust
-use openai_ergonomic::builders::vector_stores::VectorStoreBuilder;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?.build();
+    let stores = client.vector_stores();
 
-let builder = VectorStoreBuilder::new()
-    .name("Engineering Knowledge Base")
-    .add_files([
-        "file-release-notes".to_string(),
-        "file-architecture-doc".to_string(),
-    ])
-    .metadata("owner", "platform-team")
-    .expires_after_days(30);
+    // A store with files already uploaded with the `assistants` purpose
+    let store = stores
+        .create(
+            VectorStoreBuilder::new()
+                .name("Engineering knowledge base")
+                .add_files(["file-release-notes", "file-architecture-doc"])
+                .metadata("owner", "platform-team")
+                .expires_after_days(30),
+        )
+        .await?;
 
-let mut request = openai_client_base::models::CreateVectorStoreRequest::new();
-request.name = builder.name_ref().map(|name| name.to_string());
-if builder.has_files() {
-    request.file_ids = Some(builder.file_ids_ref().to_vec());
+    // Another file later
+    stores.add_file(&store.id, "file-customer-faq").await?;
+    let files = stores.list_files(&store.id, Some(20), None, None, None, None).await?;
+    println!("{} files", files.data.len());
+
+    // Semantic search
+    let results = stores
+        .search(VectorStoreSearchBuilder::new(&store.id, "how do we roll back a release?").limit(5))
+        .await?;
+    for result in &results.data {
+        println!("{} ({:.2})", result.filename, result.score);
+    }
+
+    stores.delete(&store.id).await?;
+    Ok(())
 }
-if let Some(expiry) = builder.expires_after_ref() {
-    request.expires_after = Some(Box::new(
-        openai_client_base::models::VectorStoreExpirationAfter::new(
-            openai_client_base::models::vector_store_expiration_after::Anchor::LastActiveAt,
-            expiry.days,
-        ),
-    ));
-}
-if !builder.metadata_ref().is_empty() {
-    request.metadata = Some(builder.metadata_ref().clone());
-}
 ```
 
-`VectorStoreBuilder` keeps track of file IDs, expiration policies, and metadata. The resulting request can be passed to `openai-client-base` or any HTTP client targeting the `/vector_stores` endpoint.
+`VectorStoreSearchBuilder::filter(key, value)` records attribute filters on the builder, but
+`search` sends only the query and `limit` (as `max_num_results`). For attribute filters, ranking
+options or query rewriting, send a `VectorStoreSearchRequest` with the generated
+`openai-client-base` operation (see [the generated operations](chat-and-responses.md#the-generated-operations)).
 
-## Managing Files in a Store
+## With assistants
 
-The `VectorStoreFileBuilder` helper targets endpoints that manipulate individual files inside a store.
+Attach a store to an assistant's `file_search` tool, or attach files to a thread message for
+file search with `MessageAttachment::for_file_search(file_id)` (see
+[tool orchestration](tool_orchestration.md#assistants-and-threads)).
 
-```rust
-use openai_ergonomic::builders::vector_stores::VectorStoreFileBuilder;
-
-let add_file = VectorStoreFileBuilder::new("vs_123", "file_customer_faq");
-let request = add_file.build()?; // Creates `CreateVectorStoreFileRequest`
-```
-
-You can combine this with batch operations (e.g. `add_files`) to keep stores in sync with your document pipeline.
-
-## Searching a Store
-
-Vector store search requests allow structured filtering in addition to the query text.
-
-```rust
-use openai_ergonomic::builders::vector_stores::VectorStoreSearchBuilder;
-
-let search = VectorStoreSearchBuilder::new("vs_123", "rust mutex explanation")
-    .limit(5)
-    .filter("document_type", "postmortem");
-
-let request = search.build()?; // `QueryVectorStoreRequest`
-```
-
-Filters are recorded in a `HashMap<String, String>` and serialised automatically. This makes it easy to build higher-level abstractions (for example, mapping structured UI filters into query metadata).
-
-## Thread Integration
-
-Combine vector stores with the thread builders introduced in `threads.rs` to expose knowledge bases to the file search tool:
-
-```rust
-use openai_ergonomic::builders::threads::{
-    MessageAttachment, ThreadMessageBuilder, ThreadRequestBuilder,
-};
-
-let thread_builder = ThreadRequestBuilder::new()
-    .user_message("Summarise the latest release notes")
-    .message_builder(
-        ThreadMessageBuilder::assistant("I will reference the knowledge base.")
-            .attachment(MessageAttachment::for_file_search("file-release-notes")),
-    )?;
-```
-
-Once the vector store is attached to a thread on the server, assistants can seamlessly ground their answers using the uploaded documents.
-
-## Summary
-
-- Use `VectorStoreBuilder` to construct create/update payloads without manually juggling JSON.
-- `VectorStoreFileBuilder` and `VectorStoreSearchBuilder` cover file-level and semantic search operations.
-- Thread attachments (`MessageAttachment::for_file_search`) bridge stores into the Assistants surface, enabling consistent RAG experiences.
-
-These builders isolate the low-level wiring so you can focus on the workflow logic—whether you're syncing documents, performing ad-hoc searches, or powering full assistants.
+Examples: [`vector_stores.rs`](../examples/vector_stores.rs),
+[`assistants_file_search.rs`](../examples/assistants_file_search.rs). Uploading the files
+themselves: [files and media](files-and-media.md).

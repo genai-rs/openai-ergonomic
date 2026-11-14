@@ -167,19 +167,21 @@ building or sending those requests.
 
 ## Upgrading to 0.7
 
-The generated request structs now use nested options for fields that distinguish
-an omitted JSON property from an explicit `null`. Set values with two `Some`s,
-use `Some(None)` for `null`, and leave fields at `None` to omit them. Read values
-with `.flatten()`. Ergonomic builders generally omit unset optional fields and
-preserve explicit values; `RunBuilder` defaults to sending `stream: false`.
+Version 0.7 moved to `openai-client-base` 0.16 and required Rust 1.88 or newer. Most builder
+method signatures stayed the same. The generated request structs that `Builder::build()` returns
+use nested options (`Option<Option<T>>`) for optional fields whose wire format distinguishes an
+omitted JSON property from an explicit `null`: changed fields in chat and legacy completion
+requests, image generation requests, run and fine-tuning requests, and vector store updates.
+Set a value with two `Some`s, send `null` with `Some(None)`, and leave a field at `None` to omit
+it. Read values with `.flatten()`.
 
 ```rust
 use openai_client_base::models::CreateCompletionRequest;
 
 let mut request = CreateCompletionRequest::new("gpt-4".into(), "Hello".into());
-request.stream = Some(Some(false));
-request.stop = Some(None);
-request.n = None;
+request.stream = Some(Some(false)); // sends `"stream": false`
+request.stop = Some(None);          // sends `"stop": null`
+request.n = None;                   // omits `n`
 
 let max_tokens: Option<i64> = request.max_tokens.flatten();
 let json = serde_json::to_value(request).unwrap();
@@ -188,4 +190,8 @@ assert!(json["stop"].is_null());
 assert!(json.get("n").is_none());
 ```
 
-The [0.7 migration guide](migration-0.7.md) has the details of the generated request field changes.
+The ergonomic builders omit optional fields you leave unset and keep the values you set,
+including empty strings, `false` and zero: `.stream(false)` sends `"stream": false`. Some
+builders have deliberate defaults: `RunBuilder` sends `"stream": false` unless streaming is
+enabled. Streamed chunks keep the generated distinction between a missing and a `null`
+`finish_reason`; the `finish_reason()` helper returns `None` for both.

@@ -1,4 +1,4 @@
-//! Configure an OTLP/HTTP exporter for Langfuse with OpenTelemetry 0.32.
+//! Configure an OTLP/HTTP exporter for Langfuse.
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use opentelemetry_otlp::{SpanExporter, WithExportConfig, WithHttpConfig};

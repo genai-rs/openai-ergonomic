@@ -1,19 +1,13 @@
-# Langfuse Integration for OpenAI Ergonomic
+# Langfuse integration
 
-This document describes the Langfuse middleware integration for comprehensive LLM observability using OpenTelemetry.
+With the `otel` feature (on by default), `LangfuseInterceptor` records every request the
+builders send as an OpenTelemetry span with the GenAI semantic conventions, and
+`langfuse_exporter_from_env` exports the spans to [Langfuse](https://langfuse.com) over
+OTLP/HTTP. The interceptor only creates spans: your application owns the tracer provider and
+shuts it down. [Interceptors](interceptors.md#langfuse-and-opentelemetry) has the basic setup;
+this page has the rest.
 
-## Overview
-
-The Langfuse interceptor provides OpenTelemetry-based observability for OpenAI API interactions. It captures detailed traces including:
-- Request/response payloads
-- Token usage metrics
-- Streaming chunk tracking
-- Error capture and reporting
-- Performance metrics (duration, latency)
-
-## Installation
-
-The Langfuse integration is included in the main crate. Ensure your `Cargo.toml` includes:
+## Installing
 
 ```bash
 cargo add openai-ergonomic
@@ -22,236 +16,242 @@ cargo add opentelemetry --features trace
 cargo add opentelemetry_sdk --features rt-tokio,trace,experimental_trace_batch_span_processor_with_async_runtime
 ```
 
-Use the OpenTelemetry minor version that `openai-ergonomic` depends on (see its `Cargo.toml`);
-mixing two OpenTelemetry versions makes the tracer types incompatible.
+Use the OpenTelemetry release family that `openai-ergonomic` depends on (see its `Cargo.toml`, or
+`cargo tree -i opentelemetry`): two OpenTelemetry versions in one build have incompatible tracer
+types.
 
 ## Configuration
 
-### Environment Variables
+| Variable | Read by | Meaning |
+| --- | --- | --- |
+| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | `langfuse_exporter_from_env` | the project's keys (required) |
+| `LANGFUSE_HOST` | `langfuse_exporter_from_env` | another Langfuse (default `https://cloud.langfuse.com`) |
+| `LANGFUSE_DEBUG` | `LangfuseConfig::new()` | `true` logs each span with `tracing` at debug level |
 
-Configure Langfuse using environment variables:
+The exporter sends to `{LANGFUSE_HOST}/api/public/otel/v1/traces` with Basic authentication.
+`LangfuseConfig` has a single setting, `with_debug(bool)`; batching, export intervals and
+timeouts are the tracer provider's (the `BatchSpanProcessor` builder), not the interceptor's.
 
-- `LANGFUSE_PUBLIC_KEY` (required): Your Langfuse public key (starts with "pk-lf-")
-- `LANGFUSE_SECRET_KEY` (required): Your Langfuse secret key (starts with "sk-lf-")
-- `LANGFUSE_HOST` (optional): Langfuse API host (defaults to "https://cloud.langfuse.com")
-- `LANGFUSE_SESSION_ID` (optional): Session ID for grouping related traces
-- `LANGFUSE_USER_ID` (optional): User ID for attribution
-- `LANGFUSE_RELEASE` (optional): Release version
-- `LANGFUSE_DEBUG` (optional): Enable debug logging ("true"/"false", defaults to "false")
+To build the exporter in code instead (another host, extra headers such as
+`x-langfuse-ingestion-version`, a custom HTTP client), use any `opentelemetry_otlp::SpanExporter`
+of the same OpenTelemetry family, for example
+[opentelemetry-langfuse](https://github.com/genai-rs/opentelemetry-langfuse)'s
+`ExporterBuilder`. This snippet is `ignore`d because opentelemetry-langfuse is not a dependency
+of this crate:
 
-### Programmatic Configuration
+```rust,ignore
+use opentelemetry_langfuse::ExporterBuilder;
 
-You can also configure Langfuse programmatically:
-
-```rust
-use openai_ergonomic::{LangfuseConfig, LangfuseInterceptor};
-use std::time::Duration;
-
-let config = LangfuseConfig::new(
-    "https://cloud.langfuse.com",
-    "pk-lf-your-public-key",
-    "sk-lf-your-secret-key"
-)
-.with_session_id("session-123")
-.with_user_id("user-456")
-.with_release("v1.0.0")
-.with_timeout(Duration::from_secs(15))
-.with_debug(true);
-
-let interceptor = LangfuseInterceptor::new(config)?;
-```
-
-## Usage
-
-### Basic Usage
-
-Follow the [compiled Langfuse setup](interceptors.md#langfuse-and-opentelemetry).
-It is checked by `cargo test --doc --all-features` as a `no_run` doctest. It constructs the exporter,
-tracer provider, and interceptor, sends a request with `send_chat`, and flushes
-spans before exiting. Compilation needs no credentials or live API calls.
-
-Set `OPENAI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, and `LANGFUSE_SECRET_KEY` only when
-running it.
-
-### Advanced Configuration with Builder
-
-```rust
-use openai_ergonomic::{Client, LangfuseInterceptorBuilder};
-use std::time::Duration;
-
-let interceptor = LangfuseInterceptorBuilder::new()
-    .with_credentials("pk-lf-...", "sk-lf-...")
+let exporter = ExporterBuilder::new()
     .with_host("https://cloud.langfuse.com")
-    .with_session_id("session-123")
-    .with_user_id("user-456")
-    .with_release("v1.0.0")
-    .with_batch_size(50)
-    .with_export_interval(Duration::from_secs(10))
-    .with_timeout(Duration::from_secs(30))
-    .with_debug(true)
+    .with_basic_auth("pk-lf-...", "sk-lf-...")
     .build()?;
-
-let client = Client::from_env()?
-    .with_interceptor(interceptor)
-    .build();
+// ExporterBuilder::from_env()? reads the same LANGFUSE_* variables.
 ```
 
-## Traced Operations
+## Sessions, users, tags and metadata
 
-The interceptor automatically traces:
+The interceptor adds the attributes of its `LangfuseContext` to every span it starts:
+`set_session_id`, `set_user_id`, `add_tag` / `add_tags` and `set_metadata` on the interceptor
+(or on `interceptor.context()`, which also has `set_trace_name` and `set_attribute`), and
+`clear_context` to remove them. The context is shared by every request of the client, so set it
+per client (or per application), not per concurrent request.
 
-1. **Chat Completions**: Captures messages, model, temperature, max tokens, and response content
-2. **Embeddings**: Tracks input text and embedding generation
-3. **Streaming**: Records individual chunks and aggregates streaming metrics
-4. **Errors**: Captures error details with full context
+```rust,no_run
+# #[cfg(feature = "otel")]
+# mod demo {
+use openai_ergonomic::{langfuse_exporter_from_env, Client, LangfuseConfig, LangfuseInterceptor};
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::{
+    runtime::Tokio,
+    trace::{span_processor_with_async_runtime::BatchSpanProcessor, SdkTracerProvider},
+};
+use serde_json::json;
 
-## Span Attributes
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = SdkTracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(langfuse_exporter_from_env()?, Tokio).build())
+        .build();
 
-Spans include semantic attributes following OpenTelemetry conventions:
+    let interceptor = LangfuseInterceptor::new(
+        provider.tracer("openai-ergonomic"),
+        LangfuseConfig::new().with_debug(true),
+    );
+    interceptor.set_session_id("session-123");
+    interceptor.set_user_id("user-456");
+    interceptor.add_tag("docs");
+    interceptor.set_metadata(json!({"release": "2026-11"}));
+    interceptor.context().set_trace_name("greeting");
 
-- `gen_ai.system`: Always "openai"
-- `gen_ai.operation.name`: Operation type (e.g., "chat", "embedding")
-- `gen_ai.request.model`: Model used
-- `gen_ai.request.temperature`: Temperature parameter
-- `gen_ai.request.max_tokens`: Max tokens parameter
-- `gen_ai.usage.input_tokens`: Input token count
-- `gen_ai.usage.output_tokens`: Output token count
-- `gen_ai.response.id`: Response ID from OpenAI
-- Custom attributes for duration, streaming metrics, etc.
+    let client = Client::from_env()?.with_interceptor(interceptor).build();
+    let result = client.send_chat(client.chat_simple("Hello!")).await;
 
-## Batching and Performance
+    // The Tokio batch processor needs the runtime while shutdown waits for export.
+    tokio::task::spawn_blocking(move || provider.shutdown()).await??;
+    println!("{}", result?.content().unwrap_or_default());
+    Ok(())
+}
+# }
+```
 
-The interceptor uses OpenTelemetry's batch span processor for efficient trace export:
+## What a span holds
 
-- Default batch size: 100 spans
-- Default export interval: 5 seconds
-- Default timeout: 10 seconds
+One span per request, named after the operation (`chat`, `embeddings`, ...), of kind `Client`:
 
-These can be customized via configuration.
+- `gen_ai.system` (`openai`), `gen_ai.operation.name`, `gen_ai.request.model`,
+  `gen_ai.request.temperature` and `gen_ai.request.max_tokens` when set;
+- the prompt (`gen_ai.prompt.{i}.role` / `.content`) and the completion
+  (`gen_ai.completion.{i}.role` / `.content`);
+- `gen_ai.usage.input_tokens` / `output_tokens`, `gen_ai.response.id`, `duration_ms`;
+- for streams, `stream.total_chunks`, `stream.duration_ms` and `stream.outcome` (`completed`,
+  `failed` or `cancelled`);
+- on failure, `error.type` and `error.message` and an error status;
+- the `langfuse.*` attributes of the context (`langfuse.session.id`, `langfuse.user.id`,
+  `langfuse.trace.tags`, `langfuse.trace.metadata`, `langfuse.trace.name`).
+
+The spans start from the current OpenTelemetry context, so they nest under an active span of
+your own.
+
+## Streaming
+
+Streamed requests (`send_chat_stream_with_completion`, `send_responses_stream_with_completion`)
+are traced too: `before_request` starts the span, `on_stream_chunk` sees each accepted chunk in
+order and `on_stream_terminal` ends the span once, also when the stream fails or is dropped.
+The callbacks run in the background: wait for the `StreamCompletion` before shutting the
+provider down, or the last spans are lost (see the
+[completion contract](streaming-completion-contract.md)).
+
+```rust,no_run
+# #[cfg(feature = "otel")]
+# mod demo {
+use futures::StreamExt;
+use openai_ergonomic::{langfuse_exporter_from_env, Client, LangfuseConfig, LangfuseInterceptor};
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::{
+    runtime::Tokio,
+    trace::{span_processor_with_async_runtime::BatchSpanProcessor, SdkTracerProvider},
+};
+use std::time::Duration;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let provider = SdkTracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(langfuse_exporter_from_env()?, Tokio).build())
+        .build();
+    let interceptor = LangfuseInterceptor::new(provider.tracer("openai-ergonomic"), LangfuseConfig::new());
+    let client = Client::from_env()?.with_interceptor(interceptor).build();
+
+    let (mut stream, completion) = client
+        .send_chat_stream_with_completion(client.chat().user("Tell me a story"))
+        .await?;
+    let mut stream_error = None;
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(chunk) => print!("{}", chunk.content().unwrap_or_default()),
+            Err(error) => {
+                stream_error = Some(error);
+                break;
+            }
+        }
+    }
+    // Drop the stream before waiting: after an early stop the outcome is then a cancellation.
+    drop(stream);
+
+    // A timeout means the callbacks have not drained: the last spans may be missing.
+    match tokio::time::timeout(Duration::from_secs(10), completion.wait()).await {
+        Ok(Ok(report)) => {
+            println!("\n{:?}; {} callback failures", report.outcome, report.callback_failure_count);
+            for failure in &report.callback_failures {
+                eprintln!("{:?}: {}", failure.hook, failure.diagnostic);
+            }
+        }
+        Ok(Err(unavailable)) => eprintln!("no completion report: {unavailable:?}"),
+        Err(_) => eprintln!("interceptor callbacks still running after 10 s"),
+    }
+
+    tokio::task::spawn_blocking(move || provider.shutdown()).await??;
+    match stream_error {
+        Some(error) => Err(error.into()),
+        None => Ok(()),
+    }
+}
+# }
+```
+
+## With langfuse-ergonomic
+
+[langfuse-ergonomic](https://github.com/genai-rs/langfuse-ergonomic) traces your own code with
+`#[observe]`. With its `otel-context` feature (and Langfuse v4), an observation is the current
+OpenTelemetry context while it runs, so the interceptor's spans for the requests made inside an
+observed function become its children in the same trace. See its
+[Observe guide](https://github.com/genai-rs/langfuse-ergonomic/blob/main/docs/observe.md#opentelemetry-and-openai-ergonomic).
+This snippet is `ignore`d because langfuse-ergonomic is not a dependency of this crate:
+
+```toml
+[dependencies]
+langfuse-ergonomic = { version = "x.y", features = ["otel-context"] }  # see crates.io
+openai-ergonomic = "x.y"                                                # `otel` is a default feature
+```
+
+```rust,ignore
+use langfuse_ergonomic::{observe, ClientBuilder};
+use openai_ergonomic::{
+    langfuse_exporter_from_env, Client, LangfuseConfig, LangfuseInterceptor, LangfuseState,
+};
+use opentelemetry::trace::TracerProvider;
+use opentelemetry_sdk::runtime::Tokio;
+use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
+use opentelemetry_sdk::trace::{SdkTracerProvider, Span};
+
+type OpenAi = Client<LangfuseState<Span>>;
+
+#[observe(as_type = "agent")]
+async fn agent(openai: &OpenAi, question: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // The interceptor's span for this request is a child of the `agent` observation.
+    let response = openai.send_chat(openai.chat_simple(question)).await?;
+    Ok(response.content().unwrap_or_default().to_owned())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // OpenAI requests: OpenTelemetry spans, exported by openai-ergonomic.
+    let provider = SdkTracerProvider::builder()
+        .with_span_processor(BatchSpanProcessor::builder(langfuse_exporter_from_env()?, Tokio).build())
+        .build();
+    let interceptor = LangfuseInterceptor::new(provider.tracer("openai-ergonomic"), LangfuseConfig::new());
+    let openai = Client::from_env()?.with_interceptor(interceptor).build();
+
+    // Your own code: #[observe] observations, sent by langfuse-ergonomic.
+    let batcher = ClientBuilder::from_env()?.build()?.batcher().build().await;
+    observe::install_batcher(batcher.clone());
+
+    agent(&openai, "What is the capital of Belgium?").await?;
+
+    batcher.shutdown().await?;
+    tokio::task::spawn_blocking(move || provider.shutdown()).await??;
+    Ok(())
+}
+```
+
+langfuse-ergonomic reads `LANGFUSE_BASE_URL` for its host, the exporter `LANGFUSE_HOST`: set both
+for a self-hosted Langfuse.
 
 ## Examples
 
-See the `examples/` directory for complete examples:
-
-- `langfuse_simple.rs`: Basic usage with environment variables
-- `langfuse.rs`: Advanced usage with multiple scenarios
-- `langfuse_streaming.rs`: Streaming chat completions with real-time observability
-
-Run an example:
-
 ```bash
-export OPENAI_API_KEY="your-key"
+export OPENAI_API_KEY="sk-..."
 export LANGFUSE_PUBLIC_KEY="pk-lf-..."
 export LANGFUSE_SECRET_KEY="sk-lf-..."
-cargo run --example langfuse_simple
-cargo run --example langfuse_streaming  # For streaming example
+cargo run --example langfuse_simple     # one request
+cargo run --example langfuse            # several scenarios, sessions and tags
+cargo run --example langfuse_streaming  # streams, waiting for the callbacks
 ```
-
-### Streaming Support
-
-The interceptor supports streaming responses. When using `send_chat_stream_with_completion()` or `send_responses_stream_with_completion()`, the interceptor automatically:
-
-1. Calls `before_request` when streaming starts
-2. Calls `on_stream_chunk` for each accepted chunk in order
-3. Calls `on_stream_terminal` once after accepted chunk callbacks drain
-
-Example:
-
-```rust
-use openai_ergonomic::{Client, LangfuseInterceptor};
-use futures::StreamExt;
-use std::time::Duration;
-
-let interceptor = LangfuseInterceptor::from_env()?;
-let client = Client::from_env()?
-    .with_interceptor(interceptor)
-    .build();
-
-let builder = client.chat().user("Tell me a story");
-let (mut stream, completion) = client.send_chat_stream_with_completion(builder).await?;
-let mut stream_error = None;
-
-while let Some(item) = stream.next().await {
-    match item {
-        Ok(chunk) => {
-            if let Some(content) = chunk.content() {
-                print!("{}", content);
-            }
-        }
-        Err(error) => {
-            stream_error = Some(error);
-            break;
-        }
-    }
-    // Each chunk is automatically traced to Langfuse
-}
-drop(stream);
-
-let report = match tokio::time::timeout(Duration::from_secs(10), completion.wait()).await {
-    Ok(Ok(report)) => report,
-    Ok(Err(error)) => return Err(error.into()),
-    Err(_) => return Err(std::io::Error::new(
-        std::io::ErrorKind::TimedOut,
-        "callback drain incomplete; retry completion.wait() before shutdown",
-    ).into()),
-};
-println!("stream outcome: {:?}", report.outcome);
-if report.callback_failure_count > 0 {
-    eprintln!("{} interceptor callbacks failed", report.callback_failure_count);
-    for failure in &report.callback_failures {
-        eprintln!("{:?}: {}", failure.hook, failure.diagnostic);
-    }
-}
-
-// `provider` is the SdkTracerProvider created with the Langfuse exporter above.
-let shutdown_result = provider.shutdown();
-if let Some(error) = stream_error {
-    if let Err(shutdown_error) = shutdown_result {
-        eprintln!("exporter shutdown also failed: {shutdown_error:?}");
-    }
-    return Err(error.into());
-}
-shutdown_result?;
-```
-
-`StreamCompletion::wait` returns after the stream reaches EOF, fails, or is dropped and all
-managed interceptor callbacks have returned or failed. A timeout is an incomplete drain, not
-success; retain the handle and retry or report the incomplete shutdown. The completion barrier
-does not replace the exporter's own flush or shutdown operation. The sample drains callbacks and
-then shuts down the provider even when the stream yielded its original error. If the report is
-unavailable or times out, it returns an incomplete-drain error before provider shutdown; it does
-not describe telemetry as flushed. See `langfuse_streaming.rs` for a complete example.
-
-## Debugging
-
-Enable debug logging to see detailed trace information:
-
-```bash
-export LANGFUSE_DEBUG=true
-export RUST_LOG=openai_ergonomic=debug
-```
-
-## Integration with Langfuse Dashboard
-
-Once configured, traces appear in your Langfuse dashboard at:
-- Cloud: https://cloud.langfuse.com
-- Self-hosted: Your configured `LANGFUSE_HOST`
-
-Features available in the dashboard:
-- Trace visualization with timing information
-- Token usage tracking and cost calculation
-- Error rate monitoring
-- Latency percentiles
-- Model performance comparison
-- Session and user analytics
 
 ## Troubleshooting
 
-1. **No traces appearing**: Check credentials and host configuration
-2. **Incomplete traces**: Ensure the application waits for final batch export before exiting
-3. **High latency**: Adjust batch size and export interval
-4. **Debug issues**: Enable `LANGFUSE_DEBUG=true` and check logs
-
-## License
-
-Same as the parent crate - MIT OR Apache-2.0
+- **No traces**: check the keys and `LANGFUSE_HOST`, and that the provider is shut down (or
+  flushed) before the process exits.
+- **Missing spans of streams**: wait for `StreamCompletion::wait()` before the shutdown.
+- **What is sent**: `LANGFUSE_DEBUG=true` (or `LangfuseConfig::with_debug(true)`) with
+  `RUST_LOG=openai_ergonomic=debug` logs each span.

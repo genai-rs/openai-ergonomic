@@ -1,121 +1,118 @@
-# Responses-First Workflows
+# Responses workflows
 
-The Responses API is OpenAI's modern interface for conversational completion, tool calling, and structured outputs. This guide shows how to use `openai-ergonomic` to build **responses-first** applications that lean on the `ResponsesBuilder` helpers and ergonomic client methods.
+`client.responses()` starts a `ResponsesBuilder` with the configured default model (`gpt-4` when
+none is set); `responses_simple(model, user)` and `responses_system_user(model, system, user)`
+start one for another model. `send_responses` returns a `ChatCompletionResponseWrapper`, like
+`send_chat`.
 
-## Quickstart
+What it sends: `ResponsesBuilder` builds a `CreateChatCompletionRequest` (system, user and
+assistant messages, sampling parameters, tools, a response format) and sends it to the Chat
+Completions endpoint (`/chat/completions`), as `ChatCompletionBuilder` does. To call the
+`/responses` endpoint itself, send a request of your own with `post_json` or `send_json_stream`
+(see [bring your own types](chat-and-responses.md#bring-your-own-types)).
+
+## Messages and parameters
 
 ```rust,no_run
-use openai_ergonomic::{Client, Config};
-use openai_ergonomic::builders::responses::ResponsesBuilder;
-use tokio::runtime::Runtime;
+use openai_ergonomic::{responses_system_user, Client};
 
-fn main() -> openai_ergonomic::Result<()> {
-    let rt = Runtime::new()?;
-    rt.block_on(async move {
-        let client = Client::from_env()?;
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?.build();
 
-        let builder = client
-            .responses()
-            .system("You are a concise assistant")
-            .user("Give me three bullet points about Rust")
-            .temperature(0.4)
-            .max_completion_tokens(200);
+    let builder = client
+        .responses()
+        .system("You are a concise assistant.")
+        .user("Give me three bullet points about Rust.")
+        .temperature(0.4)
+        .max_completion_tokens(200)
+        .presence_penalty(0.1);
+    let response = client.send_responses(builder).await?;
+    println!("{}", response.content().unwrap_or_default());
 
-        let response = client.send_responses(builder).await?;
-        if let Some(text) = response.content() {
-            println!("{}", text);
-        }
-        Ok(())
-    })
+    // Another model, in one call
+    let builder = responses_system_user(
+        "gpt-4o-mini",
+        "You are a code reviewer.",
+        "Review: fn add(a: i32, b: i32) -> i32 { a - b }",
+    );
+    let response = client.send_responses(builder).await?;
+    println!("{}", response.content().unwrap_or_default());
+    Ok(())
 }
 ```
 
-Key points:
+The builder checks its input before sending (a model, at least one message, `temperature` in
+`0.0..=2.0`, ...) and returns `Error::InvalidRequest` otherwise.
 
-- `Client::responses()` seeds a `ResponsesBuilder` using the configured default model (falls back to `gpt-4`).
-- `client.send_responses(builder)` validates the builder, executes the request, and wraps the response in `ChatCompletionResponseWrapper` for ergonomic access (e.g. `primary_text()`).
+## Structured output
 
-## Layering System + User Context
+`json_schema(name, schema)` asks for JSON that matches a schema (`strict` is not set);
+`json_mode()` for any JSON object. See
+[structured output](chat-and-responses.md#structured-output) and
+[`examples/structured_outputs.rs`](../examples/structured_outputs.rs).
 
-`ResponsesBuilder` provides dedicated helpers for the most common prompt patterns:
+## Tools
 
-```rust
-let builder = client
-    .responses()
-    .system("You are a documentation assistant")
-    .user("Summarise the 'VectorStoreBuilder' API")
-    .presence_penalty(0.1)
-    .frequency_penalty(0.1);
+`responses_tool_function(name, description, parameters)` makes a function tool from a JSON
+schema (`tool_function` does the same); `tool(..)` / `tools(..)` add tools and `tool_choice(..)`
+picks how the model uses them (`ToolChoiceHelper::auto()`, `required()`, `none()`,
+`specific(name)`). The model's calls are in `response.tool_calls()`; `ToolCallExt` reads their
+id, name and arguments.
+
+```rust,no_run
+use openai_ergonomic::builders::responses::responses_tool_function;
+use openai_ergonomic::responses::ToolChoiceHelper;
+use openai_ergonomic::{Client, ToolCallExt};
+use serde_json::{json, Value};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?.build();
+
+    let weather = responses_tool_function(
+        "get_weather",
+        "Fetch the current weather for a city",
+        json!({
+            "type": "object",
+            "properties": {"city": {"type": "string", "description": "The city"}},
+            "required": ["city"],
+        }),
+    );
+    let builder = client
+        .responses()
+        .system("You are a smart home assistant.")
+        .user("Should I carry an umbrella in Brussels today?")
+        .tool(weather)
+        .tool_choice(ToolChoiceHelper::auto());
+    let response = client.send_responses(builder).await?;
+
+    for call in response.tool_calls() {
+        let arguments: Value = call.parse_arguments()?;
+        println!("{} ({}) wants {}", call.function_name(), call.id(), arguments);
+    }
+    Ok(())
+}
 ```
 
-Under the hood this produces well-formed chat messages (`system`, `user`) against the Responses endpoint.
+`ResponsesBuilder` has no tool-result messages: to answer the calls and continue the
+conversation, use a `ChatCompletionBuilder` (`assistant_with_tool_calls` and `tool`), as in
+[tool orchestration](tool_orchestration.md), or the [tool framework](tool_framework.md) to run
+typed tools. `responses_tool_web_search()` (and `tool_web_search()`) is a *function* tool named
+`web_search`: your application performs the search when the model calls it.
 
-For quick experiments there are ergonomic short-cuts:
+## Streaming
 
-```rust
-let builder = openai_ergonomic::responses_system_user(
-    "gpt-4o-mini",
-    "You are a code reviewer",
-    "Review this diff for potential issues",
-);
-```
+`send_responses_stream` and `send_responses_stream_with_completion` stream the same request:
+see [streaming](streaming.md).
 
-## Tool Calling and JSON Mode
+## Reading the response
 
-Tool invocation is first-class in `ResponsesBuilder` via helper functions that mirror the OpenAI schema.
+`ChatCompletionResponseWrapper` has `content()`, `tool_calls()`, `finish_reason()`,
+`is_refusal()` / `refusal()`, `choices()` and `inner()` (the generated
+`CreateChatCompletionResponse`); with the `Response` trait in scope, `id()`, `model()` and
+`usage()` (the token counts).
 
-```rust
-use openai_ergonomic::builders::responses::{responses_tool_function, ResponsesBuilder};
-use serde_json::json;
-
-let weather_tool = responses_tool_function(
-    "get_weather",
-    "Fetch the current weather for a city",
-    json!({
-        "type": "object",
-        "properties": {
-            "city": {"type": "string"}
-        },
-        "required": ["city"],
-    }),
-);
-
-let builder = client
-    .responses()
-    .system("You are a smart home assistant")
-    .user("Should I carry an umbrella in Brussels today?")
-    .tool(weather_tool)
-    .json_mode();
-```
-
-`json_mode()` selects `response_format = { "type": "json_object" }` so downstream code can parse the assistant reply deterministically. When the model selects the `get_weather` function you will receive a `ToolCall` inside the wrapped response (`response.tool_calls()`), making it easy to execute the tool and feed the result back using `ResponsesBuilder::assistant`.
-
-## Streaming Strategy
-
-Set `stream(true)` on the builder when you need incremental delivery. The crate already exposes `ChatCompletionStreamResponseWrapper` for parsing streaming chunks; higher-level helpers on `Client` will follow once the SSE plumbing is stabilised. In the meantime you can combine the ergonomic builder with the lower-level `openai-client-base` streaming APIs:
-
-1. Build the request with `.stream(true)` and call `builder.build()?` to obtain the `CreateChatCompletionRequest` payload.
-2. Hand that payload to your preferred streaming transport (for example a thin wrapper over `openai-client-base` or a custom SSE client) and parse each chunk with `ChatCompletionStreamResponseWrapper::new`.
-
-This keeps the builder ergonomics for request construction while still allowing you to drive the streaming loop directly against the generated bindings.
-
-## Response Post-Processing
-
-`ChatCompletionResponseWrapper` exposes utilities tailored for responses-first usage:
-
-- `primary_text()` returns the first non-empty chunk of assistant text.
-- `tool_calls()` yields resolved `ToolCall` objects ready for dispatch.
-- `usage()` surfaces token accounting, making it easy to log or budget per request.
-
-Combine these helpers to orchestrate sophisticated workflows while keeping the builder ergonomics uniform across streaming and non-streaming responses.
-
-## Putting It Together
-
-Use responses-first workflows as the default for modern OpenAI features:
-
-1. **Shape the conversation** with `system()` + `user()` calls.
-2. **Register tools** (`responses_tool_function`, `tool_web_search`) and enable `json_mode()` when a structured reply is required.
-3. **Execute** using `Client::send_responses` (for buffered replies) or `Client::execute_responses` + streaming for incremental delivery.
-4. **Inspect results** through `ChatCompletionResponseWrapper` to route tool calls, capture tokens, or render text back to the user.
-
-The remaining guides build on this foundation to show how tools, vector stores, and migration paths fit into a complete ergonomic assistant stack.
+Examples: [`responses_comprehensive.rs`](../examples/responses_comprehensive.rs),
+[`responses_streaming.rs`](../examples/responses_streaming.rs),
+[`structured_outputs.rs`](../examples/structured_outputs.rs).

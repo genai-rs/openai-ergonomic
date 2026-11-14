@@ -183,4 +183,23 @@ mod doc_pages {
     struct Migration;
     #[doc = include_str!("../docs/development.md")]
     struct Development;
+    #[doc = include_str!("../docs/responses_workflows.md")]
+    struct ResponsesWorkflows;
+    #[doc = include_str!("../docs/tool_framework.md")]
+    struct ToolFramework;
+    #[doc = include_str!("../docs/tool_orchestration.md")]
+    struct ToolOrchestration;
+    #[doc = include_str!("../docs/vector_store_operations.md")]
+    struct VectorStoreOperations;
+    #[doc = include_str!("../docs/streaming-completion-contract.md")]
+    struct StreamingCompletionContract;
+    #[cfg(feature = "otel")]
+    #[doc = include_str!("../docs/langfuse-integration.md")]
+    struct LangfuseIntegration;
+    #[doc = include_str!("../docs/api-coverage.md")]
+    struct ApiCoverage;
+    #[doc = include_str!("../docs/architecture.md")]
+    struct Architecture;
+    #[doc = include_str!("../docs/examples-index.md")]
+    struct ExamplesIndex;
 }

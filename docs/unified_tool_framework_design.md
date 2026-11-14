@@ -1,5 +1,7 @@
 # FunctionTool API design decisions
 
+Status: **implemented** (released in 0.6.0). This page records why the tool framework looks the way it does; the [guide](tool_framework.md) describes how to use it.
+
 PR #72 supersedes the three-trait proposal in #70. The existing `Tool` model aliases remain unchanged. One async `FunctionTool` trait covers typed and JSON tools through associated types; instances can hold application state. The registry erases types internally, captures validated metadata once and returns definitions in stable name order.
 
 The old `tool!` macro repeated input/output types, supported only unit structs and defaulted silently to an empty schema. Ordinary Rust implementations are longer but familiar, support state without another API and produce ordinary type errors. Standard JSON Schema expressed with `json!` covers nested objects, enums and optional fields without a bespoke schema DSL. A schema generator can be used by applications without becoming a mandatory dependency here.

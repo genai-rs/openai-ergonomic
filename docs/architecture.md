@@ -1,129 +1,94 @@
-# Architecture Overview
+# Architecture
 
-This document outlines how `openai-ergonomic` is structured and how the major
-modules interact to provide an ergonomic layer on top of
-[`openai-client-base`](https://github.com/openai/openai-client-base).
+How `openai-ergonomic` is put together, for contributors and for users who want to know what
+happens under a builder.
 
-## Design Principles
+## Layers
 
-### Ergonomic by Default
-- **Builder pattern everywhere** – complex request payloads are assembled through
-  fluent, type-safe builders
-- **Sensible defaults** – most helpers pick a reasonable model and configuration
-  so the developer can focus on intent
-- **Progressive disclosure** – the public API starts simple but exposes lower
-  level control when needed
-
-### Async-first
-- Runs on Tokio and Reqwest for modern async usage
-- Streaming helpers return future-friendly abstractions (planned expansion)
-- Builders avoid blocking by deferring work until `Client` executes them
-
-### Layered Architecture
-```
+```text
 ┌─────────────────────────┐
-│  openai-ergonomic       │  ← ergonomic client, builders, helpers
+│  openai-ergonomic       │  ← client, builders, response helpers, streaming,
+│                         │    interceptors, tools, providers, webhooks
 ├─────────────────────────┤
-│  openai-client-base     │  ← generated OpenAPI client (models + apis)
+│  openai-client-base     │  ← generated from the OpenAPI spec: models + operations
 ├─────────────────────────┤
-│  timvw-rust-runtime     │  ← tower HTTP client (layers: retry,
-│  (tower + reqwest)      │     Azure, org headers), tokio
+│  timvw-rust-runtime     │  ← tower HTTP client around reqwest: retries, timeouts,
+│  (tower + reqwest)      │    provider and auth layers, uploads, server-sent events
 └─────────────────────────┘
 ```
 
-## Module Structure
+[`openai-client-base`](https://github.com/genai-rs/openai-client-base) is generated from
+`OpenAI`'s OpenAPI spec; this crate enables the API groups it calls (see `Cargo.toml`). Both send
+through a [`timvw-rust-runtime`](https://docs.rs/timvw-rust-runtime) `Client`, so the builders,
+the generated operations and the raw `post_json` / `send_json` requests share the provider,
+authentication, retries and layers. The same code builds natively (tokio) and for
+`wasm32-unknown-unknown` (see [WebAssembly](webassembly.md)).
 
-```
+## Modules
+
+```text
 src/
-├── lib.rs         # Crate root & public re-exports
-├── client.rs      # High-level Client wrapper around openai-client-base
-├── config.rs      # Builder for configuration and env loading helpers
-├── errors.rs      # Unified Error type + streaming helpers
-├── responses/     # Thin response wrappers + convenience helpers
-├── builders/      # Fluent request builders organised by API surface
-└── test_utils.rs  # Mock server helpers for examples/tests
+├── lib.rs                  crate root: re-exports, the docs/ pages as doc tests
+├── client/                 Client, ClientBuilder and a sub-client per API area
+│   ├── mod.rs              Client<T>: chat, responses, streaming, sub-client accessors
+│   ├── raw.rs              post_json / get_json / send_json / send_json_stream
+│   ├── large_upload.rs     upload_large_file (Uploads API, parallel parts)
+│   ├── media.rs            saving images, speech and files to disk (native only)
+│   ├── headers.rs          OpenAI-Organization / OpenAI-Project headers
+│   └── assistants.rs, audio.rs, batch.rs, ... one sub-client per API area
+├── builders/               request builders per API area (Builder::build → generated request)
+├── responses/              response wrappers (ChatCompletionResponseWrapper) and helpers
+├── config.rs               Config, ConfigBuilder, from_env
+├── provider.rs             Provider presets and their tower layer
+├── auth.rs                 AuthProvider, BearerTokenAuth, AuthLayer
+├── errors.rs               Error, Result
+├── streaming.rs            chunks, ChatCompletionStream, InterceptedStream, StreamCompletion
+├── interceptor.rs          Interceptor<T>, its contexts, InterceptorChain
+├── tool_framework.rs       FunctionTool, ToolRegistry
+├── langfuse_*.rs           Langfuse interceptor, exporter and context (feature `otel`)
+├── semantic_conventions.rs OpenTelemetry GenAI attribute and operation names
+├── webhooks.rs             WebhookVerifier, WebhookEvent (feature `webhook`)
+├── azure_middleware.rs     deprecated Azure layer (use Provider::azure)
+├── time.rs                 clocks, timers and tasks, native and WebAssembly
+└── test_utils.rs           mockito helpers (feature `test-utils`, native only)
 ```
 
-### Client (`client.rs`)
+## The client
 
-The `Client` struct owns shared configuration and exposes ergonomic entry
-points:
+`Client<T = ()>` holds the `Config`, the HTTP client and the generated `Configuration`, and an
+`InterceptorChain<T>`, all shared (`Arc`), so cloning a client is cheap. `Client::from_env()` or
+`Client::builder(config)` gives a `ClientBuilder`; `with_interceptor` / `add_interceptor` add
+interceptors and `build()` makes the client. `T` is the interceptor state passed from
+`before_request` to the later hooks of one request (see [interceptors](interceptors.md)).
 
-```rust
-pub struct Client {
-    config: Arc<Config>,
-    http: timvw_rust_runtime::Client, // tower service stack around reqwest
-    base_configuration: openai_client_base::apis::configuration::Configuration,
-}
-```
+- `chat()` / `responses()` start a `ChatCompletionBuilder` / `ResponsesBuilder` with the default
+  model; `send_chat`, `send_responses` and their `_stream` and `_stream_with_completion`
+  variants send them. Both build a `CreateChatCompletionRequest` for `/chat/completions`.
+- `assistants()`, `audio()`, `batch()`, `completions()`, `embeddings()`, `files()`,
+  `fine_tuning()`, `images()`, `models()`, `moderations()`, `threads()`, `uploads()`, `usage()`,
+  `vector_stores()` return sub-clients that borrow the client.
+- `http_client()` is the HTTP client, for the generated operations or requests of your own.
 
-Key capabilities:
-- `Client::from_env()` builds configuration from environment variables
-- `Client::chat()` and `Client::responses()` return request builders
-- `Client::send_chat` / `Client::send_responses` execute the generated payloads
-- Placeholder accessors (`assistants()`, `audio()`, …) mark future expansion
+## A request
 
-### Configuration (`config.rs`)
+1. A builder collects the parameters; `Builder::build()` validates them and returns the
+   generated request type (`Error::InvalidRequest` before anything is sent).
+2. The client calls the interceptors' `before_request`, then the generated operation (or a raw
+   request) through the HTTP client: the provider's layer adds the base URL, credentials,
+   headers and paths, the `AuthProvider` its credentials, the retry layer retries.
+3. An error status becomes `Error::Api` (with the `OpenAI` error's type and code) and goes to
+   `on_error`; a success goes to `after_response` and comes back wrapped
+   (`ChatCompletionResponseWrapper`) or as the generated response type.
+4. A stream is decoded from server-sent events into `ChatCompletionChunk`s; its interceptor
+   callbacks run in order in a background task (see the
+   [completion contract](streaming-completion-contract.md)).
 
-`Config::builder()` provides validation for API keys, custom base URLs, timeouts,
-and default model selection. `Config::from_env()` pulls from `OPENAI_API_KEY`,
-`OPENAI_ORG_ID`, etc.
+## Tests
 
-### Error Handling (`errors.rs`)
+- **Unit tests** next to the code validate builders, helpers and layers.
+- **Integration tests** (`tests/*.rs`) run the client against mockito servers.
+- **Doc tests** compile the rustdoc, the README and the pages under `docs/`.
+- **WebAssembly tests** (`tests/wasm.rs`) run in Node.js.
+- **Examples** are built by CI.
 
-A single `Error` enum wraps:
-- HTTP issues (`Error::Http`)
-- API error payloads (`Error::Api`)
-- Builder validation problems (`Error::InvalidRequest`)
-- Streaming-specific helpers via `errors::streaming`
-
-### Builders (`builders/`)
-
-Each endpoint family implements a dedicated builder module. Implemented modules
-today include:
-
-- `responses.rs`, `chat.rs`, `assistants.rs`, `audio.rs`, `vector_stores.rs`,
-  `files.rs`, `fine_tuning.rs`, `moderations.rs`, `batch.rs`
-- Placeholders exist for `embeddings.rs`, `threads.rs`, `uploads.rs`
-
-Common traits defined in `builders/mod.rs`:
-
-```rust
-pub trait Builder<T> {
-    fn build(self) -> crate::Result<T>;
-}
-
-pub trait Sendable<R> {
-    async fn send(self) -> crate::Result<R>;
-}
-```
-
-(Implementations for `Sendable` are planned; currently builders are executed
-through `Client` helper methods.)
-
-### Responses (`responses/`)
-
-Wrap generated response payloads with ergonomic helpers like
-`ChatCompletionResponseWrapper::primary_text()` and tool parsing utilities.
-
-### Test Utilities (`test_utils.rs`)
-
-Provides mock server scaffolding and builder factories to support unit and
-integration tests without hitting the real API.
-
-## Flow of a Typical Request
-
-1. Call `Client::responses()` (or `chat()`) to construct a builder with defaults
-2. Chain builder methods (`.system(..).user(..).temperature(0.5)`)
-3. Pass the builder into `Client::send_responses` which
-   - Validates the payload via `Builder::build`
-   - Delegates to `openai-client-base` to perform the HTTP call
-   - Wraps the response inside ergonomic helpers
-
-## Testing Strategy
-
-- **Unit tests** validate builder serialization and helper behaviour
-- **Integration tests** (with `mockito`) verify round-trips against fake servers
-- **Examples** double as documentation and compile-time regression tests
-- **Smoke tests** (opt-in) hit the real API when appropriate environment
-  variables are set
+See [development](development.md).

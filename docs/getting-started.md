@@ -18,7 +18,8 @@ OpenTelemetry integration, see [interceptors](interceptors.md)). The others:
 | `test-utils` | a mockito-based mock server for your tests (native only) |
 
 For WebAssembly, turn the default features off: see [WebAssembly](webassembly.md). The minimum
-supported Rust version is in `Cargo.toml` (`rust-version`).
+supported Rust version is `rust-version` in `Cargo.toml`:
+[![MSRV](https://img.shields.io/crates/msrv/openai-ergonomic)](https://crates.io/crates/openai-ergonomic).
 
 ## A client
 
@@ -30,6 +31,7 @@ supported Rust version is in `Cargo.toml` (`rust-version`).
 | `OPENAI_API_BASE` | another base URL |
 | `OPENAI_ORGANIZATION`, `OPENAI_PROJECT` | the organization and project headers |
 | `OPENAI_MAX_RETRIES` | retries of the default HTTP client (default 3) |
+| `OPENAI_DEFAULT_MODEL` | the model of `client.chat()` and `client.responses()` (default `gpt-4`) |
 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION` | Azure `OpenAI` instead (see [configuration](configuration.md#azure-openai)) |
 
 Or build the configuration yourself:
@@ -97,15 +99,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-More in [chat and responses](chat-and-responses.md) and [Responses workflows](responses_workflows.md);
+`ResponsesBuilder` builds the same chat-completions request as `ChatCompletionBuilder` and sends
+it to `/chat/completions`; for the `/responses` endpoint itself, send a request of your own (see
+[bring your own types](chat-and-responses.md#bring-your-own-types)). More in
+[chat and responses](chat-and-responses.md) and [Responses workflows](responses_workflows.md);
 streaming in [streaming](streaming.md).
 
 ## Errors
 
 Every fallible call returns `openai_ergonomic::Result<T>`, whose `Error` has a variant per kind
-of failure: `Error::Api` (an error status, with the `OpenAI` error's type and code),
-`Error::RateLimit`, `Error::Http` (sending failed: `is_timeout()`, `is_connect()`, `is_io()`),
-`Error::InvalidRequest` (a builder rejected its input before sending), `Error::Config`, and more.
+of failure: `Error::Api` (an error status, with the `OpenAI` error's type and code; a `429` is
+one, see `is_rate_limit()`), `Error::Http` (sending failed: `is_timeout()`, `is_connect()`,
+`is_io()`), `Error::InvalidRequest` (a builder rejected its input before sending),
+`Error::Config`, and more.
 
 ```rust,no_run
 use openai_ergonomic::{Client, Error};
@@ -116,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match client.send_chat(client.chat_simple("Hello")).await {
         Ok(response) => println!("{}", response.content().unwrap_or_default()),
-        Err(Error::RateLimit(message)) => eprintln!("rate limited ({message}), retry later"),
+        Err(error) if error.is_rate_limit() => eprintln!("rate limited ({error}), retry later"),
         Err(Error::Api { status, message, .. }) => eprintln!("API error {status}: {message}"),
         Err(error) => eprintln!("request failed: {error}"),
     }

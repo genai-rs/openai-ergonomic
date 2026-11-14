@@ -2,9 +2,9 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+Security fixes go into the latest release on crates.io
+([![Crates.io](https://img.shields.io/crates/v/openai-ergonomic)](https://crates.io/crates/openai-ergonomic)).
+Upgrade to it to receive them; earlier releases are not patched.
 
 ## Reporting a Vulnerability
 
@@ -38,7 +38,8 @@ When using this library:
 
 This project uses:
 - Automated dependency updates via Renovate
-- Security vulnerability scanning in CI
+- Security checks in CI (`.github/workflows/security.yml`, the shared genai-rs `rust-security.yml`)
+  and a dependency review on pull requests
 - `cargo audit` for Rust dependency vulnerabilities
 
 Run security audit locally:
