@@ -4,7 +4,7 @@ An `Interceptor` has hooks around every request the builders send: `before_reque
 `after_response`, `on_stream_chunk`, `on_stream_end` / `on_stream_terminal` and `on_error`.
 Implement the ones you need as plain `async fn`s and add the interceptor with
 `with_interceptor` (or several with `add_interceptor`). Raw requests (`send_json`, ...) do not go
-through the interceptors.
+through the interceptors; `json_call` and `json_event_call` do.
 
 ```rust,no_run
 use openai_ergonomic::{AfterResponseContext, Client, Interceptor, Result};

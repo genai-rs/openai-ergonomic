@@ -199,7 +199,7 @@ enum AttemptEnd {
         incomplete: Option<String>,
         calls: usize,
     },
-    Failed(CallFailure),
+    Failed(Box<CallFailure>),
     Cancelled,
 }
 
@@ -677,7 +677,7 @@ impl<'c, T: Default + MaybeSend + MaybeSync + 'static> ToolLoop<'c, T> {
         };
         let (mut stream, meta) = match sent {
             Ok(sent) => sent,
-            Err(failure) => return Ok(AttemptEnd::Failed(failure)),
+            Err(failure) => return Ok(AttemptEnd::Failed(Box::new(failure))),
         };
         turn.rate_limits = meta.rate_limits.or(turn.rate_limits);
         let mut seen = BTreeSet::new();
@@ -699,20 +699,20 @@ impl<'c, T: Default + MaybeSend + MaybeSync + 'static> ToolLoop<'c, T> {
                     continue;
                 }
                 Step::Event(None) => {
-                    return Ok(AttemptEnd::Failed(CallFailure::from(
+                    return Ok(AttemptEnd::Failed(Box::new(CallFailure::from(
                         Error::StreamConnection {
                             message: "the stream ended before its response did".into(),
                         },
-                    )));
+                    ))));
                 }
                 Step::Event(Some(Err(error))) => {
-                    return Ok(AttemptEnd::Failed(CallFailure::from(error)));
+                    return Ok(AttemptEnd::Failed(Box::new(CallFailure::from(error))));
                 }
                 Step::Event(Some(Ok(event))) => event,
             };
             on_event(LoopEvent::Model(&event));
             if let Some(error) = event.failure() {
-                return Ok(AttemptEnd::Failed(CallFailure::from(error)));
+                return Ok(AttemptEnd::Failed(Box::new(CallFailure::from(error))));
             }
             if let ResponseStreamEvent::ResponseOutputItemDoneEvent(done) = event.raw() {
                 if seen.insert(done.output_index) {
@@ -762,11 +762,11 @@ impl<'c, T: Default + MaybeSend + MaybeSync + 'static> ToolLoop<'c, T> {
         };
         let response = match sent {
             Ok(response) => response,
-            Err(failure) => return Ok(AttemptEnd::Failed(failure)),
+            Err(failure) => return Ok(AttemptEnd::Failed(Box::new(failure))),
         };
         turn.rate_limits = response.rate_limits().or(turn.rate_limits);
         if let Some(error) = response.failure() {
-            return Ok(AttemptEnd::Failed(CallFailure::from(error)));
+            return Ok(AttemptEnd::Failed(Box::new(CallFailure::from(error))));
         }
         let mut calls = 0;
         for item in response.output() {
@@ -805,7 +805,7 @@ impl<'c, T: Default + MaybeSend + MaybeSync + 'static> ToolLoop<'c, T> {
         };
         let response = match sent {
             Ok(response) => response,
-            Err(failure) => return Ok(AttemptEnd::Failed(failure)),
+            Err(failure) => return Ok(AttemptEnd::Failed(Box::new(failure))),
         };
         turn.rate_limits = response.rate_limits().or(turn.rate_limits);
         let inner = response.inner();
@@ -813,12 +813,14 @@ impl<'c, T: Default + MaybeSend + MaybeSync + 'static> ToolLoop<'c, T> {
         turn.input_tokens = inner.usage.as_ref().map(|usage| usage.prompt_tokens);
         turn.output_tokens = inner.usage.as_ref().map(|usage| usage.completion_tokens);
         let Some(choice) = inner.choices.first() else {
-            return Ok(AttemptEnd::Failed(CallFailure::from(Error::Api {
-                status: 200,
-                message: "the chat completion has no choice".into(),
-                error_type: None,
-                error_code: None,
-            })));
+            return Ok(AttemptEnd::Failed(Box::new(CallFailure::from(
+                Error::Api {
+                    status: 200,
+                    message: "the chat completion has no choice".into(),
+                    error_type: None,
+                    error_code: None,
+                },
+            ))));
         };
         let message = serde_json::to_value(&choice.message)?;
         turn.text = message

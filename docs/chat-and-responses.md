@@ -85,7 +85,8 @@ only the fields you need, `serde_json::Value`, or an `OpenAI`-compatible provide
 differ from the spec), use `post_json`, `get_json`, `send_json` and `send_json_stream`. They send
 to `{api_base}{path}` through the same HTTP client (retries, layers, the provider's layer,
 organization and project headers) with the same authentication, and map an error status to
-`Error::Api`. Interceptors (such as Langfuse) are not called for these requests.
+`Error::Api`. Interceptors (such as Langfuse) are not called for these requests;
+[`json_call` and `json_event_call`](#with-the-interceptors-and-the-response-headers) call them.
 
 ```rust,no_run
 use futures::StreamExt;
@@ -136,6 +137,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+### With the interceptors and the response headers
+
+`json_call` and `json_event_call` also send a JSON body of your own, but the way the builders'
+calls go: the interceptors see the request, the response (or each event and the end of the
+stream) and the failure, and the result carries a `CallMeta` with the status, the headers, the
+rate limits (`x-ratelimit-*`) and the delay a failure asked for (`retry-after-ms`,
+`retry-after`). They are for a library on top of this client that builds its own requests, such
+as an agent runtime.
+
+```rust,no_run
+use openai_ergonomic::semantic_conventions::operation_names;
+use openai_ergonomic::Client;
+use serde_json::json;
+
+# async fn example(client: &Client) -> Result<(), openai_ergonomic::CallFailure> {
+let request = json!({"model": "gpt-4.1-mini", "input": "Say hi"});
+match client.json_call(operation_names::RESPONSES, "/responses", &request).await {
+    Ok(response) => println!("{} {:?}", response.body["id"], response.meta.rate_limits()),
+    Err(failure) if failure.is_before_body() => {
+        // The client's HTTP retries already retried this one.
+        println!("{} (retry after {:?})", failure, failure.meta().retry_after());
+    }
+    Err(failure) => return Err(failure),
+}
+# Ok(())
+# }
+```
+
+A `CallFailure` converts into the crate's `Error` with `?`.
 
 ## The generated operations
 
