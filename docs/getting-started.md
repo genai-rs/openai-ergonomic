@@ -90,20 +90,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let builder = client
         .responses()
-        .system("You are a concise assistant.")
+        .instructions("You are a concise assistant.")
         .user("Summarise the benefits of type-safe builders in Rust.")
         .temperature(0.4);
     let response = client.send_responses(builder).await?;
-    println!("{}", response.content().unwrap_or_default());
+    println!("{}", response.output_text());
     Ok(())
 }
 ```
 
-`ResponsesBuilder` builds the same chat-completions request as `ChatCompletionBuilder` and sends
-it to `/chat/completions`; for the `/responses` endpoint itself, send a request of your own (see
-[bring your own types](chat-and-responses.md#bring-your-own-types)). More in
-[chat and responses](chat-and-responses.md) and [Responses workflows](responses_workflows.md);
-streaming in [streaming](streaming.md).
+`ResponsesBuilder` builds a request for the Responses API and `send_responses` sends it to
+`/responses`; the `ResponsesResponse` it returns has the output text, function calls, status and
+usage. More in [chat and responses](chat-and-responses.md) and
+[Responses workflows](responses_workflows.md); streaming in [streaming](streaming.md).
 
 ## Errors
 
@@ -111,7 +110,9 @@ Every fallible call returns `openai_ergonomic::Result<T>`, whose `Error` has a v
 of failure: `Error::Api` (an error status, with the `OpenAI` error's type and code; a `429` is
 one, see `is_rate_limit()`), `Error::Http` (sending failed: `is_timeout()`, `is_connect()`,
 `is_io()`), `Error::InvalidRequest` (a builder rejected its input before sending),
-`Error::Config`, and more.
+`Error::Config`, and more. `Error` is `#[non_exhaustive]`: a `match` on it needs a wildcard arm,
+and the classification methods (`is_rate_limit()`, `is_retryable()`, ...) are the stable way to
+branch on it.
 
 ```rust,no_run
 use openai_ergonomic::{Client, Error};

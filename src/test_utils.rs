@@ -250,12 +250,12 @@ pub mod helpers {
     use crate::{
         builders::{
             chat::{tool_function, ChatCompletionBuilder},
-            responses::{responses_tool_function, ResponsesBuilder},
+            responses::{responses_function_tool, ResponsesBuilder},
             Builder,
         },
         Error,
     };
-    use openai_client_base::models::CreateChatCompletionRequest;
+    use openai_client_base::models::{CreateChatCompletionRequest, CreateResponse};
     use serde_json::{json, Value};
 
     /// Create a minimal valid chat completion request for testing.
@@ -266,8 +266,8 @@ pub mod helpers {
             .expect("Failed to build minimal chat request")
     }
 
-    /// Create a minimal valid responses request for testing.
-    pub fn minimal_responses_request() -> CreateChatCompletionRequest {
+    /// Create a minimal valid Responses API request for testing.
+    pub fn minimal_responses_request() -> CreateResponse {
         ResponsesBuilder::new("gpt-4")
             .user("test message")
             .build()
@@ -297,9 +297,9 @@ pub mod helpers {
             .expect("Failed to build complex chat request")
     }
 
-    /// Create a complex responses request with multiple features for testing.
-    pub fn complex_responses_request() -> CreateChatCompletionRequest {
-        let tool = responses_tool_function(
+    /// Create a complex Responses API request with multiple features for testing.
+    pub fn complex_responses_request() -> CreateResponse {
+        let tool = responses_function_tool(
             "test_tool",
             "A test tool",
             json!({
@@ -311,12 +311,11 @@ pub mod helpers {
         );
 
         ResponsesBuilder::new("gpt-4")
-            .system("You are a test assistant")
+            .instructions("You are a test assistant")
             .user("Test message")
             .temperature(0.7)
-            .max_tokens(100)
+            .max_output_tokens(100)
             .tool(tool)
-            .json_mode()
             .build()
             .expect("Failed to build complex responses request")
     }
@@ -549,8 +548,8 @@ mod tests {
         assert_eq!(chat_req.messages.len(), 1);
 
         let responses_req = minimal_responses_request();
-        assert_eq!(responses_req.model, "gpt-4");
-        assert_eq!(responses_req.messages.len(), 1);
+        assert_eq!(responses_req.model.as_deref(), Some("gpt-4"));
+        assert!(responses_req.input.is_some());
 
         // Test complex requests
         let complex_chat = complex_chat_request();
@@ -559,10 +558,9 @@ mod tests {
         assert!(complex_chat.tools.is_some());
 
         let complex_responses = complex_responses_request();
-        assert_eq!(complex_responses.model, "gpt-4");
-        assert_eq!(complex_responses.messages.len(), 2);
+        assert_eq!(complex_responses.model.as_deref(), Some("gpt-4"));
+        assert!(complex_responses.instructions.is_some());
         assert!(complex_responses.tools.is_some());
-        assert!(complex_responses.response_format.is_some());
     }
 
     #[test]

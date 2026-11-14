@@ -1,6 +1,6 @@
 //! WebAssembly: the client in a JavaScript host against a scripted HTTP service (a tower service
 //! that is not `Send`, in place of a server): a chat completion, a streamed one with an
-//! interceptor, an interceptor whose state holds an `Rc`, a tool call through the tool framework, a webhook verification, and retries with
+//! interceptor, a streamed Responses API response, an interceptor whose state holds an `Rc`, a tool call through the tool framework, a webhook verification, and retries with
 //! backoff (the runtime's retry layer, and the parts of a large upload).
 //!
 //! `cargo test --target wasm32-unknown-unknown --no-default-features --features webhook --test wasm`, with
@@ -190,6 +190,70 @@ async fn streamed_chat_completion_with_an_interceptor() {
     assert_eq!(report.total_chunks, 2);
     assert_eq!(chunks.get(), 2);
     assert!(finished.get());
+}
+
+#[wasm_bindgen_test]
+async fn streamed_response_of_the_responses_api() {
+    let delta = |text: &str, sequence: u32| {
+        json!({
+            "type": "response.output_text.delta",
+            "item_id": "msg_1",
+            "output_index": 0,
+            "content_index": 0,
+            "delta": text,
+            "sequence_number": sequence
+        })
+    };
+    let completed = json!({
+        "type": "response.completed",
+        "sequence_number": 3,
+        "response": {
+            "id": "resp_1",
+            "object": "response",
+            "created_at": 1,
+            "status": "completed",
+            "model": "gpt-4.1-mini",
+            "instructions": null,
+            "error": null,
+            "incomplete_details": null,
+            "output": [],
+            "parallel_tool_calls": true,
+            "usage": {
+                "input_tokens": 3,
+                "input_tokens_details": {"cached_tokens": 0},
+                "output_tokens": 2,
+                "output_tokens_details": {"reasoning_tokens": 0},
+                "total_tokens": 5
+            }
+        }
+    });
+    let events = format!(
+        "data: {}\n\ndata: {}\n\ndata: {completed}\n\n",
+        delta("Hel", 1),
+        delta("lo", 2)
+    );
+    let (http, seen) = scripted(move |_, _| Reply {
+        status: 200,
+        content_type: "text/event-stream",
+        body: events.clone(),
+    });
+    let client = client(http);
+
+    let (stream, completion) = client
+        .send_responses_stream_with_completion(client.responses().user("Hi"))
+        .await
+        .unwrap();
+    let text = openai_ergonomic::responses_api::collect_text(stream)
+        .await
+        .unwrap();
+    assert_eq!(text, "Hello");
+    let report = completion.wait().await.unwrap();
+    assert_eq!(report.total_chunks, 3);
+    assert_eq!(report.output_tokens, Some(2));
+    let seen = seen.borrow();
+    assert_eq!(seen[0].path, "/v1/responses");
+    let request: Value = serde_json::from_slice(&seen[0].body).unwrap();
+    assert_eq!(request["stream"], true);
 }
 
 /// Interceptor state that holds an `Rc`: neither `Send` nor `Sync`, which WebAssembly allows.

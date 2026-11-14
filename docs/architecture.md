@@ -30,7 +30,8 @@ authentication, retries and layers. The same code builds natively (tokio) and fo
 src/
 ├── lib.rs                  crate root: re-exports, the docs/ pages as doc tests
 ├── client/                 Client, ClientBuilder and a sub-client per API area
-│   ├── mod.rs              Client<T>: chat, responses, streaming, sub-client accessors
+│   ├── mod.rs              Client<T>: chat, streaming, sub-client accessors
+│   ├── responses.rs        Client<T>: the Responses API; ResponsesClient
 │   ├── raw.rs              post_json / get_json / send_json / send_json_stream
 │   ├── large_upload.rs     upload_large_file (Uploads API, parallel parts)
 │   ├── media.rs            saving images, speech and files to disk (native only)
@@ -38,11 +39,13 @@ src/
 │   └── assistants.rs, audio.rs, batch.rs, ... one sub-client per API area
 ├── builders/               request builders per API area (Builder::build → generated request)
 ├── responses/              response wrappers (ChatCompletionResponseWrapper) and helpers
+├── responses_api/          Responses API: ResponsesBuilder, ResponsesResponse, ResponsesEvent
 ├── config.rs               Config, ConfigBuilder, from_env
 ├── provider.rs             Provider presets and their tower layer
 ├── auth.rs                 AuthProvider, BearerTokenAuth, AuthLayer
 ├── errors.rs               Error, Result
 ├── streaming.rs            chunks, ChatCompletionStream, InterceptedStream, StreamCompletion
+├── sse_frames.rs           server-sent event frames, `[DONE]` told apart from the end of the body
 ├── interceptor.rs          Interceptor<T>, its contexts, InterceptorChain
 ├── tool_framework.rs       FunctionTool, ToolRegistry
 ├── langfuse_*.rs           Langfuse interceptor, exporter and context (feature `otel`)
@@ -63,7 +66,9 @@ interceptors and `build()` makes the client. `T` is the interceptor state passed
 
 - `chat()` / `responses()` start a `ChatCompletionBuilder` / `ResponsesBuilder` with the default
   model; `send_chat`, `send_responses` and their `_stream` and `_stream_with_completion`
-  variants send them. Both build a `CreateChatCompletionRequest` for `/chat/completions`.
+  variants send them: a `CreateChatCompletionRequest` to `/chat/completions`, a
+  `CreateResponse` to `/responses`.
+  `responses_api()` retrieves, cancels and deletes stored responses.
 - `assistants()`, `audio()`, `batch()`, `completions()`, `embeddings()`, `files()`,
   `fine_tuning()`, `images()`, `models()`, `moderations()`, `threads()`, `uploads()`, `usage()`,
   `vector_stores()` return sub-clients that borrow the client.

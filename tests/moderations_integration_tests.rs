@@ -8,7 +8,7 @@ fn test_moderation_builder_basic() {
     let builder = ModerationBuilder::new("This is a test message");
     let request = builder.build().unwrap();
 
-    assert_eq!(request.input, "This is a test message");
+    assert_eq!(request.input, "This is a test message".into());
     assert!(request.model.is_none());
 }
 
@@ -17,7 +17,7 @@ fn test_moderation_builder_with_model() {
     let builder = ModerationBuilder::new("Test content").model("text-moderation-latest");
     let request = builder.build().unwrap();
 
-    assert_eq!(request.input, "Test content");
+    assert_eq!(request.input, "Test content".into());
     assert_eq!(request.model, Some("text-moderation-latest".to_string()));
 }
 
@@ -27,8 +27,34 @@ fn test_moderation_builder_array() {
     let builder = ModerationBuilder::new_array(inputs);
     let request = builder.build().unwrap();
 
-    // Array inputs are joined with newlines
-    assert_eq!(request.input, "Message 1\nMessage 2");
+    // Each text is classified on its own
+    assert_eq!(
+        serde_json::to_value(&request.input).unwrap(),
+        serde_json::json!(["Message 1", "Message 2"])
+    );
+}
+
+#[test]
+fn test_moderation_builder_multimodal_items() {
+    use openai_client_base::models::CreateModerationRequestInputOneOfInner;
+
+    let items: Vec<CreateModerationRequestInputOneOfInner> =
+        serde_json::from_value(serde_json::json!([
+            {"type": "text", "text": "a caption"},
+            {"type": "image_url", "image_url": {"url": "https://example.com/cat.png"}}
+        ]))
+        .unwrap();
+    let builder = ModerationBuilder::new(items);
+    assert_eq!(builder.input_count(), 2);
+    assert_eq!(builder.first_input(), None);
+    let request = builder.build().unwrap();
+    assert_eq!(
+        serde_json::to_value(&request.input).unwrap(),
+        serde_json::json!([
+            {"type": "text", "text": "a caption"},
+            {"type": "image_url", "image_url": {"url": "https://example.com/cat.png"}}
+        ])
+    );
 }
 
 #[test]

@@ -552,5 +552,7 @@ fn handle_api_error(error: &Error) {
             eprintln!(" Stream Buffer Error: {message}");
             eprintln!(" The stream buffer encountered an issue");
         }
+        // `Error` is non-exhaustive: later releases may add variants.
+        _ => eprintln!(" Error: {error}"),
     }
 }

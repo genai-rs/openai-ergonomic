@@ -1,7 +1,7 @@
 //! Moderations API client.
 
 use super::{map_api_error, Client};
-use crate::builders::moderations::ModerationBuilder;
+use crate::builders::moderations::{ModerationBuilder, ModerationInput};
 use crate::errors::Result;
 use crate::interceptor::{AfterResponseContext, BeforeRequestContext, ErrorContext};
 use crate::semantic_conventions::operation_names;
@@ -36,7 +36,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> 
     /// # }
     /// ```
     #[must_use]
-    pub fn builder(&self, input: impl Into<String>) -> ModerationBuilder {
+    pub fn builder(&self, input: impl Into<ModerationInput>) -> ModerationBuilder {
         ModerationBuilder::new(input)
     }
 
@@ -59,7 +59,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> 
     /// # }
     /// ```
     #[must_use]
-    pub fn check(&self, input: impl Into<String>) -> ModerationBuilder {
+    pub fn check(&self, input: impl Into<ModerationInput>) -> ModerationBuilder {
         ModerationBuilder::new(input)
     }
 

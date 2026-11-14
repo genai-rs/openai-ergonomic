@@ -204,7 +204,7 @@ fn test_completions_builder_with_single_prompt() {
 
     let request = builder.build().unwrap();
     assert_eq!(request.model, "gpt-3.5-turbo-instruct");
-    assert_eq!(request.prompt, "Hello");
+    assert_eq!(request.prompt, Some("Hello".into()));
 }
 
 #[test]

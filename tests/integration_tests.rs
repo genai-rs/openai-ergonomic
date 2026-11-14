@@ -7,8 +7,7 @@
 use openai_client_base::models::ChatCompletionRequestUserMessageContentPart;
 use openai_ergonomic::{
     builders::{
-        chat::{image_url_part, system_user, text_part, tool_function},
-        responses::{responses_simple, responses_system_user, responses_tool_function},
+        chat::{image_url_part, system_user, text_part, tool_function, user_message},
         Builder,
     },
     errors::Error,
@@ -19,7 +18,7 @@ use serde_json::json;
 /// Test basic responses builder functionality
 #[test]
 fn test_responses_builder_integration() {
-    let builder = responses_simple("gpt-4", "Hello, world!");
+    let builder = user_message("gpt-4", "Hello, world!");
     let request = builder.build().unwrap();
 
     assert_eq!(request.model, "gpt-4");
@@ -31,7 +30,7 @@ fn test_responses_builder_integration() {
 /// Test complex responses builder with system and user messages
 #[test]
 fn test_responses_builder_system_user_integration() {
-    let builder = responses_system_user(
+    let builder = system_user(
         "gpt-4",
         "You are a helpful AI assistant",
         "What's the capital of France?",
@@ -50,7 +49,7 @@ fn test_responses_builder_system_user_integration() {
 /// Test responses builder with tools
 #[test]
 fn test_responses_builder_with_tools() {
-    let tool = responses_tool_function(
+    let tool = tool_function(
         "get_weather",
         "Get current weather information",
         json!({
@@ -65,7 +64,7 @@ fn test_responses_builder_with_tools() {
         }),
     );
 
-    let builder = responses_simple("gpt-4", "What's the weather in Paris?").tool(tool);
+    let builder = user_message("gpt-4", "What's the weather in Paris?").add_tool(tool);
 
     let request = builder.build().unwrap();
 
@@ -145,8 +144,7 @@ fn test_responses_builder_json_schema() {
         "required": ["name", "age"]
     });
 
-    let builder =
-        responses_simple("gpt-4", "Generate a person object").json_schema("person", schema);
+    let builder = user_message("gpt-4", "Generate a person object").json_schema("person", schema);
 
     let request = builder.build().unwrap();
 
@@ -164,7 +162,7 @@ fn test_responses_builder_json_schema() {
 /// Test builder validation - empty messages should fail
 #[test]
 fn test_builder_validation_empty_messages() {
-    let builder = openai_ergonomic::builders::responses::ResponsesBuilder::new("gpt-4");
+    let builder = openai_ergonomic::builders::chat::ChatCompletionBuilder::new("gpt-4");
     let result = builder.build();
 
     assert!(result.is_err());
@@ -180,7 +178,7 @@ fn test_builder_validation_empty_messages() {
 #[test]
 fn test_builder_parameter_validation() {
     // Test with extreme but valid parameters
-    let builder = responses_simple("gpt-4", "Test")
+    let builder = user_message("gpt-4", "Test")
         .temperature(0.0)
         .max_tokens(1)
         .n(1)
@@ -201,7 +199,7 @@ fn test_builder_parameter_validation() {
 /// Test serialization of complex requests
 #[test]
 fn test_request_serialization() {
-    let tool = responses_tool_function(
+    let tool = tool_function(
         "search",
         "Search for information",
         json!({
@@ -212,14 +210,14 @@ fn test_request_serialization() {
         }),
     );
 
-    let builder = responses_system_user(
+    let builder = system_user(
         "gpt-4",
         "You are a search assistant",
         "Find information about Rust programming",
     )
     .temperature(0.8)
     .max_completion_tokens(500)
-    .tool(tool)
+    .add_tool(tool)
     .json_mode();
 
     let request = builder.build().unwrap();
@@ -281,7 +279,7 @@ fn test_helper_function_consistency() {
         json!({"type": "object", "properties": {}}),
     );
 
-    let responses_tool = openai_ergonomic::builders::responses::responses_tool_function(
+    let responses_tool = openai_ergonomic::builders::chat::tool_function(
         "test_function",
         "A test function",
         json!({"type": "object", "properties": {}}),
@@ -297,7 +295,7 @@ fn test_helper_function_consistency() {
 /// Test reasoning effort parameter for o3 models
 #[test]
 fn test_reasoning_effort_parameter() {
-    let builder = openai_ergonomic::builders::responses::ResponsesBuilder::new("o3-mini")
+    let builder = openai_ergonomic::builders::chat::ChatCompletionBuilder::new("o3-mini")
         .user("Solve this complex problem")
         .reasoning_effort("high");
 
@@ -310,7 +308,7 @@ fn test_reasoning_effort_parameter() {
 /// Test stream parameter
 #[test]
 fn test_stream_parameter() {
-    let builder = responses_simple("gpt-4", "Hello").stream(true);
+    let builder = user_message("gpt-4", "Hello").stream(true);
 
     let request = builder.build().unwrap();
 
@@ -322,7 +320,7 @@ fn test_stream_parameter() {
 fn test_stop_sequences() {
     let stop_sequences = vec!["STOP".to_string(), "END".to_string()];
 
-    let builder = responses_simple("gpt-4", "Count to 10").stop(stop_sequences);
+    let builder = user_message("gpt-4", "Count to 10").stop(stop_sequences);
 
     let request = builder.build().unwrap();
 

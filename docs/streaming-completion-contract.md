@@ -6,9 +6,11 @@ OpenTelemetry exporter). [Streaming](streaming.md) has the everyday usage.
 
 ## Entry points
 
-`send_chat_stream_with_completion` and `send_responses_stream_with_completion` return a
-`(BoxedChatStream, StreamCompletion)`; `InterceptedStream::new_with_completion` does the same for
-a stream you build yourself. `send_chat_stream` and `send_responses_stream` run the same
+`send_chat_stream_with_completion` returns a `(BoxedChatStream, StreamCompletion)` and
+`send_responses_stream_with_completion` a `(BoxedResponsesStream, StreamCompletion)`;
+`InterceptedStream::new_with_completion` does the same for a stream you build yourself (of
+`ChatCompletionChunk`s or `ResponsesEvent`s: the items of an `InterceptedStream<T, C>` are a
+`C: InterceptedItem`). For the Responses API a "chunk" is an event. `send_chat_stream` and `send_responses_stream` run the same
 lifecycle and drop the handle.
 
 `StreamCompletion` is a cloneable handle per stream. `wait()` resolves to an
@@ -23,7 +25,8 @@ drain.
 
 `StreamCompletionReport` has:
 
-- `outcome`: `StreamOutcome::Completed`, `StreamFailed(StreamFailure)` or `Cancelled`;
+- `outcome`: `StreamOutcome::Completed`, `StreamFailed(StreamFailure)` or `Cancelled`
+  (`StreamOutcome` and `StreamFailureKind` are `#[non_exhaustive]`);
 - `total_chunks` (accepted chunks, usage-only ones included), `duration`, and the last
   `input_tokens` / `output_tokens` seen (`None` when the stream reported no usage);
 - `callback_attempts`, `callback_successes`, `callback_failure_count` (exact), and
@@ -61,8 +64,10 @@ For each stream:
 | Dropped after either | unchanged | nothing more is admitted | no second event |
 
 The first trigger wins; a drop never overwrites a failure. A chunk with a finish reason does not
-end the stream (usage chunks may follow). `Completed` means the parser reached the end of the
-event stream, not that the server sent a completion marker.
+end the stream (usage chunks may follow). `Completed` means the stream ended as the protocol
+says: for chat, `data: [DONE]`, or the end of the body after a chunk with a finish reason; for
+the Responses API, its terminal event. A body that ends before that yields
+`Error::StreamConnection`, so a cut-off stream is `StreamFailed` with the `Connection` kind.
 
 ## Hooks
 

@@ -1,8 +1,9 @@
 //! Response type wrappers and ergonomic helpers.
 //!
 //! This module provides ergonomic wrappers around `OpenAI` API responses with
-//! convenient methods for common operations. The responses-first approach
-//! makes it easy to work with structured outputs and tool calling.
+//! convenient methods for common operations: chat completions
+//! ([`ChatCompletionResponseWrapper`]), tool and tool-choice helpers. The responses of the
+//! Responses API are in [`responses_api`](crate::responses_api).
 //!
 //! # Example
 //!
@@ -11,9 +12,9 @@
 //! # async fn example() -> openai_ergonomic::Result<()> {
 //! let client = Client::from_env()?.build();
 //! let request = client
-//!     .responses_simple("What is the weather?")
-//!     .tool(tool_web_search());
-//! let response = client.send_responses(request).await?;
+//!     .chat_simple("What is the weather?")
+//!     .tools(vec![tool_web_search()]);
+//! let response = client.send_chat(request).await?;
 //!
 //! // Access response content
 //! if let Some(content) = response.content() {

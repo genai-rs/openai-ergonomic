@@ -5,6 +5,110 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
+## Migrating to 0.22
+
+Version 0.22 moves to `openai-client-base` 0.34, gives the Responses API its own client and
+makes the error enums open for new variants. It bundles every breaking change planned for the
+tool-framework round, so later releases of that round only add API.
+
+- **`openai-client-base` 0.34.** Code that uses its types directly moves to 0.34: among others
+  `CreateResponse.input` is an `Option<InputParam>`, `Response.instructions` an
+  `Option<ResponseAllOfInstructions>`, `CreateCompletionRequest.prompt` an
+  `Option<CreateCompletionRequestPrompt>` and `CreateModerationRequest.input` a
+  `CreateModerationRequestInput`; `logprobs`, `cache_write_tokens` and `access_programs` are
+  optional; item enums have an `Unknown` variant. See its
+  [0.33.0 to 0.34.0 migration notes](https://github.com/genai-rs/openai-client-base/blob/main/migration/api-diff-0.33.0-to-0.34.0.md).
+
+- **`ResponsesBuilder` is the real Responses API.** It used to build a chat completion and send
+  it to `/chat/completions`. Now `client.responses()` returns a `ResponsesBuilder` for
+  `POST /responses`, `send_responses` returns a `ResponsesResponse`, and `send_responses_stream`
+  yields `ResponsesEvent`s (see [Responses workflows](responses_workflows.md)). Code that wanted
+  a chat completion moves to `ChatCompletionBuilder`, which gained the old builder's
+  `json_mode()`, `json_schema(..)`, `reasoning_effort(..)` and a single-tool `add_tool(..)`
+  (`tool(..)` on the chat builder appends a tool *message*):
+
+  ```rust,ignore
+  // Before: a chat completion, despite the name
+  let builder = client.responses().system("Be brief").user("Hi").max_completion_tokens(100);
+  let response = client.send_responses(builder).await?;
+  println!("{}", response.content().unwrap_or_default());
+  ```
+
+  ```rust,no_run
+  # async fn run(client: openai_ergonomic::Client) -> openai_ergonomic::Result<()> {
+  // After, staying on Chat Completions
+  let builder = client.chat().system("Be brief").user("Hi").max_completion_tokens(100);
+  let response = client.send_chat(builder).await?;
+  println!("{}", response.content().unwrap_or_default());
+
+  // After, on the Responses API
+  let builder = client.responses().instructions("Be brief").user("Hi").max_output_tokens(100);
+  let response = client.send_responses(builder).await?;
+  println!("{}", response.output_text());
+  # Ok(())
+  # }
+  ```
+
+  | Before | After (chat) | After (Responses API) |
+  | --- | --- | --- |
+  | `client.responses()`, `ResponsesBuilder::new(m)` | `client.chat()`, `ChatCompletionBuilder::new(m)` | unchanged names, new builder |
+  | `responses_simple(m, text)` | `user_message(m, text)` | `responses_simple(m, text)` |
+  | `responses_system_user(m, s, u)` | `system_user(m, s, u)` | `responses_system_user(m, instructions, u)` |
+  | `responses_tool_function(..)` | `tool_function(..)` | `responses_function_tool(..)` or `.function_tool(..)` |
+  | `responses_tool_web_search()` | `tool_web_search()` | a built-in `web_search` tool |
+  | `.tool(t)` | `.add_tool(t)` | `.tool(t)` (a generated `Tool`) |
+  | `.max_completion_tokens(n)` | unchanged | `.max_output_tokens(n)` |
+  | `send_responses(b)` → `ChatCompletionResponseWrapper` | `send_chat(b)` | `send_responses(b)` → `ResponsesResponse` |
+  | `send_responses_stream(b)` → `BoxedChatStream` | `send_chat_stream(b)` | `send_responses_stream(b)` → `BoxedResponsesStream` |
+  | `execute_responses(CreateChatCompletionRequest)` | `execute_chat(..)` | `execute_responses(CreateResponse)` |
+  | `response.content()` | unchanged | `response.output_text()` |
+  | `response.tool_calls()` | unchanged | `response.function_calls()` |
+
+  The `responses` operation name of interceptors and Langfuse now marks real Responses calls.
+  `ResponsesBuilder::build()` returns the generated `CreateResponse`, and
+  `test_utils::helpers::{minimal_responses_request, complex_responses_request}` return one.
+
+- **Completions prompts and moderation inputs take the API's unions.**
+  `CompletionsBuilder::prompt(..)` takes `impl Into<CreateCompletionRequestPrompt>` (a `&str` or
+  `String` still works) and the new `prompts(..)` sends several prompts.
+  `ModerationBuilder::new(..)`, `moderate_text(..)`, `moderate_text_with_model(..)` and
+  `client.moderations().builder(..)` / `check(..)` take `impl Into<ModerationInput>`: a text, a
+  `Vec<String>`, or multimodal `CreateModerationRequestInputOneOfInner` items (the new
+  `ModerationInput::Items`; `ModerationInput` is `#[non_exhaustive]`). Several texts used to be
+  joined with newlines into one input; they are now sent as an array, one result per text.
+
+- **`Error` and `ToolError` are `#[non_exhaustive]`**, so are `StreamOutcome` and
+  `StreamFailureKind`: a `match` on them needs a wildcard arm. Prefer the classification
+  methods (`is_rate_limit()`, `is_retryable()`, `is_client_error()`, ...).
+
+  ```rust
+  use openai_ergonomic::Error;
+
+  fn describe(error: &Error) -> String {
+      match error {
+          Error::Api { status, .. } => format!("API error {status}"),
+          Error::Http(error) => format!("transport: {error}"),
+          // New variants may come in minor releases.
+          other => other.to_string(),
+      }
+  }
+  # assert_eq!(describe(&Error::api(429, "slow down")), "API error 429");
+  ```
+
+- **A cut-off chat stream is an error.** A chat stream completes at `data: [DONE]`, or when the
+  body ends after a chunk with a `finish_reason`. A body that ends before either used to end the
+  stream as if it had completed; it now yields `Error::StreamConnection` as the last item, and
+  interceptors see `StreamOutcome::StreamFailed` (kind `Connection`) instead of `Completed`.
+  `ChatCompletionStream::from_events`, which cannot see `[DONE]`, requires a `finish_reason`.
+
+- **`InterceptedStream` is generic over its items.** `InterceptedStream<T, C = ChatCompletionChunk>`
+  takes any stream of `C: InterceptedItem` (`ChatCompletionChunk` or `ResponsesEvent`); code that
+  names `InterceptedStream<T>` and passes a `ChatCompletionStream` keeps compiling.
+
+- **Vector store search filters are sent.** `VectorStoreSearchBuilder::filter(key, value)` was
+  ignored by `client.vector_stores().search(..)`; it is now sent as an `eq` filter (several are
+  combined with `and`), so searches with filters return fewer results than before.
+
 ## Upgrading to 0.21
 
 Version 0.21 moves to `openai-client-base` 0.33 (generated with timvw-rust 0.29) and
@@ -178,7 +282,7 @@ it. Read values with `.flatten()`.
 ```rust
 use openai_client_base::models::CreateCompletionRequest;
 
-let mut request = CreateCompletionRequest::new("gpt-4".into(), "Hello".into());
+let mut request = CreateCompletionRequest::new("gpt-4".into(), Some("Hello".into()));
 request.stream = Some(Some(false)); // sends `"stream": false`
 request.stop = Some(None);          // sends `"stop": null`
 request.n = None;                   // omits `n`

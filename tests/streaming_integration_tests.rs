@@ -21,7 +21,7 @@ use harness::{
     assert_has_field, assert_valid_stream_chunk, fixtures, MockOpenAIClient,
 };
 use openai_client_base::models::CreateChatCompletionStreamResponse;
-use openai_ergonomic::builders::{responses::responses_simple, Builder};
+use openai_ergonomic::builders::{chat::user_message, Builder};
 use openai_ergonomic::streaming::ChatCompletionStream;
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -543,7 +543,7 @@ async fn test_streaming_builder_integration() {
     let mock = mock_client.mock_chat_completions_streaming().await;
 
     // Use builder to create streaming request
-    let builder = responses_simple("gpt-4", "Tell me a joke")
+    let builder = user_message("gpt-4", "Tell me a joke")
         .stream(true)
         .max_tokens(100);
 

@@ -252,30 +252,19 @@ where
             {
                 attributes.push(KeyValue::new(GEN_AI_REQUEST_TEMPERATURE, temperature));
             }
-            if let Some(max_tokens) = params.get("max_tokens").and_then(serde_json::Value::as_i64) {
+            // `max_output_tokens` for the Responses API
+            if let Some(max_tokens) = params
+                .get("max_tokens")
+                .or_else(|| params.get("max_output_tokens"))
+                .and_then(serde_json::Value::as_i64)
+            {
                 attributes.push(KeyValue::new(GEN_AI_REQUEST_MAX_TOKENS, max_tokens));
             }
 
             // Add messages as gen_ai.prompt attributes
-            if let Some(messages) = params.get("messages").and_then(serde_json::Value::as_array) {
-                for (i, message) in messages.iter().enumerate() {
-                    if let Some(obj) = message.as_object() {
-                        let role = obj
-                            .get("role")
-                            .and_then(serde_json::Value::as_str)
-                            .unwrap_or("unknown")
-                            .to_string();
-                        let content = obj
-                            .get("content")
-                            .and_then(serde_json::Value::as_str)
-                            .unwrap_or("")
-                            .to_string();
-
-                        attributes.push(KeyValue::new(format!("gen_ai.prompt.{i}.role"), role));
-                        attributes
-                            .push(KeyValue::new(format!("gen_ai.prompt.{i}.content"), content));
-                    }
-                }
+            for (i, (role, content)) in prompt_messages(&params).into_iter().enumerate() {
+                attributes.push(KeyValue::new(format!("gen_ai.prompt.{i}.role"), role));
+                attributes.push(KeyValue::new(format!("gen_ai.prompt.{i}.content"), content));
             }
         }
 
@@ -342,6 +331,23 @@ where
             // Add response ID if available
             if let Some(id) = response.get("id").and_then(serde_json::Value::as_str) {
                 span.set_attribute(KeyValue::new(GEN_AI_RESPONSE_ID, id.to_string()));
+            }
+
+            // The output messages of a Responses API response
+            if let Some(output) = response.get("output").and_then(serde_json::Value::as_array) {
+                let messages = output.iter().filter(|item| {
+                    item.get("type").and_then(serde_json::Value::as_str) == Some("message")
+                });
+                for (i, message) in messages.enumerate() {
+                    span.set_attribute(KeyValue::new(
+                        format!("gen_ai.completion.{i}.role"),
+                        "assistant",
+                    ));
+                    span.set_attribute(KeyValue::new(
+                        format!("gen_ai.completion.{i}.content"),
+                        content_text(message.get("content")),
+                    ));
+                }
             }
 
             // Add completion content
@@ -621,6 +627,55 @@ where
 // `Arc<LangfuseInterceptor<T>>` implements `Interceptor` through the blanket
 // `Arc<I>` forwarding implementation in `crate::interceptor`.
 
+/// The prompt messages of a request, as (role, content): the `messages` of a chat completion,
+/// or the `instructions` and `input` of a Responses API request.
+fn prompt_messages(params: &serde_json::Value) -> Vec<(String, String)> {
+    let mut prompt = Vec::new();
+    if let Some(messages) = params.get("messages").and_then(serde_json::Value::as_array) {
+        for message in messages.iter().filter(|message| message.is_object()) {
+            prompt.push(role_and_content(message, "unknown"));
+        }
+        return prompt;
+    }
+    if let Some(instructions) = params
+        .get("instructions")
+        .and_then(serde_json::Value::as_str)
+    {
+        prompt.push(("system".to_string(), instructions.to_string()));
+    }
+    match params.get("input") {
+        Some(serde_json::Value::String(text)) => prompt.push(("user".to_string(), text.clone())),
+        Some(serde_json::Value::Array(items)) => {
+            for item in items.iter().filter(|item| item.get("role").is_some()) {
+                prompt.push(role_and_content(item, "user"));
+            }
+        }
+        _ => {}
+    }
+    prompt
+}
+
+fn role_and_content(message: &serde_json::Value, default_role: &str) -> (String, String) {
+    let role = message
+        .get("role")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or(default_role)
+        .to_string();
+    (role, content_text(message.get("content")))
+}
+
+/// The text of a message's content: a string, or the text of its parts.
+fn content_text(content: Option<&serde_json::Value>) -> String {
+    match content {
+        Some(serde_json::Value::String(text)) => text.clone(),
+        Some(serde_json::Value::Array(parts)) => parts
+            .iter()
+            .filter_map(|part| part.get("text").and_then(serde_json::Value::as_str))
+            .collect(),
+        _ => String::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -638,6 +693,40 @@ mod tests {
 
         // Cleanup
         std::env::remove_var("LANGFUSE_DEBUG");
+    }
+
+    #[test]
+    fn prompt_messages_of_chat_and_responses_requests() {
+        let chat = serde_json::json!({"messages": [
+            {"role": "system", "content": "Be brief"},
+            {"role": "user", "content": [{"type": "text", "text": "Hi"}]}
+        ]});
+        assert_eq!(
+            prompt_messages(&chat),
+            [
+                ("system".to_string(), "Be brief".to_string()),
+                ("user".to_string(), "Hi".to_string())
+            ]
+        );
+        let responses = serde_json::json!({
+            "instructions": "Be brief",
+            "input": [
+                {"type": "message", "role": "user", "content": "Hi"},
+                {"type": "function_call_output", "call_id": "c", "output": "x"}
+            ]
+        });
+        assert_eq!(
+            prompt_messages(&responses),
+            [
+                ("system".to_string(), "Be brief".to_string()),
+                ("user".to_string(), "Hi".to_string())
+            ]
+        );
+        let text = serde_json::json!({"input": "Hello"});
+        assert_eq!(
+            prompt_messages(&text),
+            [("user".to_string(), "Hello".to_string())]
+        );
     }
 
     #[test]

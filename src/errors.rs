@@ -9,7 +9,11 @@ use thiserror::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Main error type for the `OpenAI` ergonomic wrapper.
+///
+/// New variants may be added in minor releases: match with a wildcard arm, or prefer the
+/// classification methods ([`Error::is_rate_limit`], [`Error::is_retryable`], ...).
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
     /// Tool registration or execution failure, including any model call context.
     #[error(transparent)]

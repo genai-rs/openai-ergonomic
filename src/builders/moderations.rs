@@ -22,12 +22,56 @@ pub struct ModerationBuilder {
 }
 
 /// Input for moderation requests.
-#[derive(Debug, Clone)]
+///
+/// Converts from a `String` or `&str` (one text), a `Vec<String>` (several texts, each
+/// classified on its own) and a `Vec` of multimodal input items (text and images).
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum ModerationInput {
     /// Single text input
     Text(String),
     /// Multiple text inputs
     TextArray(Vec<String>),
+    /// Multimodal input items: texts and image URLs.
+    Items(Vec<openai_client_base::models::CreateModerationRequestInputOneOfInner>),
+}
+
+impl From<String> for ModerationInput {
+    fn from(text: String) -> Self {
+        Self::Text(text)
+    }
+}
+
+impl From<&str> for ModerationInput {
+    fn from(text: &str) -> Self {
+        Self::Text(text.to_string())
+    }
+}
+
+impl From<Vec<String>> for ModerationInput {
+    fn from(texts: Vec<String>) -> Self {
+        Self::TextArray(texts)
+    }
+}
+
+impl From<Vec<openai_client_base::models::CreateModerationRequestInputOneOfInner>>
+    for ModerationInput
+{
+    fn from(
+        items: Vec<openai_client_base::models::CreateModerationRequestInputOneOfInner>,
+    ) -> Self {
+        Self::Items(items)
+    }
+}
+
+impl From<ModerationInput> for openai_client_base::models::CreateModerationRequestInput {
+    fn from(input: ModerationInput) -> Self {
+        match input {
+            ModerationInput::Text(text) => Self::Text(text),
+            ModerationInput::TextArray(texts) => Self::ArrayOfStrings(texts),
+            ModerationInput::Items(items) => Self::ArrayOfItems(items),
+        }
+    }
 }
 
 /// Result of a moderation check.
@@ -97,7 +141,8 @@ pub struct ModerationCategoryScores {
 }
 
 impl ModerationBuilder {
-    /// Create a new moderation builder with text input.
+    /// Create a new moderation builder: one text, several texts (`Vec<String>`) or
+    /// multimodal input items.
     ///
     /// # Examples
     ///
@@ -105,11 +150,13 @@ impl ModerationBuilder {
     /// use openai_ergonomic::builders::moderations::ModerationBuilder;
     ///
     /// let builder = ModerationBuilder::new("Check this text for harmful content");
+    /// let several = ModerationBuilder::new(vec!["first".to_string(), "second".to_string()]);
+    /// assert_eq!(several.input_count(), 2);
     /// ```
     #[must_use]
-    pub fn new(input: impl Into<String>) -> Self {
+    pub fn new(input: impl Into<ModerationInput>) -> Self {
         Self {
-            input: ModerationInput::Text(input.into()),
+            input: input.into(),
             model: None,
         }
     }
@@ -149,7 +196,7 @@ impl ModerationBuilder {
     /// Check if this request has multiple inputs.
     #[must_use]
     pub fn has_multiple_inputs(&self) -> bool {
-        matches!(self.input, ModerationInput::TextArray(_))
+        self.input_count() > 1
     }
 
     /// Get the number of inputs in this request.
@@ -158,6 +205,7 @@ impl ModerationBuilder {
         match &self.input {
             ModerationInput::Text(_) => 1,
             ModerationInput::TextArray(texts) => texts.len(),
+            ModerationInput::Items(items) => items.len(),
         }
     }
 
@@ -167,6 +215,7 @@ impl ModerationBuilder {
         match &self.input {
             ModerationInput::Text(text) => Some(text),
             ModerationInput::TextArray(texts) => texts.first().map(std::string::String::as_str),
+            ModerationInput::Items(_) => None,
         }
     }
 
@@ -178,6 +227,7 @@ impl ModerationBuilder {
             ModerationInput::TextArray(texts) => {
                 texts.iter().map(std::string::String::as_str).collect()
             }
+            ModerationInput::Items(_) => Vec::new(),
         }
     }
 
@@ -187,17 +237,8 @@ impl ModerationBuilder {
     ///
     /// Returns an error if the request cannot be built.
     pub fn build(self) -> crate::Result<openai_client_base::models::CreateModerationRequest> {
-        let input_string = match self.input {
-            ModerationInput::Text(text) => text,
-            ModerationInput::TextArray(texts) => {
-                // For array inputs, join with newlines for now
-                // The base API expects a single string
-                texts.join("\n")
-            }
-        };
-
         Ok(openai_client_base::models::CreateModerationRequest {
-            input: input_string,
+            input: self.input.into(),
             model: self.model,
         })
     }
@@ -397,7 +438,7 @@ impl ModerationResult {
 
 /// Helper function to create a simple moderation request.
 #[must_use]
-pub fn moderate_text(input: impl Into<String>) -> ModerationBuilder {
+pub fn moderate_text(input: impl Into<ModerationInput>) -> ModerationBuilder {
     ModerationBuilder::new(input)
 }
 
@@ -410,7 +451,7 @@ pub fn moderate_texts(inputs: Vec<String>) -> ModerationBuilder {
 /// Helper function to create a moderation request with a specific model.
 #[must_use]
 pub fn moderate_text_with_model(
-    input: impl Into<String>,
+    input: impl Into<ModerationInput>,
     model: impl Into<String>,
 ) -> ModerationBuilder {
     ModerationBuilder::new(input).model(model)
@@ -574,12 +615,12 @@ mod tests {
 
         match single {
             ModerationInput::Text(text) => assert_eq!(text, "single"),
-            ModerationInput::TextArray(_) => panic!("Expected Text variant"),
+            _ => panic!("Expected Text variant"),
         }
 
         match multiple {
             ModerationInput::TextArray(texts) => assert_eq!(texts.len(), 2),
-            ModerationInput::Text(_) => panic!("Expected TextArray variant"),
+            _ => panic!("Expected TextArray variant"),
         }
     }
 }

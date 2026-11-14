@@ -11,6 +11,10 @@ use crate::{errors::Result, Error};
 use std::env;
 use timvw_rust_runtime::Client as HttpClient;
 
+/// The model of `client.chat()` and `client.responses()` when neither
+/// `ConfigBuilder::default_model` nor `OPENAI_DEFAULT_MODEL` sets one.
+pub(crate) const DEFAULT_MODEL: &str = "gpt-4";
+
 /// Configuration for the `OpenAI` client.
 ///
 /// The configuration can be created from environment variables or
@@ -149,7 +153,7 @@ impl Config {
             .unwrap_or(3);
 
         let default_model =
-            env::var("OPENAI_DEFAULT_MODEL").unwrap_or_else(|_| "gpt-4".to_string());
+            env::var("OPENAI_DEFAULT_MODEL").unwrap_or_else(|_| DEFAULT_MODEL.to_string());
 
         Ok(Self {
             api_key,
@@ -309,7 +313,7 @@ impl Default for Config {
             organization: None,
             project: None,
             max_retries: 3,
-            default_model: "gpt-4".to_string(),
+            default_model: DEFAULT_MODEL.to_string(),
             http_client: None,
             azure_deployment: None,
             azure_api_version: None,
@@ -491,7 +495,9 @@ impl ConfigBuilder {
             organization: self.organization,
             project: self.project,
             max_retries: self.max_retries.unwrap_or(3),
-            default_model: self.default_model.unwrap_or_else(|| "gpt-4".to_string()),
+            default_model: self
+                .default_model
+                .unwrap_or_else(|| DEFAULT_MODEL.to_string()),
             http_client: self.http_client,
             azure_deployment: self.azure_deployment,
             azure_api_version: self.azure_api_version,

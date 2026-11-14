@@ -82,7 +82,10 @@ pub trait FunctionTool: MaybeSend + MaybeSync {
 }
 
 /// Registration or execution failure, with the tool name and original source.
+///
+/// New variants may be added in minor releases: match with a wildcard arm.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ToolError {
     /// An existing registration was retained.
     #[error("Tool {name:?} is already registered")]

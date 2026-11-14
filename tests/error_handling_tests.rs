@@ -19,8 +19,7 @@ use harness::{
 };
 use openai_ergonomic::{
     builders::{
-        chat::{tool_function, ChatCompletionBuilder},
-        responses::{responses_simple, responses_system_user},
+        chat::{system_user, tool_function, user_message, ChatCompletionBuilder},
         Builder,
     },
     errors::Error,
@@ -156,7 +155,7 @@ fn test_json_schema_validation_errors() {
         "properties": {"name": {"type": "string"}}
     });
 
-    let result = responses_simple("gpt-4", "test")
+    let result = user_message("gpt-4", "test")
         .json_schema("test", invalid_schema)
         .build();
     assert_error_type(result, "invalid");
@@ -167,7 +166,7 @@ fn test_json_schema_validation_errors() {
         "properties": {"name": {"type": "string"}}
     });
 
-    let result = responses_simple("gpt-4", "test")
+    let result = user_message("gpt-4", "test")
         .json_schema("", valid_schema)
         .build();
     assert_error_type(result, "invalid");
@@ -388,7 +387,7 @@ fn test_error_message_formatting() {
 #[test]
 fn test_error_propagation() {
     // Test that validation errors are properly propagated through builders
-    let result = responses_system_user("", "system", "user").build();
+    let result = system_user("", "system", "user").build();
     assert!(result.is_err());
     assert_error_type(result, "invalid");
 
