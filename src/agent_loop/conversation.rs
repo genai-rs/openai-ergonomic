@@ -713,7 +713,7 @@ mod tests {
         conversation.push_answer(&CallAnswer::new(&ghost, "?", true));
         let report = conversation.normalize(ModelCaps::default());
         assert_eq!(report.orphans, ["a", "ghost"]);
-        assert!(report.aborted.is_empty());
+        assert_eq!(report.aborted, Vec::<String>::new());
         assert_eq!(
             types(&conversation),
             ["message", "function_call:a", "function_call_output:a"]
@@ -752,7 +752,7 @@ mod tests {
         let removed = conversation.remove(2);
         assert_eq!(removed.len(), 2);
         assert_eq!(types(&conversation), ["message"]);
-        assert!(conversation.remove(5).is_empty());
+        assert_eq!(conversation.remove(5), Vec::<InputItem>::new());
     }
 
     #[test]
