@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.23.0...v0.24.0) - 2026-11-14
+
+### Added
+
+- agent loop on both APIs (Round 5, slice 3)
+
+### Fixed
+
+- *(agent_loop)* leave failures before the body to the client's HTTP retries
+
+### Other
+
+- compare empty collections with assert_eq (clippy assert_is_empty)
+
 ## [0.23.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.22.0...v0.23.0) - 2026-11-14
 
 ### Added
