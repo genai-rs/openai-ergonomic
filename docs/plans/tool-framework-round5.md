@@ -1,6 +1,6 @@
 # Tool framework, round 5: gap analysis against Codex
 
-Status: slices 1 and 2 are implemented. Slice 1 (step 1 of the order below, with every breaking
+Status: done. Slices 1, 2 and 3 are implemented. Slice 1 (step 1 of the order below, with every breaking
 change of the round): the Responses API client (`src/responses_api/`, `client.responses()`,
 `client.responses_api()`), the chat-backed `ResponsesBuilder` folded into
 `ChatCompletionBuilder`, `#[non_exhaustive]` on `Error`, `ToolError`, `StreamOutcome` and
@@ -13,11 +13,16 @@ decoder part); `ToolFailure`, `ToolError::classify`, `ToolRegistry::answer_call`
 `TruncationConfig`, `truncate_middle` (item 5); `ToolOutputBody`, `OutputContent`, `RichTool`
 (item 6, without audio: function call outputs take text, images and files); `CustomTool`,
 `ToolRegistry::namespace`, `responses_tools` (item 7); `register_dynamic`, `sanitize_tool_name`,
-`ToolNamer`, `tool_framework::schema` (item 8). Slice 3, the agent loop, is planned: `ToolLoop`,
-`LoopConfig`, `Conversation` and `normalize` (item 4), the stateless defaults (item 9), early
-dispatch while streaming (item 2's loop part), the `RwLock` gate and ordered parallel dispatch
-(item 3), max iterations and cancellation (item 11), the whole-request retry (item 12's retry
-part), and exposure, deferred loading and `tool_search` (item 10), which need the loop's state.
+`ToolNamer`, `tool_framework::schema` (item 8). Slice 3, the agent loop (additive only; guide:
+[`docs/agent_loop.md`](../agent_loop.md)): `ToolLoop` on both APIs with `LoopConfig`,
+`LoopOutcome`/`LoopStop`/`TurnRecord`, `LoopEvent` and `CancellationSignal`; `Conversation` and
+`normalize` (item 4); the stateless defaults (item 9); early dispatch while streaming (item 2's
+loop part); the gate and ordered parallel dispatch (item 3); max iterations and cancellation
+(item 11); the whole-request retry with `RetryConfig` (item 12's retry part); `Exposure`,
+`ToolRegistry::search_deferred`, the loop's loaded tools, `ToolSearchConfig` and the
+`ModelCaps::tool_search` flag (item 10); and per-call rate limits (`TurnRecord::rate_limits`,
+`ResponsesResponse::rate_limits`, `ChatCompletionResponseWrapper::rate_limits`), read with
+`openai-client-base`'s `<operation>_response` functions.
 Slice 2 departs from the proposals below where 0.22's API or the wire format required it:
 - `ResponsesEvent` was already a struct in 0.22, so the typed enum is a borrowing view,
   `ResponsesEventKind`, from `ResponsesEvent::kind()`.
@@ -31,6 +36,31 @@ Slice 2 departs from the proposals below where 0.22's API or the wire format req
   `kind`, to answer a custom call with a `custom_tool_call_output`.
 - Custom tools are advertised to the Responses API only; `tool_definitions` (chat) keeps returning
   the function tools outside namespaces instead of failing.
+Slice 3 departs from the proposals below:
+- `run_with(&mut Conversation, &CancellationSignal, on_event)` takes a callback instead of
+  returning a stream (`run_streamed`), and the history by `&mut`, so it stays with the caller
+  after an error too; `LoopOutcome` is a struct (`stop`, `turns`) rather than an enum holding the
+  conversation.
+- The calls run on the loop's task (`FuturesUnordered`) behind a FIFO read/write gate written
+  out in the dispatcher, not a `tokio::sync::RwLock` with a `Spawn` hook: the same order,
+  deterministic, no runtime assumed, nothing `Send` on WebAssembly.
+- The loop never chains requests with `previous_response_id`; `store` only sets `store` (and
+  whether item ids are sent). Encrypted reasoning is asked for only for reasoning models
+  (`ModelCaps::reasoning`, or reasoning options on the template), which others reject, and
+  reasoning items without encrypted content are not replayed, instead of detecting non-OpenAI
+  providers.
+- A missing output is inserted after the call and the calls and outputs that directly follow it
+  (not directly after the call), so a chat assistant message keeps its tool messages together.
+- `response.incomplete` ends the run with `LoopStop::Incomplete { reason }` whatever the reason
+  (content filter included), rather than an error; there is no `interrupted` case, a reason the
+  API specification does not list (the generated type reads it as `unknown`).
+- Item 10: `Exposure` is a defaulted trait method and `ToolRegistry::set_exposure`;
+  `search_deferred` ranks by word overlap (no BM25 feature); the loop answers its own
+  `tool_search` function, and a model with `ModelCaps::tool_search` gets the hosted
+  `tool_search` with `defer_loading` tools (server-executed) instead of a client-executed one.
+- Rate limits are per call as well as client-wide: the loop and the plain chat and Responses
+  calls read the headers with the generated `<operation>_response` functions; streams, which have
+  no such function, are sent as a raw request (same URL, body and layers).
 Baseline: branch `refactor/no-async-trait` (native async `FunctionTool`/`Interceptor`).
 Reference: OpenAI Codex `codex-rs` at `69231e119b`. Codex paths are relative to `codex-rs/`.
 

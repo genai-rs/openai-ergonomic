@@ -25,4 +25,12 @@ The tool-framework round ([plan](plans/tool-framework-round5.md), modelled on Op
 - **Strict typed tools, adaptive runtime tools.** `register` still rejects invalid names and schemas; `register_dynamic`, for MCP servers and plugins, sanitizes and compacts instead (Codex's name and schema sanitizers), and keeps the raw name.
 - **Hints, not policy.** `supports_parallel` and `output_budget` are defaulted trait methods read at registration. The registry runs nothing concurrently and never truncates: the application (or a loop on top) decides, with `truncate_middle` and `TruncationConfig` as building blocks.
 
-The opt-in tool loop (history repair, stateless request defaults, early dispatch, cancellation, retries of a whole request, deferred tools and tool search) builds on these and comes in a later release.
+## The agent loop
+
+The opt-in [agent loop](agent_loop.md) (`ToolLoop`, Round 5 slice 3) builds on these without changing them:
+
+- **The history is the loop's state.** A `Conversation` of Responses API input items drives both APIs (the chat view groups calls into assistant messages and outputs into tool messages), and `normalize` repairs it before every request, retries included, so cancellation, a fatal tool error or a hand-edited history never produce a request the API rejects.
+- **Stateless by default.** `store: false`, the whole history in every request (without item ids), the encrypted reasoning replayed for reasoning models, one prompt cache key per loop. The loop never chains `previous_response_id`, so a retry or a resumed run needs nothing from the server.
+- **No spawning.** Calls run on the loop's task in a `FuturesUnordered`, behind a FIFO read/write gate that `supports_parallel` drives, and are recorded in call order; nothing has to be `Send` on WebAssembly and no runtime is assumed.
+- **Retries of whole requests** follow `Error::retry_class` and the `retry-after` headers, which the loop reads through calls that keep their response headers (the generated `<operation>_response` functions, and the raw request for streams). Calls already started are not run again.
+- **Exposure is registry metadata, loading is loop state.** `Exposure` says whether a tool is advertised; which deferred tools a search loaded belongs to the `ToolLoop`, with a client-side `tool_search` function by default and the hosted `defer_loading` search for models that have it.

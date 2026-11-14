@@ -58,6 +58,11 @@ goes on from here: the Responses API, streaming, errors and the examples.
   images or files, custom (grammar) tools, namespaces and tools only known at runtime (MCP), in a
   registry that answers every call
   ([tools](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_framework.md)).
+- **An agent loop** on both APIs: `ToolLoop` runs the model's tool calls until it answers, with
+  history repair, calls started while the response streams, ordered parallel dispatch, retries
+  of whole requests, cancellation, deferred tools with a tool search, stateless requests and
+  per-call rate limits
+  ([agent loop](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/agent_loop.md)).
 - **Interceptors** around every request and stream, with a Langfuse / OpenTelemetry integration
   ([interceptors](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/interceptors.md)).
 - **Bring your own types**: send and decode types of your own through the same client
@@ -78,6 +83,7 @@ goes on from here: the Responses API, streaming, errors and the examples.
 | [Chat and responses](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/chat-and-responses.md), [Responses workflows](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/responses_workflows.md) | the builders, structured output, vision, bring your own types |
 | [Streaming](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/streaming.md), [completion contract](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/streaming-completion-contract.md) | streamed chat completions and responses, completion reports |
 | [Tool framework](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_framework.md), [tool orchestration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/tool_orchestration.md) | typed tools, the registry, answering calls on both APIs, multi-turn tool calling |
+| [Agent loop](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/agent_loop.md) | `ToolLoop`: the tool loop on both APIs, history repair, parallel calls, retries, cancellation, tool search |
 | [Interceptors](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/interceptors.md), [Langfuse integration](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/langfuse-integration.md) | hooks around requests and streams, typed state, Langfuse / OpenTelemetry |
 | [Files and media](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/files-and-media.md), [vector stores](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/vector_store_operations.md) | uploads (`Upload`), large files, images, speech, downloads |
 | [Webhooks](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/webhooks.md) | signature verification and events (feature `webhook`) |

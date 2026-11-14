@@ -33,6 +33,7 @@ src/
 │   ├── mod.rs              Client<T>: chat, streaming, sub-client accessors
 │   ├── responses.rs        Client<T>: the Responses API; ResponsesClient
 │   ├── raw.rs              post_json / get_json / send_json / send_json_stream
+│   ├── per_call.rs         calls that keep their response headers (rate limits, retry-after)
 │   ├── large_upload.rs     upload_large_file (Uploads API, parallel parts)
 │   ├── media.rs            saving images, speech and files to disk (native only)
 │   ├── headers.rs          OpenAI-Organization / OpenAI-Project headers
@@ -50,7 +51,11 @@ src/
 ├── tool_framework/         FunctionTool, RichTool, CustomTool, DynamicTool, ToolRegistry
 │   ├── output.rs           ToolInvocation, CallAnswer, ToolOutputBody, truncation
 │   ├── names.rs            tool name sanitizer, ToolNamer
+│   ├── search.rs           the word ranking of search_deferred
 │   └── schema.rs           JSON Schema sanitizer and compaction
+├── agent_loop/             ToolLoop, LoopConfig, CancellationSignal
+│   ├── conversation.rs     Conversation: the history, normalize, the chat view
+│   └── dispatch.rs         ordered parallel dispatch of a turn's calls
 ├── rate_limits.rs          RateLimitSnapshot, the layer that records x-ratelimit-* headers
 ├── langfuse_*.rs           Langfuse interceptor, exporter and context (feature `otel`)
 ├── semantic_conventions.rs OpenTelemetry GenAI attribute and operation names

@@ -1,7 +1,9 @@
 //! WebAssembly: the client in a JavaScript host against a scripted HTTP service (a tower service
 //! that is not `Send`, in place of a server): a chat completion, a streamed one with an
-//! interceptor, a streamed Responses API response, an interceptor whose state holds an `Rc`, a tool call through the tool framework (chat, and the Responses API with a dynamic tool), a webhook verification, and retries with
-//! backoff (the runtime's retry layer, and the parts of a large upload).
+//! interceptor, a streamed Responses API response, an interceptor whose state holds an `Rc`, a tool call through the tool framework (chat, and the Responses API with a dynamic tool), the
+//! agent loop (`ToolLoop`: streamed parallel calls of tools holding `Rc`s, a chat loop with a
+//! retried request, cancellation), a webhook verification, and retries with backoff (the
+//! runtime's retry layer, and the parts of a large upload).
 //!
 //! `cargo test --target wasm32-unknown-unknown --no-default-features --features webhook --test wasm`, with
 //! `wasm-bindgen-test-runner` as the target's runner (it runs the tests in Node.js); see
@@ -18,9 +20,10 @@ use std::time::Duration;
 
 use futures::StreamExt;
 use openai_ergonomic::{
-    AfterResponseContext, BeforeRequestContext, Client, Config, DynamicTool, FunctionTool,
-    Interceptor, StreamChunkContext, StreamTerminalContext, ToolOutputBody, ToolRegistry,
-    UploadPurpose,
+    AfterResponseContext, BeforeRequestContext, CancellationSignal, ChatCompletionBuilder, Client,
+    Config, Conversation, DynamicTool, FunctionTool, Interceptor, LoopConfig, LoopEvent, LoopStop,
+    ResponsesBuilder, RetryConfig, StreamChunkContext, StreamTerminalContext, ToolLoop,
+    ToolOutputBody, ToolRegistry, UploadPurpose,
 };
 use serde_json::{json, Value};
 use timvw_rust_runtime::retry::{RetryLayer, RetryPolicy};
@@ -635,4 +638,186 @@ async fn an_upload_from_a_path_fails_without_a_file_system() {
         std::io::ErrorKind::Unsupported
     );
     assert!(seen.borrow().is_empty());
+}
+
+/// A dynamic tool that sleeps on the host's timer and logs its start and end in an `Rc`.
+fn sleeping_tool(name: &'static str, millis: u32, log: &Rc<RefCell<Vec<String>>>) -> DynamicTool {
+    let log = log.clone();
+    DynamicTool::new(
+        name,
+        "Sleeps, then says its name",
+        json!({"type": "object"}),
+        move |_| {
+            let log = log.clone();
+            async move {
+                log.borrow_mut().push(format!("{name} start"));
+                gloo_timers::future::sleep(Duration::from_millis(u64::from(millis))).await;
+                log.borrow_mut().push(format!("{name} end"));
+                Ok(ToolOutputBody::text(name))
+            }
+        },
+    )
+    .supports_parallel(true)
+}
+
+fn loop_response(id: &str, output: &Value) -> Value {
+    json!({
+        "id": id, "object": "response", "created_at": 1, "status": "completed",
+        "error": null, "incomplete_details": null, "instructions": null,
+        "model": "gpt-4.1-mini", "output": output, "parallel_tool_calls": true,
+        "tools": [], "metadata": {}
+    })
+}
+
+fn loop_events(id: &str, output: &Value) -> String {
+    let mut events: Vec<Value> = output
+        .as_array()
+        .unwrap()
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            json!({"type": "response.output_item.done", "sequence_number": index,
+                   "output_index": index, "item": item})
+        })
+        .collect();
+    events.push(json!({"type": "response.completed", "sequence_number": 99,
+                       "response": loop_response(id, output)}));
+    events
+        .iter()
+        .map(|event| format!("data: {event}\n\n"))
+        .collect::<Vec<_>>()
+        .concat()
+}
+
+#[wasm_bindgen_test]
+async fn tool_loop_streams_and_runs_parallel_calls() {
+    let (http, seen) = scripted(|index, _| {
+        let output = if index == 0 {
+            json!([
+                {"type": "function_call", "id": "fc_1", "call_id": "a", "name": "slow",
+                 "arguments": "{}", "status": "completed"},
+                {"type": "function_call", "id": "fc_2", "call_id": "b", "name": "fast",
+                 "arguments": "{}", "status": "completed"}
+            ])
+        } else {
+            json!([{"type": "message", "id": "msg_1", "status": "completed", "role": "assistant",
+                    "content": [{"type": "output_text", "text": "both done", "annotations": []}]}])
+        };
+        Reply {
+            status: 200,
+            content_type: "text/event-stream",
+            body: loop_events(&format!("resp_{index}"), &output),
+        }
+    });
+    let client = client(http);
+    let log = Rc::new(RefCell::new(Vec::new()));
+    let mut tools = ToolRegistry::new();
+    tools
+        .register_dynamic(sleeping_tool("slow", 30, &log))
+        .unwrap();
+    tools
+        .register_dynamic(sleeping_tool("fast", 1, &log))
+        .unwrap();
+    let mut agent = ToolLoop::responses(&client, tools, ResponsesBuilder::new("gpt-4.1-mini"));
+    let answered = Rc::new(RefCell::new(Vec::new()));
+    let seen_answers = answered.clone();
+    let mut conversation = Conversation::user("go");
+    let outcome = agent
+        .run_with(
+            &mut conversation,
+            &CancellationSignal::new(),
+            move |event| {
+                if let LoopEvent::ToolAnswered(answer) = event {
+                    seen_answers.borrow_mut().push(answer.call_id.clone());
+                }
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(outcome.stop, LoopStop::Completed);
+    assert_eq!(outcome.output_text(), "both done");
+    // Both started before either ended; fast finished first, the history keeps the call order.
+    assert_eq!(&log.borrow()[..2], ["slow start", "fast start"]);
+    assert_eq!(*answered.borrow(), ["b", "a"]);
+    let seen = seen.borrow();
+    assert_eq!(seen.len(), 2);
+    let second: Value = serde_json::from_slice(&seen[1].body).unwrap();
+    assert_eq!(second["store"], false);
+    let outputs: Vec<&Value> = second["input"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["type"] == "function_call_output")
+        .collect();
+    assert_eq!(outputs[0]["call_id"], "a");
+    assert_eq!(outputs[1]["call_id"], "b");
+}
+
+#[wasm_bindgen_test]
+async fn chat_tool_loop_retries_a_failed_request() {
+    let (http, seen) = scripted(|index, _| match index {
+        0 => Reply {
+            status: 503,
+            content_type: "application/json",
+            body: json!({"error": {"message": "overloaded", "type": "server_error"}}).to_string(),
+        },
+        1 => json_reply(&completion(&json!({
+            "role": "assistant", "content": null, "refusal": null,
+            "tool_calls": [{"id": "call_1", "type": "function",
+                            "function": {"name": "add", "arguments": "{\"a\": 2, \"b\": 40}"}}]
+        }))),
+        _ => json_reply(&completion(
+            &json!({"role": "assistant", "content": "42", "refusal": null}),
+        )),
+    });
+    let client = client(http);
+    let calls = Rc::new(Cell::new(0));
+    let mut tools = ToolRegistry::new();
+    tools
+        .register(Add {
+            calls: calls.clone(),
+        })
+        .unwrap();
+    let retry = RetryConfig::new(1).with_base_delay(Duration::from_millis(5));
+    let mut agent = ToolLoop::chat(&client, tools, ChatCompletionBuilder::new("gpt-4o-mini"))
+        .with_config(LoopConfig::new().with_retry(retry));
+    let outcome = agent.run(&mut Conversation::user("2 + 40?")).await.unwrap();
+    assert_eq!(outcome.output_text(), "42");
+    assert_eq!(outcome.turns[0].retries, 1);
+    assert_eq!(calls.get(), 1);
+    assert_eq!(seen.borrow().len(), 3);
+}
+
+#[wasm_bindgen_test]
+async fn tool_loop_cancellation() {
+    let (http, _) = scripted(|_, _| Reply {
+        status: 200,
+        content_type: "text/event-stream",
+        body: loop_events(
+            "resp",
+            &json!([{"type": "function_call", "id": "fc_1", "call_id": "a", "name": "stuck",
+                     "arguments": "{}", "status": "completed"}]),
+        ),
+    });
+    let client = client(http);
+    let log = Rc::new(RefCell::new(Vec::new()));
+    let mut tools = ToolRegistry::new();
+    tools
+        .register_dynamic(sleeping_tool("stuck", 60_000, &log))
+        .unwrap();
+    let mut agent = ToolLoop::responses(&client, tools, ResponsesBuilder::new("gpt-4.1-mini"));
+    let cancel = CancellationSignal::new();
+    let trigger = cancel.clone();
+    wasm_bindgen_futures::spawn_local(async move {
+        gloo_timers::future::sleep(Duration::from_millis(20)).await;
+        trigger.cancel();
+    });
+    let mut conversation = Conversation::user("go");
+    let outcome = agent
+        .run_with(&mut conversation, &cancel, |_| {})
+        .await
+        .unwrap();
+    assert_eq!(outcome.stop, LoopStop::Cancelled);
+    assert!(conversation.unanswered_calls().is_empty());
+    assert_eq!(*log.borrow(), ["stuck start"]);
 }

@@ -5,6 +5,20 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
+## Upgrading to 0.24
+
+Version 0.24 adds the agent loop (`ToolLoop`, see [the guide](agent_loop.md)) and only adds API.
+What existing code may notice:
+
+- **`openai-client-base`**: the client sends chat completions and responses with the generated
+  `<operation>_response` functions, so it needs the release that has them (Cargo picks it up).
+  Requests and errors are unchanged; the responses now carry the rate limits of their call
+  (`ResponsesResponse::rate_limits`, `ChatCompletionResponseWrapper::rate_limits`), and
+  `ResponsesResponse` equality ignores them.
+- **Tool exposure**: `FunctionTool`, `RichTool` and `CustomTool` have a defaulted `exposure()`
+  method (`Exposure::Direct`). `tool_definitions` and `responses_tools` leave out tools whose
+  exposure is `Deferred` or `Hidden`; with the default, nothing changes.
+
 ## Migrating to 0.22
 
 Version 0.22 moves to `openai-client-base` 0.34, gives the Responses API its own client and

@@ -3,7 +3,23 @@
 A tool call takes a round trip: send the conversation with tool definitions, run the tools the
 model asks for, append the assistant's calls and one reply per call, and send the conversation
 again until the model answers. The [tool framework](tool_framework.md) defines typed tools and
-dispatches the calls; this page shows the loop with plain JSON tools.
+dispatches the calls; this page shows the loop with plain JSON tools, written by hand. The
+[agent loop](agent_loop.md) (`ToolLoop`) runs it for you on both APIs, with history repair,
+parallel calls, retries, cancellation and tool search:
+
+```rust,no_run
+use openai_ergonomic::{Client, Conversation, ToolLoop, ToolRegistry};
+
+# async fn example(tools: ToolRegistry) -> openai_ergonomic::Result<()> {
+let client = Client::from_env()?.build();
+let mut agent = ToolLoop::chat(&client, tools, client.chat().system("You are a household assistant."));
+let outcome = agent
+    .run(&mut Conversation::user("Should I carry an umbrella in Brussels today?"))
+    .await?;
+println!("{}", outcome.output_text());
+# Ok(())
+# }
+```
 
 ## The loop
 
@@ -122,7 +138,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 See [Responses workflows](responses_workflows.md#tools) and, with a `ToolRegistry`,
-[the tool framework](tool_framework.md#the-responses-api).
+[the tool framework](tool_framework.md#the-responses-api); `ToolLoop::responses` is this loop,
+streamed, with each call started as soon as the model finished it ([agent loop](agent_loop.md)).
 
 ## Assistants and threads
 

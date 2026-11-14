@@ -16,6 +16,8 @@
 //! - [`responses`] - Response type wrappers with ergonomic helpers
 //! - [`responses_api`] - The Responses API (`/responses`): builder, response, streaming events
 //! - [`client`] - Main client for API interactions
+//! - [`tool_framework`] - Typed tools for both APIs
+//! - [`agent_loop`] - The agent loop: [`ToolLoop`] runs the model's tool calls until it answers
 //! - [`config`] - Configuration management
 //! - [`provider`] - Providers: `OpenAI`, Azure `OpenAI`, `OpenRouter`, Groq, Ollama, custom
 //! - [`auth`] - Pluggable, refreshable authentication
@@ -23,6 +25,7 @@
 //! - [`errors`] - Error types and handling
 
 // Core modules
+pub mod agent_loop;
 pub mod auth;
 pub mod azure_middleware;
 pub mod builders;
@@ -85,6 +88,10 @@ where
 pub use timvw_rust_runtime::{MaybeSend, MaybeSync};
 
 // Re-export commonly used types
+pub use agent_loop::{
+    CancellationSignal, Conversation, LoopConfig, LoopEvent, LoopOutcome, LoopStop, ModelCaps,
+    NormalizeReport, PromptCacheKey, RetryConfig, ToolLoop, ToolSearchConfig, TurnRecord,
+};
 pub use auth::{AuthLayer, AuthProvider, AuthToken, BearerTokenAuth};
 pub use client::Client;
 pub use config::{Config, ConfigBuilder};
@@ -102,9 +109,9 @@ pub use langfuse_interceptor::{LangfuseConfig, LangfuseInterceptor, LangfuseStat
 pub use provider::{Provider, ProviderKind};
 pub use rate_limits::{RateLimitSnapshot, RateLimitWindow};
 pub use tool_framework::{
-    CallAnswer, CustomFormat, CustomTool, DynamicTool, FunctionTool, OutputBudget, OutputContent,
-    RichTool, ToolError, ToolFailure, ToolInvocation, ToolKind, ToolOutput, ToolOutputBody,
-    ToolRegistry, TruncationConfig,
+    CallAnswer, CustomFormat, CustomTool, DynamicTool, Exposure, FunctionTool, OutputBudget,
+    OutputContent, RichTool, ToolError, ToolFailure, ToolInvocation, ToolKey, ToolKind, ToolOutput,
+    ToolOutputBody, ToolRegistry, TruncationConfig,
 };
 
 // Re-export specific builder and response types for convenience
@@ -200,6 +207,8 @@ mod doc_pages {
     struct ToolFramework;
     #[doc = include_str!("../docs/tool_orchestration.md")]
     struct ToolOrchestration;
+    #[doc = include_str!("../docs/agent_loop.md")]
+    struct AgentLoop;
     #[doc = include_str!("../docs/vector_store_operations.md")]
     struct VectorStoreOperations;
     #[doc = include_str!("../docs/streaming-completion-contract.md")]

@@ -1265,9 +1265,9 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "openai-client-base"
-version = "0.34.0"
+version = "0.34.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8052248ed0ca562c133ca0a01bec9a5d08d66a51f95d1c9ecaa70adaa4bea5f"
+checksum = "e3368db7a0e94e1c7e6ada3781a697fb599e098bd1c9efba324225665c9a519d"
 dependencies = [
  "bon",
  "futures-core",
@@ -1282,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "openai-ergonomic"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",

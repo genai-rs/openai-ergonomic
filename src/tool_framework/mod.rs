@@ -61,6 +61,7 @@ use crate::{
 mod names;
 mod output;
 pub mod schema;
+mod search;
 
 pub use names::{sanitize_tool_name, ToolNamer, CHAT_TOOL_NAME_MAX, RESPONSES_TOOL_NAME_MAX};
 pub use output::{
@@ -109,6 +110,11 @@ pub trait FunctionTool: MaybeSend + MaybeSync {
     fn output_budget(&self) -> Option<OutputBudget> {
         None
     }
+    /// Whether the model sees this tool from the start, after a tool search, or never. Read
+    /// once, at registration ([`ToolRegistry::exposure`]). Default [`Exposure::Direct`].
+    fn exposure(&self) -> Exposure {
+        Exposure::Direct
+    }
 }
 
 /// A function tool whose output is more than JSON text.
@@ -139,6 +145,10 @@ pub trait RichTool: MaybeSend + MaybeSync {
     /// See [`FunctionTool::output_budget`].
     fn output_budget(&self) -> Option<OutputBudget> {
         None
+    }
+    /// See [`FunctionTool::exposure`].
+    fn exposure(&self) -> Exposure {
+        Exposure::Direct
     }
 }
 
@@ -229,6 +239,32 @@ pub trait CustomTool: MaybeSend + MaybeSync {
     fn output_budget(&self) -> Option<OutputBudget> {
         None
     }
+    /// See [`FunctionTool::exposure`].
+    fn exposure(&self) -> Exposure {
+        Exposure::Direct
+    }
+}
+
+/// Whether and when the model sees a registered tool.
+///
+/// The registry's definitions ([`ToolRegistry::tool_definitions`],
+/// [`ToolRegistry::responses_tools`]) list only [`Direct`](Self::Direct) tools. A
+/// [`ToolLoop`](crate::ToolLoop) also offers the deferred ones through a tool search, and
+/// answers calls of every registered tool, hidden ones included.
+///
+/// New variants may be added in minor releases: match with a wildcard arm.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum Exposure {
+    /// Advertised in every request.
+    #[default]
+    Direct,
+    /// Advertised once a tool search found it (or with `defer_loading` to a model that searches
+    /// tools itself): for large tool sets, whose definitions would fill the context.
+    Deferred,
+    /// Never advertised, but a call of it is answered (for example a tool the application
+    /// advertises itself, or one an earlier conversation used).
+    Hidden,
 }
 
 #[cfg(not(target_family = "wasm"))]
@@ -252,6 +288,7 @@ pub struct DynamicTool {
     handler: DynamicHandler,
     supports_parallel: bool,
     output_budget: Option<OutputBudget>,
+    exposure: Exposure,
 }
 
 impl std::fmt::Debug for DynamicTool {
@@ -319,6 +356,7 @@ impl DynamicTool {
             handler,
             supports_parallel: false,
             output_budget: None,
+            exposure: Exposure::Direct,
         }
     }
 
@@ -340,6 +378,13 @@ impl DynamicTool {
     #[must_use]
     pub fn output_budget(mut self, budget: OutputBudget) -> Self {
         self.output_budget = Some(budget);
+        self
+    }
+
+    /// Whether and when the model sees the tool (default [`Exposure::Direct`]).
+    #[must_use]
+    pub fn exposure(mut self, exposure: Exposure) -> Self {
+        self.exposure = exposure;
         self
     }
 }
@@ -696,6 +741,7 @@ struct RegisteredTool {
     handler: Box<dyn ErasedTool>,
     supports_parallel: bool,
     output_budget: Option<OutputBudget>,
+    exposure: Exposure,
     /// The name a dynamic tool was registered with, before sanitizing.
     raw_name: Option<String>,
 }
@@ -707,6 +753,7 @@ impl RegisteredTool {
         handler: Box<dyn ErasedTool>,
         supports_parallel: bool,
         output_budget: Option<OutputBudget>,
+        exposure: Exposure,
     ) -> Self {
         Self {
             kind: ToolKind::Function,
@@ -716,12 +763,13 @@ impl RegisteredTool {
             handler,
             supports_parallel,
             output_budget,
+            exposure,
             raw_name: None,
         }
     }
 
-    fn responses_json(&self, name: &str) -> Value {
-        match self.kind {
+    fn responses_json(&self, name: &str, defer_loading: bool) -> Value {
+        let mut value = match self.kind {
             ToolKind::Custom => json!({
                 "type": "custom",
                 "name": name,
@@ -734,7 +782,11 @@ impl RegisteredTool {
                 "description": self.description,
                 "parameters": self.parameters,
             }),
+        };
+        if defer_loading {
+            value["defer_loading"] = Value::Bool(true);
         }
+        value
     }
 }
 
@@ -888,6 +940,7 @@ impl ToolRegistry {
             Box::new(DynamicAdapter(tool.handler)),
             tool.supports_parallel,
             tool.output_budget,
+            tool.exposure,
         );
         registered.raw_name = Some(tool.raw_name);
         self.insert(ToolKey::new(name.clone()), registered)?;
@@ -939,9 +992,10 @@ impl ToolRegistry {
         check_description(&name, tool.description())?;
         let schema = tool.parameters_schema();
         check_schema(&name, &schema)?;
-        let (parallel, budget) = (
+        let (parallel, budget, exposure) = (
             FunctionTool::supports_parallel(&tool),
             FunctionTool::output_budget(&tool),
+            FunctionTool::exposure(&tool),
         );
         let description = tool.description().to_owned();
         let registered = RegisteredTool::function(
@@ -950,6 +1004,7 @@ impl ToolRegistry {
             Box::new(FunctionAdapter(tool)),
             parallel,
             budget,
+            exposure,
         );
         self.insert(key(namespace, name), registered)
     }
@@ -964,7 +1019,11 @@ impl ToolRegistry {
         check_description(&name, tool.description())?;
         let schema = tool.parameters_schema();
         check_schema(&name, &schema)?;
-        let (parallel, budget) = (tool.supports_parallel(), tool.output_budget());
+        let (parallel, budget, exposure) = (
+            tool.supports_parallel(),
+            tool.output_budget(),
+            tool.exposure(),
+        );
         let description = tool.description().to_owned();
         let registered = RegisteredTool::function(
             &description,
@@ -972,6 +1031,7 @@ impl ToolRegistry {
             Box::new(RichAdapter(tool)),
             parallel,
             budget,
+            exposure,
         );
         self.insert(key(namespace, name), registered)
     }
@@ -991,6 +1051,7 @@ impl ToolRegistry {
             format: tool.format(),
             supports_parallel: tool.supports_parallel(),
             output_budget: tool.output_budget(),
+            exposure: tool.exposure(),
             raw_name: None,
             handler: Box::new(CustomAdapter(tool)),
         };
@@ -1016,32 +1077,62 @@ impl ToolRegistry {
     /// tools outside namespaces ([`register`](Self::register),
     /// [`register_rich`](Self::register_rich), [`register_dynamic`](Self::register_dynamic)),
     /// in name order. Custom and namespaced tools are left out: see
-    /// [`responses_tools`](Self::responses_tools).
+    /// [`responses_tools`](Self::responses_tools). So are tools whose [`Exposure`] is not
+    /// `Direct`.
     #[must_use]
     pub fn tool_definitions(&self) -> Vec<ChatCompletionTool> {
+        self.chat_tools_where(|_, exposure| exposure == Exposure::Direct)
+    }
+
+    /// The chat definitions of the function tools outside namespaces that `show` accepts.
+    pub(crate) fn chat_tools_where(
+        &self,
+        show: impl Fn(&ToolKey, Exposure) -> bool,
+    ) -> Vec<ChatCompletionTool> {
         self.tools
             .iter()
-            .filter(|(key, tool)| key.namespace.is_none() && tool.kind == ToolKind::Function)
+            .filter(|(key, tool)| {
+                key.namespace.is_none()
+                    && tool.kind == ToolKind::Function
+                    && show(key, tool.exposure)
+            })
             .map(|(key, tool)| tool_function(&key.name, &tool.description, tool.parameters.clone()))
             .collect()
     }
 
     /// Return the tools for a Responses API request (`ResponsesBuilder::tools`): the function
     /// and custom tools outside namespaces in name order, then one `namespace` tool per
-    /// namespace with its tools.
+    /// namespace with its tools. Tools whose [`Exposure`] is not `Direct` are left out.
     #[must_use]
     pub fn responses_tools(&self) -> Vec<ResponsesTool> {
+        self.responses_tools_where(|_, exposure| {
+            (exposure == Exposure::Direct).then_some(Advertise::Plain)
+        })
+    }
+
+    /// The Responses API tools that `show` advertises, plainly or with `defer_loading`.
+    pub(crate) fn responses_tools_where(
+        &self,
+        show: impl Fn(&ToolKey, Exposure) -> Option<Advertise>,
+    ) -> Vec<ResponsesTool> {
         let mut tools: Vec<ResponsesTool> = self
             .tools
             .iter()
             .filter(|(key, _)| key.namespace.is_none())
-            .map(|(key, tool)| match tool.kind {
-                ToolKind::Custom => to_tool(tool.responses_json(&key.name)),
-                _ => crate::responses_api::responses_function_tool(
-                    &key.name,
-                    &tool.description,
-                    tool.parameters.clone(),
-                ),
+            .filter_map(|(key, tool)| {
+                let advertise = show(key, tool.exposure)?;
+                Some(match (tool.kind.clone(), advertise) {
+                    (ToolKind::Function, Advertise::Plain) => {
+                        crate::responses_api::responses_function_tool(
+                            &key.name,
+                            &tool.description,
+                            tool.parameters.clone(),
+                        )
+                    }
+                    (_, advertise) => {
+                        to_tool(tool.responses_json(&key.name, advertise == Advertise::Deferred))
+                    }
+                })
             })
             .collect();
         for (namespace, description) in &self.namespaces {
@@ -1049,7 +1140,10 @@ impl ToolRegistry {
                 .tools
                 .iter()
                 .filter(|(key, _)| key.namespace.as_deref() == Some(namespace.as_str()))
-                .map(|(key, tool)| tool.responses_json(&key.name))
+                .filter_map(|(key, tool)| {
+                    let advertise = show(key, tool.exposure)?;
+                    Some(tool.responses_json(&key.name, advertise == Advertise::Deferred))
+                })
                 .collect();
             if members.is_empty() {
                 continue;
@@ -1062,6 +1156,57 @@ impl ToolRegistry {
             })));
         }
         tools
+    }
+
+    /// The [`Exposure`] of a registered tool.
+    #[must_use]
+    pub fn exposure(&self, key: &ToolKey) -> Option<Exposure> {
+        self.tools.get(key).map(|tool| tool.exposure)
+    }
+
+    /// Change the [`Exposure`] of a registered tool; returns whether it is registered.
+    pub fn set_exposure(&mut self, key: &ToolKey, exposure: Exposure) -> bool {
+        self.tools.get_mut(key).is_some_and(|tool| {
+            tool.exposure = exposure;
+            true
+        })
+    }
+
+    /// Search the [`Deferred`](Exposure::Deferred) tools for `query`: at most `limit` tools whose
+    /// name, namespace or description share words with it, best first (ties in name order).
+    ///
+    /// Words are runs of letters and digits, compared without case; `snake_case` and
+    /// `camelCase` names are split into words. A word of the name counts twice as much as one of
+    /// the description. A [`ToolLoop`](crate::ToolLoop) answers its `tool_search` tool with it.
+    #[must_use]
+    pub fn search_deferred(&self, query: &str, limit: usize) -> Vec<ToolKey> {
+        let query = search::words(query);
+        let mut scored: Vec<(usize, &ToolKey)> = self
+            .tools
+            .iter()
+            .filter(|(_, tool)| tool.exposure == Exposure::Deferred)
+            .filter_map(|(key, tool)| {
+                let mut names = search::words(&key.name);
+                if let Some(namespace) = &key.namespace {
+                    names.extend(search::words(namespace));
+                }
+                let description = search::words(&tool.description);
+                let score = search::score(&query, &names, &description);
+                (score > 0).then_some((score, key))
+            })
+            .collect();
+        scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+        scored
+            .into_iter()
+            .take(limit)
+            .map(|(_, key)| key.clone())
+            .collect()
+    }
+
+    /// The description of a registered tool.
+    #[must_use]
+    pub fn description(&self, key: &ToolKey) -> Option<&str> {
+        self.tools.get(key).map(|tool| tool.description.as_str())
     }
 
     /// The registered tools, namespaced ones included, in order.
@@ -1296,6 +1441,15 @@ fn key(namespace: Option<&str>, name: String) -> ToolKey {
         namespace: namespace.map(str::to_string),
         name,
     }
+}
+
+/// How a Responses API tool is advertised.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Advertise {
+    /// With its full definition.
+    Plain,
+    /// With `defer_loading: true`: the model's own tool search loads it.
+    Deferred,
 }
 
 /// A Responses API tool from its JSON definition.

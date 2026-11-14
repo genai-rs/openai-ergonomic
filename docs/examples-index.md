@@ -41,8 +41,11 @@ RUST_LOG=openai_ergonomic=debug cargo run --example chat_streaming   # with logs
 | [`tool_framework`](../examples/tool_framework.rs) | a typed `FunctionTool` run locally (*offline*) |
 | [`tool_framework_typed`](../examples/tool_framework_typed.rs) | several tools, async application state, a replayed chat (*offline*) |
 | [`tool_framework_responses`](../examples/tool_framework_responses.rs) | `answer_call` on a replayed Responses API reply: a rich (image) output, a custom tool in a namespace, a dynamic tool, a failed call answered (*offline*) |
+| [`agent_loop`](../examples/agent_loop.rs) | `ToolLoop` on replayed Responses API streams: parallel calls, a deferred tool found by the tool search, events, per-request rate limits (*offline*) |
+| [`agent_loop_live`](../examples/agent_loop_live.rs) | `ToolLoop` against the API, text streamed as it comes, Ctrl-C cancels (needs `OPENAI_API_KEY`) |
 
-See [tool framework](tool_framework.md) and [tool orchestration](tool_orchestration.md).
+See [tool framework](tool_framework.md), [tool orchestration](tool_orchestration.md) and the
+[agent loop](agent_loop.md).
 
 ## Audio, images and embeddings
 
