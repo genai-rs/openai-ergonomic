@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.21.0...v0.22.0) - 2026-11-14
+
+### Added
+
+- [**breaking**] Responses API client, chat builder rename, non_exhaustive Error
+
+### Fixed
+
+- *(tests)* make the smoke tests a real test target
+- *(vector_stores)* send the search filters
+
+### Other
+
+- drop the AI-attribution ban
+- audit every markdown page against 0.21
+
 ## [0.21.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.20.0...v0.21.0) - 2026-11-14
 
 ### Added
