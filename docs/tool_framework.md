@@ -1,6 +1,6 @@
 # Tools
 
-Define a tool by implementing `FunctionTool`, register instances in `ToolRegistry`, then answer approved model calls with `answer_call` (or dispatch them with `execute_call`). The same trait supports typed inputs/outputs, application state, and dynamic JSON. The registry serves both the Chat Completions API (`tool_definitions`) and the Responses API (`responses_tools`), and also holds tools that return images or files (`RichTool`), freeform-text tools (`CustomTool`), namespaces and tools only known at runtime (`register_dynamic`).
+Define a tool by implementing `FunctionTool`, register instances in `ToolRegistry`, then answer approved model calls with `answer_call` (or dispatch them with `execute_call`). The same trait supports typed inputs/outputs, application state, and dynamic JSON. The registry serves both the Chat Completions API (`tool_definitions`) and the Responses API (`responses_tools`), and also holds tools that return images or files (`RichTool`), freeform-text tools (`CustomTool`), namespaces and tools only known at runtime (`register_dynamic`). To run the calls until the model answers, hand the registry to the [agent loop](agent_loop.md) (`ToolLoop`).
 
 ## Start with a working example
 
@@ -338,7 +338,18 @@ says how long the output was). `TruncationConfig` holds a default budget (10 000
 as other tools that allow it; `tools.supports_parallel(&call)` reads it. The registry does not run
 anything concurrently: run calls of parallel-safe tools together (for example with
 `futures::future::join_all`), the others one at a time, and append the answers in the order of
-the calls.
+the calls. The [agent loop](agent_loop.md#running-the-calls) does all of this, truncation
+included.
+
+## Exposure: deferred and hidden tools
+
+`FunctionTool::exposure` (also on `RichTool` and `CustomTool`; `DynamicTool::exposure`;
+`ToolRegistry::set_exposure` after registration) says when the model sees a tool:
+`Exposure::Direct` (the default), `Deferred` (once a tool search found it) or `Hidden` (never
+advertised, but its calls are still answered). `tool_definitions` and `responses_tools` list the
+direct tools only. `tools.search_deferred(query, limit)` ranks the deferred tools by the words
+they share with the query; the [agent loop](agent_loop.md#deferred-tools-and-tool-search) offers
+it to the model as a `tool_search` tool and advertises what it found.
 
 ## Design
 

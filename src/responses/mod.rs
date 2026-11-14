@@ -80,6 +80,7 @@ pub trait Response {
 pub struct ChatCompletionResponseWrapper {
     inner: CreateChatCompletionResponse,
     base_url: Option<String>,
+    rate_limits: Option<crate::RateLimitSnapshot>,
 }
 
 impl ChatCompletionResponseWrapper {
@@ -88,6 +89,7 @@ impl ChatCompletionResponseWrapper {
         Self {
             inner: response,
             base_url: None,
+            rate_limits: None,
         }
     }
 
@@ -96,7 +98,26 @@ impl ChatCompletionResponseWrapper {
         Self {
             inner: response,
             base_url: Some(base_url),
+            rate_limits: None,
         }
+    }
+
+    /// The rate limits the API reported with this response
+    /// (`x-ratelimit-{limit,remaining,reset}-{requests,tokens}`): those of this call, where
+    /// [`Client::rate_limits`](crate::Client::rate_limits) has the latest of any call. `None` for a
+    /// response built by hand, or when the provider sent no such headers.
+    #[must_use]
+    pub fn rate_limits(&self) -> Option<crate::RateLimitSnapshot> {
+        self.rate_limits
+    }
+
+    /// The same response with the rate limits of its call.
+    pub(crate) fn with_rate_limits(
+        mut self,
+        rate_limits: Option<crate::RateLimitSnapshot>,
+    ) -> Self {
+        self.rate_limits = rate_limits;
+        self
     }
 
     /// Get the first message content from the response.

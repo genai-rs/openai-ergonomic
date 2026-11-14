@@ -15,10 +15,7 @@ use crate::interceptor::{
 };
 use crate::rate_limits::LatestRateLimits;
 use crate::responses::ChatCompletionResponseWrapper;
-use crate::semantic_conventions::operation_names;
-use crate::time::Instant;
 use crate::Error;
-use openai_client_base::apis::chat_api;
 use openai_client_base::apis::configuration::Configuration;
 use openai_client_base::apis::Error as ApiError;
 use openai_client_base::models::CreateChatCompletionRequest;
@@ -135,6 +132,7 @@ mod large_upload;
 mod media;
 mod models;
 mod moderations;
+pub(crate) mod per_call;
 mod raw;
 mod responses;
 mod threads;
@@ -500,6 +498,28 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> Client<T> {
         Ok(())
     }
 
+    /// Helper to call `on_error` hooks for an error that is not an API error of a generated
+    /// operation.
+    async fn report_error(
+        &self,
+        error: &Error,
+        operation: &str,
+        model: &str,
+        request_json: &str,
+        state: &T,
+    ) {
+        if !self.interceptors.is_empty() {
+            let error_ctx = ErrorContext {
+                operation,
+                model: Some(model),
+                request_json: Some(request_json),
+                error,
+                state: Some(state),
+            };
+            self.interceptors.on_error(&error_ctx).await;
+        }
+    }
+
     /// Helper to handle API errors with interceptor hooks
     async fn handle_api_error<E>(
         &self,
@@ -588,49 +608,9 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
         &self,
         request: CreateChatCompletionRequest,
     ) -> Result<ChatCompletionResponseWrapper> {
-        let mut state = T::default();
-        let operation = operation_names::CHAT;
-        let model = request.model.clone();
-        let request_json = serde_json::to_string(&request).unwrap_or_default();
-
-        // Call before_request hook
-        self.call_before_request(operation, &model, &request_json, &mut state)
-            .await?;
-
-        let start_time = Instant::now();
-
-        // Make the API call
-        let response = match chat_api::create_chat_completion()
-            .configuration(&self.base_configuration)
-            .create_chat_completion_request(&request)
-            .call()
+        self.chat_call(&request)
             .await
-        {
-            Ok(resp) => resp,
-            Err(e) => {
-                let error = self
-                    .handle_api_error(e, operation, &model, &request_json, &state)
-                    .await;
-                return Err(error);
-            }
-        };
-
-        let duration = start_time.elapsed();
-
-        // Call after_response hook
-        self.call_after_response(
-            &response,
-            operation,
-            &model,
-            &request_json,
-            &state,
-            duration,
-            response.usage.as_ref().map(|u| u.prompt_tokens),
-            response.usage.as_ref().map(|u| u.completion_tokens),
-        )
-        .await;
-
-        Ok(ChatCompletionResponseWrapper::new(response))
+            .map_err(|failure| failure.error)
     }
 
     /// Execute a chat completion builder.

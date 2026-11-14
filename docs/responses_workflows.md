@@ -71,7 +71,9 @@ early on the model's side is a successful call: check `status()`. Errors of the 
 search too) and `tool_choice(..)` picks how the model uses them. The model's calls are
 `response.function_calls()`: answer each with `function_call_output(call_id, output)` and
 continue the conversation, either from the stored response (`previous_response_id`) or by
-sending the earlier output back (`output_as_input()`) when nothing is stored.
+sending the earlier output back (`output_as_input()`) when nothing is stored. The
+[agent loop](agent_loop.md) (`ToolLoop::responses`) does this round trip for you: stateless,
+streamed, with every call started as soon as the model finished it.
 
 ```rust,no_run
 use openai_ergonomic::Client;
@@ -233,7 +235,10 @@ body (`ConfigBuilder::max_retries`); a stream that fails midway has to be sent a
 `ConfigBuilder::stream_idle_timeout(Duration)` ends a stream with `Error::StreamConnection` when
 no event arrives for that long (not set by default). `client.rate_limits()` returns the
 `x-ratelimit-*` headers of the latest response (`RateLimitSnapshot`: limit, remaining and reset of
-requests and tokens), streaming responses included.
+requests and tokens), streaming responses included; `response.rate_limits()` those of one call
+(`ResponsesResponse`, and `ChatCompletionResponseWrapper` for chat). The
+[agent loop](agent_loop.md#retries) retries whole requests (streams included) by their
+`retry_class` and `retry-after`, and keeps the rate limits of each.
 
 ## Stored responses
 

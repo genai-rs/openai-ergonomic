@@ -8,7 +8,6 @@ use crate::responses_api::{
 };
 use crate::semantic_conventions::operation_names;
 use crate::streaming::{InterceptedStream, StreamCompletion};
-use crate::time::Instant;
 use openai_client_base::apis::responses_api;
 use openai_client_base::models::{CreateResponse, ResponseItemList};
 use std::sync::Arc;
@@ -41,42 +40,12 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
     /// type and code (429 for rate limits: [`Error::is_rate_limit`](crate::Error::is_rate_limit)). A response that failed or
     /// stopped early on the model's side is a successful call: check
     /// [`ResponsesResponse::status`].
+    ///
+    /// The response carries the rate limits of this call ([`ResponsesResponse::rate_limits`]).
     pub async fn execute_responses(&self, request: CreateResponse) -> Result<ResponsesResponse> {
-        let operation = operation_names::RESPONSES;
-        let model = request.model.clone().unwrap_or_default();
-        let request_json = serde_json::to_string(&request).unwrap_or_default();
-        let mut state = T::default();
-        self.call_before_request(operation, &model, &request_json, &mut state)
-            .await?;
-
-        let start_time = Instant::now();
-        let response = match responses_api::create_response()
-            .configuration(&self.base_configuration)
-            .create_response(&request)
-            .call()
+        self.responses_call(&request)
             .await
-        {
-            Ok(response) => ResponsesResponse::new(response),
-            Err(error) => {
-                return Err(self
-                    .handle_api_error(error, operation, &model, &request_json, &state)
-                    .await);
-            }
-        };
-
-        let usage = response.usage();
-        self.call_after_response(
-            &response,
-            operation,
-            &model,
-            &request_json,
-            &state,
-            start_time.elapsed(),
-            usage.map(|usage| usage.input_tokens),
-            usage.map(|usage| usage.output_tokens),
-        )
-        .await;
-        Ok(response)
+            .map_err(|failure| failure.error)
     }
 
     /// Build and create a response (`POST /responses`). See [`Client::execute_responses`].

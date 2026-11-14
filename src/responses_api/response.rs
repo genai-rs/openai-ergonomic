@@ -10,17 +10,48 @@ use crate::tool_framework::ToolInvocation;
 
 /// A model response (`POST /responses`, `GET /responses/{id}`), wrapping the generated
 /// [`models::Response`]. It serializes and deserializes as the generated response.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ResponsesResponse {
     inner: models::Response,
+    #[serde(skip)]
+    rate_limits: Option<crate::RateLimitSnapshot>,
+}
+
+/// Responses are equal when their generated responses are: the rate limits of the call are not
+/// compared.
+impl PartialEq for ResponsesResponse {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
 }
 
 impl ResponsesResponse {
     /// Wrap a generated response.
     #[must_use]
     pub fn new(inner: models::Response) -> Self {
-        Self { inner }
+        Self {
+            inner,
+            rate_limits: None,
+        }
+    }
+
+    /// The rate limits the API reported with this response
+    /// (`x-ratelimit-{limit,remaining,reset}-{requests,tokens}`): those of this call, where
+    /// [`Client::rate_limits`](crate::Client::rate_limits) has the latest of any call. `None` for a
+    /// response built by hand or deserialized, or when the provider sent no such headers.
+    #[must_use]
+    pub fn rate_limits(&self) -> Option<crate::RateLimitSnapshot> {
+        self.rate_limits
+    }
+
+    /// The same response with the rate limits of its call.
+    pub(crate) fn with_rate_limits(
+        mut self,
+        rate_limits: Option<crate::RateLimitSnapshot>,
+    ) -> Self {
+        self.rate_limits = rate_limits;
+        self
     }
 
     /// The response ID, to continue the conversation with

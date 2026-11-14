@@ -73,6 +73,13 @@ impl ChatCompletionBuilder {
         }
     }
 
+    /// Append a message as it is.
+    #[must_use]
+    pub(crate) fn push_message(mut self, message: ChatCompletionRequestMessage) -> Self {
+        self.messages.push(message);
+        self
+    }
+
     /// Add a system message to the conversation.
     #[must_use]
     pub fn system(mut self, content: impl Into<String>) -> Self {

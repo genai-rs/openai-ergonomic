@@ -66,6 +66,23 @@ impl RateLimitSnapshot {
     }
 }
 
+/// The delay a failed response asks for before a retry: `retry-after-ms` (milliseconds), else
+/// `retry-after` in seconds (an HTTP date is not read).
+pub(crate) fn retry_after(headers: &HeaderMap) -> Option<Duration> {
+    let header = |name: &str| {
+        headers
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::trim)
+            .and_then(|value| value.parse::<f64>().ok())
+            .filter(|value| value.is_finite() && *value >= 0.0)
+    };
+    header("retry-after-ms")
+        .map(|millis| millis / 1000.0)
+        .or_else(|| header("retry-after"))
+        .and_then(|seconds| Duration::try_from_secs_f64(seconds).ok())
+}
+
 fn window(headers: &HeaderMap, kind: &str) -> Option<RateLimitWindow> {
     let header = |name: &str| {
         headers
@@ -152,6 +169,22 @@ where
 mod tests {
     #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
     use super::*;
+
+    #[test]
+    fn reads_retry_after() {
+        let mut headers = HeaderMap::new();
+        assert_eq!(retry_after(&headers), None);
+        headers.insert("retry-after", "2".parse().unwrap());
+        assert_eq!(retry_after(&headers), Some(Duration::from_secs(2)));
+        headers.insert("retry-after-ms", "150".parse().unwrap());
+        assert_eq!(retry_after(&headers), Some(Duration::from_millis(150)));
+        headers.remove("retry-after-ms");
+        headers.insert(
+            "retry-after",
+            "Wed, 21 Oct 2015 07:28:00 GMT".parse().unwrap(),
+        );
+        assert_eq!(retry_after(&headers), None);
+    }
 
     #[test]
     fn no_headers_no_snapshot() {
