@@ -39,7 +39,7 @@ No API key is needed for the tests: the integration tests run against mock serve
 ### Project structure
 
 - `src/` - the library ([architecture](docs/architecture.md))
-- `tests/` - integration tests (mockito servers) and the WebAssembly suite
+- `tests/` - integration tests (openai-mock-server and mockito servers) and the WebAssembly suite
 - `examples/` - runnable examples ([index](docs/examples-index.md))
 - `docs/` - the guides, compiled as doc tests
 - `scripts/` - development scripts ([scripts](scripts/README.md))

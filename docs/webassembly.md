@@ -40,7 +40,7 @@ Behind `#[cfg(target_family = "wasm")]`, following
   `FilesClient::download_to` are native only. Upload bytes or streams
   (`Upload::bytes(..).file_name(..)`); a path upload fails with an `Error::Http` whose
   `io_error()` is of kind `Unsupported`. `upload_large_file` sends its parts concurrently on the
-  host's event loop. `test-utils` (mockito) is native only.
+  host's event loop. `test-utils` (openai-mock-server) is native only.
 
 ## Tests
 

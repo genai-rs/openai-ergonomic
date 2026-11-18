@@ -24,9 +24,12 @@ and the [WebAssembly](webassembly.md#tests) clippy and Node.js suite.
 ## Tests
 
 - **Unit tests** live next to the code (`src/**`).
-- **Integration tests** (`tests/*.rs`) run the client against [mockito](https://docs.rs/mockito)
+- **Integration tests** (`tests/*.rs`) run the client against
+  [openai-mock-server](https://docs.rs/openai-mock-server) or [mockito](https://docs.rs/mockito)
   servers: builders, providers, authentication, streaming, interceptors, uploads, webhooks. No
-  API key is needed.
+  API key is needed. openai-mock-server decodes each request with the types of OpenAI's spec and
+  checks its scripted replies against them, so prefer it for OpenAI operations it serves
+  (responses, chat, files, ...): a request the spec does not describe shows in `rejected()`.
 - **Documentation tests** compile the examples of the rustdoc, the README and the pages under
   `docs/` (`src/lib.rs` includes the pages in a `#[cfg(doctest)]` module), so a moved or renamed
   API breaks the build instead of the documentation. Most are `no_run`: they need no credentials.
