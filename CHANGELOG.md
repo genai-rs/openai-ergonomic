@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.2](https://github.com/genai-rs/openai-ergonomic/compare/v0.24.1...v0.24.2) - 2026-11-18
+
+### Other
+
+- openai-mock-server from crates.io in Cargo.lock
+- run the Responses, file download and streaming tests against openai-mock-server
+- release with the shared release-plz workflow
+
 ## [0.24.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.24.0...v0.24.1) - 2026-11-14
 
 ### Added
