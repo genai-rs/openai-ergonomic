@@ -53,7 +53,7 @@ async fn images_client_create_hits_generation_endpoint() {
         .await
         .expect("request succeeds");
 
-    assert_eq!(response.created, 12);
+    assert_eq!(response.created.as_second(), 12);
     let urls: Vec<_> = response
         .data
         .unwrap_or_default()
@@ -139,7 +139,7 @@ async fn images_client_create_edit_posts_multipart() {
         .await
         .expect("request succeeds");
 
-    assert_eq!(response.created, 21);
+    assert_eq!(response.created.as_second(), 21);
     mock.assert();
     drop(server);
 }
@@ -184,7 +184,7 @@ async fn images_client_create_variation_posts_multipart() {
         .await
         .expect("request succeeds");
 
-    assert_eq!(response.created, 33);
+    assert_eq!(response.created.as_second(), 33);
     mock.assert();
     drop(server);
 }

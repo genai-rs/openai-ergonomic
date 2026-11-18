@@ -15,7 +15,7 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { version = "^0.34.1", default-features = false, features = [
+openai-client-base = { version = "^0.35.0", default-features = false, features = [
     # Every model (`types`), and the API groups whose operations the client calls.
     "types",
     "administration", # usage
@@ -62,7 +62,7 @@ sha2 = { version = "^0.10.9", optional = true }
 # Streaming callbacks (`spawn`), retry backoff of upload parts (`time`), media saved to files (`fs`).
 tokio = { version = "^1.53.3", features = ["rt", "time", "fs"] }
 # test-utils: MockOpenAIServer wraps openai-mock-server.
-openai-mock-server = { version = "^0.1.0", optional = true }
+openai-mock-server = { version = "^0.2.0", optional = true }
 
 # WebAssembly in a JavaScript host (wasm32-unknown-unknown): streaming callbacks run with `spawn_local`, timers are the
 # host's `setTimeout` and clocks `performance.now()`/`Date.now()` (std's panic there). See docs/webassembly.md.
@@ -76,7 +76,7 @@ tokio = { version = "^1.53.3", features = ["full"] }
 tokio-stream = { version = "^0.1.19", features = ["io-util"] }
 mockito = "^1.7.2"
 # A scripted mock of the OpenAI API, on the server generated from the same spec as openai-client-base.
-openai-mock-server = "^0.1.0"
+openai-mock-server = "^0.2.0"
 tracing-subscriber = { version = "^0.3.23", features = ["env-filter"] }
 regex = "^1.13.1"
 tempfile = "^3.27.0"

@@ -5,6 +5,21 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
+## Migrating to 0.25
+
+Version 0.25 moves to `openai-client-base` 0.35, where Unix timestamps are
+[`jiff::Timestamp`](https://docs.rs/jiff/latest/jiff/struct.Timestamp.html)s. Nothing changes in
+this crate's own API; code that reads the generated types does:
+
+- **Timestamps.** Every field the spec marks as a Unix timestamp (`created`, `created_at`,
+  `expires_at`, ...) is a `jiff::Timestamp` instead of an `i64` (an `f64` on `Response`), and
+  `Model.shutdown_date` is a `jiff::civil::Date`. Read the seconds with `.as_second()`, build one
+  with `jiff::Timestamp::from_second(n)?`; a timestamp prints as RFC 3339. The JSON is unchanged.
+  See the
+  [0.34.4 to 0.35.0 migration notes](https://github.com/genai-rs/openai-client-base/blob/main/migration/api-diff-0.34.4-to-0.35.0.md).
+- **`test-utils`.** `MockOpenAIServer` wraps `openai-mock-server` 0.2, whose recorded requests
+  and reply models hold the same timestamps.
+
 ## Upgrading to 0.24
 
 Version 0.24 adds the agent loop (`ToolLoop`, see [the guide](agent_loop.md)) and only adds API.

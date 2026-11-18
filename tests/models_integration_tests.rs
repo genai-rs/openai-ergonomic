@@ -38,7 +38,7 @@ async fn test_get_model() -> Result<()> {
 
     assert_eq!(model.id, "gpt-3.5-turbo");
     assert_ne!(model.owned_by, "");
-    assert!(model.created > 0);
+    assert!(model.created.as_second() > 0);
 
     Ok(())
 }
