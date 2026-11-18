@@ -63,7 +63,7 @@ src/
 ├── webhooks.rs             WebhookVerifier, WebhookEvent (feature `webhook`)
 ├── azure_middleware.rs     deprecated Azure layer (use Provider::azure)
 ├── time.rs                 clocks, timers and tasks, native and WebAssembly
-└── test_utils.rs           mockito helpers (feature `test-utils`, native only)
+└── test_utils.rs           MockOpenAIServer, on openai-mock-server (feature `test-utils`, native only)
 ```
 
 ## The client
@@ -101,7 +101,8 @@ interceptors and `build()` makes the client. `T` is the interceptor state passed
 ## Tests
 
 - **Unit tests** next to the code validate builders, helpers and layers.
-- **Integration tests** (`tests/*.rs`) run the client against mockito servers.
+- **Integration tests** (`tests/*.rs`) run the client against openai-mock-server (the server
+  generated from OpenAI's spec, scripted) or mockito servers.
 - **Doc tests** compile the rustdoc, the README and the pages under `docs/`.
 - **WebAssembly tests** (`tests/wasm.rs`) run in Node.js.
 - **Examples** are built by CI.

@@ -15,7 +15,7 @@ OpenTelemetry integration, see [interceptors](interceptors.md)). The others:
 | `native-tls` | TLS with the platform's library instead of rustls |
 | `webhook` | [webhook](webhooks.md) signature verification and events |
 | `tracing-http` | `timvw_rust_runtime::trace::TraceLayer`: logs every request and retry with `tracing` |
-| `test-utils` | a mockito-based mock server for your tests (native only) |
+| `test-utils` | `MockOpenAIServer`, a mock OpenAI server for your tests on [openai-mock-server](https://docs.rs/openai-mock-server) (native only) |
 
 For WebAssembly, turn the default features off: see [WebAssembly](webassembly.md). The minimum
 supported Rust version is `rust-version` in `Cargo.toml`:

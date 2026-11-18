@@ -118,8 +118,8 @@ async fn test_mock_error_response() {
         .header("authorization", "Bearer test-api-key")
         .header("content-type", "application/json")
         .json(&serde_json::json!({
-            "model": "gpt-4"
-            // Missing messages parameter
+            "model": "gpt-4",
+            "messages": [{"role": "user", "content": "Hello"}]
         }))
         .send()
         .await

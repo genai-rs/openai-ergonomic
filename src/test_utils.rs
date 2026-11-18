@@ -1,18 +1,45 @@
 //! Test utilities for mocking `OpenAI` API responses.
 //!
 //! This module provides testing utilities that are only available
-//! with the `test-utils` feature flag enabled.
+//! with the `test-utils` feature flag enabled. [`MockOpenAIServer`] is a thin wrapper over
+//! [`openai_mock_server::MockServer`], a scripted mock of the API served by the server generated
+//! from `OpenAI`'s spec: use [`MockOpenAIServer::server`] (or `openai-mock-server` directly) to
+//! script other operations, streams with wire options, and to read the requests it decoded.
 
 // Test helper module: panicking on setup failure is the intended behaviour.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+// The `mock_*` methods and `Mock::assert_async` stay `async`, as they were on mockito.
+#![allow(unknown_lints, clippy::unused_async, clippy::unused_async_trait_impl)]
 
-use mockito::{Mock, ServerGuard};
+use std::sync::Arc;
+
+use openai_mock_server::{op, MockServer, Reply, Stream};
 use serde_json::json;
 
 /// Mock `OpenAI` server for testing.
 pub struct MockOpenAIServer {
-    server: ServerGuard,
-    api_key: String,
+    server: Arc<MockServer>,
+}
+
+/// A reply scripted with one of the `mock_*` methods of [`MockOpenAIServer`].
+#[derive(Debug)]
+pub struct Mock {
+    server: Arc<MockServer>,
+    operation: &'static str,
+    calls_before: usize,
+}
+
+impl Mock {
+    /// Panics unless the operation was called since the reply was scripted.
+    pub async fn assert_async(&self) {
+        let calls = self.server.calls(self.operation);
+        assert!(
+            calls > self.calls_before,
+            "{} was not called (rejected requests: {:?})",
+            self.operation,
+            self.server.rejected()
+        );
+    }
 }
 
 impl MockOpenAIServer {
@@ -21,66 +48,80 @@ impl MockOpenAIServer {
         Self::with_api_key("test-api-key").await
     }
 
-    /// Create a new mock server with a custom API key.
+    /// Create a new mock server with a custom API key: a request without
+    /// `Authorization: Bearer <api_key>` is answered with a `401`.
     pub async fn with_api_key(api_key: impl Into<String>) -> Self {
         Self {
-            server: mockito::Server::new_async().await,
-            api_key: api_key.into(),
+            server: Arc::new(MockServer::with_api_key(api_key).await),
         }
     }
 
-    /// Get the base URL for the mock server.
+    /// Get the base URL for the mock server (without `/v1`; the API is served with and without it).
     pub fn base_url(&self) -> String {
-        self.server.url()
+        format!("http://{}", self.server.address())
+    }
+
+    /// The scripted mock this wraps: script any operation it serves, and read the requests it decoded.
+    pub fn server(&self) -> &MockServer {
+        &self.server
+    }
+
+    fn script(&self, operation: &'static str, reply: Reply) -> Mock {
+        let calls_before = self.server.calls(operation);
+        self.server.on(operation).reply(reply);
+        Mock {
+            server: Arc::clone(&self.server),
+            operation,
+            calls_before,
+        }
     }
 
     /// Mock a successful chat completions response.
     pub async fn mock_chat_completions_success(&mut self) -> Mock {
-        self.server
-            .mock("POST", "/v1/chat/completions")
-            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                json!({
-                    "id": "chatcmpl-test123",
-                    "object": "chat.completion",
-                    "created": 1_677_652_288,
-                    "model": "gpt-4",
-                    "choices": [{
-                        "index": 0,
-                        "message": {
-                            "role": "assistant",
-                            "content": "Hello! How can I help you today?"
-                        },
-                        "finish_reason": "stop"
-                    }],
-                    "usage": {
-                        "prompt_tokens": 10,
-                        "completion_tokens": 20,
-                        "total_tokens": 30
-                    }
-                })
-                .to_string(),
-            )
-            .create_async()
-            .await
+        self.script(
+            op::CREATE_CHAT_COMPLETION,
+            Reply::json(json!({
+                "id": "chatcmpl-test123",
+                "object": "chat.completion",
+                "created": 1_677_652_288,
+                "model": "gpt-4",
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "Hello! How can I help you today?",
+                        "refusal": null
+                    },
+                    "finish_reason": "stop",
+                    "logprobs": null
+                }],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 20,
+                    "total_tokens": 30
+                }
+            })),
+        )
     }
 
     /// Mock a streaming chat completions response.
     pub async fn mock_chat_completions_streaming(&mut self) -> Mock {
-        let streaming_response = "data: {\"id\":\"chatcmpl-test123\",\"object\":\"chat.completion.chunk\",\"created\":1677652288,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-test123\",\"object\":\"chat.completion.chunk\",\"created\":1677652288,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" world!\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n";
-
-        self.server
-            .mock("POST", "/v1/chat/completions")
-            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
-            .with_status(200)
-            .with_header("content-type", "text/event-stream")
-            .with_header("cache-control", "no-cache")
-            .with_header("connection", "keep-alive")
-            .with_body(streaming_response)
-            .create_async()
-            .await
+        let chunk = |content: &str, finish_reason: Option<&str>| {
+            json!({
+                "id": "chatcmpl-test123",
+                "object": "chat.completion.chunk",
+                "created": 1_677_652_288,
+                "model": "gpt-4",
+                "choices": [{"index": 0, "delta": {"content": content}, "finish_reason": finish_reason}]
+            })
+        };
+        self.script(
+            op::CREATE_CHAT_COMPLETION,
+            Reply::stream(Stream::new([
+                chunk("Hello", None),
+                chunk(" world!", Some("stop")),
+            ])),
+        )
     }
 
     /// Mock an error response.
@@ -90,81 +131,61 @@ impl MockOpenAIServer {
         error_type: &str,
         message: &str,
     ) -> Mock {
-        self.server
-            .mock("POST", "/v1/chat/completions")
-            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
-            .with_status(status_code as usize)
-            .with_header("content-type", "application/json")
-            .with_body(
-                json!({
-                    "error": {
-                        "type": error_type,
-                        "message": message,
-                        "code": null
-                    }
-                })
-                .to_string(),
-            )
-            .create_async()
-            .await
+        self.script(
+            op::CREATE_CHAT_COMPLETION,
+            Reply::json(json!({
+                "error": {
+                    "type": error_type,
+                    "message": message,
+                    "code": null
+                }
+            }))
+            .status(status_code),
+        )
     }
 
     /// Mock embeddings endpoint.
     pub async fn mock_embeddings_success(&mut self) -> Mock {
-        self.server
-            .mock("POST", "/v1/embeddings")
-            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                json!({
-                    "object": "list",
-                    "data": [{
-                        "object": "embedding",
-                        "index": 0,
-                        "embedding": [0.1, 0.2, 0.3, -0.1, -0.2]
-                    }],
-                    "model": "text-embedding-ada-002",
-                    "usage": {
-                        "prompt_tokens": 5,
-                        "total_tokens": 5
-                    }
-                })
-                .to_string(),
-            )
-            .create_async()
-            .await
+        self.script(
+            op::CREATE_EMBEDDING,
+            Reply::json(json!({
+                "object": "list",
+                "data": [{
+                    "object": "embedding",
+                    "index": 0,
+                    "embedding": [0.1, 0.2, 0.3, -0.1, -0.2]
+                }],
+                "model": "text-embedding-ada-002",
+                "usage": {
+                    "prompt_tokens": 5,
+                    "total_tokens": 5
+                }
+            })),
+        )
     }
 
     /// Mock models list endpoint.
     pub async fn mock_models_list(&mut self) -> Mock {
-        self.server
-            .mock("GET", "/v1/models")
-            .match_header("authorization", format!("Bearer {}", self.api_key).as_str())
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(
-                json!({
-                    "object": "list",
-                    "data": [
-                        {
-                            "id": "gpt-4",
-                            "object": "model",
-                            "created": 1_677_610_602,
-                            "owned_by": "openai"
-                        },
-                        {
-                            "id": "gpt-3.5-turbo",
-                            "object": "model",
-                            "created": 1_677_610_602,
-                            "owned_by": "openai"
-                        }
-                    ]
-                })
-                .to_string(),
-            )
-            .create_async()
-            .await
+        self.script(
+            op::LIST_MODELS,
+            Reply::json(json!({
+                "object": "list",
+                "data": [
+                    {
+                        "id": "gpt-4",
+                        "object": "model",
+                        "created": 1_677_610_602,
+                        "owned_by": "openai"
+                    },
+                    {
+                        "id": "gpt-3.5-turbo",
+                        "object": "model",
+                        "created": 1_677_610_602,
+                        "owned_by": "openai"
+                    }
+                ]
+            })),
+        )
     }
 }
 

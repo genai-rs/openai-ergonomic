@@ -61,7 +61,8 @@ sha2 = { version = "^0.10.9", optional = true }
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 # Streaming callbacks (`spawn`), retry backoff of upload parts (`time`), media saved to files (`fs`).
 tokio = { version = "^1.53.3", features = ["rt", "time", "fs"] }
-mockito = { version = "^1.7.2", optional = true }
+# test-utils: MockOpenAIServer wraps openai-mock-server.
+openai-mock-server = { version = "^0.1.0", optional = true }
 
 # WebAssembly in a JavaScript host (wasm32-unknown-unknown): streaming callbacks run with `spawn_local`, timers are the
 # host's `setTimeout` and clocks `performance.now()`/`Date.now()` (std's panic there). See docs/webassembly.md.
@@ -74,6 +75,8 @@ web-time = "1"
 tokio = { version = "^1.53.3", features = ["full"] }
 tokio-stream = { version = "^0.1.19", features = ["io-util"] }
 mockito = "^1.7.2"
+# A scripted mock of the OpenAI API, on the server generated from the same spec as openai-client-base.
+openai-mock-server = "^0.1.0"
 tracing-subscriber = { version = "^0.3.23", features = ["env-filter"] }
 regex = "^1.13.1"
 tempfile = "^3.27.0"
@@ -93,8 +96,8 @@ rustls-tls = ["openai-client-base/rustls", "timvw-rust-runtime/rustls"]
 native-tls = ["openai-client-base/native-tls", "timvw-rust-runtime/native-tls", "reqwest/native-tls-vendored"]
 # `timvw_rust_runtime::trace::TraceLayer`: logs each HTTP request and retry with `tracing`.
 tracing-http = ["timvw-rust-runtime/tracing", "openai-client-base/tracing"]
-# Native only (mockito).
-test-utils = ["dep:mockito"]
+# MockOpenAIServer, on openai-mock-server. Native only.
+test-utils = ["dep:openai-mock-server"]
 # `webhooks`: verify the signatures of OpenAI webhook deliveries and decode their events.
 webhook = ["dep:hmac", "dep:sha2"]
 

@@ -172,30 +172,15 @@ async fn intercepted(
     intercepted_raw(format!("{body}{DONE}"), build_probes).await
 }
 
-/// An intercepted chat stream of exactly `body`.
+/// An intercepted chat stream of exactly `body`. `async` as its callers expect, though it needs no
+/// server: the stream reads `body` as a response would.
+#[allow(clippy::unused_async)]
 async fn intercepted_raw(
     body: String,
     build_probes: impl FnOnce(mpsc::UnboundedSender<Call>) -> InterceptorChain,
 ) -> TestStream {
-    let mut server = mockito::Server::new_async().await;
-    let mock = server
-        .mock("GET", "/stream")
-        .with_header("content-type", "text/event-stream")
-        .with_body(body)
-        .create_async()
-        .await;
-    let response = reqwest::Client::new()
-        .get(format!("{}/stream", server.url()))
-        .send()
-        .await
-        .unwrap();
-    let bytes = response.bytes().await.unwrap();
-    mock.assert_async().await;
-    drop(mock);
-    drop(server);
-
     let response = timvw_rust_runtime::Response::from(http::Response::new(
-        timvw_rust_runtime::Body::from(bytes),
+        timvw_rust_runtime::Body::from(bytes::Bytes::from(body)),
     ));
     let (events, receiver) = mpsc::unbounded_channel();
     let chain = build_probes(events);
@@ -593,37 +578,36 @@ async fn callback_failure_details_are_bounded_with_exact_truncation_count() {
 #[tokio::test]
 async fn client_chat_and_responses_methods_return_completion_handles() {
     use openai_ergonomic::{Client, Config};
+    use openai_mock_server::server::responses_api::CreateResponseRequest;
+    use openai_mock_server::{op, MockServer, Reply, Stream};
 
-    let mut server = mockito::Server::new_async().await;
-    let chat_mock = server
-        .mock("POST", "/chat/completions")
-        .with_status(200)
-        .with_header("content-type", "text/event-stream")
-        .with_body(format!("{}{DONE}", chunk("chat")))
-        .create_async()
-        .await;
-    let responses_mock = server
-        .mock("POST", "/responses")
-        .match_body(mockito::Matcher::PartialJson(serde_json::json!({
-            "model": "gpt-4",
-            "stream": true
-        })))
-        .with_status(200)
-        .with_header("content-type", "text/event-stream")
-        .with_body(
-            "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":1,\
-             \"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1,\
-             \"status\":\"completed\",\"model\":\"gpt-4\",\"output\":[],\
-             \"instructions\":null,\"error\":null,\"incomplete_details\":null,\
-             \"parallel_tool_calls\":true,\"usage\":{\"input_tokens\":2,\
-             \"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":3,\
-             \"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":5}}}\n\n",
-        )
-        .create_async()
-        .await;
+    let mock = MockServer::start().await;
+    mock.on(op::CREATE_CHAT_COMPLETION)
+        .reply(Reply::stream(Stream::new([serde_json::json!({
+            "id": "mock",
+            "object": "chat.completion.chunk",
+            "created": 1,
+            "model": "mock-model",
+            "choices": [{"index": 0, "delta": {"content": "chat"}, "finish_reason": null}]
+        })])));
+    mock.on(op::CREATE_RESPONSE)
+        .reply(Reply::stream(Stream::new([serde_json::json!({
+            "type": "response.completed",
+            "sequence_number": 1,
+            "response": {
+                "id": "resp_1", "object": "response", "created_at": 1, "status": "completed",
+                "model": "gpt-4", "output": [], "instructions": null, "error": null,
+                "incomplete_details": null, "parallel_tool_calls": true,
+                "usage": {
+                    "input_tokens": 2, "input_tokens_details": {"cached_tokens": 0},
+                    "output_tokens": 3, "output_tokens_details": {"reasoning_tokens": 0},
+                    "total_tokens": 5
+                }
+            }
+        })])));
     let config = Config::builder()
         .api_key("test-key")
-        .api_base(server.url())
+        .api_base(mock.base_url())
         .default_model("gpt-4")
         .build();
     let client = Client::builder(config).unwrap().build();
@@ -654,11 +638,12 @@ async fn client_chat_and_responses_methods_return_completion_handles() {
     assert_eq!(report.outcome, StreamOutcome::Completed);
     assert_eq!(report.input_tokens, Some(2));
     assert_eq!(report.output_tokens, Some(3));
-    chat_mock.assert_async().await;
-    responses_mock.assert_async().await;
-    drop(chat_stream);
-    drop(responses_stream);
-    drop(server);
+
+    assert!(mock.rejected().is_empty(), "{:?}", mock.rejected());
+    let request = &mock.requests::<CreateResponseRequest>()[0].body;
+    assert_eq!(request.model.as_deref(), Some("gpt-4"));
+    assert_eq!(request.stream, Some(Some(true)));
+    assert_eq!(mock.calls(op::CREATE_CHAT_COMPLETION), 1);
 }
 
 #[test]
