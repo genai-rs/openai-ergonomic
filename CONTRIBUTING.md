@@ -128,9 +128,8 @@ reasoning when asked and keep the checks green after each change.
 
 Releases are automated with [release-plz](https://release-plz.ieni.dev/): every push to `main`
 opens or updates a release pull request (`chore: release version ...`) with the version bump and
-the changelog. A maintainer reviews and merges it, then publishes it to crates.io with the
-`Release-plz` workflow (`workflow_dispatch`, `publish`), which also tags the release and creates
-the GitHub release.
+the changelog. A maintainer reviews and merges it; the merge publishes it to crates.io, tags the
+release and creates the GitHub release ([shared release workflow](https://github.com/genai-rs/.github/blob/main/docs/release.md)).
 
 ## Community
 
