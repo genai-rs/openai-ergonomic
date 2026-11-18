@@ -7,6 +7,11 @@ on:
 
 jobs:
   ci:
+    # rust-ci.yml opens an issue when CI fails on main, lists the failed jobs in it, and closes it when main is green.
+    permissions:
+      contents: read
+      issues: write
+      actions: read
     uses: genai-rs/.github/.github/workflows/rust-ci.yml@main
     with:
       msrv: "1.88"
