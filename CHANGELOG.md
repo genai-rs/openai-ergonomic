@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.25.0...v0.25.1) - 2026-11-19
+
+### Added
+
+- *(otel)* emit gen_ai.provider.name, drop opentelemetry-semantic-conventions
+
+### Other
+
+- the GenAI semantic conventions change ships in 0.25.1
+- *(deps)* hmac 0.13, sha2 0.11, gloo-timers 0.4
+
 ## [0.25.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.24.2...v0.25.0) - 2026-11-18
 
 ### Added
