@@ -18,14 +18,14 @@ use crate::{Builder, Error, Result};
 /// use openai_ergonomic::builders::completions::CompletionsBuilder;
 /// use openai_ergonomic::Builder;
 ///
-/// let request = CompletionsBuilder::new("gpt-3.5-turbo-instruct")
+/// let request = CompletionsBuilder::new("gpt-5.4-mini")
 ///     .prompt("Once upon a time")
 ///     .max_tokens(50)
 ///     .temperature(0.7)
 ///     .build()
 ///     .unwrap();
 ///
-/// assert_eq!(request.model, "gpt-3.5-turbo-instruct");
+/// assert_eq!(request.model, "gpt-5.4-mini");
 /// assert_eq!(request.max_tokens, Some(Some(50)));
 /// ```
 #[derive(Debug, Clone)]

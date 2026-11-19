@@ -145,7 +145,7 @@ fn create_assistant_example(_client: &Client) {
     let assistant_builder = client
         .assistants()
         .create()
-        .model("gpt-4")
+        .model("gpt-5.4-mini")
         .name("Math Tutor")
         .description("A helpful assistant that helps with math problems")
         .instructions(
@@ -188,7 +188,7 @@ fn create_assistant_example(_client: &Client) {
     println!(" [Simulated] Assistant created successfully!");
     println!("   ID: asst_abc123def456");
     println!("   Name: Math Tutor");
-    println!("   Model: gpt-4");
+    println!("   Model: gpt-5.4-mini");
     println!("   Tools: 2 configured (code_interpreter, calculate_fibonacci)");
     println!("   Instructions: Custom math tutoring instructions set");
 

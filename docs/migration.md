@@ -5,6 +5,20 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
+## Changes in 0.26.1
+
+Nothing in the API breaks. One behaviour change: the default model is `gpt-5.4-mini`.
+
+`client.chat()`, `chat_simple`, `chat_with_system`, `client.responses()` and `responses_simple`
+use `gpt-5.4-mini` when neither `Config::builder().default_model(..)` nor `OPENAI_DEFAULT_MODEL`
+sets a model. The old default, `gpt-4`, is retired: `OpenAI` answers it with 404
+`model_not_found`. `gpt-5.4-mini` takes chat completions, the Responses API and legacy
+completions, and accepts `temperature` (its default reasoning effort is `none`). Like every GPT-5
+model it rejects `max_tokens` on chat completions (400 `unsupported_parameter`): use
+`.max_completion_tokens(..)`. To keep another model, set `OPENAI_DEFAULT_MODEL` or
+`default_model(..)`; a provider other than `OpenAI` (Azure, Ollama, ...) should set its own model
+anyway.
+
 ## Migrating to 0.26
 
 Version 0.26 moves to `openai-client-base` 0.36.1 (the OpenAI spec of 2026-11-19, and the logprobs decode fix of 0.36.1). One change breaks:

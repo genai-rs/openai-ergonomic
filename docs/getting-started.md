@@ -31,7 +31,7 @@ supported Rust version is `rust-version` in `Cargo.toml`:
 | `OPENAI_API_BASE` | another base URL |
 | `OPENAI_ORGANIZATION`, `OPENAI_PROJECT` | the organization and project headers |
 | `OPENAI_MAX_RETRIES` | retries of the default HTTP client (default 3) |
-| `OPENAI_DEFAULT_MODEL` | the model of `client.chat()` and `client.responses()` (default `gpt-4`) |
+| `OPENAI_DEFAULT_MODEL` | the model of `client.chat()` and `client.responses()` (default `gpt-5.4-mini`) |
 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION` | Azure `OpenAI` instead (see [configuration](configuration.md#azure-openai)) |
 
 Or build the configuration yourself:

@@ -13,7 +13,7 @@
 //! Run with: `cargo run --example models`
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use openai_ergonomic::{Client, Response, Result};
+use openai_ergonomic::{ChatCompletionBuilder, Client, Response, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -160,7 +160,7 @@ fn model_capabilities() {
 async fn model_selection_by_task(client: &Client) -> Result<()> {
     // Task-specific model recommendations
     let task_models = vec![
-        ("Simple Q&A", "gpt-3.5-turbo", "Fast and cost-effective"),
+        ("Simple Q&A", "gpt-5.4-mini", "Fast and cost-effective"),
         ("Complex reasoning", "gpt-4o", "Best reasoning capabilities"),
         ("Code generation", "gpt-4o", "Excellent code understanding"),
         ("Vision tasks", "gpt-4o", "Native vision support"),
@@ -171,7 +171,7 @@ async fn model_selection_by_task(client: &Client) -> Result<()> {
         ),
         (
             "Bulk processing",
-            "gpt-3.5-turbo",
+            "gpt-5.4-nano",
             "Best cost/performance ratio",
         ),
     ];
@@ -227,8 +227,8 @@ async fn cost_optimization(client: &Client) -> Result<()> {
     }
 
     // Demonstrate cheapest vs best
-    println!("\nRunning with cheapest model (gpt-3.5-turbo):");
-    let builder = client.chat().user(test_prompt);
+    println!("\nRunning with the cheapest model (gpt-5.4-nano):");
+    let builder = ChatCompletionBuilder::new("gpt-5.4-nano").user(test_prompt);
     let cheap_response = client.send_chat(builder).await?;
 
     if let Some(content) = cheap_response.content() {
@@ -241,7 +241,7 @@ async fn cost_optimization(client: &Client) -> Result<()> {
 async fn performance_testing(client: &Client) -> Result<()> {
     use std::time::Instant;
 
-    let models_to_test = vec!["gpt-4o-mini", "gpt-3.5-turbo"];
+    let models_to_test = vec!["gpt-5.4-mini", "gpt-5.4-nano"];
     let test_prompt = "Write a haiku about programming";
 
     println!("Performance comparison:");
@@ -251,7 +251,7 @@ async fn performance_testing(client: &Client) -> Result<()> {
     for model in models_to_test {
         let start = Instant::now();
 
-        let builder = client.chat().user(test_prompt);
+        let builder = ChatCompletionBuilder::new(model).user(test_prompt);
         let response = client.send_chat(builder).await?;
 
         let elapsed = start.elapsed();
@@ -272,7 +272,8 @@ async fn performance_testing(client: &Client) -> Result<()> {
 async fn model_migration(client: &Client) -> Result<()> {
     // Handle deprecated model migration
     let deprecated_mappings = HashMap::from([
-        ("text-davinci-003", "gpt-3.5-turbo"),
+        ("text-davinci-003", "gpt-5.4-mini"),
+        ("gpt-3.5-turbo", "gpt-5.4-mini"),
         ("gpt-4-32k", "gpt-4o"),
         ("gpt-4-vision-preview", "gpt-4o"),
     ]);
@@ -285,7 +286,7 @@ async fn model_migration(client: &Client) -> Result<()> {
             requested_model, replacement
         );
 
-        let builder = client.chat().user("Hello from migrated model");
+        let builder = ChatCompletionBuilder::new(*replacement).user("Hello from migrated model");
         let response = client.send_chat(builder).await?;
 
         if let Some(content) = response.content() {
@@ -331,7 +332,7 @@ async fn dynamic_model_selection(client: &Client) -> Result<()> {
     const fn select_model(ctx: &RequestContext) -> &'static str {
         match (&ctx.urgency, &ctx.complexity, &ctx.budget) {
             // High urgency + simple = fast cheap model, or tight budget = cheapest
-            (Urgency::High, Complexity::Simple, _) | (_, _, Budget::Tight) => "gpt-3.5-turbo",
+            (Urgency::High, Complexity::Simple, _) | (_, _, Budget::Tight) => "gpt-5.4-nano",
 
             // Complex + flexible budget = best model
             (_, Complexity::Complex, Budget::Flexible) => "gpt-4o",
@@ -340,7 +341,7 @@ async fn dynamic_model_selection(client: &Client) -> Result<()> {
             _ if ctx.needs_vision => "gpt-4o",
 
             // Default balanced choice
-            _ => "gpt-4o-mini",
+            _ => "gpt-5.4-mini",
         }
     }
 
@@ -371,8 +372,7 @@ async fn dynamic_model_selection(client: &Client) -> Result<()> {
         println!("Context {}: {:?}", i + 1, ctx);
         println!("  Selected model: {}", model);
 
-        let builder = client
-            .chat()
+        let builder = ChatCompletionBuilder::new(model)
             .user(format!("Hello from dynamically selected {}", model))
             .max_completion_tokens(20);
         let response = client.send_chat(builder).await?;
@@ -425,8 +425,8 @@ fn get_model_registry() -> HashMap<String, ModelInfo> {
                 supports_function_calling: true,
                 cost_per_1k_input: 0.0003,
                 cost_per_1k_output: 0.0006,
-                deprecated: false,
-                replacement: None,
+                deprecated: true,
+                replacement: Some("gpt-5.4-mini".to_string()),
             },
         ),
         (
@@ -440,7 +440,7 @@ fn get_model_registry() -> HashMap<String, ModelInfo> {
                 cost_per_1k_input: 0.02,
                 cost_per_1k_output: 0.02,
                 deprecated: true,
-                replacement: Some("gpt-3.5-turbo".to_string()),
+                replacement: Some("gpt-5.4-mini".to_string()),
             },
         ),
     ])

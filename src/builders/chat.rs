@@ -256,14 +256,19 @@ impl ChatCompletionBuilder {
         self
     }
 
-    /// Set the maximum number of tokens to generate.
+    /// Set the maximum number of tokens to generate (the legacy `max_tokens` field).
+    ///
+    /// `OpenAI`'s GPT-5 and o-series models, the default model among them, reject `max_tokens`:
+    /// use [`max_completion_tokens`](Self::max_completion_tokens). Some other providers only
+    /// know `max_tokens`.
     #[must_use]
     pub fn max_tokens(mut self, max_tokens: i64) -> Self {
         self.max_tokens = Some(max_tokens);
         self
     }
 
-    /// Set the maximum completion tokens (for newer models).
+    /// Set the maximum number of tokens to generate, reasoning tokens included
+    /// (`max_completion_tokens`, which every current `OpenAI` chat model takes).
     #[must_use]
     pub fn max_completion_tokens(mut self, max_completion_tokens: i64) -> Self {
         self.max_completion_tokens = Some(max_completion_tokens);

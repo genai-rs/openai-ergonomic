@@ -73,7 +73,7 @@ async fn streaming_with_parameters(client: &Client) -> Result<()> {
         .chat()
         .user("Write a creative tagline for a bakery")
         .temperature(0.9)
-        .max_tokens(50);
+        .max_completion_tokens(50);
 
     let mut stream = client.send_chat_stream(builder).await?;
 
@@ -117,7 +117,7 @@ async fn streaming_with_system(client: &Client) -> Result<()> {
         .chat()
         .system("You are a helpful assistant that speaks like a pirate")
         .user("Tell me about the weather")
-        .max_tokens(100);
+        .max_completion_tokens(100);
 
     let mut stream = client.send_chat_stream(builder).await?;
 

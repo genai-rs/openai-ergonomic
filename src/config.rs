@@ -14,7 +14,11 @@ use timvw_rust_runtime::Client as HttpClient;
 
 /// The model of `client.chat()` and `client.responses()` when neither
 /// `ConfigBuilder::default_model` nor `OPENAI_DEFAULT_MODEL` sets one.
-pub(crate) const DEFAULT_MODEL: &str = "gpt-4";
+///
+/// A current, inexpensive model that takes both the Chat Completions and the Responses API and,
+/// with its default reasoning effort (`none`), accepts `temperature`. Like every GPT-5 model it
+/// rejects the legacy `max_tokens` on chat completions: use `max_completion_tokens`.
+pub(crate) const DEFAULT_MODEL: &str = "gpt-5.4-mini";
 
 /// Configuration for the `OpenAI` client.
 ///
@@ -29,6 +33,8 @@ pub(crate) const DEFAULT_MODEL: &str = "gpt-4";
 /// - `OPENAI_ORGANIZATION`: Organization ID (optional)
 /// - `OPENAI_PROJECT`: Project ID (optional)
 /// - `OPENAI_MAX_RETRIES`: Maximum number of retries (optional, default: 3)
+/// - `OPENAI_DEFAULT_MODEL`: The model of `client.chat()` and `client.responses()` (optional,
+///   default: `gpt-5.4-mini`)
 ///
 /// ## Azure `OpenAI`
 /// - `AZURE_OPENAI_API_KEY`: The Azure `OpenAI` API key (alternative to `OPENAI_API_KEY`)
@@ -400,7 +406,7 @@ impl ConfigBuilder {
         self
     }
 
-    /// Set the default model to use.
+    /// Set the model of `client.chat()` and `client.responses()` (default: `gpt-5.4-mini`).
     #[must_use]
     pub fn default_model(mut self, default_model: impl Into<String>) -> Self {
         self.default_model = Some(default_model.into());
@@ -557,7 +563,7 @@ mod tests {
     fn test_default_config() {
         let config = Config::default();
         assert_eq!(config.max_retries(), 3);
-        assert_eq!(config.default_model(), Some("gpt-4"));
+        assert_eq!(config.default_model(), Some(DEFAULT_MODEL));
     }
 
     #[test]

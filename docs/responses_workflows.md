@@ -2,7 +2,7 @@
 
 The Responses API (`POST /responses`) is `OpenAI`'s interface for text, tools and multi-turn
 conversations. `client.responses()` starts a `ResponsesBuilder` with the configured default
-model (`gpt-4` when none is set); `ResponsesBuilder::new(model)`, `responses_simple(model, input)`
+model (`gpt-5.4-mini` when none is set); `ResponsesBuilder::new(model)`, `responses_simple(model, input)`
 and `responses_system_user(model, instructions, input)` start one for another model.
 `send_responses` sends it and returns a `ResponsesResponse`; `send_responses_stream` streams its
 events. The builder, the response and the events live in the `responses_api` module and wrap

@@ -359,7 +359,7 @@ async fn fallback_chain(client: &Client) -> Result<()> {
     let strategies = vec![
         ("GPT-4o", "gpt-4o", 1024),
         ("GPT-4o-mini", "gpt-4o-mini", 512),
-        ("GPT-3.5", "gpt-3.5-turbo", 256),
+        ("GPT-5.4-nano", "gpt-5.4-nano", 256),
     ];
 
     let prompt = "Explain quantum computing";

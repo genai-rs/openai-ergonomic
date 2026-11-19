@@ -50,7 +50,7 @@ impl FineTuningJobBuilder {
     /// ```rust
     /// use openai_ergonomic::builders::fine_tuning::FineTuningJobBuilder;
     ///
-    /// let builder = FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training-data");
+    /// let builder = FineTuningJobBuilder::new("gpt-4.1-mini-2025-04-14", "file-training-data");
     /// ```
     #[must_use]
     pub fn new(model: impl Into<String>, training_file: impl Into<String>) -> Self {

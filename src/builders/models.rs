@@ -10,8 +10,8 @@
 /// ```rust
 /// use openai_ergonomic::builders::models::ModelRetrievalBuilder;
 ///
-/// let builder = ModelRetrievalBuilder::new("gpt-4");
-/// assert_eq!(builder.model_id(), "gpt-4");
+/// let builder = ModelRetrievalBuilder::new("gpt-5.4-mini");
+/// assert_eq!(builder.model_id(), "gpt-5.4-mini");
 /// ```
 #[derive(Debug, Clone)]
 pub struct ModelRetrievalBuilder {

@@ -32,7 +32,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> FineTuningClient<'_, T> {
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?.build();
-    /// let builder = FineTuningJobBuilder::new("gpt-3.5-turbo", "file-training-data");
+    /// let builder = FineTuningJobBuilder::new("gpt-4.1-mini-2025-04-14", "file-training-data");
     /// let job = client.fine_tuning().create_job(builder).await?;
     /// println!("Created job: {}", job.id);
     /// # Ok(())
