@@ -39,7 +39,7 @@ pub const GEN_AI_USAGE_OUTPUT_TOKENS: &str = "gen_ai.usage.output_tokens";
 /// The Langfuse interceptor still emits it next to `gen_ai.provider.name`: Langfuse's
 /// `OpenTelemetry` ingestion reads the provider of a generation from `gen_ai.system` only.
 #[deprecated(
-    since = "0.26.0",
+    since = "0.25.1",
     note = "use GEN_AI_PROVIDER_NAME (`gen_ai.provider.name`); `gen_ai.system` is deprecated in the GenAI semantic conventions"
 )]
 pub const GEN_AI_SYSTEM: &str = "gen_ai.system";

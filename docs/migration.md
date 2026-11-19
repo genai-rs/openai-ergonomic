@@ -5,7 +5,7 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
-## Migrating to 0.26
+## Changes in 0.25.1
 
 Nothing in the API breaks. One behaviour change in the `LangfuseInterceptor` spans (feature
 `otel`): they now carry `gen_ai.provider.name` (`openai`), the attribute that replaces the
