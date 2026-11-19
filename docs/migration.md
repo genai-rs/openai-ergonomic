@@ -5,6 +5,27 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
+## Migrating to 0.26
+
+Version 0.26 moves to `openai-client-base` 0.36.1 (the OpenAI spec of 2026-11-19, and the logprobs decode fix of 0.36.1). One change breaks:
+
+- **Moderations.** `client.moderations().create(..)` returns a `CreateModeration200Response`:
+  `CreateModerationResponse(..)`, the classification as before, or
+  `CreateCsamModerationResponse(..)`, the answer of the new `omni-moderation-csam-latest` model.
+  Match on it where you read `results`. The generated types also change: the Responses requests
+  gain `background_options`, `UpdateAgentSessionParams` gains `vault_ids`, and
+  `SessionTurnErrorCodeResource::SessionBudgetExceeded` becomes `ApiKeySpendLimitExceeded`. See
+  the
+  [0.35.0 to 0.36.0 migration notes](https://github.com/genai-rs/openai-client-base/blob/main/migration/api-diff-0.35.0-to-0.36.0.md).
+
+  ```rust,ignore
+  use openai_client_base::models::CreateModeration200Response as Moderation;
+  let flagged = match client.moderations().create(builder).await? {
+      Moderation::CreateModerationResponse(m) => m.results[0].flagged,
+      Moderation::CreateCsamModerationResponse(m) => m.results[0].flagged,
+  };
+  ```
+
 ## Changes in 0.25.1
 
 Nothing in the API breaks. One behaviour change in the `LangfuseInterceptor` spans (feature

@@ -8,7 +8,7 @@ use crate::semantic_conventions::operation_names;
 use crate::time::Instant;
 use crate::Error;
 use openai_client_base::apis::moderations_api;
-use openai_client_base::models::CreateModerationResponse;
+use openai_client_base::models::CreateModeration200Response;
 
 /// Client for moderations API.
 #[derive(Debug, Clone, Copy)]
@@ -31,7 +31,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> 
     /// let client = Client::from_env()?.build();
     /// let builder = client.moderations().builder("Text to check");
     /// let response = client.moderations().create(builder).await?;
-    /// println!("Flagged: {}", response.results[0].flagged);
+    /// println!("Response: {response}");
     /// # Ok(())
     /// # }
     /// ```
@@ -45,6 +45,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> 
     /// # Example
     ///
     /// ```rust,no_run
+    /// use openai_client_base::models::CreateModeration200Response;
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
@@ -52,8 +53,10 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> 
     /// let builder = client.moderations().check("Hello world");
     /// let response = client.moderations().create(builder).await?;
     ///
-    /// if response.results[0].flagged {
-    ///     println!("Content was flagged for moderation");
+    /// if let CreateModeration200Response::CreateModerationResponse(moderation) = response {
+    ///     if moderation.results[0].flagged {
+    ///         println!("Content was flagged for moderation");
+    ///     }
     /// }
     /// # Ok(())
     /// # }
@@ -65,9 +68,13 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> 
 
     /// Execute a moderation request built with [`ModerationBuilder`].
     ///
+    /// The answer is the classification (`CreateModerationResponse`) or, for
+    /// `omni-moderation-csam-latest`, the CSAM result (`CreateCsamModerationResponse`).
+    ///
     /// # Example
     ///
     /// ```rust,no_run
+    /// use openai_client_base::models::CreateModeration200Response;
     /// use openai_ergonomic::Client;
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
@@ -78,7 +85,12 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> 
     ///     .check("Is this content appropriate?")
     ///     .model("text-moderation-latest");
     ///
-    /// let response = client.moderations().create(builder).await?;
+    /// // `omni-moderation-csam-latest` answers with `CreateCsamModerationResponse` instead.
+    /// let CreateModeration200Response::CreateModerationResponse(response) =
+    ///     client.moderations().create(builder).await?
+    /// else {
+    ///     return Ok(());
+    /// };
     ///
     /// println!("Model: {}", response.model);
     /// for result in response.results {
@@ -93,7 +105,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModerationsClient<'_, T> 
     /// # Errors
     ///
     /// Returns an error if the API request fails or the response cannot be parsed.
-    pub async fn create(&self, builder: ModerationBuilder) -> Result<CreateModerationResponse> {
+    pub async fn create(&self, builder: ModerationBuilder) -> Result<CreateModeration200Response> {
         let request = builder.build()?;
 
         // Prepare interceptor context
