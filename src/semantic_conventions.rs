@@ -4,14 +4,45 @@
 //! for generative AI operations, following the official specification:
 //! <https://opentelemetry.io/docs/specs/semconv/gen-ai/>
 //!
-//! We use the official attribute names from the opentelemetry-semantic-conventions
-//! crate and define our own operation values until they are officially available.
+//! The `GenAI` attribute names are defined here rather than taken from the
+//! `opentelemetry-semantic-conventions` crate: since 0.32 that crate deprecates its `GenAI`
+//! constants, which moved to the separate `OpenTelemetry` `GenAI` semantic conventions
+//! repository (no Rust crate publishes them yet). The names are the specification's.
 
-// Re-export the official GenAI attribute constants from the crate
-#[cfg(feature = "otel")]
-pub use opentelemetry_semantic_conventions::attribute::{
-    GEN_AI_OPERATION_NAME, GEN_AI_REQUEST_MODEL, GEN_AI_SYSTEM,
-};
+/// `gen_ai.operation.name`: the operation being performed (see [`operation_names`]).
+pub const GEN_AI_OPERATION_NAME: &str = "gen_ai.operation.name";
+
+/// `gen_ai.provider.name`: the `GenAI` provider (see [`systems`]).
+pub const GEN_AI_PROVIDER_NAME: &str = "gen_ai.provider.name";
+
+/// `gen_ai.request.model`: the model a request asks for.
+pub const GEN_AI_REQUEST_MODEL: &str = "gen_ai.request.model";
+
+/// `gen_ai.request.max_tokens`: the maximum number of tokens the model may generate.
+pub const GEN_AI_REQUEST_MAX_TOKENS: &str = "gen_ai.request.max_tokens";
+
+/// `gen_ai.request.temperature`: the sampling temperature of a request.
+pub const GEN_AI_REQUEST_TEMPERATURE: &str = "gen_ai.request.temperature";
+
+/// `gen_ai.response.id`: the id of the completion the provider returned.
+pub const GEN_AI_RESPONSE_ID: &str = "gen_ai.response.id";
+
+/// `gen_ai.usage.input_tokens`: the number of tokens in the prompt.
+pub const GEN_AI_USAGE_INPUT_TOKENS: &str = "gen_ai.usage.input_tokens";
+
+/// `gen_ai.usage.output_tokens`: the number of tokens in the response.
+pub const GEN_AI_USAGE_OUTPUT_TOKENS: &str = "gen_ai.usage.output_tokens";
+
+/// `gen_ai.system`, deprecated in the `GenAI` semantic conventions in favour of
+/// [`GEN_AI_PROVIDER_NAME`] (`gen_ai.provider.name`).
+///
+/// The Langfuse interceptor still emits it next to `gen_ai.provider.name`: Langfuse's
+/// `OpenTelemetry` ingestion reads the provider of a generation from `gen_ai.system` only.
+#[deprecated(
+    since = "0.26.0",
+    note = "use GEN_AI_PROVIDER_NAME (`gen_ai.provider.name`); `gen_ai.system` is deprecated in the GenAI semantic conventions"
+)]
+pub const GEN_AI_SYSTEM: &str = "gen_ai.system";
 
 /// Standard operation names for `OpenAI` APIs
 pub mod operation_names {

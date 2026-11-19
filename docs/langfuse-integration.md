@@ -100,8 +100,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 One span per request, named after the operation (`chat`, `responses`, `embeddings`, ...), of
 kind `Client`:
 
-- `gen_ai.system` (`openai`), `gen_ai.operation.name`, `gen_ai.request.model`,
-  `gen_ai.request.temperature` and `gen_ai.request.max_tokens` when set;
+- `gen_ai.provider.name` and `gen_ai.system` (both `openai`), `gen_ai.operation.name`,
+  `gen_ai.request.model`, `gen_ai.request.temperature` and `gen_ai.request.max_tokens` when set;
 - the prompt (`gen_ai.prompt.{i}.role` / `.content`: chat messages, or a Responses request's
   instructions and input messages) and the completion (`gen_ai.completion.{i}.role` /
   `.content`: the choices, or a response's output messages);
@@ -111,6 +111,12 @@ kind `Client`:
 - on failure, `error.type` and `error.message` and an error status;
 - the `langfuse.*` attributes of the context (`langfuse.session.id`, `langfuse.user.id`,
   `langfuse.trace.tags`, `langfuse.trace.metadata`, `langfuse.trace.name`).
+
+`gen_ai.system` is deprecated in the [GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
+in favour of `gen_ai.provider.name`. Both are emitted: Langfuse's OpenTelemetry ingestion reads
+the provider of a generation from `gen_ai.system` only, while other backends follow
+`gen_ai.provider.name`. The attribute names are the constants of
+[`semantic_conventions`](https://docs.rs/openai-ergonomic/latest/openai_ergonomic/semantic_conventions/).
 
 The spans start from the current OpenTelemetry context, so they nest under an active span of
 your own.
