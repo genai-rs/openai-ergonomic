@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.26.0...v0.26.1) - 2026-11-19
+
+### Fixed
+
+- default model gpt-5.4-mini instead of the retired gpt-4
+
 ## [0.26.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.25.1...v0.26.0) - 2026-11-19
 
 ### Added
