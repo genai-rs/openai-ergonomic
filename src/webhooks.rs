@@ -34,7 +34,7 @@ use crate::time::SystemTime;
 use crate::time::UNIX_EPOCH;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use http::HeaderMap;
 use openai_client_base::models;
 use serde::de::DeserializeOwned;
