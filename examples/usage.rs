@@ -101,12 +101,12 @@ async fn usage_with_aggregation(client: &Client, start_time: i64, end_time: i64)
 
 async fn usage_by_model(client: &Client, start_time: i64, end_time: i64) -> Result<()> {
     let builder = UsageBuilder::new(start_time, Some(end_time))
-        .model("gpt-4")
+        .model("gpt-5.4-mini")
         .limit(100);
 
     let usage = client.usage().completions(builder).await?;
 
-    println!("Completions usage for gpt-4:");
+    println!("Completions usage for gpt-5.4-mini:");
     println!("  Data points: {}", usage.data.len());
 
     Ok(())

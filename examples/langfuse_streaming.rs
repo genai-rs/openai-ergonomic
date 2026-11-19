@@ -127,7 +127,7 @@ async fn streaming_with_parameters(client: &Client<LangfuseState<Span>>) -> Exam
         .chat()
         .user("Write a creative tagline for a bakery")
         .temperature(0.9)
-        .max_tokens(50);
+        .max_completion_tokens(50);
 
     let (stream, completion) = client.send_chat_stream_with_completion(builder).await?;
 

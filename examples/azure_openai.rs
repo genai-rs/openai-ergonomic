@@ -17,7 +17,7 @@
 //! ```bash
 //! export AZURE_OPENAI_ENDPOINT="https://my-resource.openai.azure.com"
 //! export AZURE_OPENAI_API_KEY="your-azure-api-key"
-//! export AZURE_OPENAI_DEPLOYMENT="gpt-4"
+//! export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
 //! export AZURE_OPENAI_API_VERSION="2024-02-01"  # Optional, defaults to 2024-02-01
 //! ```
 //!
@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::builder()
         .api_key("your-azure-api-key")
         .api_base("https://my-resource.openai.azure.com")
-        .azure_deployment("gpt-4")
+        .azure_deployment("gpt-4o")
         .azure_api_version("2024-02-01")
         .build();
 
@@ -131,8 +131,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nOpenAI:");
     println!("  - Endpoint: https://api.openai.com/v1");
     println!("  - Authentication: Bearer token in Authorization header");
-    println!("  - Model specification: Use model names like 'gpt-4', 'gpt-3.5-turbo'");
-    println!("  - Example: client.chat().model('gpt-4').send().await?\n");
+    println!("  - Model specification: Use model names like 'gpt-4o', 'gpt-5.4-mini'");
+    println!("  - Example: client.chat().model('gpt-4o').send().await?\n");
 
     println!("Azure OpenAI:");
     println!("  - Endpoint: https://{{{{resource-name}}}}.openai.azure.com");

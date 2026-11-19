@@ -88,7 +88,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> ModelsClient<'_, T> {
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?.build();
-    /// let model = client.models().get("gpt-4").await?;
+    /// let model = client.models().get("gpt-5.4-mini").await?;
     /// println!("Model ID: {}", model.id);
     /// # Ok(())
     /// # }

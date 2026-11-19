@@ -113,7 +113,7 @@ fn run_knowledge_base_example() -> Result<(), Error> {
 
     // Create an assistant with file search capabilities
     let kb_assistant = assistant_with_instructions(
-        "gpt-4-1106-preview",
+        "gpt-5.4-mini",
         "Engineering Knowledge Assistant",
         "You are an engineering knowledge assistant. Help developers find relevant information from our internal documentation, coding standards, and deployment guides. Always provide accurate citations and suggest related resources when appropriate."
     )
@@ -149,7 +149,7 @@ fn run_document_qa_example() -> Result<(), Error> {
     println!("{}", "=".repeat(60));
 
     // Create specialized document Q&A assistant
-    let _qa_assistant = AssistantBuilder::new("gpt-4-1106-preview")
+    let _qa_assistant = AssistantBuilder::new("gpt-5.4-mini")
         .name("Document Q&A Specialist")
         .description("Answers questions based on uploaded documents with high accuracy")
         .instructions(
@@ -210,7 +210,7 @@ fn run_research_assistant_example() -> Result<(), Error> {
 
     // Create research-focused assistant
     let _research_assistant = assistant_with_instructions(
-        "gpt-4-1106-preview",
+        "gpt-5.4-mini",
         "Research Assistant",
         "You are a research assistant specializing in literature review and analysis. Help researchers find relevant information, identify patterns across documents, synthesize findings, and suggest research directions. Always provide comprehensive citations and acknowledge research limitations."
     )
@@ -292,7 +292,7 @@ fn run_citation_example() -> Result<(), Error> {
     println!("{}", "=".repeat(60));
 
     // Create citation-focused assistant
-    let _citation_assistant = AssistantBuilder::new("gpt-4-1106-preview")
+    let _citation_assistant = AssistantBuilder::new("gpt-5.4-mini")
         .name("Citation Specialist")
         .description("Provides detailed source attribution and citation management")
         .instructions(
@@ -365,7 +365,7 @@ fn run_multi_document_analysis_example() -> Result<(), Error> {
 
     // Create multi-document analysis assistant
     let _analysis_assistant = assistant_with_instructions(
-        "gpt-4-1106-preview",
+        "gpt-5.4-mini",
         "Document Analysis Specialist",
         "You are a document analysis expert. Compare and contrast information across multiple documents, identify contradictions or gaps, synthesize information from diverse sources, and provide comprehensive analysis that considers multiple perspectives."
     )
@@ -448,13 +448,13 @@ mod tests {
     #[test]
     fn test_knowledge_base_assistant() {
         let assistant = assistant_with_instructions(
-            "gpt-4",
+            "gpt-5.4-mini",
             "Test KB Assistant",
             "Test knowledge base assistant",
         )
         .add_tool(tool_file_search());
 
-        assert_eq!(assistant.model(), "gpt-4");
+        assert_eq!(assistant.model(), "gpt-5.4-mini");
         assert_eq!(assistant.name_ref(), Some("Test KB Assistant"));
     }
 

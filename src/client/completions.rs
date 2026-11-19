@@ -29,7 +29,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> CompletionsClient<'_, T> 
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?.build();
-    /// let builder = client.completions().builder("gpt-3.5-turbo-instruct");
+    /// let builder = client.completions().builder("gpt-5.4-mini");
     /// # Ok(())
     /// # }
     /// ```
@@ -48,7 +48,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> CompletionsClient<'_, T> 
     /// # async fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?.build();
     /// let builder = client.completions()
-    ///     .builder("gpt-3.5-turbo-instruct")
+    ///     .builder("gpt-5.4-mini")
     ///     .prompt("Once upon a time")
     ///     .max_tokens(50);
     /// let response = client.completions().create(builder).await?;

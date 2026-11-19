@@ -75,7 +75,7 @@ fn run_data_analysis_example() -> Result<(), Error> {
 
     // Create an assistant specifically for data analysis
     let assistant = assistant_with_instructions(
-        "gpt-4-1106-preview", // Model that supports code interpreter
+        "gpt-5.4-mini", // Model that supports code interpreter
         "Data Analysis Assistant",
         "You are a data analysis expert. Help users analyze datasets, create visualizations, and derive insights from data. Always explain your methodology and findings clearly.",
     )
@@ -123,7 +123,7 @@ fn run_mathematical_computation_example() -> Result<(), Error> {
     println!("{}", "=".repeat(60));
 
     // Create an assistant for mathematical tasks
-    let math_assistant = AssistantBuilder::new("gpt-4-1106-preview")
+    let math_assistant = AssistantBuilder::new("gpt-5.4-mini")
         .name("Mathematics Professor")
         .description("Expert in mathematical computations, modeling, and problem solving")
         .instructions("You are a mathematics expert. Solve complex mathematical problems, create models, perform numerical analysis, and explain mathematical concepts clearly. Always show your work step by step.")
@@ -178,7 +178,7 @@ fn run_visualization_example() -> Result<(), Error> {
 
     // Create visualization-focused assistant
     let _viz_assistant = assistant_with_instructions(
-        "gpt-4-1106-preview",
+        "gpt-5.4-mini",
         "Visualization Specialist",
         "You are a data visualization expert. Create compelling, informative charts and graphs that effectively communicate data insights. Always consider best practices for visual design and choose appropriate chart types for the data."
     )
@@ -219,7 +219,7 @@ fn run_file_processing_example() -> Result<(), Error> {
     println!("{}", "=".repeat(60));
 
     // Create file processing assistant
-    let _file_assistant = AssistantBuilder::new("gpt-4-1106-preview")
+    let _file_assistant = AssistantBuilder::new("gpt-5.4-mini")
         .name("File Processing Expert")
         .description("Processes various file formats and performs analysis")
         .instructions(
@@ -271,13 +271,13 @@ mod tests {
     #[test]
     fn test_data_analysis_assistant_creation() {
         let assistant = assistant_with_instructions(
-            "gpt-4-1106-preview",
+            "gpt-5.4-mini",
             "Test Data Analyst",
             "Test instructions for data analysis",
         )
         .add_tool(tool_code_interpreter());
 
-        assert_eq!(assistant.model(), "gpt-4-1106-preview");
+        assert_eq!(assistant.model(), "gpt-5.4-mini");
         assert_eq!(assistant.name_ref(), Some("Test Data Analyst"));
         assert_eq!(
             assistant.instructions_ref(),
@@ -287,13 +287,13 @@ mod tests {
 
     #[test]
     fn test_math_assistant_builder() {
-        let assistant = AssistantBuilder::new("gpt-4")
+        let assistant = AssistantBuilder::new("gpt-5.4-mini")
             .name("Math Assistant")
             .description("Mathematics expert")
             .instructions("Solve math problems")
             .add_tool(tool_code_interpreter());
 
-        assert_eq!(assistant.model(), "gpt-4");
+        assert_eq!(assistant.model(), "gpt-5.4-mini");
         assert_eq!(assistant.name_ref(), Some("Math Assistant"));
         assert_eq!(assistant.description_ref(), Some("Mathematics expert"));
     }

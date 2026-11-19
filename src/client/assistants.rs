@@ -33,7 +33,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> AssistantsClient<'_, T> {
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?.build();
-    /// let builder = AssistantBuilder::new("gpt-4")
+    /// let builder = AssistantBuilder::new("gpt-5.4-mini")
     ///     .name("Math Tutor")
     ///     .instructions("You are a helpful math tutor.");
     /// let assistant = client.assistants().create(builder).await?;
@@ -235,7 +235,7 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> AssistantsClient<'_, T> {
     ///
     /// # async fn example() -> openai_ergonomic::Result<()> {
     /// let client = Client::from_env()?.build();
-    /// let builder = AssistantBuilder::new("gpt-4")
+    /// let builder = AssistantBuilder::new("gpt-5.4-mini")
     ///     .name("Updated Name")
     ///     .instructions("Updated instructions");
     /// let assistant = client.assistants().update("asst_123", builder).await?;

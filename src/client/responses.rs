@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
     /// A Responses API request builder for the configured default model, as for `client.chat()`
-    /// (`ConfigBuilder::default_model`, `OPENAI_DEFAULT_MODEL`, else `gpt-4`).
+    /// (`ConfigBuilder::default_model`, `OPENAI_DEFAULT_MODEL`, else `gpt-5.4-mini`).
     pub fn responses(&self) -> ResponsesBuilder {
         let model = self
             .config

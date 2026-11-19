@@ -10,7 +10,8 @@ Two APIs generate text, each with its own builder:
   `status()`, `usage()`, and `inner()` for the generated `Response`). See
   [Responses workflows](responses_workflows.md).
 
-Both start with the configured default model (`Config::builder().default_model(..)`);
+Both start with the configured default model (`Config::builder().default_model(..)`, else
+`OPENAI_DEFAULT_MODEL`, else `gpt-5.4-mini`);
 `ChatCompletionBuilder::new(model)` and `ResponsesBuilder::new(model)` start one for another
 model. For streams see [streaming](streaming.md); for tools, the
 [tool framework](tool_framework.md).

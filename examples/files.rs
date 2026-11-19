@@ -261,7 +261,7 @@ async fn upload_json_file_example(_client: &Client) -> Result<String, Box<dyn st
         "method": "POST",
         "url": "/v1/chat/completions",
         "body": {
-            "model": "gpt-4",
+            "model": "gpt-5.4-mini",
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": "Hello!"}

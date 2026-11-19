@@ -40,8 +40,10 @@ async fn main() -> Result<()> {
     completion_with_stop(&client).await?;
 
     // Example 5: Completion with suffix (insert mode)
-    println!("\n5. Completion with Suffix (Insert Mode):");
-    completion_with_suffix(&client).await?;
+    // Note: current models reject `suffix` ("Unrecognized request argument supplied: suffix");
+    // the example shows the builder for a server or model that still takes it.
+    // println!("\n5. Completion with Suffix (Insert Mode):");
+    // completion_with_suffix(&client).await?;
 
     // Example 6: Completion with echo
     // Note: The echo parameter is deprecated and not well supported by the API
@@ -57,7 +59,7 @@ async fn main() -> Result<()> {
 async fn basic_completion(client: &Client) -> Result<()> {
     let builder = client
         .completions()
-        .builder("gpt-3.5-turbo-instruct")
+        .builder("gpt-5.4-mini")
         .prompt("Write a tagline for an ice cream shop")
         .max_tokens(60);
 
@@ -82,7 +84,7 @@ async fn basic_completion(client: &Client) -> Result<()> {
 async fn completion_with_parameters(client: &Client) -> Result<()> {
     let builder = client
         .completions()
-        .builder("gpt-3.5-turbo-instruct")
+        .builder("gpt-5.4-mini")
         .prompt("Explain quantum computing in simple terms:")
         .max_tokens(100)
         .temperature(0.7)
@@ -109,7 +111,7 @@ async fn completion_with_parameters(client: &Client) -> Result<()> {
 async fn multiple_completions(client: &Client) -> Result<()> {
     let builder = client
         .completions()
-        .builder("gpt-3.5-turbo-instruct")
+        .builder("gpt-5.4-mini")
         .prompt("Brainstorm three names for a pet cat:")
         .max_tokens(50)
         .n(3) // Generate 3 different completions
@@ -128,7 +130,7 @@ async fn multiple_completions(client: &Client) -> Result<()> {
 async fn completion_with_stop(client: &Client) -> Result<()> {
     let builder = client
         .completions()
-        .builder("gpt-3.5-turbo-instruct")
+        .builder("gpt-5.4-mini")
         .prompt("List three programming languages:\n1.")
         .max_tokens(100)
         .temperature(0.0)
@@ -146,11 +148,12 @@ async fn completion_with_stop(client: &Client) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn completion_with_suffix(client: &Client) -> Result<()> {
     // Insert mode: provide text before and after the insertion point
     let builder = client
         .completions()
-        .builder("gpt-3.5-turbo-instruct")
+        .builder("gpt-5.4-mini")
         .prompt("def hello_world():\n    print(\"Hello, ")
         .suffix("\")\n    return True")
         .max_tokens(10)
@@ -172,7 +175,7 @@ async fn completion_with_suffix(client: &Client) -> Result<()> {
 async fn completion_with_echo(client: &Client) -> Result<()> {
     let builder = client
         .completions()
-        .builder("gpt-3.5-turbo-instruct")
+        .builder("gpt-5.4-mini")
         .prompt("The capital of France is")
         .max_tokens(10)
         .echo(true) // Echo back the prompt

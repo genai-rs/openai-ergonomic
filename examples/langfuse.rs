@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .system("You are a helpful assistant that speaks like a pirate.")
         .user("Tell me about the ocean in 2 sentences.")
         .temperature(0.7)
-        .max_tokens(100)
+        .max_completion_tokens(100)
         .build()?;
     let response = client.execute_chat(chat_builder).await?;
     println!("Response: {:?}\n", response.content());

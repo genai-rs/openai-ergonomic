@@ -286,7 +286,7 @@ async fn error_recovery_strategies() -> Result<()> {
     let client = Client::from_env()?.build();
 
     // Strategy 1: Fallback to simpler model
-    let result = try_with_fallback(&client, "gpt-4o", "gpt-3.5-turbo").await?;
+    let result = try_with_fallback(&client, "gpt-5.4-mini", "gpt-5.4-nano").await?;
     println!("Fallback strategy result: {}", result);
 
     // Strategy 2: Circuit breaker pattern

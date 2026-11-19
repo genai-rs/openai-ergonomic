@@ -113,11 +113,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let training_file_id = "file-training-data";
 
     println!("Creating fine-tuning job...");
-    println!("  Base Model: gpt-3.5-turbo");
+    println!("  Base Model: gpt-4.1-mini-2025-04-14");
     println!("  Training File: {}", training_file_id);
     println!("  Suffix: my-custom-model");
 
-    let builder = FineTuningJobBuilder::new("gpt-3.5-turbo", training_file_id)
+    let builder = FineTuningJobBuilder::new("gpt-4.1-mini-2025-04-14", training_file_id)
         .suffix("my-custom-model")
         .epochs(3);
 
@@ -140,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Simulate job creation for demonstration
     let demo_job = JobInfo::new(
         "ftjob-demo123",
-        "gpt-3.5-turbo",
+        "gpt-4.1-mini-2025-04-14",
         "validating",
         training_file_id,
     );
@@ -285,16 +285,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let validation_file_id = "file-validation-data";
 
     println!("Creating fine-tuning job with validation...");
-    println!("  Base Model: gpt-3.5-turbo");
+    println!("  Base Model: gpt-4.1-mini-2025-04-14");
     println!("  Training File: {}", training_file_id);
     println!("  Validation File: {}", validation_file_id);
     println!("  Epochs: 5");
     println!("  Learning Rate Multiplier: 0.1");
 
-    let builder_with_validation = FineTuningJobBuilder::new("gpt-3.5-turbo", training_file_id)
-        .validation_file(validation_file_id)
-        .epochs(5)
-        .learning_rate_multiplier(0.1);
+    let builder_with_validation =
+        FineTuningJobBuilder::new("gpt-4.1-mini-2025-04-14", training_file_id)
+            .validation_file(validation_file_id)
+            .epochs(5)
+            .learning_rate_multiplier(0.1);
 
     println!("\n Note: Validation files help monitor overfitting during training");
 
@@ -304,11 +305,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n");
 
     println!("Creating fine-tuning job with W&B...");
-    println!("  Base Model: gpt-3.5-turbo");
+    println!("  Base Model: gpt-4.1-mini-2025-04-14");
     println!("  Training File: {}", training_file_id);
     println!("  W&B Project: my-finetuning-project");
 
-    let builder_with_wandb = FineTuningJobBuilder::new("gpt-3.5-turbo", training_file_id)
+    let builder_with_wandb = FineTuningJobBuilder::new("gpt-4.1-mini-2025-04-14", training_file_id)
         .with_wandb("my-finetuning-project");
 
     println!("\n Note: W&B integration provides detailed training metrics visualization");

@@ -32,7 +32,7 @@ impl AssistantBuilder {
     /// ```rust
     /// use openai_ergonomic::builders::assistants::{AssistantBuilder, tool_code_interpreter};
     ///
-    /// let builder = AssistantBuilder::new("gpt-4")
+    /// let builder = AssistantBuilder::new("gpt-5.4-mini")
     ///     .name("My Assistant")
     ///     .instructions("You are a helpful coding assistant.")
     ///     .add_tool(tool_code_interpreter());
@@ -497,7 +497,7 @@ pub fn temperature_run(assistant_id: impl Into<String>, temperature: f64) -> Run
 /// ```rust
 /// use openai_ergonomic::builders::assistants::{AssistantBuilder, tool_code_interpreter};
 ///
-/// let assistant = AssistantBuilder::new("gpt-4")
+/// let assistant = AssistantBuilder::new("gpt-5.4-mini")
 ///     .name("Math Assistant")
 ///     .add_tool(tool_code_interpreter());
 /// ```
@@ -516,7 +516,7 @@ pub fn tool_code_interpreter() -> AssistantTool {
 /// ```rust
 /// use openai_ergonomic::builders::assistants::{AssistantBuilder, tool_file_search};
 ///
-/// let assistant = AssistantBuilder::new("gpt-4")
+/// let assistant = AssistantBuilder::new("gpt-5.4-mini")
 ///     .name("Research Assistant")
 ///     .add_tool(tool_file_search());
 /// ```
@@ -551,7 +551,7 @@ pub fn tool_file_search() -> AssistantTool {
 ///     })
 /// );
 ///
-/// let assistant = AssistantBuilder::new("gpt-4")
+/// let assistant = AssistantBuilder::new("gpt-5.4-mini")
 ///     .name("Math Assistant")
 ///     .add_tool(fibonacci_tool);
 /// ```
