@@ -43,15 +43,15 @@ use crate::interceptor::{
     StreamEndContext, StreamTerminalContext,
 };
 use crate::langfuse_context::LangfuseContext;
+use crate::semantic_conventions::{
+    GEN_AI_OPERATION_NAME, GEN_AI_PROVIDER_NAME, GEN_AI_REQUEST_MAX_TOKENS, GEN_AI_REQUEST_MODEL,
+    GEN_AI_REQUEST_TEMPERATURE, GEN_AI_RESPONSE_ID, GEN_AI_USAGE_INPUT_TOKENS,
+    GEN_AI_USAGE_OUTPUT_TOKENS,
+};
 use crate::Result;
 use opentelemetry::{
     trace::{SpanKind, Status, Tracer},
     KeyValue,
-};
-use opentelemetry_semantic_conventions::attribute::{
-    GEN_AI_OPERATION_NAME, GEN_AI_REQUEST_MAX_TOKENS, GEN_AI_REQUEST_MODEL,
-    GEN_AI_REQUEST_TEMPERATURE, GEN_AI_RESPONSE_ID, GEN_AI_SYSTEM, GEN_AI_USAGE_INPUT_TOKENS,
-    GEN_AI_USAGE_OUTPUT_TOKENS,
 };
 use serde_json::Value;
 use std::future::Future;
@@ -236,7 +236,11 @@ where
 
         // Build initial attributes
         let mut attributes = vec![
-            KeyValue::new(GEN_AI_SYSTEM, "openai"),
+            KeyValue::new(GEN_AI_PROVIDER_NAME, "openai"),
+            // Deprecated in the GenAI semantic conventions (superseded by
+            // `gen_ai.provider.name`), but Langfuse's OpenTelemetry ingestion reads the
+            // provider from `gen_ai.system` only: keep emitting both.
+            KeyValue::new("gen_ai.system", "openai"),
             KeyValue::new(GEN_AI_OPERATION_NAME, ctx.operation.to_string()),
             KeyValue::new(GEN_AI_REQUEST_MODEL, ctx.model.to_string()),
         ];
@@ -765,5 +769,55 @@ mod tests {
         };
         interceptor.on_stream_terminal(&terminal).await.unwrap();
         assert!(state.span.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn span_names_the_provider_in_both_genai_attributes() {
+        use opentelemetry::trace::TracerProvider as _;
+        use opentelemetry_sdk::trace::{InMemorySpanExporter, SdkTracerProvider};
+
+        let exporter = InMemorySpanExporter::default();
+        let provider = SdkTracerProvider::builder()
+            .with_simple_exporter(exporter.clone())
+            .build();
+        let interceptor = LangfuseInterceptor::new(provider.tracer("test"), LangfuseConfig::new());
+        let mut state = LangfuseState::default();
+        let mut before = BeforeRequestContext {
+            operation: "chat",
+            model: "mock-model",
+            request_json: "{}",
+            state: &mut state,
+        };
+        interceptor.before_request(&mut before).await.unwrap();
+        let summary = StreamEndContext {
+            operation: "chat",
+            model: "mock-model",
+            request_json: "{}",
+            total_chunks: 1,
+            duration: Duration::from_millis(1),
+            input_tokens: Some(3),
+            output_tokens: Some(4),
+            state: &state,
+        };
+        let terminal = StreamTerminalContext {
+            summary,
+            outcome: StreamOutcome::Completed,
+        };
+        interceptor.on_stream_terminal(&terminal).await.unwrap();
+
+        let spans = exporter.get_finished_spans().unwrap();
+        let span = spans.first().expect("one span");
+        let value = |key: &str| {
+            span.attributes
+                .iter()
+                .find(|kv| kv.key.as_str() == key)
+                .map(|kv| kv.value.to_string())
+        };
+        // `gen_ai.provider.name` is the current name; Langfuse reads `gen_ai.system`.
+        assert_eq!(value("gen_ai.provider.name").as_deref(), Some("openai"));
+        assert_eq!(value("gen_ai.system").as_deref(), Some("openai"));
+        assert_eq!(value("gen_ai.request.model").as_deref(), Some("mock-model"));
+        assert_eq!(value("gen_ai.usage.input_tokens").as_deref(), Some("3"));
+        assert_eq!(value("gen_ai.usage.output_tokens").as_deref(), Some("4"));
     }
 }

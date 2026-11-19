@@ -5,6 +5,23 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
+## Migrating to 0.26
+
+Nothing in the API breaks. One behaviour change in the `LangfuseInterceptor` spans (feature
+`otel`): they now carry `gen_ai.provider.name` (`openai`), the attribute that replaces the
+deprecated `gen_ai.system` in the
+[GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/). `gen_ai.system`
+is still emitted with the same value, because Langfuse reads the provider of a generation from
+it; dashboards or queries keyed on `gen_ai.system` keep working.
+
+The crate no longer depends on `opentelemetry-semantic-conventions` (0.32 and later deprecate
+all its GenAI constants, which moved to a separate repository): the attribute names are
+constants of `openai_ergonomic::semantic_conventions`, which also gains `GEN_AI_PROVIDER_NAME`
+and the other names the interceptor emits. `semantic_conventions::GEN_AI_SYSTEM` is deprecated;
+use `GEN_AI_PROVIDER_NAME`. Its value (`"gen_ai.system"`) is unchanged.
+
+Dependencies: `hmac` 0.13 and `sha2` 0.11 (feature `webhook`), `gloo-timers` 0.4 (WebAssembly).
+
 ## Migrating to 0.25
 
 Version 0.25 moves to `openai-client-base` 0.35, where Unix timestamps are
