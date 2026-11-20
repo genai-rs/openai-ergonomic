@@ -143,8 +143,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Structured output
 
-`json_schema(name, schema)` asks for JSON that matches a schema (strict); `json_mode()` for
-any JSON object. See [structured output](chat-and-responses.md#structured-output) and
+`json_schema(name, schema)` asks for JSON that matches a schema (strict: every property listed
+in `required`, optional ones nullable, `"additionalProperties": false`); `json_mode()` for any
+JSON object. See [structured output](chat-and-responses.md#structured-output) and
 [`examples/structured_outputs.rs`](../examples/structured_outputs.rs).
 
 ## Streaming

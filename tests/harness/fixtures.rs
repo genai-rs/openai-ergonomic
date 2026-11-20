@@ -138,9 +138,9 @@ pub mod chat_requests {
                         "properties": {
                             "name": {"type": "string"},
                             "age": {"type": "number"},
-                            "email": {"type": "string", "format": "email"}
+                            "email": {"type": ["string", "null"]}
                         },
-                        "required": ["name", "age"],
+                        "required": ["name", "age", "email"],
                         "additionalProperties": false
                     }
                 }
