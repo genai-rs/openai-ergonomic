@@ -5,6 +5,15 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
+## Migrating to 0.27
+
+Version 0.27 moves to `openai-client-base` 0.37, which generates the client as a workspace of
+smaller crates behind the `openai-client-base` facade. The module paths and Cargo features stay
+the same and the generated types do not change, so code that names
+`openai_client_base::models::..` or `openai_client_base::apis::..` keeps compiling. Bump
+`openai-client-base` with this crate where you use both, so the two agree on one version of the
+types.
+
 ## Changes in 0.26.1
 
 Nothing in the API breaks. One behaviour change: the default model is `gpt-5.4-mini`.

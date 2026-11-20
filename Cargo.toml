@@ -15,7 +15,7 @@ categories = ["api-bindings", "asynchronous"]
 exclude = [".github", "docs/", ".gitignore"]
 
 [dependencies]
-openai-client-base = { version = "^0.36.1", default-features = false, features = [
+openai-client-base = { version = "^0.37.0", default-features = false, features = [
     # Every model (`types`), and the API groups whose operations the client calls.
     "types",
     "administration", # usage
