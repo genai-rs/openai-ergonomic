@@ -25,7 +25,7 @@ RUST_LOG=openai_ergonomic=debug cargo run --example chat_streaming   # with logs
 | --- | --- |
 | [`chat_comprehensive`](../examples/chat_comprehensive.rs) | multi-turn conversations, message history, parameters, token usage |
 | [`chat_streaming`](../examples/chat_streaming.rs) | `send_chat_stream`, collecting a stream, parameters, multi-turn streaming |
-| [`vision_chat`](../examples/vision_chat.rs) | images by URL and base64, several images, detail levels |
+| [`vision_chat`](../examples/vision_chat.rs) | images as base64 data URLs from bytes (and by URL), several images, detail levels |
 | [`responses_comprehensive`](../examples/responses_comprehensive.rs) | the Responses API: instructions, function calling with `previous_response_id`, stateless conversations, JSON schemas, built-in tools |
 | [`responses_streaming`](../examples/responses_streaming.rs) | `send_responses_stream`: text deltas, function calls at `response.output_item.done`, the completion handle |
 | [`structured_outputs`](../examples/structured_outputs.rs) | JSON mode and JSON schemas, nested structures |
@@ -56,17 +56,13 @@ See [tool framework](tool_framework.md), [tool orchestration](tool_orchestration
 | [`images_comprehensive`](../examples/images_comprehensive.rs) | generation, edits with masks, variations, saving images |
 | [`embeddings`](../examples/embeddings.rs) | single and batch embeddings, dimensions, similarity |
 
-## Files, assistants and batches
+## Files, vector stores and batches
 
 | Example | Shows |
 | --- | --- |
 | [`files`](../examples/files.rs) | upload, list, retrieve, download and delete files |
 | [`uploads`](../examples/uploads.rs) | the Uploads API for large files |
 | [`vector_stores`](../examples/vector_stores.rs) | vector stores, their files, search |
-| [`assistants_basic`](../examples/assistants_basic.rs) | assistants, threads, messages, runs |
-| [`assistants_code_interpreter`](../examples/assistants_code_interpreter.rs) | the code interpreter tool |
-| [`assistants_file_search`](../examples/assistants_file_search.rs) | the file search tool over vector stores |
-| [`threads`](../examples/threads.rs) | threads with messages and metadata |
 | [`batch_processing`](../examples/batch_processing.rs) | the Batch API: input files, monitoring, results |
 | [`fine_tuning`](../examples/fine_tuning.rs) | fine-tuning jobs, events, checkpoints |
 | [`moderations`](../examples/moderations.rs) | moderation categories and scores |
