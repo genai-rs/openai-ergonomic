@@ -398,7 +398,8 @@ pub mod helpers {
         ]
     }
 
-    /// Create a test schema for JSON schema testing.
+    /// Create a test schema for JSON schema testing, valid for strict structured outputs: every
+    /// property is in `required` (the optional one is nullable).
     pub fn test_json_schema() -> Value {
         json!({
             "type": "object",
@@ -418,11 +419,11 @@ pub mod helpers {
                     "description": "The email field"
                 },
                 "active": {
-                    "type": "boolean",
-                    "description": "Whether the person is active"
+                    "type": ["boolean", "null"],
+                    "description": "Whether the person is active, or null when unknown"
                 }
             },
-            "required": ["name", "email"],
+            "required": ["name", "age", "email", "active"],
             "additionalProperties": false
         })
     }
@@ -601,6 +602,29 @@ mod tests {
         assertions::assert_has_field(&schema, "type");
         assertions::assert_has_field(&schema, "properties");
         assertions::assert_has_field(&schema, "required");
+    }
+
+    #[test]
+    fn test_json_schema_is_valid_for_strict_mode() {
+        // Strict structured outputs require every property in `required` (optional ones are
+        // nullable) and `"additionalProperties": false`.
+        let schema = helpers::test_json_schema();
+        let mut properties: Vec<&str> = schema["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        let mut required: Vec<&str> = schema["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|name| name.as_str().unwrap())
+            .collect();
+        properties.sort_unstable();
+        required.sort_unstable();
+        assert_eq!(properties, required);
+        assert_eq!(schema["additionalProperties"], false);
     }
 
     #[test]

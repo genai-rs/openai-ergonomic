@@ -18,6 +18,10 @@
 //! - Content classification and analysis
 //! - Error handling for malformed schemas
 //!
+//! `json_schema(..)` asks for strict structured output. In strict mode every object lists all of
+//! its properties in `required` and sets `"additionalProperties": false`; a property that may be
+//! absent is nullable instead (`"type": ["string", "null"]`).
+//!
 //! ## Prerequisites
 //!
 //! Set your `OpenAI` API key:
@@ -191,24 +195,24 @@ async fn data_extraction_example(client: &Client) -> Result<(), Error> {
                             "description": "Full name of the person"
                         },
                         "email": {
-                            "type": "string",
-                            "format": "email",
-                            "description": "Email address"
+                            "type": ["string", "null"],
+                            "description": "Email address, or null when not mentioned"
                         },
                         "phone": {
-                            "type": "string",
-                            "description": "Phone number"
+                            "type": ["string", "null"],
+                            "description": "Phone number, or null when not mentioned"
                         },
                         "company": {
-                            "type": "string",
-                            "description": "Company or organization"
+                            "type": ["string", "null"],
+                            "description": "Company or organization, or null when not mentioned"
                         },
                         "role": {
-                            "type": "string",
-                            "description": "Job title or role"
+                            "type": ["string", "null"],
+                            "description": "Job title or role, or null when not mentioned"
                         }
                     },
-                    "required": ["name"],
+                    // Strict mode: every property is required; optional ones are nullable.
+                    "required": ["name", "email", "phone", "company", "role"],
                     "additionalProperties": false
                 }
             },
@@ -309,8 +313,8 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                                 "description": "Venue name"
                             },
                             "address": {
-                                "type": "string",
-                                "description": "Venue address"
+                                "type": ["string", "null"],
+                                "description": "Venue address, or null when unknown"
                             },
                             "capacity": {
                                 "type": "integer",
@@ -318,7 +322,7 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                                 "description": "Maximum capacity"
                             },
                             "amenities": {
-                                "type": "array",
+                                "type": ["array", "null"],
                                 "items": {
                                     "type": "string",
                                     "enum": ["wifi", "parking", "catering", "av_equipment", "wheelchair_accessible", "air_conditioning"]
@@ -326,7 +330,7 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                                 "description": "Available amenities"
                             }
                         },
-                        "required": ["name", "capacity"],
+                        "required": ["name", "address", "capacity", "amenities"],
                         "additionalProperties": false
                     },
                     "agenda": {
@@ -344,8 +348,8 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                                     "description": "Activity description"
                                 },
                                 "speaker": {
-                                    "type": "string",
-                                    "description": "Speaker name"
+                                    "type": ["string", "null"],
+                                    "description": "Speaker name, or null for activities without one"
                                 },
                                 "duration_minutes": {
                                     "type": "integer",
@@ -354,7 +358,7 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                                     "description": "Activity duration in minutes"
                                 }
                             },
-                            "required": ["time", "activity", "duration_minutes"],
+                            "required": ["time", "activity", "speaker", "duration_minutes"],
                             "additionalProperties": false
                         }
                     },
@@ -362,19 +366,19 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                         "type": "object",
                         "properties": {
                             "venue": {
-                                "type": "number",
+                                "type": ["number", "null"],
                                 "minimum": 0,
-                                "description": "Venue cost in USD"
+                                "description": "Venue cost in USD, or null when not estimated"
                             },
                             "catering": {
-                                "type": "number",
+                                "type": ["number", "null"],
                                 "minimum": 0,
-                                "description": "Catering cost in USD"
+                                "description": "Catering cost in USD, or null when not estimated"
                             },
                             "equipment": {
-                                "type": "number",
+                                "type": ["number", "null"],
                                 "minimum": 0,
-                                "description": "Equipment cost in USD"
+                                "description": "Equipment cost in USD, or null when not estimated"
                             },
                             "total": {
                                 "type": "number",
@@ -382,11 +386,11 @@ async fn complex_structure_example(client: &Client) -> Result<(), Error> {
                                 "description": "Total estimated cost in USD"
                             }
                         },
-                        "required": ["total"],
+                        "required": ["venue", "catering", "equipment", "total"],
                         "additionalProperties": false
                     }
                 },
-                "required": ["name", "type", "date", "duration_hours", "venue"],
+                "required": ["name", "type", "date", "duration_hours", "venue", "agenda", "estimated_cost"],
                 "additionalProperties": false
             }
         },
@@ -463,8 +467,8 @@ async fn classification_example(client: &Client) -> Result<(), Error> {
                         "description": "Primary content category"
                     },
                     "subcategory": {
-                        "type": "string",
-                        "description": "More specific subcategory"
+                        "type": ["string", "null"],
+                        "description": "More specific subcategory, or null"
                     },
                     "sentiment": {
                         "type": "string",
@@ -496,7 +500,7 @@ async fn classification_example(client: &Client) -> Result<(), Error> {
                         "description": "Confidence in classification (0-1)"
                     }
                 },
-                "required": ["category", "sentiment", "topics", "target_audience", "complexity_level", "confidence_score"],
+                "required": ["category", "subcategory", "sentiment", "topics", "target_audience", "complexity_level", "confidence_score"],
                 "additionalProperties": false
             }
         },
@@ -613,11 +617,11 @@ async fn math_analysis_example(client: &Client) -> Result<(), Error> {
                                     "description": "Mathematical equation or expression"
                                 },
                                 "result": {
-                                    "type": "string",
-                                    "description": "Result of this step"
+                                    "type": ["string", "null"],
+                                    "description": "Result of this step, or null"
                                 }
                             },
-                            "required": ["step_number", "description", "equation"],
+                            "required": ["step_number", "description", "equation", "result"],
                             "additionalProperties": false
                         }
                     },
@@ -890,7 +894,8 @@ async fn validation_error_example(client: &Client) -> Result<(), Error> {
                         "pattern": "^impossible_pattern_that_cannot_match$"
                     }
                 },
-                "required": ["impossible"]
+                "required": ["impossible"],
+                "additionalProperties": false
             }),
         )
         .temperature(0.1);

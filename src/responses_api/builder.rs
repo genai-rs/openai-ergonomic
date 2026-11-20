@@ -316,6 +316,10 @@ impl ResponsesBuilder {
     }
 
     /// Ask for JSON output that matches `schema` (structured outputs, strict).
+    ///
+    /// Strict mode requires every object in `schema` to list all of its properties in
+    /// `required` and to set `"additionalProperties": false`; make a property that may be
+    /// absent nullable instead (`"type": ["string", "null"]`).
     #[must_use]
     pub fn json_schema(mut self, name: impl Into<String>, schema: Value) -> Self {
         let schema = match schema {
