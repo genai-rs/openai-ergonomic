@@ -141,45 +141,10 @@ See [Responses workflows](responses_workflows.md#tools) and, with a `ToolRegistr
 [the tool framework](tool_framework.md#the-responses-api); `ToolLoop::responses` is this loop,
 streamed, with each call started as soon as the model finished it ([agent loop](agent_loop.md)).
 
-## Assistants and threads
+## Server-side tools
 
-The Assistants API runs tools server side (code interpreter, file search) and keeps the
-conversation in a thread. `client.threads().create(..)` creates a thread from a
-`ThreadRequestBuilder`; `MessageAttachment` attaches a file to a message for a tool;
-`client.assistants()` creates assistants (`AssistantBuilder`), runs (`create_run` with a
-`RunBuilder`), and answers a run's function calls with `submit_tool_outputs`.
-
-```rust,no_run
-use openai_ergonomic::builders::assistants::RunBuilder;
-use openai_ergonomic::{
-    AttachmentTool, Client, MessageAttachment, ThreadMessageBuilder, ThreadRequestBuilder,
-};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::from_env()?.build();
-
-    let thread = ThreadRequestBuilder::new()
-        .metadata("project", "alpha")
-        .message_builder(
-            ThreadMessageBuilder::user("Summarise the attached architecture document.")
-                .attachment(
-                    MessageAttachment::for_file_search("file-abc123")
-                        .with_tool(AttachmentTool::CodeInterpreter),
-                ),
-        )?;
-    let thread = client.threads().create(thread).await?;
-
-    let run = client
-        .assistants()
-        .create_run(&thread.id, RunBuilder::new("asst_123"))
-        .await?;
-    println!("thread {}, run {} ({:?})", thread.id, run.id, run.status);
-    Ok(())
-}
-```
-
-Examples: [`assistants_basic.rs`](../examples/assistants_basic.rs),
-[`assistants_code_interpreter.rs`](../examples/assistants_code_interpreter.rs),
-[`assistants_file_search.rs`](../examples/assistants_file_search.rs),
-[`threads.rs`](../examples/threads.rs).
+`OpenAI` shut the Assistants API (assistants, threads, messages and runs) down on 2026-08-26;
+the Responses API replaces it. Built-in tools such as `file_search` (over a
+[vector store](vector_store_operations.md)) and `code_interpreter` run server side when added
+to a Responses request (see [Responses workflows](responses_workflows.md#tools)), and
+`previous_response_id` continues a conversation.

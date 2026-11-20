@@ -11,8 +11,6 @@ Which `OpenAI` APIs have ergonomic builders and a sub-client, and how to reach t
 | Audio | `client.audio()` | [`audio.rs`](../src/builders/audio.rs) | [`audio_speech.rs`](../examples/audio_speech.rs), [`audio_transcription.rs`](../examples/audio_transcription.rs) |
 | Embeddings | `client.embeddings()` | [`embeddings.rs`](../src/builders/embeddings.rs) | [`embeddings.rs`](../examples/embeddings.rs) |
 | Images | `client.images()` | [`images.rs`](../src/builders/images.rs) | [`images_comprehensive.rs`](../examples/images_comprehensive.rs) |
-| Assistants | `client.assistants()` | [`assistants.rs`](../src/builders/assistants.rs) | [`assistants_basic.rs`](../examples/assistants_basic.rs), [`assistants_code_interpreter.rs`](../examples/assistants_code_interpreter.rs), [`assistants_file_search.rs`](../examples/assistants_file_search.rs) |
-| Threads | `client.threads()` | [`threads.rs`](../src/builders/threads.rs) | [`threads.rs`](../examples/threads.rs) |
 | Files | `client.files()` | [`files.rs`](../src/builders/files.rs) | [`files.rs`](../examples/files.rs) |
 | Uploads | `client.uploads()`, `upload_large_file` | [`uploads.rs`](../src/builders/uploads.rs) | [`uploads.rs`](../examples/uploads.rs) |
 | Vector stores | `client.vector_stores()` | [`vector_stores.rs`](../src/builders/vector_stores.rs) | [`vector_stores.rs`](../examples/vector_stores.rs) |

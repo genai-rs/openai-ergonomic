@@ -5,6 +5,29 @@ types follow the matching `openai-client-base` release, so also check its
 [upgrading notes](https://github.com/genai-rs/openai-client-base/blob/main/guides/upgrading.md)
 and the [changelog](../CHANGELOG.md) when you upgrade across a minor version.
 
+## Migrating to 0.28
+
+`OpenAI` shut the Assistants API down on 2026-08-26 (deprecated on 2025-08-26); its endpoints
+answer 404. Version 0.28 removes the ergonomic layer over it:
+
+- `client.assistants()` (`AssistantsClient`: assistants, runs, messages, run steps) and
+  `client.threads()` (`ThreadsClient`).
+- The builders `AssistantBuilder`, `AssistantTool`, `RunBuilder`, `ThreadBuilder`,
+  `ThreadRequestBuilder`, `ThreadMessageBuilder`, `MessageAttachment`, `AttachmentTool` and the
+  helpers `simple_assistant`, `assistant_with_*`, `simple_run`, `streaming_run`,
+  `temperature_run`, `simple_thread`, `tool_code_interpreter` and `tool_file_search`
+  (the modules `builders::assistants` and `builders::threads`).
+- The `ASSISTANT_*`, `THREAD_*`, `MESSAGE_*`, `RUN_*` and `RUN_STEP_*` operation names in
+  `semantic_conventions::operation_names`.
+- The `assistants` feature of `openai-client-base` is no longer enabled.
+
+Move to the Responses API: `client.responses()` with `instructions(..)` replaces an assistant,
+`previous_response_id(..)` (or the Conversations API) a thread, and the built-in `file_search`
+(with `vector_store_ids`) and `code_interpreter` tools run server side as before (see
+[tool orchestration](tool_orchestration.md#server-side-tools) and
+[vector stores](vector_store_operations.md#with-the-responses-api)). Files, uploads, vector
+stores and batches stay.
+
 ## Migrating to 0.27
 
 Version 0.27 moves to `openai-client-base` 0.37, which generates the client as a workspace of
@@ -385,7 +408,5 @@ assert!(json.get("n").is_none());
 ```
 
 The ergonomic builders omit optional fields you leave unset and keep the values you set,
-including empty strings, `false` and zero: `.stream(false)` sends `"stream": false`. Some
-builders have deliberate defaults: `RunBuilder` sends `"stream": false` unless streaming is
-enabled. Streamed chunks keep the generated distinction between a missing and a `null`
+including empty strings, `false` and zero: `.stream(false)` sends `"stream": false`. Streamed chunks keep the generated distinction between a missing and a `null`
 `finish_reason`; the `finish_reason()` helper returns `None` for both.

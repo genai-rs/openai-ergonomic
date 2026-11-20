@@ -35,7 +35,6 @@ use openai_client_base::models::{
     FunctionObject,
 };
 
-pub mod assistants;
 pub mod audio;
 pub mod batch;
 pub mod chat;
@@ -44,13 +43,11 @@ pub mod files;
 pub mod fine_tuning;
 pub mod images;
 pub mod moderations;
-pub mod threads;
 pub mod uploads;
 pub mod vector_stores;
 
 // Re-export response types for convenience
 // NOTE: Re-exports will be enabled as modules are implemented
-// pub use assistants::*;
 // pub use audio::*;
 // pub use batch::*;
 pub use chat::*; // Has implementation
@@ -59,7 +56,6 @@ pub use chat::*; // Has implementation
                  // pub use fine_tuning::*;
                  // pub use images::*;
                  // pub use moderations::*;
-                 // pub use threads::*;
                  // pub use uploads::*;
                  // pub use vector_stores::*;
 

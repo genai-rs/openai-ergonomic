@@ -130,9 +130,6 @@ pub use builders::images::{
     ImageVariationBuilder, ImageVariationRequest, Moderation, OutputFormat, Quality,
     ResponseFormat, Size, Style,
 };
-pub use builders::threads::{
-    AttachmentTool, MessageAttachment, ThreadMessageBuilder, ThreadRequestBuilder,
-};
 pub use builders::uploads::UploadBuilder;
 pub use builders::{Builder, ChatCompletionBuilder, Sendable};
 pub use openai_client_base::models::chat_completion_request_message_content_part_image_image_url::Detail;

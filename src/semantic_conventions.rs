@@ -90,43 +90,6 @@ pub mod operation_names {
     /// File download operation
     pub const FILE_DOWNLOAD: &str = "file_download";
 
-    /// Assistant create operation
-    pub const ASSISTANT_CREATE: &str = "assistant_create";
-    /// Assistant list operation
-    pub const ASSISTANT_LIST: &str = "assistant_list";
-    /// Assistant retrieve operation
-    pub const ASSISTANT_RETRIEVE: &str = "assistant_retrieve";
-    /// Assistant update operation
-    pub const ASSISTANT_UPDATE: &str = "assistant_update";
-    /// Assistant delete operation
-    pub const ASSISTANT_DELETE: &str = "assistant_delete";
-
-    /// Thread create operation
-    pub const THREAD_CREATE: &str = "thread_create";
-
-    /// Message create operation
-    pub const MESSAGE_CREATE: &str = "message_create";
-    /// Message list operation
-    pub const MESSAGE_LIST: &str = "message_list";
-    /// Message retrieve operation
-    pub const MESSAGE_RETRIEVE: &str = "message_retrieve";
-
-    /// Run create operation
-    pub const RUN_CREATE: &str = "run_create";
-    /// Run list operation
-    pub const RUN_LIST: &str = "run_list";
-    /// Run retrieve operation
-    pub const RUN_RETRIEVE: &str = "run_retrieve";
-    /// Run cancel operation
-    pub const RUN_CANCEL: &str = "run_cancel";
-    /// Run submit tool outputs operation
-    pub const RUN_SUBMIT_TOOL_OUTPUTS: &str = "run_submit_tool_outputs";
-
-    /// Run step list operation
-    pub const RUN_STEP_LIST: &str = "run_step_list";
-    /// Run step retrieve operation
-    pub const RUN_STEP_RETRIEVE: &str = "run_step_retrieve";
-
     /// Vector store create operation
     pub const VECTOR_STORE_CREATE: &str = "vector_store_create";
     /// Vector store list operation

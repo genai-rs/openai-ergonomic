@@ -9,7 +9,7 @@
 
 Ergonomic Rust client for the `OpenAI` API and the services that speak it (Azure `OpenAI`,
 `OpenRouter`, Groq, Ollama, gateways): fluent builders for chat completions, the Responses API,
-embeddings, images, audio, files, assistants, batches and more, on top of the generated
+embeddings, images, audio, files, batches and more, on top of the generated
 [openai-client-base](https://github.com/genai-rs/openai-client-base). It sends through a
 [tower](https://docs.rs/tower)-based HTTP client
 ([`timvw-rust-runtime`](https://docs.rs/timvw-rust-runtime)), natively and on WebAssembly.
@@ -43,7 +43,7 @@ goes on from here: the Responses API, streaming, errors and the examples.
 
 - **Builders** for chat completions, the Responses API (`/responses`, with typed streaming
   events and stored-response operations), embeddings, images, audio, files,
-  uploads, vector stores, assistants and threads, batches, fine-tuning, moderations and usage
+  uploads, vector stores, batches, fine-tuning, moderations and usage
   ([getting started](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/getting-started.md),
   [API coverage](https://github.com/genai-rs/openai-ergonomic/blob/main/docs/api-coverage.md)).
 - **Providers**: `OpenAI`, Azure `OpenAI`, `OpenRouter`, Groq, Ollama or any `OpenAI`-compatible
