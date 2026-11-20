@@ -1631,7 +1631,7 @@ dependencies = [
 
 [[package]]
 name = "openai-ergonomic"
-version = "0.28.0"
+version = "0.28.1"
 dependencies = [
  "base64",
  "bytes",
