@@ -19,18 +19,21 @@ model. For streams see [streaming](streaming.md); for tools, the
 ## Messages, parameters and images
 
 ```rust,no_run
-use openai_ergonomic::{ChatCompletionBuilder, Client};
+use base64::Engine as _;
+use openai_ergonomic::{image_base64_part, text_part, ChatCompletionBuilder, Client};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::from_env()?.build();
 
+    // The image's bytes, sent inline as a base64 `data:` URL
+    let photo = base64::engine::general_purpose::STANDARD.encode(std::fs::read("photo.jpg")?);
     let builder = ChatCompletionBuilder::new("gpt-4o-mini")
         .system("You describe images in one sentence.")
-        .user_with_image_url(
-            "What is in this picture?",
-            "https://upload.wikimedia.org/wikipedia/commons/3/3a/Cat03.jpg",
-        )
+        .user_with_parts(vec![
+            text_part("What is in this picture?"),
+            image_base64_part(photo, "image/jpeg"),
+        ])
         .temperature(0.2)
         .max_completion_tokens(200);
     let response = client.send_chat(builder).await?;
@@ -38,6 +41,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+`user_with_image_url(text, url)` sends an image by URL instead; `OpenAI` downloads it itself, and
+fails with `invalid_image_url` when the host does not serve it. See
+[`examples/vision_chat.rs`](../examples/vision_chat.rs).
 
 ## Structured output
 
