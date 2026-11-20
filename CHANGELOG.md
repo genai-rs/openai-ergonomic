@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.27.0...v0.28.0) - 2026-11-20
+
+### Added
+
+- [**breaking**] remove the Assistants API
+
+### Fixed
+
+- *(examples)* send the vision_chat images as base64 data URLs
+- list every property in required in strict structured-output schemas
+
 ## [0.27.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.26.1...v0.27.0) - 2026-11-20
 
 ### Added
