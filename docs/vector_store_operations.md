@@ -1,7 +1,7 @@
 # Vector stores
 
 Vector stores hold uploaded files, chunked and embedded, for semantic search and for the
-assistants' `file_search` tool. `client.vector_stores()` creates, lists, gets, updates and
+Responses API's `file_search` tool. `client.vector_stores()` creates, lists, gets, updates and
 deletes stores, adds and removes their files, and searches them.
 
 ```rust,no_run
@@ -48,12 +48,28 @@ with `and`. For other comparisons (`gt`, `in`, ...), `or`, ranking options or qu
 send a `VectorStoreSearchRequest` with the generated `openai-client-base` operation (see
 [the generated operations](chat-and-responses.md#the-generated-operations)).
 
-## With assistants
+## With the Responses API
 
-Attach a store to an assistant's `file_search` tool, or attach files to a thread message for
-file search with `MessageAttachment::for_file_search(file_id)` (see
-[tool orchestration](tool_orchestration.md#assistants-and-threads)).
+Give a Responses request a `file_search` tool with the store's ID:
 
-Examples: [`vector_stores.rs`](../examples/vector_stores.rs),
-[`assistants_file_search.rs`](../examples/assistants_file_search.rs). Uploading the files
+```rust,no_run
+use openai_ergonomic::responses_api::ResponsesTool;
+use openai_ergonomic::Client;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::from_env()?.build();
+    let file_search: ResponsesTool = serde_json::from_value(serde_json::json!({
+        "type": "file_search",
+        "vector_store_ids": ["vs_abc123"]
+    }))?;
+    let response = client
+        .send_responses(client.responses().tool(file_search).user("How do we roll back a release?"))
+        .await?;
+    println!("{}", response.output_text());
+    Ok(())
+}
+```
+
+Example: [`vector_stores.rs`](../examples/vector_stores.rs). Uploading the files
 themselves: [files and media](files-and-media.md).

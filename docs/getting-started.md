@@ -134,7 +134,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Examples
 
 The [`examples/`](../examples) directory has a runnable example per area (chat, streaming,
-tools, the Responses API, images, audio, files, assistants, batches, Azure, Langfuse, ...); the
+tools, the Responses API, images, audio, files, vector stores, batches, Azure, Langfuse, ...); the
 [examples index](examples-index.md) lists them by category.
 
 ```bash

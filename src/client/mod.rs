@@ -119,7 +119,6 @@ macro_rules! impl_interceptor_helpers {
     };
 }
 
-mod assistants;
 mod audio;
 mod batch;
 mod completions;
@@ -136,12 +135,10 @@ mod moderations;
 pub(crate) mod per_call;
 mod raw;
 mod responses;
-mod threads;
 mod uploads;
 mod usage;
 mod vector_stores;
 
-pub use assistants::AssistantsClient;
 pub use audio::AudioClient;
 pub use batch::BatchClient;
 pub use completions::CompletionsClient;
@@ -155,7 +152,6 @@ pub use models::ModelsClient;
 pub use moderations::ModerationsClient;
 pub use per_call::{CallFailure, CallMeta};
 pub use responses::ResponsesClient;
-pub use threads::ThreadsClient;
 pub use uploads::UploadsClient;
 pub use usage::UsageClient;
 pub use vector_stores::VectorStoresClient;
@@ -742,12 +738,6 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync + 'static> Client<T> {
 
 // TODO: Add methods for other API endpoints
 impl<T: Default + crate::MaybeSend + crate::MaybeSync> Client<T> {
-    /// Get assistants client (placeholder).
-    #[must_use]
-    pub fn assistants(&self) -> AssistantsClient<'_, T> {
-        AssistantsClient { client: self }
-    }
-
     /// Get audio client (placeholder).
     #[must_use]
     pub fn audio(&self) -> AudioClient<'_, T> {
@@ -794,12 +784,6 @@ impl<T: Default + crate::MaybeSend + crate::MaybeSync> Client<T> {
     #[must_use]
     pub fn moderations(&self) -> ModerationsClient<'_, T> {
         ModerationsClient { client: self }
-    }
-
-    /// Get threads client (placeholder).
-    #[must_use]
-    pub fn threads(&self) -> ThreadsClient<'_, T> {
-        ThreadsClient { client: self }
     }
 
     /// Get uploads client (placeholder).

@@ -4,7 +4,7 @@
 //! including creating and managing vector stores for RAG (Retrieval-Augmented Generation) use cases.
 //!
 //! Vector stores are used to store and search through documents that can be used
-//! by assistants with file search capabilities.
+//! by the Responses API's `file_search` tool.
 
 use std::collections::HashMap;
 

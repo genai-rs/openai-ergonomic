@@ -38,7 +38,7 @@ src/
 │   ├── large_upload.rs     upload_large_file (Uploads API, parallel parts)
 │   ├── media.rs            saving images, speech and files to disk (native only)
 │   ├── headers.rs          OpenAI-Organization / OpenAI-Project headers
-│   └── assistants.rs, audio.rs, batch.rs, ... one sub-client per API area
+│   └── audio.rs, batch.rs, files.rs, ... one sub-client per API area
 ├── builders/               request builders per API area (Builder::build → generated request)
 ├── responses/              response wrappers (ChatCompletionResponseWrapper) and helpers
 ├── responses_api/          Responses API: ResponsesBuilder, ResponsesResponse, ResponsesEvent
@@ -79,9 +79,8 @@ interceptors and `build()` makes the client. `T` is the interceptor state passed
   variants send them: a `CreateChatCompletionRequest` to `/chat/completions`, a
   `CreateResponse` to `/responses`.
   `responses_api()` retrieves, cancels and deletes stored responses and lists their input items.
-- `assistants()`, `audio()`, `batch()`, `completions()`, `embeddings()`, `files()`,
-  `fine_tuning()`, `images()`, `models()`, `moderations()`, `threads()`, `uploads()`, `usage()`,
-  `vector_stores()` return sub-clients that borrow the client.
+- `audio()`, `batch()`, `completions()`, `embeddings()`, `files()`, `fine_tuning()`, `images()`,
+  `models()`, `moderations()`, `uploads()`, `usage()`, `vector_stores()` return sub-clients that borrow the client.
 - `http_client()` is the HTTP client, for the generated operations or requests of your own.
 
 ## A request

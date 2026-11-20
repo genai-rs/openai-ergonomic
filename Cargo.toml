@@ -1,6 +1,6 @@
 [package]
 name = "openai-ergonomic"
-version = "0.27.0"
+version = "0.28.0"
 authors = ["Tim Van Wassenhove <github@timvw.be>"]
 edition = "2021"
 rust-version = "1.88"
@@ -19,7 +19,6 @@ openai-client-base = { version = "^0.37.0", default-features = false, features =
     # Every model (`types`), and the API groups whose operations the client calls.
     "types",
     "administration", # usage
-    "assistants",
     "audio",
     "batch",
     "chat-completion",
