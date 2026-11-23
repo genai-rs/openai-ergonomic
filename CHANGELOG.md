@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.1](https://github.com/genai-rs/openai-ergonomic/compare/v0.28.0...v0.28.1) - 2026-11-23
+
+### Other
+
+- *(deps)* Update pre-1.0 Rust updates
+- *(deps)* Update rust patch updates
+- release version 0.28.0
+
 ## [0.28.0](https://github.com/genai-rs/openai-ergonomic/compare/v0.27.0...v0.28.0) - 2026-11-20
 
 ### Added
