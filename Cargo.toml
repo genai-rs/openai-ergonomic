@@ -34,13 +34,13 @@ openai-client-base = { version = "^0.37.0", default-features = false, features =
     "vectorstore",
 ] }
 serde = { version = "^1.0.229", features = ["derive"] }
-serde_json = "^1.0.151"
+serde_json = "^1.0.154"
 # `sync` and `macros` (`select!`) work on any target; the runtime, timers and files only natively (below).
-tokio = { version = "^1.53.3", features = ["macros", "sync"] }
+tokio = { version = "^1.54.1", features = ["macros", "sync"] }
 reqwest = { version = "^0.13.5", default-features = false }
 timvw-rust-runtime = { version = "^0.4.0", default-features = false, features = ["reqwest", "retry", "fs"] }
 tower = { version = "^0.5.2", default-features = false, features = ["util", "retry"] }
-url = "^2.5.8"
+url = "^2.5.9"
 futures = "^0.3.34"
 thiserror = "^2.0.21"
 tracing = "^0.1.44"
@@ -48,15 +48,15 @@ opentelemetry = { optional = true, version = "^0.33.1", features = ["trace"] }
 opentelemetry_sdk = { optional = true, version = "^0.33.1", features = ["rt-tokio", "trace", "experimental_trace_batch_span_processor_with_async_runtime"] }
 opentelemetry-otlp = { optional = true, version = "^0.33.1", default-features = false, features = ["trace", "http-proto", "reqwest-client"] }
 base64 = "^0.23.1"
-bytes = "^1.12.1"
+bytes = "^1.12.2"
 http = "^1.5.0"
-http-body = "^1.0.1"
+http-body = "^1.1.0"
 hmac = { version = "^0.13.0", optional = true }
 sha2 = { version = "^0.11.1", optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 # Streaming callbacks (`spawn`), retry backoff of upload parts (`time`), media saved to files (`fs`).
-tokio = { version = "^1.53.3", features = ["rt", "time", "fs"] }
+tokio = { version = "^1.54.1", features = ["rt", "time", "fs"] }
 # test-utils: MockOpenAIServer wraps openai-mock-server.
 openai-mock-server = { version = "^0.2.0", optional = true }
 
@@ -65,16 +65,16 @@ openai-mock-server = { version = "^0.2.0", optional = true }
 [target.'cfg(target_family = "wasm")'.dependencies]
 wasm-bindgen-futures = "0.4"
 gloo-timers = { version = "0.4", features = ["futures"] }
-web-time = "1"
+web-time = "1.1.0"
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-tokio = { version = "^1.53.3", features = ["full"] }
+tokio = { version = "^1.54.1", features = ["full"] }
 tokio-stream = { version = "^0.1.19", features = ["io-util"] }
 mockito = "^1.7.2"
 # A scripted mock of the OpenAI API, on the server generated from the same spec as openai-client-base.
 openai-mock-server = "^0.2.0"
 tracing-subscriber = { version = "^0.3.23", features = ["env-filter"] }
-regex = "^1.13.1"
+regex = "^1.13.2"
 tempfile = "^3.27.0"
 # InMemorySpanExporter for the interceptor's span attribute tests.
 opentelemetry_sdk = { version = "^0.33.1", features = ["trace", "testing"] }
