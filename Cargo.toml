@@ -38,8 +38,8 @@ serde_json = "^1.0.154"
 # `sync` and `macros` (`select!`) work on any target; the runtime, timers and files only natively (below).
 tokio = { version = "^1.54.1", features = ["macros", "sync"] }
 reqwest = { version = "^0.13.5", default-features = false }
-timvw-rust-runtime = { version = "^0.4.0", default-features = false, features = ["reqwest", "retry", "fs"] }
-tower = { version = "^0.5.2", default-features = false, features = ["util", "retry"] }
+timvw-rust-runtime = { version = "^0.4.2", default-features = false, features = ["reqwest", "retry", "fs"] }
+tower = { version = "^0.5.3", default-features = false, features = ["util", "retry"] }
 url = "^2.5.9"
 futures = "^0.3.34"
 thiserror = "^2.0.21"
@@ -58,13 +58,13 @@ sha2 = { version = "^0.11.1", optional = true }
 # Streaming callbacks (`spawn`), retry backoff of upload parts (`time`), media saved to files (`fs`).
 tokio = { version = "^1.54.1", features = ["rt", "time", "fs"] }
 # test-utils: MockOpenAIServer wraps openai-mock-server.
-openai-mock-server = { version = "^0.2.0", optional = true }
+openai-mock-server = { version = "^0.2.5", optional = true }
 
 # WebAssembly in a JavaScript host (wasm32-unknown-unknown): streaming callbacks run with `spawn_local`, timers are the
 # host's `setTimeout` and clocks `performance.now()`/`Date.now()` (std's panic there). See docs/webassembly.md.
 [target.'cfg(target_family = "wasm")'.dependencies]
-wasm-bindgen-futures = "0.4"
-gloo-timers = { version = "0.4", features = ["futures"] }
+wasm-bindgen-futures = "0.4.80"
+gloo-timers = { version = "0.4.1", features = ["futures"] }
 web-time = "1.1.0"
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
@@ -72,19 +72,19 @@ tokio = { version = "^1.54.1", features = ["full"] }
 tokio-stream = { version = "^0.1.19", features = ["io-util"] }
 mockito = "^1.7.2"
 # A scripted mock of the OpenAI API, on the server generated from the same spec as openai-client-base.
-openai-mock-server = "^0.2.0"
+openai-mock-server = "^0.2.5"
 tracing-subscriber = { version = "^0.3.23", features = ["env-filter"] }
 regex = "^1.13.2"
 tempfile = "^3.27.0"
 # InMemorySpanExporter for the interceptor's span attribute tests.
 opentelemetry_sdk = { version = "^0.33.1", features = ["trace", "testing"] }
-rand = "^0.10.3"
-tower = { version = "^0.5.2", features = ["util", "retry", "timeout"] }
+rand = "^0.10.4"
+tower = { version = "^0.5.3", features = ["util", "retry", "timeout"] }
 reqwest = { version = "^0.13.5", default-features = false, features = ["json", "stream"] }
 
 # `tests/wasm.rs`, run in Node.js with wasm-bindgen-test-runner (see docs/webassembly.md).
 [target.'cfg(target_family = "wasm")'.dev-dependencies]
-wasm-bindgen-test = "0.3"
+wasm-bindgen-test = "0.3.80"
 
 [features]
 default = ["rustls-tls", "otel"]

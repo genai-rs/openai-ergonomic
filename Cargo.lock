@@ -1646,7 +1646,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
- "rand 0.10.3",
+ "rand 0.10.4",
  "regex",
  "reqwest",
  "serde",
@@ -1668,9 +1668,9 @@ dependencies = [
 
 [[package]]
 name = "openai-mock-server"
-version = "0.2.0"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e11f3aa88114e679e2315f239f8430807d21172a3486637845de16d422fdd77f"
+checksum = "5b9088f55a1d0419bc7b14f32c294b7fcd7e142994e6c006f5d6c013d6c9eaa2"
 dependencies = [
  "axum",
  "bon",
@@ -1683,6 +1683,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "serde_with",
+ "timvw-rust-runtime",
  "tokio",
  "url",
 ]
@@ -1966,7 +1967,7 @@ dependencies = [
  "bytes",
  "getrandom 0.4.3",
  "lru-slab",
- "rand 0.10.3",
+ "rand 0.10.4",
  "rand_pcg",
  "ring",
  "rustc-hash",
@@ -2026,9 +2027,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65c9fb96cbc91e3478eaae79a69fcd3f1ae4ad052e471fe6732fff548984b4af"
+checksum = "8f6fa277c67e6ea590466f04c3fe82cb509f0864fe470643e5570de9514a9b11"
 dependencies = [
  "chacha20",
  "getrandom 0.4.3",
@@ -2704,15 +2705,16 @@ dependencies = [
 
 [[package]]
 name = "timvw-rust-runtime"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff895788b262e0587de17ba09223b952e402f242d9d520c6be4c2ef406872bc0"
+checksum = "b9db8e3b7e64c56350fff9fd38c523776778fa744a404ee760d9a570e8db17a0"
 dependencies = [
  "base64",
  "bytes",
  "futures-core",
  "futures-util",
  "gloo-timers",
+ "hmac",
  "http",
  "http-body",
  "http-body-util",
@@ -2723,6 +2725,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "sha2",
  "sync_wrapper",
  "tokio",
  "tower",
